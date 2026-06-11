@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Login</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      }
+      .card {
+        background: rgba(255,255,255,0.08);
+        -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+        border-radius: 20px; padding: 44px 38px;
+        width: 100%; max-width: 380px; color: white;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+      }
+      .logo { text-align: center; margin-bottom: 32px; }
+      .logo .icon { font-size: 44px; }
+      .logo h1 { font-size: 22px; font-weight: 700; margin-top: 12px; }
+      .logo p { font-size: 13px; opacity: 0.55; margin-top: 5px; }
+      label {
+        display: block; font-size: 12px; opacity: 0.7;
+        font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px;
+      }
+      input {
+        width: 100%; padding: 12px 14px;
+        border: none; border-radius: 10px;
+        background: rgba(255,255,255,0.15); color: white; font-size: 15px;
+        outline: none; transition: 0.2s; margin-bottom: 20px;
+      }
+      input::placeholder { color: rgba(255,255,255,0.4); }
+      input:focus { background: rgba(255,255,255,0.25); }
+      .btn {
+        width: 100%; padding: 13px; border: none; border-radius: 10px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        color: white; font-size: 15px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(102,126,234,0.4); }
+      .error {
+        background: rgba(239,68,68,0.18); border: 1px solid rgba(239,68,68,0.4);
+        border-radius: 9px; padding: 11px 15px;
+        color: #fca5a5; font-size: 13px; margin-bottom: 18px;
+      }
+      .footer-link { text-align: center; margin-top: 22px; font-size: 13px; opacity: 0.5; }
+      .footer-link a { color: #a78bfa; text-decoration: none; }
+      .footer-link a:hover { opacity: 0.8; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">
+        <div class="icon">👤</div>
+        <h1>Employee Portal</h1>
+        <p>Attendance Management System</p>
+      </div>
+
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <form action="/employee_login" method="POST">
+        <label>Employee ID</label>
+        <input type="text" name="emp_id" placeholder="Enter your Employee ID"
+               required autofocus title="Your Employee ID" />
+        <button type="submit" class="btn">Sign In</button>
+      </form>
+
+      <div class="footer-link">
+        Admin? <a href="/admin_login">Login here</a>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.25);
+        backdrop-filter: blur(12px);
+        padding: 25px 18px;
+        color: white;
+        display: flex; flex-direction: column;
+      }
+      .sidebar .brand { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+      .sidebar .brand-sub { font-size: 12px; opacity: 0.65; margin-bottom: 30px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 14px; margin: 4px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px;
+        transition: 0.25s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.18); }
+      .nav-item.active { background: rgba(255,255,255,0.22); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
+      .sidebar-footer { margin-top: auto; font-size: 12px; opacity: 0.55; padding-top: 20px; }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; }
+      .page-header { color: white; margin-bottom: 22px; }
+      .page-header h1 { font-size: 26px; }
+      .page-header p { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+
+      /* STAT CARDS */
+      .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+      .stat-card {
+        background: rgba(255,255,255,0.18);
+        backdrop-filter: blur(10px);
+        border-radius: 14px;
+        padding: 20px;
+        color: white;
+        text-align: center;
+      }
+      .stat-card .num { font-size: 38px; font-weight: 700; line-height: 1; }
+      .stat-card .lbl { font-size: 13px; opacity: 0.8; margin-top: 6px; }
+      .stat-card.green .num { color: #6ee56e; }
+      .stat-card.red   .num { color: #ff7e7e; }
+      .stat-card.yellow .num { color: #ffd166; }
+      .stat-card.blue  .num { color: #7ecfff; }
+
+      /* SECTION */
+      .section {
+        background: rgba(255,255,255,0.12);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 22px;
+        margin-bottom: 22px;
+        color: white;
+      }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+      /* FORMS GRID */
+      .forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+      .form-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 14px;
+        padding: 20px;
+        color: white;
+      }
+      .form-card h4 { margin-bottom: 14px; font-size: 15px; }
+      .form-card input {
+        width: 100%; padding: 10px 12px;
+        border: none; border-radius: 8px;
+        background: rgba(255,255,255,0.2);
+        color: white; font-size: 14px;
+        margin-bottom: 10px; outline: none;
+      }
+      .form-card input::placeholder { color: rgba(255,255,255,0.6); }
+      .form-card input:focus { background: rgba(255,255,255,0.3); }
+      .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.25s; }
+      .btn:hover { transform: translateY(-1px); }
+      .btn-blue   { background: #3b82f6; color: white; }
+      .btn-green  { background: #22c55e; color: white; }
+      .btn-purple { background: #a855f7; color: white; }
+      .input-file { color: rgba(255,255,255,0.7); padding: 8px; }
+      .btn-mt     { margin-top: 4px; }
+
+      /* TABLE */
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: rgba(255,255,255,0.15); padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(255,255,255,0.06); }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+      .badge-green  { background: rgba(110,229,110,0.2); color: #6ee56e; border: 1px solid rgba(110,229,110,0.4); }
+      .badge-yellow { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.4); }
+      .badge-red    { background: rgba(255,126,126,0.2); color: #ff7e7e; border: 1px solid rgba(255,126,126,0.4); }
+      .badge-blue   { background: rgba(126,207,255,0.2); color: #7ecfff; border: 1px solid rgba(126,207,255,0.4); }
+      .badge-gray   { background: rgba(200,200,200,0.15); color: #ccc; border: 1px solid rgba(200,200,200,0.3); }
+
+      /* LIVE CLOCK */
+      .clock { font-size: 14px; opacity: 0.75; margin-top: 2px; }
+
+      /* PENDING BADGE */
+      .badge-count {
+        margin-left: auto;
+        background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px;
+        font-size: 11px; font-weight: 700;
+      }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .sidebar .brand, .sidebar .brand-sub { display: none; }
+        .nav-sep { display: none; }
+        .sidebar-footer { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management System</div>
+
+      <a class="nav-item active" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests
+        {% if (pending_leaves | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_leaves }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations
+        {% if (pending_resignations | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_resignations }}</span>
+        {% endif %}
+      </a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+
+      <div class="sidebar-footer">
+        Shift: {{ shift_start }} – {{ shift_end }}
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>Admin Dashboard</h1>
+        <p>{{ today }} &nbsp;|&nbsp; <span id="clock" class="clock"></span></p>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="stat-card blue">
+          <div class="num">{{ total }}</div>
+          <div class="lbl">👥 Total Employees</div>
+        </div>
+        <div class="stat-card green">
+          <div class="num">{{ present }}</div>
+          <div class="lbl">✅ Present Today</div>
+        </div>
+        <div class="stat-card red">
+          <div class="num">{{ absent }}</div>
+          <div class="lbl">❌ Absent Today</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="num">{{ late }}</div>
+          <div class="lbl">⚠️ Late Logins</div>
+        </div>
+      </div>
+
+      <!-- TODAY'S ATTENDANCE -->
+      <div class="section">
+        <h3>📋 Today's Attendance</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Emp ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Login Time</th>
+                <th>Login Status</th>
+                <th>Logout Time</th>
+                <th>Logout Status</th>
+                <th>Attendance Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in today_rows %}
+              {% set emp_id, name, login_t, logout_t, login_s, logout_s, att_type, role = row %}
+              <tr>
+                <td>{{ emp_id }}</td>
+                <td>{{ name }}</td>
+                <td>
+                  {% if role %}
+                    <span class="badge badge-blue">{{ role }}</span>
+                  {% else %}
+                    <span class="badge badge-gray">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ login_t | fmt_time }}</td>
+                <td>
+                  {% if login_s == 'Full Day Login' %}
+                    <span class="badge badge-green">Full Day Login</span>
+                  {% elif login_s == 'Late Login' %}
+                    <span class="badge badge-yellow">Late Login</span>
+                  {% elif login_s == 'Half Day Login' %}
+                    <span class="badge badge-red">Half Day Login</span>
+                  {% else %}
+                    <span class="badge badge-gray">Absent</span>
+                  {% endif %}
+                </td>
+                <td>{{ logout_t | fmt_time }}</td>
+                <td>
+                  {% if logout_s == 'Completed' %}
+                    <span class="badge badge-green">Completed</span>
+                  {% elif logout_s == 'Early Logout' %}
+                    <span class="badge badge-yellow">Early Logout</span>
+                  {% elif logout_s == 'Half Day Logout' %}
+                    <span class="badge badge-red">Half Day Logout</span>
+                  {% elif login_t %}
+                    <span class="badge badge-blue">Still In</span>
+                  {% else %}
+                    <span class="badge badge-gray">--</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if att_type == 'Full Day' %}
+                    <span class="badge badge-green">Full Day</span>
+                  {% elif att_type == 'Late - Full Day' %}
+                    <span class="badge badge-yellow">Late – Full Day</span>
+                  {% elif att_type == 'Half Day' %}
+                    <span class="badge badge-red">Half Day</span>
+                  {% elif login_t and not logout_t %}
+                    <span class="badge badge-blue">In Progress</span>
+                  {% else %}
+                    <span class="badge badge-gray">Absent</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="section">
+        <h3>⚡ Quick Actions</h3>
+        <div class="forms-grid">
+
+          <!-- REGISTER -->
+          <div class="form-card">
+            <h4>👤 Register Employee</h4>
+            <form action="/admin_action" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="action" value="register" />
+              <input type="text" name="name" placeholder="Employee Name" required />
+              <input type="text" name="emp_id" placeholder="Employee ID" required />
+              <input type="email" name="email" placeholder="Employee Email (for salary slips)" />
+              <input type="text" name="role" placeholder="Role / Designation (e.g. Developer)" />
+              <input type="file" name="face" accept="image/*" required
+                class="input-file" title="Upload employee face photo" />
+              <button type="submit" class="btn btn-blue btn-mt">Register</button>
+            </form>
+          </div>
+
+          <!-- HOLIDAY -->
+          <div class="form-card">
+            <h4>📅 Add Holiday</h4>
+            <form action="/admin_action" method="POST">
+              <input type="hidden" name="action" value="holiday" />
+              <input type="date" name="date" required title="Holiday date" />
+              <input type="text" name="holiday_name" placeholder="Holiday Name" required />
+              <button type="submit" class="btn btn-green">Add Holiday</button>
+            </form>
+          </div>
+
+          <!-- SALARY -->
+          <div class="form-card">
+            <h4>💰 Set Daily Salary</h4>
+            <form action="/admin_action" method="POST">
+              <input type="hidden" name="action" value="salary" />
+              <input type="text" name="emp_id" placeholder="Employee ID" required />
+              <input type="number" name="salary" placeholder="Salary per day (₹)" step="0.01" min="0" required />
+              <button type="submit" class="btn btn-purple">Update Salary</button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /main -->
+
+    <script>
+      function updateClock() {
+        const now = new Date();
+        document.getElementById("clock").innerText = now.toLocaleTimeString("en-IN", {hour12: true});
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+    </script>
+
+  </body>
+</html>

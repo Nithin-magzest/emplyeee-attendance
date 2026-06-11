@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leave Requests</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.25);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin: 3px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+
+      .section {
+        background: rgba(255,255,255,0.08);
+        border-radius: 16px; padding: 22px; margin-bottom: 22px;
+      }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+      /* TABLE */
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th {
+        background: rgba(255,255,255,0.12);
+        padding: 11px 16px; text-align: left;
+        font-weight: 600; white-space: nowrap;
+      }
+      td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: middle; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(255,255,255,0.04); }
+      .empty-cell { text-align: center; padding: 32px; opacity: 0.45; }
+      .row-pending { background: rgba(251,191,36,0.04); }
+
+      .emp-id { font-size: 11px; opacity: 0.5; display: block; margin-top: 2px; }
+      .td-reason { max-width: 220px; white-space: normal; }
+      .td-date   { opacity: 0.55; font-size: 12px; }
+      .done-lbl  { opacity: 0.35; font-size: 12px; }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+      .b-pending  { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
+      .b-approved { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
+      .b-rejected { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+
+      /* ACTION BUTTONS */
+      .btn-approve {
+        padding: 5px 13px; border: none; border-radius: 7px;
+        background: rgba(34,197,94,0.22); color: #4ade80;
+        border: 1px solid rgba(34,197,94,0.4); font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: 0.2s; margin-right: 6px;
+      }
+      .btn-approve:hover { background: rgba(34,197,94,0.45); color: #fff; }
+      .btn-reject {
+        padding: 5px 13px; border: none; border-radius: 7px;
+        background: rgba(239,68,68,0.18); color: #f87171;
+        border: 1px solid rgba(239,68,68,0.35); font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-reject:hover { background: rgba(239,68,68,0.42); color: #fff; }
+      .form-inline { display: inline; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: unset; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item active" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+    </div>
+
+    <div class="main">
+      <div class="page-header">
+        <h1>📋 Leave Requests</h1>
+        <p>{{ leaves | length }} request(s) total — pending requests shown first</p>
+      </div>
+
+      <div class="section">
+        <h3>📨 All Requests</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Employee</th>
+                <th>Leave Date</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lv in leaves %}
+              {% set lid, emp_name, emp_id, leave_date, reason, status, created_at = lv %}
+              <tr {% if status == 'Pending' %}class="row-pending"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>
+                  {{ emp_name }}
+                  <span class="emp-id">{{ emp_id }}</span>
+                </td>
+                <td>{{ leave_date }}</td>
+                <td class="td-reason">{{ reason }}</td>
+                <td>
+                  {% if status == 'Approved' %}
+                    <span class="badge b-approved">✅ Approved</span>
+                  {% elif status == 'Rejected' %}
+                    <span class="badge b-rejected">❌ Rejected</span>
+                  {% else %}
+                    <span class="badge b-pending">⏳ Pending</span>
+                  {% endif %}
+                </td>
+                <td class="td-date">
+                  {{ created_at.strftime('%d %b %Y') if created_at else '—' }}
+                </td>
+                <td>
+                  {% if status == 'Pending' %}
+                  <form action="/leave_action/{{ lid }}" method="POST" class="form-inline">
+                    <input type="hidden" name="action" value="Approved" />
+                    <button type="submit" class="btn-approve">✓ Approve</button>
+                  </form>
+                  <form action="/leave_action/{{ lid }}" method="POST" class="form-inline">
+                    <input type="hidden" name="action" value="Rejected" />
+                    <button type="submit" class="btn-reject">✗ Reject</button>
+                  </form>
+                  {% else %}
+                    <span class="done-lbl">Done</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="empty-cell">No leave requests yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

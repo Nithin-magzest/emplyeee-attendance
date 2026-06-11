@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Portal — {{ emp[1] }}</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.3);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 6px; }
+      .nav-emp { font-size: 13px; opacity: 0.6; padding: 6px 14px; margin-bottom: 16px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin: 3px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-resign { color: #fca5a5 !important; }
+      .nav-resign:hover { background: rgba(239,68,68,0.15) !important; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+
+      /* TOAST */
+      .toast {
+        border-radius: 10px; padding: 12px 18px;
+        font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+      }
+      .toast-green { background: rgba(34,197,94,0.15);  border: 1px solid rgba(34,197,94,0.35);  color: #6ee56e; }
+      .toast-red   { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);   color: #fca5a5; }
+
+      /* CARDS ROW */
+      .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+      .card {
+        background: rgba(255,255,255,0.08);
+        border-radius: 16px; padding: 22px;
+      }
+      .card-title { font-size: 13px; opacity: 0.65; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+
+      /* PROFILE */
+      .profile-avatar {
+        width: 50px; height: 50px; border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; font-weight: 700; margin-bottom: 12px;
+      }
+      .profile-name { font-size: 17px; font-weight: 700; }
+      .profile-sub  { font-size: 12px; opacity: 0.5; margin-top: 2px; }
+      .profile-rows { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+      .profile-row  { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+      .profile-row .lbl { opacity: 0.5; width: 52px; flex-shrink: 0; font-size: 12px; }
+      .badge-role {
+        display: inline-block; padding: 2px 9px; border-radius: 20px;
+        font-size: 12px; font-weight: 600;
+        background: rgba(126,207,255,0.15); color: #7ecfff;
+        border: 1px solid rgba(126,207,255,0.3);
+      }
+
+      /* TODAY CARD */
+      .att-status {
+        font-size: 15px; font-weight: 700; padding: 6px 14px;
+        border-radius: 20px; display: inline-block; margin-bottom: 14px;
+      }
+      .s-green  { background: rgba(110,229,110,0.2); color: #6ee56e; border: 1px solid rgba(110,229,110,0.4); }
+      .s-yellow { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.4); }
+      .s-red    { background: rgba(255,126,126,0.2); color: #ff7e7e; border: 1px solid rgba(255,126,126,0.4); }
+      .s-blue   { background: rgba(126,207,255,0.2); color: #7ecfff; border: 1px solid rgba(126,207,255,0.4); }
+      .s-gray   { background: rgba(200,200,200,0.15); color: #ccc;   border: 1px solid rgba(200,200,200,0.3); }
+
+      .time-row { display: flex; gap: 16px; flex-wrap: wrap; }
+      .time-item { display: flex; flex-direction: column; gap: 3px; }
+      .time-lbl { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.4px; }
+      .time-val { font-weight: 600; font-size: 15px; }
+
+      /* STATS */
+      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+      .stat-card { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 16px; text-align: center; }
+      .stat-card .num { font-size: 32px; font-weight: 700; line-height: 1; }
+      .stat-card .lbl { font-size: 12px; opacity: 0.65; margin-top: 5px; }
+      .stat-green  .num { color: #6ee56e; }
+      .stat-yellow .num { color: #ffd166; }
+      .stat-red    .num { color: #ff7e7e; }
+      .stat-blue   .num { color: #7ecfff; }
+
+      /* SECTION */
+      .section { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 22px; margin-bottom: 22px; }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+      /* TABLE */
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: rgba(255,255,255,0.1); padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(255,255,255,0.04); }
+      .empty-cell { text-align: center; padding: 30px; opacity: 0.45; }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+      .b-green  { background: rgba(110,229,110,0.2); color: #6ee56e; border: 1px solid rgba(110,229,110,0.4); }
+      .b-yellow { background: rgba(255,209,102,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.4); }
+      .b-red    { background: rgba(255,126,126,0.2); color: #ff7e7e; border: 1px solid rgba(255,126,126,0.4); }
+      .b-blue   { background: rgba(126,207,255,0.2); color: #7ecfff; border: 1px solid rgba(126,207,255,0.4); }
+      .b-gray   { background: rgba(200,200,200,0.15); color: #ccc;   border: 1px solid rgba(200,200,200,0.3); }
+      .b-purple { background: rgba(168,139,250,0.2); color: #a78bfa; border: 1px solid rgba(168,139,250,0.4); }
+
+      /* LEAVE FORM */
+      .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+      .form-group label { font-size: 12px; opacity: 0.7; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+      .form-group input[type="date"] {
+        padding: 10px 13px; border: none; border-radius: 9px;
+        background: rgba(255,255,255,0.15); color: white; font-size: 14px; outline: none;
+        max-width: 220px; transition: 0.2s;
+      }
+      .form-group input[type="date"]:focus { background: rgba(255,255,255,0.25); }
+
+      .reasons-label { font-size: 12px; opacity: 0.7; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
+      .reason-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .reason-chip {
+        padding: 8px 16px; border-radius: 25px; cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.07); color: white;
+        font-size: 13px; transition: 0.2s; user-select: none;
+      }
+      .reason-chip:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+      .reason-chip.active {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-color: transparent; font-weight: 600;
+      }
+      .other-group { display: none; margin-bottom: 14px; }
+      .other-group textarea {
+        width: 100%; padding: 10px 13px; border: none; border-radius: 9px;
+        background: rgba(255,255,255,0.15); color: white; font-size: 14px;
+        outline: none; resize: vertical; min-height: 80px; transition: 0.2s;
+      }
+      .other-group textarea::placeholder { color: rgba(255,255,255,0.4); }
+      .other-group textarea:focus { background: rgba(255,255,255,0.22); }
+
+      .btn-leave {
+        padding: 11px 28px; border: none; border-radius: 10px;
+        background: linear-gradient(90deg, #22c55e, #16a34a);
+        color: white; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-leave:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(34,197,94,0.35); }
+
+      /* RESIGN */
+      .resign-warning {
+        background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+        border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+        color: #fca5a5; font-size: 13px; line-height: 1.6;
+      }
+      .resign-warning strong { color: #f87171; }
+      .btn-resign {
+        padding: 11px 28px; border: none; border-radius: 10px;
+        background: linear-gradient(90deg, #ef4444, #b91c1c);
+        color: white; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-resign:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(239,68,68,0.4); }
+      .lwd-hint { opacity: 0.55; font-weight: 400; }
+      .confirm-group { margin-top: 6px; }
+      .confirm-label { display: flex; align-items: center; gap: 8px; text-transform: none; font-size: 13px; opacity: 0.8; cursor: pointer; }
+      .confirm-check { width: 16px; height: 16px; accent-color: #ef4444; flex-shrink: 0; }
+      .resign-new-title { margin-bottom: 14px; margin-top: 20px; }
+      .resign-status-card {
+        background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 14px; padding: 20px;
+      }
+      .rs-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; }
+      .rs-lbl { opacity: 0.55; min-width: 140px; flex-shrink: 0; font-size: 13px; }
+
+      /* LEAVE STATUS BADGES */
+      .ls-pending  { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
+      .ls-approved { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
+      .ls-rejected { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+
+      @media (max-width: 900px) {
+        .cards-row { grid-template-columns: 1fr; }
+        .stats { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: unset; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="sidebar">
+      <div class="brand">👤 My Portal</div>
+      <div class="brand-sub">Employee Self-Service</div>
+      <div class="nav-emp">{{ emp[1] }}</div>
+      <a class="nav-item active" href="/employee_portal">🏠 Dashboard</a>
+      <a class="nav-item" href="#attendance">📋 My Attendance</a>
+      <a class="nav-item" href="#apply-leave">📝 Apply Leave</a>
+      <a class="nav-item" href="#leave-history">📬 Leave History</a>
+      <a class="nav-item nav-resign" href="#resign">🚨 Resign</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/employee_logout">🚪 Logout</a>
+    </div>
+
+    <div class="main">
+
+      {% if leave_sent %}
+      <div class="toast toast-green">✅ Leave request submitted! Admin has been notified by email.</div>
+      {% endif %}
+      {% if resigned %}
+      <div class="toast toast-red">📤 Resignation submitted. Admin has been notified by email.</div>
+      {% endif %}
+
+      <div class="page-header">
+        <h1>Welcome, {{ emp[1] }}! 👋</h1>
+        <p>{{ today }} &nbsp;|&nbsp; <span id="clock"></span></p>
+      </div>
+
+      <!-- PROFILE + TODAY ROW -->
+      <div class="cards-row">
+
+        <!-- PROFILE CARD -->
+        <div class="card">
+          <div class="card-title">👤 My Profile</div>
+          <div class="profile-avatar">{{ emp[1][0] | upper }}</div>
+          <div class="profile-name">{{ emp[1] }}</div>
+          <div class="profile-sub">ID: {{ emp[0] }}</div>
+          <div class="profile-rows">
+            <div class="profile-row">
+              <span class="lbl">Role</span>
+              {% if emp[2] %}
+                <span class="badge-role">{{ emp[2] }}</span>
+              {% else %}
+                <span style="opacity:0.35">—</span>
+              {% endif %}
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Email</span>
+              <span>{{ emp[3] or '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TODAY'S ATTENDANCE -->
+        <div class="card">
+          <div class="card-title">📅 Today's Attendance &nbsp;<span style="font-size:11px;">{{ today }}</span></div>
+          {% if today_att %}
+            {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
+            <div>
+              {% if att_type == 'Full Day' %}
+                <span class="att-status s-green">✅ Full Day</span>
+              {% elif att_type == 'Late - Full Day' %}
+                <span class="att-status s-yellow">⚠️ Late — Full Day</span>
+              {% elif att_type == 'Half Day' %}
+                <span class="att-status s-red">🔶 Half Day</span>
+              {% elif login_t and not logout_t %}
+                <span class="att-status s-blue">🔵 Currently In</span>
+              {% else %}
+                <span class="att-status s-gray">— Absent</span>
+              {% endif %}
+            </div>
+            <div class="time-row">
+              <div class="time-item">
+                <div class="time-lbl">Login</div>
+                <div class="time-val">{{ login_t | fmt_time }}</div>
+              </div>
+              <div class="time-item">
+                <div class="time-lbl">Login Status</div>
+                <div class="time-val">
+                  {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
+                  {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
+                  {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
+                  {% else %}<span class="badge b-gray">—</span>{% endif %}
+                </div>
+              </div>
+              <div class="time-item">
+                <div class="time-lbl">Logout</div>
+                <div class="time-val">{{ logout_t | fmt_time }}</div>
+              </div>
+              <div class="time-item">
+                <div class="time-lbl">Logout Status</div>
+                <div class="time-val">
+                  {% if logout_s == 'Completed' %}<span class="badge b-green">Done</span>
+                  {% elif logout_s == 'Early Logout' %}<span class="badge b-yellow">Early</span>
+                  {% elif logout_s == 'Half Day Logout' %}<span class="badge b-red">Half</span>
+                  {% elif login_t %}<span class="badge b-blue">Still In</span>
+                  {% else %}<span class="badge b-gray">—</span>{% endif %}
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div style="opacity:0.45;font-size:14px;padding:10px 0;">No attendance recorded today.</div>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- MONTHLY STATS -->
+      <div class="stats">
+        <div class="stat-card stat-green">
+          <div class="num">{{ full_days }}</div>
+          <div class="lbl">✅ Full Days</div>
+        </div>
+        <div class="stat-card stat-yellow">
+          <div class="num">{{ late_days }}</div>
+          <div class="lbl">⚠️ Late Days</div>
+        </div>
+        <div class="stat-card stat-yellow">
+          <div class="num">{{ half_days }}</div>
+          <div class="lbl">🔶 Half Days</div>
+        </div>
+        <div class="stat-card stat-red">
+          <div class="num">{{ absent_days }}</div>
+          <div class="lbl">❌ Absent</div>
+        </div>
+      </div>
+
+      <!-- MONTHLY ATTENDANCE TABLE -->
+      <div class="section" id="attendance">
+        <h3>📋 {{ month_name }} Attendance
+          <span style="font-weight:400;opacity:0.5;font-size:13px;">({{ billable }} working days)</span>
+        </h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Login Time</th>
+                <th>Logout Time</th>
+                <th>Login Status</th>
+                <th>Attendance Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rec in monthly_att %}
+              {% set att_date, login_t, logout_t, login_s, logout_s, att_type = rec %}
+              <tr>
+                <td>{{ att_date.strftime('%d %b, %a') if att_date else '—' }}</td>
+                <td>{{ login_t | fmt_time }}</td>
+                <td>{{ logout_t | fmt_time }}</td>
+                <td>
+                  {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
+                  {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
+                  {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
+                  {% else %}<span class="badge b-gray">—</span>{% endif %}
+                </td>
+                <td>
+                  {% if att_type == 'Full Day' %}<span class="badge b-green">Full Day</span>
+                  {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late – Full</span>
+                  {% elif att_type == 'Half Day' %}<span class="badge b-red">Half Day</span>
+                  {% elif login_t and not logout_t %}<span class="badge b-blue">In Progress</span>
+                  {% else %}<span class="badge b-gray">—</span>{% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="empty-cell">No attendance records this month yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- APPLY FOR LEAVE -->
+      <div class="section" id="apply-leave">
+        <h3>📝 Apply for Leave</h3>
+        <form action="/request_leave" method="POST" id="leave-form">
+
+          <div class="form-group">
+            <label>Leave Date</label>
+            <input type="date" name="leave_date" id="leave-date"
+                   required title="Select date for leave" />
+          </div>
+
+          <div class="reasons-label">Select Reason</div>
+          <div class="reason-chips">
+            <div class="reason-chip" data-reason="Sick Leave">🤒 Sick Leave</div>
+            <div class="reason-chip" data-reason="Personal Work">🏠 Personal Work</div>
+            <div class="reason-chip" data-reason="Family Emergency">👨‍👩‍👧 Family Emergency</div>
+            <div class="reason-chip" data-reason="Medical Appointment">💊 Medical Appointment</div>
+            <div class="reason-chip" data-reason="Vacation">✈️ Vacation</div>
+            <div class="reason-chip" data-reason="__other__">✏️ Other...</div>
+          </div>
+
+          <div class="other-group" id="other-group">
+            <textarea id="other-text"
+                      placeholder="Describe your reason for leave…"
+                      title="Enter leave reason"></textarea>
+          </div>
+
+          <input type="hidden" name="reason" id="reason-input" />
+
+          <button type="submit" class="btn-leave">Submit Leave Request</button>
+        </form>
+      </div>
+
+      <!-- MY LEAVE HISTORY -->
+      <div class="section" id="leave-history">
+        <h3>📬 My Leave Requests</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Leave Date</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted On</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lv in my_leaves %}
+              {% set lv_date, lv_reason, lv_status, lv_created = lv %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ lv_date }}</td>
+                <td>{{ lv_reason }}</td>
+                <td>
+                  {% if lv_status == 'Approved' %}
+                    <span class="badge ls-approved">✅ Approved</span>
+                  {% elif lv_status == 'Rejected' %}
+                    <span class="badge ls-rejected">❌ Rejected</span>
+                  {% else %}
+                    <span class="badge ls-pending">⏳ Pending</span>
+                  {% endif %}
+                </td>
+                <td style="opacity:0.55;font-size:12px;">
+                  {{ lv_created.strftime('%d %b %Y') if lv_created else '—' }}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="empty-cell">No leave requests submitted yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RESIGNATION SECTION -->
+      <div class="section" id="resign">
+        <h3>🚨 Resignation</h3>
+
+        {% if my_resignation %}
+          {% set res_lwd, res_reason, res_status, res_created = my_resignation %}
+          <div class="resign-status-card">
+            <div class="rs-row">
+              <span class="rs-lbl">Status</span>
+              {% if res_status == 'Accepted' %}
+                <span class="badge b-red">✅ Accepted</span>
+              {% elif res_status == 'Declined' %}
+                <span class="badge b-gray">❌ Declined</span>
+              {% else %}
+                <span class="badge b-yellow">⏳ Pending Review</span>
+              {% endif %}
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Last Working Day</span>
+              <span>{{ res_lwd }}</span>
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Reason</span>
+              <span>{{ res_reason }}</span>
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Submitted On</span>
+              <span style="opacity:0.55;font-size:12px;">{{ res_created.strftime('%d %b %Y') if res_created else '—' }}</span>
+            </div>
+            {% if res_status == 'Declined' %}
+            <p style="margin-top:14px;font-size:13px;opacity:0.65;">Your resignation was declined. You may submit a new one below.</p>
+            {% endif %}
+          </div>
+
+          {% if res_status == 'Declined' %}
+          <div>
+            <p class="reasons-label resign-new-title">Submit New Resignation</p>
+            <div class="resign-warning">
+              <strong>⚠️ Please read before proceeding:</strong><br>
+              A <strong>1-month notice period</strong> is required. Your last working day must be at least
+              30 days from today. Submit at least 15 days before your chosen last day.
+              This action is official and cannot be undone.
+            </div>
+            <form action="/request_resignation" method="POST" id="resign-form-d">
+              <div class="form-group">
+                <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
+                <input type="date" name="last_working_day" id="resign-date-d" required title="Select your last working day" />
+              </div>
+              <div class="reasons-label">Reason for Resignation</div>
+              <div class="reason-chips" id="resign-chips-d">
+                <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
+                <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
+                <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
+                <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
+                <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
+                <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
+              </div>
+              <div class="other-group" id="resign-other-group-d">
+                <textarea id="resign-other-text-d" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
+              </div>
+              <input type="hidden" name="resign_reason" id="resign-reason-input-d" />
+              <div class="form-group confirm-group">
+                <label class="confirm-label">
+                  <input type="checkbox" id="resign-confirm-d" class="confirm-check" required />
+                  I understand this resignation notice is official and cannot be undone.
+                </label>
+              </div>
+              <button type="submit" class="btn-resign">📤 Submit Resignation</button>
+            </form>
+          </div>
+          {% endif %}
+
+        {% else %}
+          <div class="resign-warning">
+            <strong>⚠️ Please read before proceeding:</strong><br>
+            A <strong>1-month notice period</strong> is required. Your last working day must be at least
+            30 days from today. You must apply at least 15 days before your chosen last day.
+            Submitting this form sends a formal resignation notice to the HR/Admin team. This action cannot be undone.
+          </div>
+          <form action="/request_resignation" method="POST" id="resign-form">
+            <div class="form-group">
+              <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
+              <input type="date" name="last_working_day" id="resign-date" required title="Select your last working day" />
+            </div>
+            <div class="reasons-label">Reason for Resignation</div>
+            <div class="reason-chips" id="resign-chips">
+              <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
+              <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
+              <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
+              <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
+              <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
+              <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
+            </div>
+            <div class="other-group" id="resign-other-group">
+              <textarea id="resign-other-text" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
+            </div>
+            <input type="hidden" name="resign_reason" id="resign-reason-input" />
+            <div class="form-group confirm-group">
+              <label class="confirm-label">
+                <input type="checkbox" id="resign-confirm" class="confirm-check" required />
+                I understand this resignation notice is official and cannot be undone.
+              </label>
+            </div>
+            <button type="submit" class="btn-resign">📤 Submit Resignation</button>
+          </form>
+        {% endif %}
+      </div>
+
+    </div><!-- /main -->
+
+    <script>
+      function updateClock() {
+        const now = new Date();
+        document.getElementById("clock").innerText =
+          now.toLocaleTimeString("en-IN", {hour12: true});
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // Default leave date to tomorrow
+      (function() {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        const iso = d.toISOString().split('T')[0];
+        document.getElementById('leave-date').value = iso;
+        document.getElementById('leave-date').min   = iso;
+      })();
+
+      // Reason chip selection
+      document.querySelectorAll('.reason-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          document.querySelectorAll('.reason-chip').forEach(function(c) {
+            c.classList.remove('active');
+          });
+          chip.classList.add('active');
+          var reason = chip.dataset.reason;
+          if (reason === '__other__') {
+            document.getElementById('other-group').style.display = 'block';
+            document.getElementById('reason-input').value = '';
+            document.getElementById('other-text').focus();
+          } else {
+            document.getElementById('other-group').style.display = 'none';
+            document.getElementById('reason-input').value = reason;
+          }
+        });
+      });
+
+      document.getElementById('other-text').addEventListener('input', function() {
+        document.getElementById('reason-input').value = this.value;
+      });
+
+      document.getElementById('leave-form').addEventListener('submit', function(e) {
+        if (!document.getElementById('reason-input').value.trim()) {
+          e.preventDefault();
+          alert('Please select a reason or click "Other..." to type your reason.');
+        }
+      });
+
+      // Resign chip selection — shared initializer for both forms
+      function initResignForm(sfx) {
+        var form = document.getElementById('resign-form' + sfx);
+        if (!form) return;
+        var chipsEl    = document.getElementById('resign-chips' + sfx);
+        var reasonEl   = document.getElementById('resign-reason-input' + sfx);
+        var otherGrp   = document.getElementById('resign-other-group' + sfx);
+        var otherTxt   = document.getElementById('resign-other-text' + sfx);
+        var dateEl     = document.getElementById('resign-date' + sfx);
+        var confirmEl  = document.getElementById('resign-confirm' + sfx);
+
+        chipsEl.querySelectorAll('.reason-chip').forEach(function(chip) {
+          chip.addEventListener('click', function() {
+            chipsEl.querySelectorAll('.reason-chip').forEach(function(c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            var reason = chip.dataset.reason;
+            if (reason === '__resign_other__') {
+              otherGrp.style.display = 'block';
+              reasonEl.value = '';
+              otherTxt.focus();
+            } else {
+              otherGrp.style.display = 'none';
+              reasonEl.value = reason;
+            }
+          });
+        });
+
+        otherTxt.addEventListener('input', function() {
+          reasonEl.value = this.value;
+        });
+
+        // Set min last working day to 30 days from today (1-month notice period)
+        (function() {
+          var d = new Date();
+          d.setDate(d.getDate() + 30);
+          var iso = d.toISOString().split('T')[0];
+          dateEl.min   = iso;
+          dateEl.value = iso;
+        })();
+
+        form.addEventListener('submit', function(e) {
+          if (!reasonEl.value.trim()) {
+            e.preventDefault();
+            alert('Please select a reason for resignation.');
+            return;
+          }
+          if (!confirmEl.checked) {
+            e.preventDefault();
+            alert('Please confirm you understand this action is official.');
+          }
+        });
+      }
+
+      initResignForm('');    // main form (no active resignation)
+      initResignForm('-d');  // re-submit form (after Declined)
+    </script>
+
+  </body>
+</html>

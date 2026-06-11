@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Salary Configuration</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.25); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin: 3px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+
+      .section {
+        background: rgba(255,255,255,0.08);
+        border-radius: 16px; padding: 22px; margin-bottom: 22px;
+      }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+      /* TABLE */
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th {
+        background: rgba(255,255,255,0.12);
+        padding: 11px 16px; text-align: left;
+        font-weight: 600; white-space: nowrap;
+      }
+      td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: middle; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(255,255,255,0.04); }
+
+      .emp-id  { font-size: 12px; opacity: 0.55; }
+      .salary-val { font-weight: 700; color: #6ee56e; font-size: 15px; }
+      .no-salary { color: rgba(255,255,255,0.35); font-style: italic; font-size: 13px; }
+      .badge-role {
+        display: inline-block; padding: 2px 9px;
+        border-radius: 20px; font-size: 12px; font-weight: 600;
+        background: rgba(126,207,255,0.15); color: #7ecfff;
+        border: 1px solid rgba(126,207,255,0.3);
+      }
+
+      /* EDIT INLINE */
+      .edit-form { display: none; align-items: center; gap: 8px; margin-top: 6px; }
+      .edit-form.open { display: flex; }
+      .edit-form input[type="number"] {
+        width: 130px; padding: 6px 10px;
+        border: none; border-radius: 7px;
+        background: rgba(255,255,255,0.2); color: white; font-size: 14px;
+        outline: none;
+      }
+      .edit-form input[type="number"]:focus { background: rgba(255,255,255,0.3); }
+      .btn-save {
+        padding: 6px 14px; border: none; border-radius: 7px;
+        background: #22c55e; color: white; font-size: 13px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-save:hover { background: #16a34a; }
+      .btn-cancel {
+        padding: 6px 12px; border: none; border-radius: 7px;
+        background: rgba(255,255,255,0.15); color: white; font-size: 13px;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-cancel:hover { background: rgba(255,255,255,0.25); }
+      .btn-edit {
+        padding: 5px 12px; border: none; border-radius: 7px;
+        background: rgba(59,130,246,0.25); color: #93c5fd;
+        border: 1px solid rgba(59,130,246,0.4); font-size: 12px;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-edit:hover { background: rgba(59,130,246,0.45); color: #fff; }
+
+      .empty-cell { text-align: center; padding: 30px; opacity: 0.5; }
+      .muted { opacity: 0.35; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: unset; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .brand, .brand-sub, .nav-sep { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item active" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+    </div>
+
+    <div class="main">
+      <div class="page-header">
+        <h1>💵 Salary Configuration</h1>
+        <p>{{ salaries | length }} employee(s) — click Edit to update daily wage</p>
+      </div>
+
+      <div class="section">
+        <h3>👥 All Employees</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Daily Salary (₹)</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in salaries %}
+              {% set emp_id, name, spd, role = s %}
+              <tr>
+                <td><span class="emp-id">{{ emp_id }}</span></td>
+                <td>{{ name }}</td>
+                <td>
+                  {% if role %}
+                    <span class="badge-role">{{ role }}</span>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div id="disp-{{ loop.index }}">
+                    {% if spd and spd > 0 %}
+                      <span class="salary-val">₹{{ "%.2f" | format(spd) }}</span>
+                    {% else %}
+                      <span class="no-salary">Not set</span>
+                    {% endif %}
+                  </div>
+                  <form action="/update_salary" method="POST"
+                        id="form-{{ loop.index }}" class="edit-form">
+                    <input type="hidden" name="emp_id" value="{{ emp_id }}" />
+                    <input type="number" name="salary" step="0.01" min="0"
+                           value="{{ spd if spd else '' }}"
+                           placeholder="₹ per day" title="Daily salary in rupees" required />
+                    <button type="submit" class="btn-save">Save</button>
+                    <button type="button" class="btn-cancel"
+                            data-idx="{{ loop.index }}">Cancel</button>
+                  </form>
+                </td>
+                <td>
+                  <button type="button" class="btn-edit"
+                          id="editbtn-{{ loop.index }}"
+                          data-idx="{{ loop.index }}">✏️ Edit</button>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="empty-cell">No employees found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function startEdit(i) {
+        document.getElementById("disp-" + i).style.display = "none";
+        document.getElementById("form-" + i).classList.add("open");
+        document.getElementById("editbtn-" + i).style.display = "none";
+      }
+      function cancelEdit(i) {
+        document.getElementById("disp-" + i).style.display = "";
+        document.getElementById("form-" + i).classList.remove("open");
+        document.getElementById("editbtn-" + i).style.display = "";
+      }
+
+      document.querySelectorAll(".btn-edit").forEach(function(btn) {
+        btn.addEventListener("click", function() { startEdit(btn.dataset.idx); });
+      });
+      document.querySelectorAll(".btn-cancel").forEach(function(btn) {
+        btn.addEventListener("click", function() { cancelEdit(btn.dataset.idx); });
+      });
+    </script>
+
+  </body>
+</html>

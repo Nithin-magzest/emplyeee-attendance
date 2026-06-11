@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendance Scanner</title>
+    <link rel="icon" href="data:," />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── TOP BAR ── */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 28px;
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        color: white;
+        flex-shrink: 0;
+      }
+
+      .topbar .brand {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+
+      .topbar .brand span {
+        opacity: 0.7;
+        font-weight: 400;
+        font-size: 13px;
+        margin-left: 10px;
+      }
+
+      .admin-login-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 20px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 10px;
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.25s;
+      }
+
+      .admin-login-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      /* ── PAGE BODY ── */
+      .page-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 20px;
+      }
+
+      /* ── SCANNER CARD ── */
+      .container {
+        width: 100%;
+        max-width: 460px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(14px);
+        border-radius: 24px;
+        padding: 36px 32px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+      }
+
+      .live-time {
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+
+      h2 { font-size: 26px; margin-bottom: 4px; }
+
+      .sub {
+        font-size: 13px;
+        opacity: 0.8;
+        margin-bottom: 24px;
+      }
+
+      /* ── SCANNER BOX ── */
+      .scanner-box {
+        width: 220px;
+        height: 220px;
+        margin: 0 auto 24px;
+        border: 3px solid rgba(255, 255, 255, 0.4);
+        border-radius: 18px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.06);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .scanner-line {
+        position: absolute;
+        top: 0;
+        width: 100%;
+        height: 3px;
+        background: #00ff88;
+        box-shadow: 0 0 12px #00ff88;
+        animation: scan 2.2s linear infinite;
+      }
+
+      @keyframes scan {
+        0%   { transform: translateY(0); }
+        100% { transform: translateY(220px); }
+      }
+
+      /* ── BUTTON ── */
+      .btn {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(90deg, #06b6d4, #3b82f6);
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); }
+      .btn:disabled { background: rgba(255, 255, 255, 0.2); cursor: not-allowed; transform: none; box-shadow: none; }
+
+      /* ── LOADER ── */
+      .loader { display: none; margin: 16px auto 0; }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .spinner {
+        width: 32px;
+        height: 32px;
+        margin: 0 auto;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #00ff88;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .loader-text { font-size: 13px; margin-top: 8px; opacity: 0.8; }
+
+      /* ── RESULT BOX ── */
+      .result-box {
+        display: none;
+        margin-top: 22px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 20px;
+        text-align: left;
+      }
+
+      .result-box h4 { text-align: center; margin-bottom: 14px; font-size: 15px; }
+      .result-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+      .result-row span:first-child { opacity: 0.75; }
+      .val-green  { color: #6ee56e; font-weight: 700; }
+      .val-yellow { color: #ffd166; font-weight: 700; }
+      .val-red    { color: #ff7e7e; font-weight: 700; }
+      .val-blue   { color: #7ecfff; font-weight: 700; }
+
+      /* ── ERROR BOX ── */
+      .error-box {
+        display: none;
+        margin-top: 18px;
+        background: rgba(255, 80, 80, 0.2);
+        border: 1px solid rgba(255, 100, 100, 0.5);
+        border-radius: 12px;
+        padding: 14px;
+        font-size: 14px;
+        color: #ffcccc;
+        text-align: center;
+      }
+
+      /* ── RULES ── */
+      .rules {
+        margin-top: 20px;
+        font-size: 12px;
+        line-height: 2;
+        opacity: 0.8;
+        text-align: left;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+
+      @media (max-width: 500px) {
+        .container { padding: 28px 18px; }
+        .topbar { padding: 12px 16px; }
+        .topbar .brand span { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="brand">
+        &#x1F3E2; Employee Attendance System
+        <span>QR &bull; Face &bull; Location</span>
+      </div>
+      <a href="/admin_login" class="admin-login-btn">
+        &#x1F512; Admin Login
+      </a>
+    </div>
+
+    <!-- PAGE BODY -->
+    <div class="page-body">
+      <div class="container">
+
+        <div class="live-time" id="liveTime"></div>
+        <h2>Mark Attendance</h2>
+        <div class="sub">Scan your QR code &amp; verify face to record attendance</div>
+
+        <div class="scanner-box">
+          Camera opens on click
+          <div class="scanner-line"></div>
+        </div>
+
+        <button class="btn" id="startBtn" onclick="startAttendance()">&#x1F4F7; Start Scanner</button>
+
+        <div class="loader" id="loader">
+          <div class="spinner"></div>
+          <div class="loader-text" id="loaderMsg">Getting location...</div>
+        </div>
+
+        <!-- SUCCESS RESULT -->
+        <div class="result-box" id="resultBox">
+          <h4 id="resultTitle">Attendance Recorded</h4>
+          <div class="result-row"><span>Employee</span><span id="rName"   class="val-blue">--</span></div>
+          <div class="result-row"><span>Time</span>    <span id="rTime"   class="val-blue">--</span></div>
+          <div class="result-row"><span>Action</span>  <span id="rAction" class="val-green">--</span></div>
+          <div class="result-row"><span>Status</span>  <span id="rStatus" class="val-green">--</span></div>
+          <div class="result-row" id="attTypeRow" style="display:none;">
+            <span>Attendance Type</span>
+            <span id="rAttType" class="val-green">--</span>
+          </div>
+        </div>
+
+        <!-- ERROR -->
+        <div class="error-box" id="errorBox"></div>
+
+        <!-- RULES -->
+        <div class="rules">
+          <div>&#x2705; Login before 9:00 AM &rarr; Full Day Login</div>
+          <div>&#x26A0;&#xFE0F; Login 9:00 AM &ndash; 1:00 PM &rarr; Late Login (10% deduction)</div>
+          <div>&#x26A0;&#xFE0F; Login after 1:00 PM &rarr; Half Day Login (50% deduction)</div>
+          <div>&#x2705; Logout after 6:00 PM &rarr; Completed (Full/Late)</div>
+          <div>&#x26A0;&#xFE0F; Logout 1:00 PM &ndash; 6:00 PM &rarr; Early Logout (Half Day)</div>
+          <div>&#x26A0;&#xFE0F; Logout before 1:00 PM &rarr; Half Day Logout</div>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      // Live clock
+      function updateClock() {
+        document.getElementById("liveTime").innerText =
+          new Date().toLocaleTimeString("en-IN", { hour12: true });
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      async function startAttendance() {
+        const btn       = document.getElementById("startBtn");
+        const loader    = document.getElementById("loader");
+        const loaderMsg = document.getElementById("loaderMsg");
+        const resultBox = document.getElementById("resultBox");
+        const errorBox  = document.getElementById("errorBox");
+
+        btn.disabled            = true;
+        resultBox.style.display = "none";
+        errorBox.style.display  = "none";
+        loader.style.display    = "block";
+        loaderMsg.innerText     = "Getting location...";
+
+        try {
+          const position = await new Promise((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej)
+          );
+
+          loaderMsg.innerText = "Verifying location...";
+          await fetch("/location", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+              lat: position.coords.latitude,
+              lon: position.coords.longitude,
+            }),
+          });
+
+          loaderMsg.innerText = "Scanning QR Code... (Show QR to camera)";
+          const resp = await fetch("/attendance");
+          const data = await resp.json();
+
+          loader.style.display = "none";
+          btn.disabled         = false;
+
+          if (!data.ok) {
+            errorBox.innerText     = "&#x274C; " + data.msg;
+            errorBox.style.display = "block";
+            return;
+          }
+
+          document.getElementById("rName").innerText = data.name;
+          document.getElementById("rTime").innerText = data.time;
+
+          if (data.type === "login") {
+            document.getElementById("resultTitle").innerText = "Login Recorded ✅";
+            document.getElementById("rAction").innerText     = "Login";
+            document.getElementById("rAction").className     = "val-green";
+            document.getElementById("attTypeRow").style.display = "none";
+
+            const statusMap = {
+              "Full Day Login": { label: "Full Day Login ✅", cls: "val-green" },
+              "Late Login":     { label: "Late Login ⚠️",    cls: "val-yellow" },
+              "Half Day Login": { label: "Half Day Login ⚠️", cls: "val-red" },
+            };
+            const s  = statusMap[data.status] || { label: data.status, cls: "val-blue" };
+            const el = document.getElementById("rStatus");
+            el.innerText  = s.label;
+            el.className  = s.cls;
+
+          } else if (data.type === "logout") {
+            document.getElementById("resultTitle").innerText = "Logout Recorded ✅";
+            document.getElementById("rAction").innerText     = "Logout";
+            document.getElementById("rAction").className     = "val-blue";
+
+            const statusMap = {
+              "Completed":       { label: "Completed ✅",       cls: "val-green"  },
+              "Early Logout":    { label: "Early Logout ⚠️",    cls: "val-yellow" },
+              "Half Day Logout": { label: "Half Day Logout ⚠️", cls: "val-red"    },
+            };
+            const s  = statusMap[data.status] || { label: data.status, cls: "val-blue" };
+            const el = document.getElementById("rStatus");
+            el.innerText = s.label;
+            el.className = s.cls;
+
+            const typeMap = {
+              "Full Day":        { label: "Full Day ✅",         cls: "val-green"  },
+              "Late - Full Day": { label: "Late – Full Day ⚠️",  cls: "val-yellow" },
+              "Half Day":        { label: "Half Day ⚠️",         cls: "val-red"    },
+            };
+            const t  = typeMap[data.att_type] || { label: data.att_type, cls: "val-blue" };
+            const ta = document.getElementById("rAttType");
+            ta.innerText = t.label;
+            ta.className = t.cls;
+            document.getElementById("attTypeRow").style.display = "flex";
+          }
+
+          resultBox.style.display = "block";
+
+        } catch (err) {
+          loader.style.display = "none";
+          btn.disabled         = false;
+          if (err.code === 1) {
+            errorBox.innerText = "❌ Location access denied. Please allow location and try again.";
+          } else {
+            errorBox.innerText = "❌ Error: " + (err.message || "Attendance system error.");
+          }
+          errorBox.style.display = "block";
+        }
+      }
+    </script>
+  </body>
+</html>

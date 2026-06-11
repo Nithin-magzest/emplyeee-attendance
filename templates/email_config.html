@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Settings</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); min-height: 100vh; display: flex; }
+
+      .sidebar { width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: rgba(0,0,0,0.3); backdrop-filter: blur(12px); padding: 25px 18px; color: white; display: flex; flex-direction: column; }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 3px 0; color: white; text-decoration: none; border-radius: 10px; font-size: 14px; transition: 0.2s; }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 28px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 5px; }
+
+      .card { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border-radius: 16px; padding: 28px; margin-bottom: 22px; max-width: 600px; }
+      .card h3 { font-size: 16px; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+
+      .form-group { margin-bottom: 16px; }
+      .form-group label { display: block; font-size: 13px; opacity: 0.75; margin-bottom: 6px; }
+      .form-group input { width: 100%; padding: 11px 14px; border: none; border-radius: 10px; background: rgba(255,255,255,0.12); color: white; font-size: 14px; outline: none; transition: 0.2s; }
+      .form-group input:focus { background: rgba(255,255,255,0.2); box-shadow: 0 0 0 2px rgba(99,102,241,0.5); }
+      .form-group input::placeholder { color: rgba(255,255,255,0.4); }
+      .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+
+      .btn { padding: 11px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+      .btn:hover { transform: translateY(-1px); }
+      .btn-primary { background: #6366f1; color: white; }
+      .btn-primary:hover { background: #4f46e5; }
+      .btn-test { background: rgba(255,255,255,0.15); color: white; }
+      .btn-test:hover { background: rgba(255,255,255,0.25); }
+
+      .actions { display: flex; gap: 12px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+
+      .alert { padding: 12px 18px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+      .alert-success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
+      .alert-info    { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #a5b4fc; }
+
+      .hint-box { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.8; opacity: 0.75; margin-bottom: 22px; max-width: 600px; }
+      .hint-box strong { color: #fbbf24; }
+      .hint-box code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+      .hint-box a { color: #a5b4fc; }
+      .alert-info-mb { margin-bottom: 16px; }
+
+      .test-row { display: flex; gap: 10px; align-items: center; }
+      .test-row input { flex: 1; padding: 10px 14px; border: none; border-radius: 10px; background: rgba(255,255,255,0.12); color: white; font-size: 14px; outline: none; }
+      .test-row input::placeholder { color: rgba(255,255,255,0.4); }
+
+      #testResult { font-size: 13px; margin-top: 10px; padding: 10px 14px; border-radius: 8px; display: none; }
+      #testResult.success { background: rgba(34,197,94,0.15); color: #4ade80; }
+      #testResult.error   { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+      @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; min-height: auto; } .form-row { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item active" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>✉️ Email Settings</h1>
+        <p>Configure SMTP to send salary slips directly to employees.</p>
+      </div>
+
+      {% if saved %}
+      <div class="alert alert-success">✅ Email settings saved successfully!</div>
+      {% endif %}
+
+      <!-- PROVIDER HINTS -->
+      <div class="hint-box">
+        <strong>Common SMTP Providers:</strong><br>
+        📧 <strong>Gmail:</strong> Host <code>smtp.gmail.com</code> · Port <code>587</code> · Use your Gmail address + <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a><br>
+        📧 <strong>Outlook / Hotmail:</strong> Host <code>smtp.office365.com</code> · Port <code>587</code><br>
+        📧 <strong>Yahoo:</strong> Host <code>smtp.mail.yahoo.com</code> · Port <code>587</code><br>
+        📧 <strong>Custom SMTP:</strong> Use your hosting provider's SMTP details<br>
+        <em>Note: For Gmail, enable 2-Step Verification and generate an App Password — do not use your regular Gmail password.</em>
+      </div>
+
+      <!-- SMTP CONFIG FORM -->
+      <div class="card">
+        <h3>📡 SMTP Configuration</h3>
+        <form method="POST" action="/email_config">
+          <div class="form-row">
+            <div class="form-group">
+              <label>SMTP Host</label>
+              <input type="text" name="smtp_host" placeholder="e.g. smtp.gmail.com" required
+                value="{{ config.host if config else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>Port</label>
+              <input type="number" name="smtp_port" placeholder="587" required
+                value="{{ config.port if config else 587 }}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>SMTP Username (your email address)</label>
+            <input type="email" name="smtp_user" placeholder="you@gmail.com" required
+              value="{{ config.user if config else '' }}" />
+          </div>
+          <div class="form-group">
+            <label>SMTP Password / App Password</label>
+            <input type="password" name="smtp_pass" placeholder="••••••••••••" required
+              value="{{ config.password if config else '' }}" />
+          </div>
+          <div class="form-group">
+            <label>From Name (shown in email)</label>
+            <input type="text" name="from_name" placeholder="HR Department"
+              value="{{ config.from_name if config else 'HR Department' }}" />
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- TEST EMAIL -->
+      {% if config %}
+      <div class="card">
+        <h3>🧪 Test Email</h3>
+        <div class="alert alert-info alert-info-mb">
+          Current config: <strong>{{ config.user }}</strong> via <strong>{{ config.host }}:{{ config.port }}</strong>
+        </div>
+        <div class="test-row">
+          <input type="email" id="testEmail" placeholder="Send test to: recipient@example.com" />
+          <button type="button" class="btn btn-test" onclick="sendTestEmail()">📤 Send Test</button>
+        </div>
+        <div id="testResult"></div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <script>
+      function sendTestEmail() {
+        const email = document.getElementById('testEmail').value.trim();
+        const res   = document.getElementById('testResult');
+        if (!email) { res.textContent = 'Please enter a recipient email.'; res.className = 'error'; res.style.display = 'block'; return; }
+
+        res.textContent = 'Sending…';
+        res.className   = '';
+        res.style.display = 'block';
+
+        const fd = new FormData();
+        fd.append('test_to', email);
+
+        fetch('/test_email', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(data => {
+            res.textContent = (data.ok ? '✅ ' : '❌ ') + data.msg;
+            res.className   = data.ok ? 'success' : 'error';
+          })
+          .catch(() => {
+            res.textContent = '❌ Network error.';
+            res.className   = 'error';
+          });
+      }
+    </script>
+  </body>
+</html>

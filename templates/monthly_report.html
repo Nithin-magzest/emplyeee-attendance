@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monthly Attendance Report</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.3);
+        backdrop-filter: blur(12px);
+        padding: 25px 18px;
+        color: white;
+        display: flex; flex-direction: column;
+      }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin: 3px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p  { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+
+      /* FILTER BAR */
+      .filter-bar {
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(8px);
+        border-radius: 14px;
+        padding: 18px 22px;
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        margin-bottom: 22px;
+      }
+      .filter-bar label { font-size: 14px; opacity: 0.8; }
+      .filter-bar select {
+        padding: 8px 12px; border-radius: 8px; border: none;
+        background: rgba(255,255,255,0.2); color: white;
+        font-size: 14px; cursor: pointer; outline: none;
+      }
+      .filter-bar select option { background: #203a43; color: white; }
+      .filter-bar button {
+        padding: 9px 22px; border: none; border-radius: 8px;
+        background: #3b82f6; color: white; font-size: 14px;
+        font-weight: 600; cursor: pointer; transition: 0.2s;
+      }
+      .filter-bar button:hover { background: #2563eb; }
+
+      /* SUMMARY CARDS */
+      .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
+      .sum-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px; padding: 16px; text-align: center;
+      }
+      .sum-card .num { font-size: 30px; font-weight: 700; }
+      .sum-card .lbl { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+      .c-blue   .num { color: #7ecfff; }
+      .c-green  .num { color: #6ee56e; }
+      .c-yellow .num { color: #ffd166; }
+      .c-red    .num { color: #ff7e7e; }
+
+      /* TABLE SECTION */
+      .section {
+        background: rgba(255,255,255,0.08);
+        border-radius: 16px; padding: 22px;
+      }
+      .section h3 { font-size: 16px; margin-bottom: 16px; }
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
+      th {
+        background: rgba(255,255,255,0.12);
+        padding: 11px 14px; text-align: center;
+        font-weight: 600; white-space: nowrap;
+      }
+      th:first-child, th:nth-child(2) { text-align: left; }
+      td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.07); text-align: center; }
+      td:first-child, td:nth-child(2) { text-align: left; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(255,255,255,0.05); }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+      .b-green  { background: rgba(110,229,110,0.18); color: #6ee56e; }
+      .b-yellow { background: rgba(255,209,102,0.18); color: #ffd166; }
+      .b-red    { background: rgba(255,126,126,0.18); color: #ff7e7e; }
+      .b-blue   { background: rgba(126,207,255,0.18); color: #7ecfff; }
+
+      /* PROGRESS BAR */
+      .pbar-wrap { width: 80px; background: rgba(255,255,255,0.1); border-radius: 20px; height: 8px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+      .pbar { height: 8px; border-radius: 20px; width: var(--w, 0%); }
+      .empty-cell { text-align: center; padding: 30px; opacity: 0.5; }
+      .legend { margin-top: 18px; font-size: 12px; opacity: 0.6; line-height: 2; }
+      .pbar-high   { background: #6ee56e; }
+      .pbar-medium { background: #ffd166; }
+      .pbar-low    { background: #ff7e7e; }
+
+      /* EMP ID TAG */
+      .emp-id { font-size: 11px; opacity: 0.55; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item active" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>📊 Monthly Attendance Report</h1>
+        <p>{{ month_name }} &nbsp;·&nbsp; {{ total_working }} working days &nbsp;·&nbsp; {{ holiday_count }} holiday(s)</p>
+      </div>
+
+      <!-- FILTER -->
+      <form class="filter-bar" method="GET" action="/monthly_report">
+        <label>Month</label>
+        <select name="month" title="Select month">
+          {% for m_num, m_name in months %}
+          <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
+          {% endfor %}
+        </select>
+
+        <label>Year</label>
+        <select name="year" title="Select year">
+          {% for y in years %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+
+        <button type="submit">View Report</button>
+      </form>
+
+      <!-- SUMMARY -->
+      {% set total_emp  = report | length %}
+      {% set avg_full   = (report | sum(attribute='full_days')  / total_emp) | round(1) if total_emp > 0 else 0 %}
+      {% set avg_absent = (report | sum(attribute='absent')     / total_emp) | round(1) if total_emp > 0 else 0 %}
+      {% set avg_pct    = (report | sum(attribute='pct')        / total_emp) | round(1) if total_emp > 0 else 0 %}
+
+      <div class="summary">
+        <div class="sum-card c-blue">
+          <div class="num">{{ total_emp }}</div>
+          <div class="lbl">👥 Total Employees</div>
+        </div>
+        <div class="sum-card c-green">
+          <div class="num">{{ total_working }}</div>
+          <div class="lbl">📅 Working Days</div>
+        </div>
+        <div class="sum-card c-yellow">
+          <div class="num">{{ avg_pct }}%</div>
+          <div class="lbl">📈 Avg Attendance</div>
+        </div>
+        <div class="sum-card c-red">
+          <div class="num">{{ holiday_count }}</div>
+          <div class="lbl">🎉 Holidays</div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="section">
+        <h3>Employee-wise Attendance — {{ month_name }}</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>ID</th>
+                <th>Full Days</th>
+                <th>Late Days</th>
+                <th>Half Days</th>
+                <th>Absent</th>
+                <th>Working Days</th>
+                <th>Attendance %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in report %}
+              <tr>
+                <td>{{ r.name }}</td>
+                <td><span class="emp-id">{{ r.emp_id }}</span></td>
+                <td><span class="badge b-green">{{ r.full_days }}</span></td>
+                <td><span class="badge b-yellow">{{ r.late_days }}</span></td>
+                <td><span class="badge b-red">{{ r.half_days }}</span></td>
+                <td>
+                  {% if r.absent > 0 %}
+                    <span class="badge b-red">{{ r.absent }}</span>
+                  {% else %}
+                    <span class="badge b-green">0</span>
+                  {% endif %}
+                </td>
+                <td>{{ r.billable }}</td>
+                <td>
+                  {{ r.pct }}%
+                  <span class="pbar-wrap">
+                    <span class="pbar {% if r.pct >= 90 %}pbar-high{% elif r.pct >= 70 %}pbar-medium{% else %}pbar-low{% endif %}"
+                      style="--w: {{ r.pct }}%"></span>
+                  </span>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="8" class="empty-cell">No employees found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="legend">
+        <strong>Legend:</strong> &nbsp;
+        Full Days = Login ≤9AM + Logout ≥6PM &nbsp;|&nbsp;
+        Late Days = Login 9AM–1PM + Logout ≥6PM (10% deduction) &nbsp;|&nbsp;
+        Half Days = Login &gt;1PM OR Logout &lt;6PM (50% deduction) &nbsp;|&nbsp;
+        Absent = No attendance record (100% deduction)
+      </div>
+
+    </div><!-- /main -->
+
+  </body>
+</html>

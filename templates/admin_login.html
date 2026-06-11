@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — Attendance System</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 24px;
+      }
+
+      .page-title {
+        color: white;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        margin-bottom: 6px;
+        opacity: 0.95;
+      }
+      .page-sub {
+        color: rgba(255,255,255,0.6);
+        font-size: 13px;
+        margin-bottom: 30px;
+      }
+
+      .cards {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+        width: 100%;
+        max-width: 760px;
+      }
+
+      .card {
+        flex: 1;
+        background: rgba(255,255,255,0.13);
+        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+        border-radius: 20px;
+        padding: 36px 32px;
+        color: white;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      }
+
+      .card-header { text-align: center; margin-bottom: 26px; }
+      .card-header .icon { font-size: 44px; }
+      .card-header h2 { font-size: 22px; font-weight: 700; margin-top: 10px; }
+      .card-header p { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+
+      .divider {
+        width: 1px;
+        min-height: 360px;
+        background: rgba(255,255,255,0.18);
+        align-self: stretch;
+        border-radius: 2px;
+      }
+
+      label { display: block; text-align: left; font-size: 12px; font-weight: 600;
+              text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; opacity: 0.75; }
+      input {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 10px;
+        border: none;
+        background: rgba(255,255,255,0.18);
+        color: white;
+        font-size: 14px;
+        margin-bottom: 15px;
+        outline: none;
+        transition: 0.2s;
+      }
+      input::placeholder { color: rgba(255,255,255,0.45); }
+      input:focus { background: rgba(255,255,255,0.28); }
+
+      .btn {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.25s;
+        margin-top: 4px;
+      }
+      .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.28); }
+      .btn-admin    { background: linear-gradient(90deg, #f093fb, #f5576c); }
+      .btn-employee { background: linear-gradient(90deg, #667eea, #764ba2); }
+
+      .error {
+        background: rgba(255,80,80,0.22);
+        border: 1px solid rgba(255,100,100,0.45);
+        padding: 10px 14px;
+        border-radius: 9px;
+        font-size: 13px;
+        margin-bottom: 14px;
+        color: #ffe0e0;
+      }
+
+      .back { display: block; text-align: center; margin-top: 18px;
+              font-size: 12px; color: rgba(255,255,255,0.55); text-decoration: none; }
+      .back:hover { color: rgba(255,255,255,0.9); }
+
+      @media (max-width: 620px) {
+        .cards { flex-direction: column; max-width: 380px; }
+        .divider { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="page-title">⚙️ Attendance Management System</div>
+    <div class="page-sub">Choose your portal to continue</div>
+
+    <div class="cards">
+
+      <!-- ADMIN CARD -->
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">🔐</div>
+          <h2>Admin Login</h2>
+          <p>Manage employees &amp; attendance</p>
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+          <label>Username</label>
+          <input type="text" name="username" placeholder="Enter admin username" required autofocus />
+
+          <label>Password</label>
+          <input type="password" name="password" placeholder="Enter password" required />
+
+          <button type="submit" class="btn btn-admin">Login to Admin Panel</button>
+        </form>
+
+        <a href="/" class="back">← Back to Attendance Scanner</a>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="divider"></div>
+
+      <!-- EMPLOYEE CARD -->
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">👤</div>
+          <h2>Employee Login</h2>
+          <p>View attendance &amp; apply for leave</p>
+        </div>
+
+        <form action="/employee_login" method="POST">
+          <label>Employee ID</label>
+          <input type="text" name="emp_id" placeholder="Enter your Employee ID" required />
+
+          <button type="submit" class="btn btn-employee">Login to My Portal</button>
+        </form>
+
+        <a href="/" class="back">← Back to Attendance Scanner</a>
+      </div>
+
+    </div>
+
+  </body>
+</html>
