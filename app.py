@@ -1449,8 +1449,6 @@ def api_dashboard():
         ORDER BY e.name
     """, (today,))
     rows = cursor.fetchall()
-    cursor.close(); db.close()
-
     today_rows = [
         {
             "employee_id": r[0], "name": r[1],
@@ -1460,10 +1458,17 @@ def api_dashboard():
         }
         for r in rows
     ]
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.close(); db.close()
+
     return jsonify({
         "ok": True, "total": total, "present": present,
         "absent": total - present, "late": late,
         "today": today.strftime("%d %b %Y"), "today_rows": today_rows,
+        "pending_leaves": pending_leaves, "pending_resignations": pending_resignations,
     })
 
 
@@ -1810,7 +1815,347 @@ def api_checkin():
         return jsonify({"ok": False, "msg": "Attendance already completed for today."})
 
 
+# ---------------- API: LEAVE REQUESTS ----------------
+
+@app.route("/api/leave_requests", methods=["GET"])
+@api_required
+def api_leave_requests():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT lr.id, lr.employee_id, e.name, lr.leave_date, lr.reason, lr.status, lr.created_at AS requested_at
+        FROM leave_requests lr
+        JOIN employees e ON lr.employee_id = e.employee_id
+        ORDER BY lr.created_at DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "leaves": [
+        {"id": r[0], "employee_id": r[1], "name": r[2],
+         "leave_date": str(r[3]) if r[3] else None,
+         "reason": r[4], "status": r[5],
+         "requested_at": str(r[6]) if r[6] else None}
+        for r in rows
+    ]})
+
+
+@app.route("/api/leave_requests/<int:lid>/action", methods=["POST"])
+@api_required
+def api_leave_action(lid):
+    data = request.get_json(silent=True) or {}
+    action = data.get("action", "").strip()
+    if action not in ("Approved", "Declined"):
+        return jsonify({"ok": False, "msg": "action must be Approved or Declined"}), 400
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "status": action})
+
+
+# ---------------- API: RESIGNATION REQUESTS ----------------
+
+@app.route("/api/resignation_requests", methods=["GET"])
+@api_required
+def api_resignation_requests():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT rr.id, rr.employee_id, e.name, rr.last_working_day, rr.reason, rr.status, rr.created_at AS requested_at
+        FROM resignation_requests rr
+        JOIN employees e ON rr.employee_id = e.employee_id
+        ORDER BY rr.created_at DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "resignations": [
+        {"id": r[0], "employee_id": r[1], "name": r[2],
+         "last_working_day": str(r[3]) if r[3] else None,
+         "reason": r[4], "status": r[5],
+         "requested_at": str(r[6]) if r[6] else None}
+        for r in rows
+    ]})
+
+
+@app.route("/api/resignation_requests/<int:rid>/action", methods=["POST"])
+@api_required
+def api_resignation_action(rid):
+    data = request.get_json(silent=True) or {}
+    action = data.get("action", "").strip()
+    if action not in ("Accepted", "Declined"):
+        return jsonify({"ok": False, "msg": "action must be Accepted or Declined"}), 400
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "status": action})
+
+
+# ── Employee API token store  { token → employee_id } ──
+_emp_api_tokens: dict = {}
+
+
+def employee_api_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+        token = auth[7:]
+        if token not in _emp_api_tokens:
+            return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/api/employee/login", methods=["POST"])
+def api_employee_login():
+    data   = request.get_json() or {}
+    emp_id = data.get("employee_id", "").strip()
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "employee_id required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    token = secrets.token_hex(32)
+    _emp_api_tokens[token] = emp_id
+    return jsonify({"ok": True, "token": token, "employee_id": emp_id,
+                    "name": row[0], "email": row[1]})
+
+
+@app.route("/api/employee/logout", methods=["POST"])
+def api_employee_logout():
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        _emp_api_tokens.pop(auth[7:], None)
+    return jsonify({"ok": True})
+
+
+def _fmt_t(t):
+    if t is None: return None
+    if hasattr(t, 'strftime'): return t.strftime("%H:%M:%S")
+    total = int(t.total_seconds())
+    return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
+
+
+@app.route("/api/employee/portal", methods=["GET"])
+@employee_api_required
+def api_employee_portal():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today  = datetime.date.today()
+
+    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    emp = cursor.fetchone()
+
+    cursor.execute(
+        "SELECT login_time, logout_time, status, logout_status, attendance_type "
+        "FROM attendance WHERE employee_id=%s AND date=%s", (emp_id, today)
+    )
+    att = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance WHERE employee_id=%s AND date >= %s
+        ORDER BY date DESC LIMIT 10
+    """, (emp_id, today - datetime.timedelta(days=30)))
+    recent = cursor.fetchall()
+
+    cursor.execute(
+        "SELECT leave_date, reason, status, created_at FROM leave_requests "
+        "WHERE employee_id=%s ORDER BY created_at DESC LIMIT 5", (emp_id,)
+    )
+    leaves = cursor.fetchall()
+
+    cursor.execute(
+        "SELECT last_working_day, reason, status, created_at FROM resignation_requests "
+        "WHERE employee_id=%s ORDER BY created_at DESC LIMIT 1", (emp_id,)
+    )
+    resign = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return jsonify({
+        "ok": True,
+        "employee_id": emp_id,
+        "name": emp[0] if emp else emp_id,
+        "email": emp[1] if emp else None,
+        "today": today.strftime("%d %b %Y"),
+        "today_attendance": {
+            "login_time": _fmt_t(att[0]),
+            "logout_time": _fmt_t(att[1]),
+            "login_status": att[2],
+            "logout_status": att[3],
+            "attendance_type": att[4],
+        } if att else None,
+        "recent_attendance": [
+            {"date": str(r[0]), "login_time": _fmt_t(r[1]), "logout_time": _fmt_t(r[2]),
+             "login_status": r[3], "logout_status": r[4], "attendance_type": r[5]}
+            for r in recent
+        ],
+        "recent_leaves": [
+            {"leave_date": str(r[0]), "reason": r[1], "status": r[2],
+             "requested_at": str(r[3])}
+            for r in leaves
+        ],
+        "resignation": {
+            "last_working_day": str(resign[0]),
+            "reason": resign[1],
+            "status": resign[2],
+            "created_at": str(resign[3]),
+        } if resign else None,
+    })
+
+
+@app.route("/api/employee/checkin", methods=["POST"])
+@employee_api_required
+def api_employee_checkin():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    data   = request.get_json() or {}
+    lat    = data.get("lat")
+    lon    = data.get("lon")
+
+    OFFICE_LAT = 17.494664737165042
+    OFFICE_LON = 78.40496618113566
+    if lat and lon:
+        if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
+            return jsonify({"ok": False, "msg": "You are outside the office premises."})
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    result = cursor.fetchone()
+    employee_name = result[0] if result else emp_id
+
+    now          = datetime.datetime.now()
+    today        = now.date()
+    current_time = now.time()
+
+    cursor.execute(
+        "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
+        (emp_id, today)
+    )
+    record       = cursor.fetchone()
+    login_time   = record[0] if record else None
+    logout_time  = record[1] if record else None
+    login_status = record[2] if record else None
+
+    if not login_time:
+        if current_time <= SHIFT_START:
+            status = "Full Day Login"
+        elif current_time <= SHIFT_HALF:
+            status = "Late Login"
+        else:
+            status = "Half Day Login"
+        cursor.execute(
+            "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
+            (emp_id, today, current_time, status)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "action": "login", "name": employee_name,
+                        "status": status, "time": current_time.strftime("%H:%M:%S")})
+    elif not logout_time:
+        if current_time < SHIFT_HALF:
+            out_status = "Half Day Logout"
+        elif current_time < SHIFT_END:
+            out_status = "Early Logout"
+        else:
+            out_status = "Completed"
+        att_type = get_attendance_type(login_status, out_status)
+        cursor.execute(
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, out_status, att_type, emp_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "action": "logout", "name": employee_name,
+                        "status": out_status, "att_type": att_type,
+                        "time": current_time.strftime("%H:%M:%S")})
+    else:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
+
+
+@app.route("/api/employee/leave_request", methods=["POST"])
+@employee_api_required
+def api_employee_leave_request():
+    token      = request.headers.get("Authorization", "")[7:]
+    emp_id     = _emp_api_tokens[token]
+    data       = request.get_json() or {}
+    leave_date = data.get("leave_date", "").strip()
+    reason     = data.get("reason", "").strip()
+    if not leave_date or not reason:
+        return jsonify({"ok": False, "msg": "leave_date and reason required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
+        (emp_id, leave_date, reason)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": "Leave request submitted."})
+
+
+@app.route("/api/employee/resign", methods=["POST"])
+@employee_api_required
+def api_employee_resign():
+    token            = request.headers.get("Authorization", "")[7:]
+    emp_id           = _emp_api_tokens[token]
+    data             = request.get_json() or {}
+    last_working_day = data.get("last_working_day", "").strip()
+    reason           = data.get("reason", "").strip()
+    if not last_working_day or not reason:
+        return jsonify({"ok": False, "msg": "last_working_day and reason required"}), 400
+    try:
+        lwd = datetime.datetime.strptime(last_working_day, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "msg": "Invalid date format. Use YYYY-MM-DD"}), 400
+    min_lwd = datetime.date.today() + datetime.timedelta(days=30)
+    if lwd < min_lwd:
+        return jsonify({"ok": False, "msg": "Last working day must be at least 30 days from today"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    emp = cursor.fetchone()
+    emp_name = emp[0] if emp else emp_id
+    cursor.execute(
+        "INSERT INTO resignation_requests (employee_id, last_working_day, reason) VALUES (%s,%s,%s)",
+        (emp_id, last_working_day, reason)
+    )
+    db.commit()
+    config = get_email_config()
+    if config:
+        html_body = (
+            f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;'
+            f'border-radius:12px;overflow:hidden;">'
+            f'<div style="background:linear-gradient(135deg,#ef4444,#b91c1c);padding:24px;color:white;text-align:center;">'
+            f'<h2 style="margin:0;">⚠️ Resignation Notice Received</h2></div>'
+            f'<div style="padding:24px;"><table style="width:100%;border-collapse:collapse;font-size:14px;">'
+            f'<tr><td style="padding:10px;color:#555;font-weight:600;">Employee</td><td style="padding:10px;">{emp_name}</td></tr>'
+            f'<tr><td style="padding:10px;color:#555;font-weight:600;">ID</td><td style="padding:10px;">{emp_id}</td></tr>'
+            f'<tr><td style="padding:10px;color:#555;font-weight:600;">Last Working Day</td><td style="padding:10px;">{last_working_day}</td></tr>'
+            f'<tr><td style="padding:10px;color:#555;font-weight:600;">Reason</td><td style="padding:10px;">{reason}</td></tr>'
+            f'</table></div></div>'
+        )
+        try:
+            send_email_smtp(
+                config["user"],
+                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+                html_body, config
+            )
+        except Exception:
+            pass
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
+
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

@@ -1,0 +1,56 @@
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
+
+const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
+
+client.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ── Admin API ──────────────────────────────────────────────────────
+export const adminLogin = (username, password) =>
+  client.post('/api/login', { username, password });
+
+export const adminLogout = () => client.post('/api/logout');
+
+export const fetchDashboard = () => client.get('/api/dashboard');
+
+export const fetchEmployees = () => client.get('/api/employees');
+
+export const fetchHolidays = () => client.get('/api/holidays');
+
+export const fetchMonthlyReport = (year, month) =>
+  client.get('/api/monthly_report', { params: { year, month } });
+
+export const fetchSalaryReport = (year, month) =>
+  client.get('/api/salary_report', { params: { year, month } });
+
+export const fetchLeaveRequests = () => client.get('/api/leave_requests');
+
+export const leaveAction = (lid, action) =>
+  client.post(`/api/leave_requests/${lid}/action`, { action });
+
+export const fetchResignations = () => client.get('/api/resignation_requests');
+
+export const resignationAction = (rid, action) =>
+  client.post(`/api/resignation_requests/${rid}/action`, { action });
+
+// ── Employee API ───────────────────────────────────────────────────
+export const employeeLogin = (employee_id) =>
+  client.post('/api/employee/login', { employee_id });
+
+export const employeeLogout = () => client.post('/api/employee/logout');
+
+export const fetchEmployeePortal = () => client.get('/api/employee/portal');
+
+export const employeeCheckin = (lat, lon) =>
+  client.post('/api/employee/checkin', { lat, lon });
+
+export const submitLeaveRequest = (leave_date, reason) =>
+  client.post('/api/employee/leave_request', { leave_date, reason });
+
+export const submitResignation = (last_working_day, reason) =>
+  client.post('/api/employee/resign', { last_working_day, reason });
