@@ -1099,6 +1099,25 @@ def view_photos():
     cursor.close(); db.close()
     return render_template("employee_photos.html", employees=employees)
 
+
+@app.route("/update_photo/<emp_id>", methods=["POST"])
+@admin_required
+def update_photo(emp_id):
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        return jsonify({"ok": False, "msg": "No file selected"}), 400
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png"):
+        return jsonify({"ok": False, "msg": "Only JPG/PNG files are allowed"}), 400
+    save_path = os.path.join("dataset", emp_id + ".jpg")
+    file.save(save_path)
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (emp_id + ".jpg", emp_id))
+    db.commit()
+    cursor.close(); db.close()
+    return jsonify({"ok": True})
+
 # ---------------- SHIFTS ----------------
 @app.route("/shifts", methods=["GET"])
 @admin_required

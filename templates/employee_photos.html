@@ -80,6 +80,59 @@
 
       .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 15px; }
 
+      /* EDIT BUTTON */
+      .btn-edit {
+        margin-top: 12px; width: 100%;
+        padding: 7px 0; border: none; border-radius: 8px; cursor: pointer;
+        background: #1e3a8a; color: white; font-size: 12px; font-weight: 600;
+        letter-spacing: 0.3px; transition: 0.2s;
+      }
+      .btn-edit:hover { background: #1d4ed8; }
+
+      /* MODAL OVERLAY */
+      .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45); z-index: 999;
+        align-items: center; justify-content: center;
+      }
+      .modal-overlay.open { display: flex; }
+      .modal-box {
+        background: #fff; border-radius: 18px; padding: 28px 28px 24px;
+        width: 340px; max-width: 95vw; box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        text-align: center; position: relative;
+      }
+      .modal-close {
+        position: absolute; top: 14px; right: 16px;
+        background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;
+      }
+      .modal-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+      .modal-sub   { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+      .modal-preview {
+        width: 110px; height: 110px; border-radius: 50%;
+        overflow: hidden; margin: 0 auto 18px;
+        border: 3px solid #dbeafe; background: #eff6ff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 40px;
+      }
+      .modal-preview img { width: 100%; height: 100%; object-fit: cover; }
+      .file-label {
+        display: block; padding: 9px 14px; border-radius: 9px; cursor: pointer;
+        border: 2px dashed #93c5fd; background: #f0f7ff; color: #1d4ed8;
+        font-size: 13px; font-weight: 600; margin-bottom: 14px; transition: 0.2s;
+      }
+      .file-label:hover { background: #dbeafe; }
+      #photoInput { display: none; }
+      .btn-upload {
+        width: 100%; padding: 10px; border: none; border-radius: 10px;
+        background: #1e3a8a; color: white; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-upload:hover { background: #1d4ed8; }
+      .btn-upload:disabled { background: #93c5fd; cursor: not-allowed; }
+      .upload-msg { margin-top: 10px; font-size: 13px; font-weight: 600; }
+      .upload-msg.success { color: #16a34a; }
+      .upload-msg.error   { color: #dc2626; }
+
       @media (max-width: 768px) {
         body { flex-direction: column; }
         .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
@@ -148,6 +201,10 @@
           {% else %}
             <span class="no-role">No role</span>
           {% endif %}
+          <button type="button" class="btn-edit"
+                  onclick="openEditModal('{{ emp_id }}', '{{ name | e }}', {{ 'true' if (face_image and (face_image.endswith('.jpg') or face_image.endswith('.png'))) else 'false' }})">
+            ✏️ Edit Photo
+          </button>
         </div>
         {% endfor %}
       </div>
@@ -157,7 +214,25 @@
 
     </div>
 
+    <!-- EDIT PHOTO MODAL -->
+    <div class="modal-overlay" id="editModal" onclick="closeOnOverlay(event)">
+      <div class="modal-box">
+        <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-title" id="modalEmpName"></div>
+        <div class="modal-sub" id="modalEmpId"></div>
+        <div class="modal-preview" id="modalPreview"></div>
+        <label class="file-label" for="photoInput">📁 Choose Photo (JPG / PNG)</label>
+        <input type="file" id="photoInput" accept=".jpg,.jpeg,.png" onchange="previewPhoto(event)" />
+        <button type="button" class="btn-upload" id="uploadBtn" onclick="uploadPhoto()" disabled>
+          Upload Photo
+        </button>
+        <div class="upload-msg" id="uploadMsg"></div>
+      </div>
+    </div>
+
     <script>
+      var _currentEmpId = null;
+
       function filterCards() {
         var q = document.getElementById("searchInput").value.toLowerCase();
         var cards = document.querySelectorAll(".photo-card");
@@ -171,6 +246,92 @@
         });
         document.getElementById("empCounter").textContent =
           visible + " employee" + (visible !== 1 ? "s" : "");
+      }
+
+      function openEditModal(empId, empName, hasPhoto) {
+        _currentEmpId = empId;
+        document.getElementById("modalEmpName").textContent = empName;
+        document.getElementById("modalEmpId").textContent = empId;
+
+        var preview = document.getElementById("modalPreview");
+        if (hasPhoto) {
+          preview.innerHTML = '<img src="/dataset/' + empId + '.jpg?t=' + Date.now() + '" alt="' + empName + '" onerror="this.parentNode.innerHTML=\'👤\'" />';
+        } else {
+          preview.innerHTML = "👤";
+        }
+
+        document.getElementById("photoInput").value = "";
+        document.getElementById("uploadBtn").disabled = true;
+        document.getElementById("uploadMsg").textContent = "";
+        document.getElementById("editModal").classList.add("open");
+      }
+
+      function closeModal() {
+        document.getElementById("editModal").classList.remove("open");
+        _currentEmpId = null;
+      }
+
+      function closeOnOverlay(e) {
+        if (e.target === document.getElementById("editModal")) closeModal();
+      }
+
+      function previewPhoto(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          document.getElementById("modalPreview").innerHTML =
+            '<img src="' + ev.target.result + '" alt="preview" />';
+        };
+        reader.readAsDataURL(file);
+        document.getElementById("uploadBtn").disabled = false;
+        document.getElementById("uploadMsg").textContent = "";
+      }
+
+      function uploadPhoto() {
+        var file = document.getElementById("photoInput").files[0];
+        if (!file || !_currentEmpId) return;
+
+        var btn = document.getElementById("uploadBtn");
+        var msg = document.getElementById("uploadMsg");
+        btn.disabled = true;
+        btn.textContent = "Uploading…";
+
+        var fd = new FormData();
+        fd.append("photo", file);
+
+        fetch("/update_photo/" + _currentEmpId, { method: "POST", body: fd })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.ok) {
+              msg.className = "upload-msg success";
+              msg.textContent = "✓ Photo updated successfully!";
+              btn.textContent = "Upload Photo";
+
+              /* refresh the photo on the card in the grid */
+              var cards = document.querySelectorAll(".photo-card");
+              cards.forEach(function(card) {
+                if (card.dataset.id === _currentEmpId.toLowerCase()) {
+                  var wrap = card.querySelector(".photo-wrap");
+                  wrap.innerHTML = '<img src="/dataset/' + _currentEmpId + '.jpg?t=' + Date.now() +
+                    '" alt="" onerror="this.parentNode.innerHTML=\'<span class=\\\'photo-placeholder\\\'>👤</span>\'" />';
+                }
+              });
+
+              setTimeout(closeModal, 1200);
+            } else {
+              msg.className = "upload-msg error";
+              msg.textContent = "✗ " + (data.msg || "Upload failed");
+              btn.disabled = false;
+              btn.textContent = "Upload Photo";
+            }
+          })
+          .catch(function() {
+            msg.className = "upload-msg error";
+            msg.textContent = "✗ Network error. Try again.";
+            btn.disabled = false;
+            btn.textContent = "Upload Photo";
+          });
       }
     </script>
 
