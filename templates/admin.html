@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,145 +6,204 @@
     <title>Admin Dashboard</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #eff6ff; min-height: 100vh; display: flex; }
+      body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
-      /* SIDEBAR */
+      /* ── SIDEBAR ── */
       .sidebar {
         width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: #1e3a8a;
-        padding: 25px 18px;
-        color: white;
-        display: flex; flex-direction: column;
+        background: #1e3a8a; padding: 24px 16px; color: white;
+        display: flex; flex-direction: column; flex-shrink: 0;
       }
-      .sidebar .brand { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
-      .sidebar .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 30px; }
-      .nav-item {
-        display: flex; align-items: center; gap: 10px;
-        padding: 11px 14px; margin: 4px 0;
-        color: white; text-decoration: none;
-        border-radius: 10px; font-size: 14px;
-        transition: 0.25s;
+      .brand     { font-size: 18px; font-weight: 800; margin-bottom: 3px; }
+      .brand-sub { font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 26px; }
+      .nav-item  {
+        display: flex; align-items: center; gap: 9px;
+        padding: 10px 12px; margin: 2px 0;
+        color: rgba(255,255,255,0.85); text-decoration: none;
+        border-radius: 9px; font-size: 13.5px; transition: 0.2s;
       }
-      .nav-item:hover { background: rgba(255,255,255,0.15); }
-      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
-      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
-      .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(255,255,255,0.65); padding-top: 20px; }
+      .nav-item:hover  { background: rgba(255,255,255,0.12); color: #fff; }
+      .nav-item.active { background: rgba(255,255,255,0.18); color: #fff; font-weight: 700; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+      .badge-count {
+        margin-left: auto; background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+      }
+      .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.5); padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.1); }
 
-      /* MAIN */
-      .main { flex: 1; padding: 28px; }
-      .page-header { color: #1e293b; margin-bottom: 22px; }
-      .page-header h1 { font-size: 26px; }
-      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+      /* ── MAIN ── */
+      .main { flex: 1; padding: 28px 30px; overflow-x: hidden; }
 
-      /* STAT CARDS */
-      .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
-      .stat-card {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 14px;
-        padding: 20px;
-        color: #1e293b;
-        text-align: center;
-        text-decoration: none;
-        display: block;
-        cursor: pointer;
+      /* ── PAGE HEADER ── */
+      .page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 14px; margin-bottom: 24px;
+      }
+      .page-header h1 { font-size: 24px; font-weight: 800; color: #0f172a; }
+      .page-header .sub { font-size: 13px; color: #64748b; margin-top: 3px; }
+      .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .hbtn {
+        padding: 9px 18px; border: none; border-radius: 9px;
+        font-size: 13px; font-weight: 700; cursor: pointer;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
         transition: 0.2s;
       }
-      .stat-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.12); transform: translateY(-2px); }
-      .stat-card .num { font-size: 38px; font-weight: 700; line-height: 1; }
-      .stat-card .lbl { font-size: 13px; color: #64748b; margin-top: 6px; }
-      .stat-card.green .num { color: #16a34a; }
-      .stat-card.red   .num { color: #dc2626; }
-      .stat-card.yellow .num { color: #d97706; }
-      .stat-card.blue  .num { color: #2563eb; }
+      .hbtn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+      .hbtn-green  { background: #16a34a; color: white; }
+      .hbtn-blue   { background: #2563eb; color: white; }
 
-      /* SECTION */
+      /* ── STAT CARDS ── */
+      .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+      .stat-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 18px 20px; display: flex; align-items: center; gap: 16px;
+        text-decoration: none; color: #0f172a; transition: 0.2s;
+      }
+      .stat-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.1); transform: translateY(-2px); }
+      .stat-icon {
+        width: 52px; height: 52px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; flex-shrink: 0;
+      }
+      .si-blue   { background: #dbeafe; }
+      .si-green  { background: #dcfce7; }
+      .si-red    { background: #fee2e2; }
+      .si-yellow { background: #fef9c3; }
+      .stat-num  { font-size: 32px; font-weight: 800; line-height: 1; }
+      .stat-lbl  { font-size: 12px; color: #64748b; margin-top: 3px; font-weight: 500; }
+      .sn-blue   { color: #2563eb; }
+      .sn-green  { color: #16a34a; }
+      .sn-red    { color: #dc2626; }
+      .sn-yellow { color: #d97706; }
+
+      /* ── SECTION ── */
       .section {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 16px;
-        padding: 22px;
-        margin-bottom: 22px;
-        color: #1e293b;
+        background: #fff; border: 1px solid #e2e8f0;
+        border-radius: 16px; padding: 22px 24px; margin-bottom: 20px;
+        color: #0f172a;
       }
-      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .section-title {
+        font-size: 15px; font-weight: 700; color: #0f172a;
+        display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+      }
+      .section-title span.live-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #16a34a;
+        display: inline-block; animation: pulse 1.5s ease-in-out infinite;
+      }
 
-      /* FORMS GRID */
-      .forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-      .form-card {
-        background: #f8fafc;
-        border: 1px solid #dbeafe;
-        border-radius: 14px;
-        padding: 20px;
-        color: #1e293b;
-      }
-      .form-card h4 { margin-bottom: 14px; font-size: 15px; color: #1e293b; }
-      .form-card input {
-        width: 100%; padding: 10px 12px;
-        border: 1px solid #dbeafe; border-radius: 8px;
-        background: #ffffff;
-        color: #1e293b; font-size: 14px;
-        margin-bottom: 10px; outline: none;
-      }
-      .form-card input::placeholder { color: #94a3b8; }
-      .form-card input:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-      .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.25s; }
-      .btn:hover { transform: translateY(-1px); }
-      .btn-blue   { background: #3b82f6; color: white; }
-      .btn-green  { background: #22c55e; color: white; }
-      .btn-purple { background: #a855f7; color: white; }
-      .input-file { color: #64748b; padding: 8px; }
-      .btn-mt     { margin-top: 4px; }
-
-      /* TABLE */
-      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      /* ── TABLE ── */
+      .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
-      td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
+      th { background: #f8fafc; color: #475569; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
+      td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; color: #334155; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
+      tr:hover td { background: #f8fafc; }
+      .empty-row td { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
 
-      /* BADGES */
-      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-      .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-      .badge-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
-      .badge-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-      .badge-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-      .badge-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+      /* ── BADGES ── */
+      .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+      .badge-green  { background: #dcfce7; color: #15803d; }
+      .badge-yellow { background: #fef9c3; color: #854d0e; }
+      .badge-red    { background: #fee2e2; color: #dc2626; }
+      .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+      .badge-gray   { background: #f1f5f9; color: #64748b; }
 
-      /* LIVE CLOCK */
-      .clock { font-size: 14px; color: #64748b; margin-top: 2px; }
-
-      /* PENDING BADGE */
-      .badge-count {
-        margin-left: auto;
-        background: #ef4444; color: white;
-        border-radius: 20px; padding: 1px 7px;
-        font-size: 11px; font-weight: 700;
+      /* ── ACTION BUTTONS in table ── */
+      .tbl-btn {
+        padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+        font-weight: 600; transition: 0.15s; border: 1px solid;
       }
+      .tbl-btn-edit   { border-color: #bfdbfe; background: #eff6ff; color: #1e40af; }
+      .tbl-btn-delete { border-color: #fca5a5; background: #fee2e2; color: #dc2626; }
+      .tbl-btn:hover  { transform: translateY(-1px); }
 
+      /* ── QUICK ACTION CARDS ── */
+      .action-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+      .action-card {
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 12px; padding: 18px; display: flex; flex-direction: column;
+        transition: 0.2s;
+      }
+      .action-card:hover { border-color: #bfdbfe; box-shadow: 0 2px 10px rgba(30,58,138,0.07); }
+      .ac-icon {
+        width: 40px; height: 40px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; margin-bottom: 10px; flex-shrink: 0;
+      }
+      .action-card h4   { font-size: 13px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
+      .action-card .sub { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+      .action-card input {
+        width: 100%; padding: 8px 11px;
+        border: 1px solid #dbeafe; border-radius: 8px;
+        background: #fff; color: #0f172a; font-size: 13px;
+        margin-bottom: 7px; outline: none; transition: 0.2s;
+      }
+      .action-card input::placeholder { color: #94a3b8; }
+      .action-card input:focus { border-color: #93c5fd; }
+      .action-card .btn { margin-top: auto; }
+
+      /* ── REGISTER FORM ── */
+      .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+      .field { margin-bottom: 14px; }
+      .field label {
+        display: block; font-size: 11px; font-weight: 700; color: #64748b;
+        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
+      }
+      .field input {
+        width: 100%; padding: 10px 13px;
+        border: 1px solid #e2e8f0; border-radius: 9px;
+        background: #f8fafc; color: #0f172a; font-size: 14px;
+        outline: none; transition: 0.2s;
+      }
+      .field input::placeholder { color: #94a3b8; }
+      .field input:focus { border-color: #93c5fd; background: #fff; }
+
+      /* ── BUTTONS ── */
+      .btn { width: 100%; padding: 11px; border: none; border-radius: 9px; cursor: pointer; font-weight: 700; font-size: 14px; transition: 0.2s; }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+      .btn-navy   { background: #1e3a8a; color: white; }
+      .btn-green  { background: #16a34a; color: white; }
+      .btn-amber  { background: #d97706; color: white; }
+      .btn-indigo { background: #6366f1; color: white; }
+      .btn-blue   { background: #2563eb; color: white; }
+
+      /* ── CHANGE PASSWORD ── */
+      .pwd-form .field input[type="password"] { letter-spacing: 1px; }
+
+      /* ── ANIMATIONS ── */
       @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50%       { opacity: 0.4; transform: scale(0.75); }
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.4; transform:scale(0.75); }
       }
       @keyframes flash-green {
-        0%   { background: #dcfce7; }
+        0%   { background: #f0fdf4; }
         100% { background: transparent; }
       }
-      .row-new { animation: flash-green 1.2s ease-out; }
+      .row-new td { animation: flash-green 1.5s ease-out; }
 
-      @media (max-width: 768px) {
+      /* ── FLASH MESSAGE ── */
+      .flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; font-size: 14px; font-weight: 500; }
+      .flash-success { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+      .flash-error   { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 1200px) { .stats { grid-template-columns: repeat(2,1fr); } .action-grid { grid-template-columns: repeat(2,1fr); } }
+      @media (max-width: 900px)  { .reg-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 768px)  {
         body { flex-direction: column; }
-        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
-        .sidebar .brand, .sidebar .brand-sub { display: none; }
-        .nav-sep { display: none; }
-        .sidebar-footer { display: none; }
+        .sidebar { width: 100%; height: auto; position: relative; padding: 14px; }
+        .brand, .brand-sub { display: none; }
+        .nav-sep, .sidebar-footer { display: none; }
+        .sidebar { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+        .stats { grid-template-columns: repeat(2,1fr); }
+        .action-grid { grid-template-columns: 1fr; }
+        .main { padding: 16px; }
       }
     </style>
   </head>
   <body>
 
-    <!-- SIDEBAR -->
+    <!-- ═══ SIDEBAR ═══ -->
     <div class="sidebar">
       <div class="brand">⚙️ Admin Panel</div>
       <div class="brand-sub">Attendance Management System</div>
@@ -162,310 +221,250 @@
       <a class="nav-item" href="/view_photos">📷 Employee Photos</a>
       <a class="nav-item" href="/email_config">✉️ Email Settings</a>
       <a class="nav-item" href="/leave_requests">📋 Leave Requests
-        {% if (pending_leaves | default(0)) > 0 %}
-          <span class="badge-count">{{ pending_leaves }}</span>
-        {% endif %}
+        {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
       </a>
       <a class="nav-item" href="/resignation_requests">📤 Resignations
-        {% if (pending_resignations | default(0)) > 0 %}
-          <span class="badge-count">{{ pending_resignations }}</span>
-        {% endif %}
+        {% if (pending_resignations|default(0)) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
       </a>
       <a class="nav-item" href="/tickets">🎫 Tickets
-        {% if (pending_tickets | default(0)) > 0 %}
-          <span class="badge-count">{{ pending_tickets }}</span>
-        {% endif %}
+        {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
       <hr class="nav-sep" />
       <a class="nav-item" href="/logout">🚪 Logout</a>
-
-      <div class="sidebar-footer">
-        Shift: {{ shift_start }} – {{ shift_end }}
-      </div>
+      <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
-    <!-- MAIN -->
+    <!-- ═══ MAIN ═══ -->
     <div class="main">
 
+      <!-- Flash messages -->
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
-          <div style="
-            padding: 12px 18px; border-radius: 10px; margin-bottom: 16px;
-            font-size: 14px; font-weight: 500;
-            background: {{ '#dcfce7' if category == 'success' else '#fee2e2' }};
-            color: {{ '#15803d' if category == 'success' else '#dc2626' }};
-            border: 1px solid {{ '#86efac' if category == 'success' else '#fca5a5' }};
-          ">
+          <div class="flash flash-{{ 'success' if category == 'success' else 'error' }}">
             {{ '✅' if category == 'success' else '❌' }} {{ message }}
           </div>
         {% endfor %}
       {% endwith %}
 
-      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <!-- PAGE HEADER -->
+      <div class="page-header">
         <div>
           <h1>Admin Dashboard</h1>
-          <p>{{ today }} &nbsp;|&nbsp; <span id="clock" class="clock"></span></p>
+          <div class="sub">{{ today }} &nbsp;·&nbsp; <span id="clock"></span></div>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}"
-             style="padding:9px 16px;border-radius:8px;background:#16a34a;color:white;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-            ⬇ Export This Month
-          </a>
-          <button onclick="sendAbsenteeReport()"
-            style="padding:9px 16px;border:none;border-radius:8px;background:#3b82f6;color:white;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-            📧 Email Absentee Report
-          </button>
+        <div class="header-actions">
+          <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green">⬇ Export Month</a>
+          <button onclick="sendAbsenteeReport()" class="hbtn hbtn-blue">📧 Email Absentees</button>
         </div>
       </div>
 
-      <!-- STATS -->
+      <!-- STAT CARDS -->
       <div class="stats">
-        <a class="stat-card blue" href="/employees" title="View all employees">
-          <div class="num" id="statTotal">{{ total }}</div>
-          <div class="lbl">👥 Total Employees</div>
+        <a class="stat-card" href="/employees">
+          <div class="stat-icon si-blue">👥</div>
+          <div>
+            <div class="stat-num sn-blue" id="statTotal">{{ total }}</div>
+            <div class="stat-lbl">Total Employees</div>
+          </div>
         </a>
-        <a class="stat-card green" href="/today_present" title="See who is present today">
-          <div class="num" id="statPresent">{{ present }}</div>
-          <div class="lbl">✅ Present Today</div>
+        <a class="stat-card" href="/today_present">
+          <div class="stat-icon si-green">✅</div>
+          <div>
+            <div class="stat-num sn-green" id="statPresent">{{ present }}</div>
+            <div class="stat-lbl">Present Today</div>
+          </div>
         </a>
-        <a class="stat-card red" href="/today_absent" title="See who is absent today">
-          <div class="num" id="statAbsent">{{ absent }}</div>
-          <div class="lbl">❌ Absent Today</div>
+        <a class="stat-card" href="/today_absent">
+          <div class="stat-icon si-red">❌</div>
+          <div>
+            <div class="stat-num sn-red" id="statAbsent">{{ absent }}</div>
+            <div class="stat-lbl">Absent Today</div>
+          </div>
         </a>
-        <a class="stat-card yellow" href="/today_late" title="See late logins today">
-          <div class="num" id="statLate">{{ late }}</div>
-          <div class="lbl">⚠️ Late Logins</div>
+        <a class="stat-card" href="/today_late">
+          <div class="stat-icon si-yellow">⚠️</div>
+          <div>
+            <div class="stat-num sn-yellow" id="statLate">{{ late }}</div>
+            <div class="stat-lbl">Late Logins</div>
+          </div>
         </a>
       </div>
 
       <!-- TODAY'S ATTENDANCE -->
       <div class="section">
-        <h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <span>📋 Today's Attendance</span>
-          <span style="display:flex;align-items:center;gap:10px;">
-            <span id="liveIndicator" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#16a34a;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;animation:pulse 1.5s ease-in-out infinite;"></span>
-              Live
+        <div class="section-title">
+          📋 Today's Attendance
+          <span style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+            <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#16a34a;font-weight:600;">
+              <span class="live-dot"></span> Live
             </span>
             <span id="lastUpdated" style="font-size:12px;color:#94a3b8;font-weight:400;"></span>
           </span>
-        </h3>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Emp ID</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Login Time</th>
-                <th>Login Status</th>
-                <th>Logout Time</th>
-                <th>Logout Status</th>
-                <th>Attendance Type</th>
-                <th>Actions</th>
+                <th>Emp ID</th><th>Name</th><th>Role</th>
+                <th>Login</th><th>Login Status</th>
+                <th>Logout</th><th>Logout Status</th>
+                <th>Type</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="attendanceTbody">
-              {% for row in today_rows %}
-              {% set emp_id, name, login_t, logout_t, login_s, logout_s, att_type, role = row %}
-              <tr>
-                <td>{{ emp_id }}</td>
-                <td>{{ name }}</td>
-                <td>
-                  {% if role %}
-                    <span class="badge badge-blue">{{ role }}</span>
-                  {% else %}
-                    <span class="badge badge-gray">—</span>
-                  {% endif %}
-                </td>
-                <td>{{ login_t | fmt_time }}</td>
-                <td>
-                  {% if login_s == 'Full Day Login' %}
-                    <span class="badge badge-green">Full Day Login</span>
-                  {% elif login_s == 'Late Login' %}
-                    <span class="badge badge-yellow">Late Login</span>
-                  {% elif login_s == 'Half Day Login' %}
-                    <span class="badge badge-red">Half Day Login</span>
-                  {% else %}
-                    <span class="badge badge-gray">Absent</span>
-                  {% endif %}
-                </td>
-                <td>{{ logout_t | fmt_time }}</td>
-                <td>
-                  {% if logout_s == 'Completed' %}
-                    <span class="badge badge-green">Completed</span>
-                  {% elif logout_s == 'Early Logout' %}
-                    <span class="badge badge-yellow">Early Logout</span>
-                  {% elif logout_s == 'Half Day Logout' %}
-                    <span class="badge badge-red">Half Day Logout</span>
-                  {% elif login_t %}
-                    <span class="badge badge-blue">Still In</span>
-                  {% else %}
-                    <span class="badge badge-gray">--</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if att_type == 'Full Day' %}
-                    <span class="badge badge-green">Full Day</span>
-                  {% elif att_type == 'Late - Full Day' %}
-                    <span class="badge badge-yellow">Late – Full Day</span>
-                  {% elif att_type == 'Half Day' %}
-                    <span class="badge badge-red">Half Day</span>
-                  {% elif login_t and not logout_t %}
-                    <span class="badge badge-blue">In Progress</span>
-                  {% else %}
-                    <span class="badge badge-gray">Absent</span>
-                  {% endif %}
-                </td>
-                <td style="white-space:nowrap;">
-                  <button onclick="openEdit('{{ emp_id }}','{{ name }}','{{ role or '' }}','','')"
-                    style="padding:4px 10px;border:1px solid #dbeafe;border-radius:6px;background:#eff6ff;color:#1e3a8a;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>
-                  <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
-                    onsubmit="return confirm('Delete employee {{ name }} ({{ emp_id }})? This cannot be undone.')">
-                    <button type="submit"
-                      style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:12px;">🗑️ Delete</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
+              {% if today_rows %}
+                {% for row in today_rows %}
+                {% set emp_id, name, login_t, logout_t, login_s, logout_s, att_type, role = row %}
+                <tr>
+                  <td><span style="background:#dbeafe;color:#1e40af;font-weight:700;font-size:12px;padding:4px 10px;border-radius:8px;letter-spacing:0.3px;">{{ emp_id }}</span></td>
+                  <td>{{ name }}</td>
+                  <td>{% if role %}<span class="badge badge-blue">{{ role }}</span>{% else %}<span class="badge badge-gray">—</span>{% endif %}</td>
+                  <td>{{ login_t | fmt_time }}</td>
+                  <td>
+                    {% if login_s == 'Full Day Login' %}<span class="badge badge-green">Full Day Login</span>
+                    {% elif login_s == 'Late Login' %}<span class="badge badge-yellow">Late Login</span>
+                    {% elif login_s == 'Half Day Login' %}<span class="badge badge-red">Half Day Login</span>
+                    {% else %}<span class="badge badge-gray">Absent</span>{% endif %}
+                  </td>
+                  <td>{{ logout_t | fmt_time }}</td>
+                  <td>
+                    {% if logout_s == 'Completed' %}<span class="badge badge-green">Completed</span>
+                    {% elif logout_s == 'Early Logout' %}<span class="badge badge-yellow">Early Logout</span>
+                    {% elif logout_s == 'Half Day Logout' %}<span class="badge badge-red">Half Day Logout</span>
+                    {% elif login_t %}<span class="badge badge-blue">Still In</span>
+                    {% else %}<span class="badge badge-gray">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if att_type == 'Full Day' %}<span class="badge badge-green">Full Day</span>
+                    {% elif att_type == 'Late - Full Day' %}<span class="badge badge-yellow">Late – Full</span>
+                    {% elif att_type == 'Half Day' %}<span class="badge badge-red">Half Day</span>
+                    {% elif login_t and not logout_t %}<span class="badge badge-blue">In Progress</span>
+                    {% else %}<span class="badge badge-gray">Absent</span>{% endif %}
+                  </td>
+                  <td>
+                    <button class="tbl-btn tbl-btn-edit"
+                      onclick="openEdit('{{ emp_id }}','{{ name }}','{{ role or '' }}','','')">✏️ Edit</button>
+                    <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
+                      onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
+                      <button type="submit" class="tbl-btn tbl-btn-delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr class="empty-row"><td colspan="9">📭 No attendance records for today yet.</td></tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- QUICK ACTIONS -->
+      <!-- REGISTER NEW EMPLOYEE -->
       <div class="section">
-        <h3>⚡ Quick Actions</h3>
-        <div class="forms-grid">
-
-          <!-- REGISTER -->
-          <div class="form-card" style="min-width:300px;">
-            <h4>👤 Register Employee</h4>
-            <form id="regForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateRegForm()">
-              <input type="hidden" name="action" value="register" />
-              <input type="text"  name="name"   placeholder="Full Name"                    required />
-              <input type="text"  name="emp_id" placeholder="Employee ID (e.g. EMP001)"    required />
-              <input type="email" name="email"  placeholder="Email (for salary slips)"     />
-              <input type="text"  name="role"   placeholder="Role (e.g. Developer)"        />
-              <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:4px;">Date of Joining</label>
-              <input type="date"  name="date_of_joining" title="Date of joining" />
-
-              <!-- hidden file input that actually submits -->
-              <input type="file" name="face" id="regFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'reg')" />
-
-              <!-- Face Photo Section -->
-              <div style="margin-bottom:10px;">
-                <div style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">
-                  📸 Face Photo <span style="color:#dc2626;">*</span>
-                </div>
-                <div style="font-size:11px;color:#64748b;margin-bottom:8px;line-height:1.5;">
-                  Used for face recognition during attendance.<br>
-                  Must be a <strong>clear, front-facing photo</strong> with good lighting.
-                </div>
-
-                <!-- Preview -->
-                <div id="regPreview" style="
-                  width:100%;height:140px;border-radius:10px;
-                  background:#f1f5f9;border:2px dashed #93c5fd;
-                  display:flex;align-items:center;justify-content:center;
-                  margin-bottom:8px;overflow:hidden;position:relative;">
-                  <span style="font-size:12px;color:#94a3b8;text-align:center;padding:10px;" id="regPreviewText">
-                    No photo selected
-                  </span>
-                  <img id="regPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
-                </div>
-
-                <!-- Two buttons -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
-                  <button type="button" onclick="openCameraModal('reg')"
-                    style="padding:8px;border:none;border-radius:8px;background:#3b82f6;color:white;font-size:12px;font-weight:600;cursor:pointer;">
-                    📷 Use Camera
-                  </button>
-                  <button type="button" onclick="document.getElementById('regFaceFile').click()"
-                    style="padding:8px;border:1px solid #dbeafe;border-radius:8px;background:#ffffff;color:#1e3a8a;font-size:12px;font-weight:600;cursor:pointer;">
-                    🖼 Upload Photo
-                  </button>
-                </div>
-                <div style="font-size:11px;color:#94a3b8;text-align:center;">
-                  Camera = take live photo &nbsp;|&nbsp; Upload = choose from device
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-blue btn-mt">✅ Register Employee</button>
-            </form>
+        <div class="section-title">👤 Register New Employee</div>
+        <form id="regForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateRegForm()">
+          <input type="hidden" name="action" value="register" />
+          <div class="reg-grid">
+            <div class="field">
+              <label>Full Name <span style="color:#dc2626;">*</span></label>
+              <input type="text" name="name" placeholder="e.g. Ravi Kumar" required />
+            </div>
+            <div class="field">
+              <label>Employee ID <span style="color:#dc2626;">*</span></label>
+              <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" name="email" placeholder="Used for salary slips" />
+            </div>
+            <div class="field">
+              <label>Role</label>
+              <input type="text" name="role" placeholder="e.g. Developer" />
+            </div>
+            <div class="field">
+              <label>Date of Joining</label>
+              <input type="date" name="date_of_joining" />
+            </div>
           </div>
 
-          <!-- HOLIDAY -->
-          <div class="form-card">
-            <h4>📅 Add Holiday</h4>
+          <input type="file" name="face" id="regFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'reg')" />
+          <div style="max-width:420px;margin-top:4px;margin-bottom:18px;">
+            <label style="display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+              📸 Face Photo <span style="color:#dc2626;">*</span>
+              <span style="font-size:10px;color:#94a3b8;font-weight:400;margin-left:6px;">Clear, front-facing photo for attendance recognition</span>
+            </label>
+            <div id="regPreview" style="width:100%;height:120px;border-radius:10px;background:#f1f5f9;border:2px dashed #93c5fd;display:flex;align-items:center;justify-content:center;margin-bottom:8px;overflow:hidden;">
+              <span style="font-size:13px;color:#94a3b8;" id="regPreviewText">No photo selected</span>
+              <img id="regPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button type="button" onclick="openCameraModal('reg')" style="padding:9px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">📷 Use Camera</button>
+              <button type="button" onclick="document.getElementById('regFaceFile').click()" style="padding:9px;border:1px solid #dbeafe;border-radius:8px;background:#fff;color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;">🖼 Upload Photo</button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-navy" style="max-width:220px;">✅ Register Employee</button>
+        </form>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="section">
+        <div class="section-title">⚡ Quick Actions</div>
+        <div class="action-grid">
+
+          <div class="action-card">
+            <div class="ac-icon" style="background:#dcfce7;">📅</div>
+            <h4>Add Holiday</h4>
+            <div class="sub">Mark a date as a public holiday</div>
             <form action="/admin_action" method="POST">
               <input type="hidden" name="action" value="holiday" />
-              <input type="date" name="date" required title="Holiday date" />
-              <input type="text" name="holiday_name" placeholder="Holiday Name" required />
+              <input type="date" name="date" required />
+              <input type="text" name="holiday_name" placeholder="Holiday name" required />
               <button type="submit" class="btn btn-green">Add Holiday</button>
             </form>
           </div>
 
-          <!-- SALARY -->
-          <div class="form-card">
-            <h4>💰 Set Daily Salary</h4>
+          <div class="action-card">
+            <div class="ac-icon" style="background:#ede9fe;">💰</div>
+            <h4>Set Daily Salary</h4>
+            <div class="sub">Update an employee's daily pay</div>
             <form action="/admin_action" method="POST">
               <input type="hidden" name="action" value="salary" />
-              <input type="text" name="emp_id" placeholder="Employee ID" required />
-              <input type="number" name="salary" placeholder="Salary per day (₹)" step="0.01" min="0" required />
-              <button type="submit" class="btn btn-purple">Update Salary</button>
+              <input type="text"   name="emp_id" placeholder="Employee ID" required />
+              <input type="number" name="salary"  placeholder="Amount per day (₹)" step="0.01" min="0" required />
+              <button type="submit" class="btn btn-indigo">Update Salary</button>
             </form>
           </div>
 
-          <!-- UPDATE FACE -->
-          <div class="form-card" style="min-width:260px;">
-            <h4>📷 Update Face Photo</h4>
+          <div class="action-card">
+            <div class="ac-icon" style="background:#dbeafe;">📷</div>
+            <h4>Update Face Photo</h4>
+            <div class="sub">Replace employee's face image</div>
             <form id="updForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateUpdForm()">
               <input type="hidden" name="action" value="update_face" />
               <input type="text" name="emp_id" placeholder="Employee ID" required />
               <input type="file" name="face" id="updFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'upd')" />
-
-              <div style="margin-bottom:10px;">
-                <div style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">
-                  📸 New Face Photo <span style="color:#dc2626;">*</span>
-                </div>
-                <div id="updPreview" style="
-                  width:100%;height:120px;border-radius:10px;
-                  background:#f1f5f9;border:2px dashed #93c5fd;
-                  display:flex;align-items:center;justify-content:center;
-                  margin-bottom:8px;overflow:hidden;">
-                  <span style="font-size:12px;color:#94a3b8;" id="updPreviewText">No photo selected</span>
-                  <img id="updPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
-                  <button type="button" onclick="openCameraModal('upd')"
-                    style="padding:8px;border:none;border-radius:8px;background:#3b82f6;color:white;font-size:12px;font-weight:600;cursor:pointer;">
-                    📷 Use Camera
-                  </button>
-                  <button type="button" onclick="document.getElementById('updFaceFile').click()"
-                    style="padding:8px;border:1px solid #dbeafe;border-radius:8px;background:#ffffff;color:#1e3a8a;font-size:12px;font-weight:600;cursor:pointer;">
-                    🖼 Upload Photo
-                  </button>
-                </div>
+              <div id="updPreview" style="width:100%;height:72px;border-radius:8px;background:#f1f5f9;border:2px dashed #93c5fd;display:flex;align-items:center;justify-content:center;margin-bottom:7px;overflow:hidden;">
+                <span style="font-size:12px;color:#94a3b8;" id="updPreviewText">No photo</span>
+                <img id="updPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
               </div>
-              <button type="submit" class="btn btn-blue btn-mt">Update Photo</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px;">
+                <button type="button" onclick="openCameraModal('upd')" style="padding:7px;border:none;border-radius:7px;background:#1e3a8a;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">📷 Camera</button>
+                <button type="button" onclick="document.getElementById('updFaceFile').click()" style="padding:7px;border:1px solid #dbeafe;border-radius:7px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">🖼 Upload</button>
+              </div>
+              <button type="submit" class="btn btn-blue">Update Photo</button>
             </form>
           </div>
 
-          <!-- RESET PASSWORD -->
-          <div class="form-card" style="min-width:260px;">
-            <h4>🔑 Reset Employee Password</h4>
-            <p style="font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.5;">
-              Resets the employee's password back to their <strong>Employee ID</strong>.<br>
-              Use this when an employee forgets their password.
-            </p>
+          <div class="action-card">
+            <div class="ac-icon" style="background:#fef9c3;">🔑</div>
+            <h4>Reset Password</h4>
+            <div class="sub">Resets PIN to the employee's ID</div>
             <form action="/admin_action" method="POST">
               <input type="hidden" name="action" value="reset_password" />
-              <input type="text" name="emp_id" placeholder="Employee ID (e.g. EMP001)" required />
-              <button type="submit" class="btn btn-mt"
-                style="background:#f59e0b;color:white;"
-                onclick="return confirm('Reset password for this employee to their Employee ID?')">
-                🔑 Reset Password
+              <input type="text" name="emp_id" placeholder="Employee ID" required />
+              <button type="submit" class="btn btn-amber"
+                onclick="return confirm('Reset this employee\'s password to their Employee ID?')">
+                Reset Password
               </button>
             </form>
           </div>
@@ -473,374 +472,277 @@
         </div>
       </div>
 
-      <!-- ADMIN CHANGE PASSWORD -->
+      <!-- CHANGE ADMIN PASSWORD -->
       <div class="section">
-        <h3>🔒 Change Admin Password</h3>
+        <div class="section-title">🔒 Change Admin Password</div>
+
         {% if request.args.get('pwd_ok') %}
-          <p style="color:#6ee56e;margin-bottom:14px;">✅ Password updated successfully.</p>
+          <div class="flash flash-success" style="max-width:420px;">✅ Password updated successfully.</div>
         {% elif request.args.get('pwd_error') == 'wrong' %}
-          <p style="color:#ff7e7e;margin-bottom:14px;">❌ Current password is incorrect.</p>
+          <div class="flash flash-error" style="max-width:420px;">❌ Current password is incorrect.</div>
         {% elif request.args.get('pwd_error') == 'mismatch' %}
-          <p style="color:#ff7e7e;margin-bottom:14px;">❌ New passwords do not match.</p>
+          <div class="flash flash-error" style="max-width:420px;">❌ New passwords do not match.</div>
         {% endif %}
-        <form action="/change_admin_password" method="POST" style="max-width:360px;">
-          <input type="password" name="current_password" placeholder="Current Password" required
-                 style="width:100%;padding:10px 12px;border:none;border-radius:8px;
-                        background:rgba(255,255,255,0.2);color:white;font-size:14px;
-                        margin-bottom:10px;outline:none;" />
-          <input type="password" name="new_password" placeholder="New Password" required
-                 style="width:100%;padding:10px 12px;border:none;border-radius:8px;
-                        background:rgba(255,255,255,0.2);color:white;font-size:14px;
-                        margin-bottom:10px;outline:none;" />
-          <input type="password" name="confirm_password" placeholder="Confirm New Password" required
-                 style="width:100%;padding:10px 12px;border:none;border-radius:8px;
-                        background:rgba(255,255,255,0.2);color:white;font-size:14px;
-                        margin-bottom:10px;outline:none;" />
-          <button type="submit" class="btn btn-blue" style="width:auto;padding:10px 24px;">
-            Update Password
-          </button>
+
+        <form action="/change_admin_password" method="POST" class="pwd-form" style="max-width:420px;">
+          <div class="field">
+            <label>Current Password</label>
+            <input type="password" name="current_password" placeholder="Enter current password" required />
+          </div>
+          <div class="field">
+            <label>New Password</label>
+            <input type="password" name="new_password" placeholder="Enter new password" required />
+          </div>
+          <div class="field">
+            <label>Confirm New Password</label>
+            <input type="password" name="confirm_password" placeholder="Re-enter new password" required />
+          </div>
+          <button type="submit" class="btn btn-navy" style="max-width:200px;">🔒 Update Password</button>
         </form>
       </div>
 
     </div><!-- /main -->
 
-    <!-- CAMERA MODAL -->
+    <!-- ═══ CAMERA MODAL ═══ -->
     <div id="cameraModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2000;align-items:center;justify-content:center;">
       <div style="background:#1e1b3a;border-radius:20px;padding:28px;width:100%;max-width:420px;color:white;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
         <h3 style="margin-bottom:6px;">📷 Take Face Photo</h3>
-        <p style="font-size:12px;opacity:0.55;margin-bottom:16px;">
-          Position the employee's face in the frame, then click Capture.
-        </p>
-
-        <!-- Tips -->
-        <div style="display:flex;gap:10px;margin-bottom:14px;font-size:11px;text-align:left;">
-          <div style="flex:1;padding:8px;background:rgba(255,255,255,0.07);border-radius:8px;">✅ Front-facing</div>
-          <div style="flex:1;padding:8px;background:rgba(255,255,255,0.07);border-radius:8px;">✅ Good lighting</div>
-          <div style="flex:1;padding:8px;background:rgba(255,255,255,0.07);border-radius:8px;">❌ No sunglasses</div>
+        <p style="font-size:12px;opacity:0.55;margin-bottom:14px;">Position the employee's face in the frame, then click Capture.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;text-align:left;">
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Front-facing</div>
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Good lighting</div>
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">❌ No sunglasses</div>
         </div>
-
-        <!-- Video preview -->
-        <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:14px;">
-          <video id="camVideo" autoplay playsinline muted
-            style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
-          <!-- Face guide overlay -->
+        <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;">
+          <video id="camVideo" autoplay playsinline muted style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
           <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
             <div style="width:160px;height:200px;border:2px dashed rgba(0,255,136,0.6);border-radius:50%;"></div>
           </div>
         </div>
-
-        <!-- Captured preview (shown after capture) -->
-        <canvas id="camCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:14px;"></canvas>
-
+        <canvas id="camCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
         <div style="display:flex;gap:10px;">
-          <button id="captureBtn" onclick="capturePhoto()"
-            style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">
-            📸 Capture
-          </button>
-          <button id="retakeBtn" onclick="retakePhoto()" style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">
-            🔄 Retake
-          </button>
-          <button id="useBtn" onclick="usePhoto()" style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#22c55e,#16a34a);color:white;font-size:14px;font-weight:700;cursor:pointer;">
-            ✅ Use Photo
-          </button>
-          <button onclick="closeCameraModal()"
-            style="padding:12px 18px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">
-            Cancel
-          </button>
+          <button id="captureBtn" onclick="capturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
+          <button id="retakeBtn"  onclick="retakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
+          <button id="useBtn"     onclick="usePhoto()"     style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#22c55e,#16a34a);color:white;font-size:14px;font-weight:700;cursor:pointer;">✅ Use Photo</button>
+          <button onclick="closeCameraModal()" style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">Cancel</button>
         </div>
       </div>
     </div>
 
-    <!-- EDIT EMPLOYEE MODAL -->
-    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:linear-gradient(135deg,#302b63,#24243e);border-radius:18px;padding:32px;width:100%;max-width:420px;color:white;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-        <h3 style="margin-bottom:20px;">✏️ Edit Employee</h3>
+    <!-- ═══ EDIT EMPLOYEE MODAL ═══ -->
+    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:18px;padding:32px;width:100%;max-width:440px;color:#0f172a;box-shadow:0 24px 60px rgba(0,0,0,0.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
+          <h3 style="font-size:17px;font-weight:800;">✏️ Edit Employee</h3>
+          <button onclick="closeEdit()" style="border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;">✕</button>
+        </div>
         <form action="/edit_employee" method="POST" id="editForm">
           <input type="hidden" name="emp_id" id="edit_emp_id" />
-          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Employee ID</label>
-          <input id="edit_emp_id_display" type="text" disabled
-            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.1);color:#aaa;font-size:14px;margin-bottom:14px;" />
-          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Name</label>
-          <input name="name" id="edit_name" type="text" required
-            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:14px;" />
-          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Email</label>
-          <input name="email" id="edit_email" type="email"
-            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:14px;" />
-          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Role</label>
-          <input name="role" id="edit_role" type="text"
-            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:14px;" />
-          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Date of Joining</label>
-          <input name="date_of_joining" id="edit_doj" type="date"
-            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:20px;" />
+          <div class="field">
+            <label>Employee ID</label>
+            <input id="edit_emp_id_display" type="text" disabled style="color:#94a3b8;" />
+          </div>
+          <div class="field">
+            <label>Name <span style="color:#dc2626;">*</span></label>
+            <input name="name" id="edit_name" type="text" required />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input name="email" id="edit_email" type="email" />
+          </div>
+          <div class="field">
+            <label>Role</label>
+            <input name="role" id="edit_role" type="text" />
+          </div>
+          <div class="field" style="margin-bottom:22px;">
+            <label>Date of Joining</label>
+            <input name="date_of_joining" id="edit_doj" type="date" />
+          </div>
           <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(90deg,#667eea,#764ba2);color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
-            <button type="button" onclick="closeEdit()" style="flex:1;padding:11px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">Cancel</button>
+            <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
+            <button type="button" onclick="closeEdit()" style="padding:11px 18px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;cursor:pointer;">Cancel</button>
           </div>
         </form>
       </div>
     </div>
 
     <script>
+      /* ── CLOCK ── */
       function updateClock() {
-        const now = new Date();
-        document.getElementById("clock").innerText = now.toLocaleTimeString("en-IN", {hour12: true});
+        document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN", {hour12:true});
       }
-      setInterval(updateClock, 1000);
-      updateClock();
+      setInterval(updateClock, 1000); updateClock();
 
+      /* ── EMAIL ABSENTEES ── */
       async function sendAbsenteeReport() {
         const btn = event.currentTarget;
-        btn.disabled = true;
-        btn.textContent = "Sending...";
+        btn.disabled = true; btn.textContent = "Sending…";
         try {
-          const res  = await fetch("/send_absentee_report", { method: "POST" });
+          const res  = await fetch("/send_absentee_report", {method:"POST"});
           const data = await res.json();
           alert(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
-        } catch(e) {
-          alert("❌ Network error. Please try again.");
-        }
-        btn.disabled = false;
-        btn.innerHTML = "📧 Email Absentee Report";
+        } catch(e) { alert("❌ Network error."); }
+        btn.disabled = false; btn.innerHTML = "📧 Email Absentees";
       }
 
-      /* ── FACE PHOTO LOGIC ── */
-      let _camStream   = null;
-      let _camTarget   = null;   // 'reg' or 'upd'
-      let _capturedBlob = null;
+      /* ── FACE PHOTO ── */
+      let _camStream = null, _camTarget = null, _capturedBlob = null;
 
-      // When user picks a file via Upload button
       function onFileChosen(input, target) {
-        const file = input.files[0];
-        if (!file) return;
-        const url = URL.createObjectURL(file);
-        showPreview(target, url);
+        const file = input.files[0]; if (!file) return;
+        showPreview(target, URL.createObjectURL(file));
       }
-
       function showPreview(target, url) {
-        const img  = document.getElementById(target + "PreviewImg");
-        const txt  = document.getElementById(target + "PreviewText");
-        img.src    = url;
-        img.style.display = "block";
-        txt.style.display = "none";
+        document.getElementById(target+"PreviewImg").src = url;
+        document.getElementById(target+"PreviewImg").style.display = "block";
+        document.getElementById(target+"PreviewText").style.display = "none";
       }
-
-      // Open camera modal
       async function openCameraModal(target) {
-        _camTarget    = target;
-        _capturedBlob = null;
-        document.getElementById("cameraModal").style.display = "flex";
-        document.getElementById("camCanvas").style.display   = "none";
-        document.getElementById("camVideo").style.display    = "block";
-        document.getElementById("captureBtn").style.display  = "inline-block";
-        document.getElementById("retakeBtn").style.display   = "none";
-        document.getElementById("useBtn").style.display      = "none";
+        _camTarget = target; _capturedBlob = null;
+        document.getElementById("cameraModal").style.display   = "flex";
+        document.getElementById("camCanvas").style.display     = "none";
+        document.getElementById("camVideo").style.display      = "block";
+        document.getElementById("captureBtn").style.display    = "inline-block";
+        document.getElementById("retakeBtn").style.display     = "none";
+        document.getElementById("useBtn").style.display        = "none";
         try {
-          _camStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
-          });
+          _camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
           document.getElementById("camVideo").srcObject = _camStream;
-        } catch (e) {
-          alert("Camera not accessible: " + e.message + "\nPlease use the Upload Photo option instead.");
-          closeCameraModal();
-        }
+        } catch(e) { alert("Camera not accessible: "+e.message+"\nUse Upload Photo instead."); closeCameraModal(); }
       }
-
       function capturePhoto() {
-        const video  = document.getElementById("camVideo");
-        const canvas = document.getElementById("camCanvas");
-        canvas.width  = video.videoWidth  || 640;
-        canvas.height = video.videoHeight || 480;
-        canvas.getContext("2d").drawImage(video, 0, 0);
-
-        // Stop live feed, show captured image
-        if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
-        video.style.display  = "none";
-        canvas.style.display = "block";
-
+        const video = document.getElementById("camVideo"), canvas = document.getElementById("camCanvas");
+        canvas.width = video.videoWidth||640; canvas.height = video.videoHeight||480;
+        canvas.getContext("2d").drawImage(video,0,0);
+        if (_camStream) { _camStream.getTracks().forEach(t=>t.stop()); _camStream = null; }
+        video.style.display = "none"; canvas.style.display = "block";
         document.getElementById("captureBtn").style.display = "none";
         document.getElementById("retakeBtn").style.display  = "inline-block";
         document.getElementById("useBtn").style.display     = "inline-block";
-
         canvas.toBlob(blob => { _capturedBlob = blob; }, "image/jpeg", 0.92);
       }
-
-      function retakePhoto() {
-        _capturedBlob = null;
-        openCameraModal(_camTarget);
-      }
-
+      function retakePhoto() { _capturedBlob = null; openCameraModal(_camTarget); }
       function usePhoto() {
         if (!_capturedBlob) return;
-        const file   = new File([_capturedBlob], "face_capture.jpg", { type: "image/jpeg" });
-        const fileId = _camTarget + "FaceFile";
-        const dt     = new DataTransfer();
-        dt.items.add(file);
-        document.getElementById(fileId).files = dt.files;
-
-        // Show preview in form
+        const file = new File([_capturedBlob], "face_capture.jpg", {type:"image/jpeg"});
+        const dt   = new DataTransfer(); dt.items.add(file);
+        document.getElementById(_camTarget+"FaceFile").files = dt.files;
         showPreview(_camTarget, URL.createObjectURL(_capturedBlob));
         closeCameraModal();
       }
-
       function closeCameraModal() {
-        if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+        if (_camStream) { _camStream.getTracks().forEach(t=>t.stop()); _camStream = null; }
         document.getElementById("cameraModal").style.display = "none";
       }
+      document.getElementById("cameraModal").addEventListener("click", e => { if (e.target===e.currentTarget) closeCameraModal(); });
 
-      // Form validation — make sure photo was chosen
       function validateRegForm() {
-        if (!document.getElementById("regFaceFile").files.length) {
-          alert("Please take a photo or upload one before registering.");
-          return false;
-        }
-        return true;
+        if (!document.getElementById("regFaceFile").files.length) { alert("Please take or upload a face photo."); return false; } return true;
       }
       function validateUpdForm() {
-        if (!document.getElementById("updFaceFile").files.length) {
-          alert("Please take a photo or upload one before updating.");
-          return false;
-        }
-        return true;
+        if (!document.getElementById("updFaceFile").files.length) { alert("Please take or upload a face photo."); return false; } return true;
       }
 
-      // Close camera modal on backdrop click
-      document.getElementById("cameraModal").addEventListener("click", function(e) {
-        if (e.target === this) closeCameraModal();
-      });
-
+      /* ── EDIT MODAL ── */
       function openEdit(empId, name, role, email, doj) {
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
         document.getElementById("edit_name").value           = name;
-        document.getElementById("edit_email").value          = email;
-        document.getElementById("edit_role").value           = role;
-        document.getElementById("edit_doj").value            = doj;
+        document.getElementById("edit_email").value          = email || "";
+        document.getElementById("edit_role").value           = role  || "";
+        document.getElementById("edit_doj").value            = doj   || "";
         document.getElementById("editModal").style.display   = "flex";
       }
-      function closeEdit() {
-        document.getElementById("editModal").style.display = "none";
-      }
-      document.getElementById("editModal").addEventListener("click", function(e) {
-        if (e.target === this) closeEdit();
-      });
+      function closeEdit() { document.getElementById("editModal").style.display = "none"; }
+      document.getElementById("editModal").addEventListener("click", e => { if (e.target===e.currentTarget) closeEdit(); });
 
-      /* ── LIVE DASHBOARD REFRESH ── */
-      const REFRESH_INTERVAL = 30000; // 30 seconds
-      let lastRefresh = Date.now();
-      let prevRowKeys = new Set();
+      /* ── LIVE REFRESH ── */
+      const REFRESH_INTERVAL = 30000;
+      let lastRefresh = Date.now(), prevRowKeys = new Set();
 
-      function badge(cls, text) {
-        return `<span class="badge ${cls}">${text}</span>`;
-      }
-
+      function badge(cls, text) { return `<span class="badge ${cls}">${text}</span>`; }
       function buildLoginBadge(s) {
-        if (s === "Full Day Login")  return badge("badge-green",  "Full Day Login");
-        if (s === "Late Login")      return badge("badge-yellow", "Late Login");
-        if (s === "Half Day Login")  return badge("badge-red",    "Half Day Login");
-        if (s)                       return badge("badge-gray",   s);
-        return badge("badge-gray", "Absent");
+        if (s==="Full Day Login")  return badge("badge-green","Full Day Login");
+        if (s==="Late Login")      return badge("badge-yellow","Late Login");
+        if (s==="Half Day Login")  return badge("badge-red","Half Day Login");
+        return badge("badge-gray","Absent");
       }
-
       function buildLogoutBadge(r) {
-        if (r.logout_s === "Completed")        return badge("badge-green",  "Completed");
-        if (r.logout_s === "Early Logout")     return badge("badge-yellow", "Early Logout");
-        if (r.logout_s === "Half Day Logout")  return badge("badge-red",    "Half Day Logout");
-        if (r.login_t && !r.logout_t)          return badge("badge-blue",   "Still In");
-        return badge("badge-gray", "--");
+        if (r.logout_s==="Completed")       return badge("badge-green","Completed");
+        if (r.logout_s==="Early Logout")    return badge("badge-yellow","Early Logout");
+        if (r.logout_s==="Half Day Logout") return badge("badge-red","Half Day Logout");
+        if (r.login_t && !r.logout_t)       return badge("badge-blue","Still In");
+        return badge("badge-gray","—");
       }
-
       function buildAttTypeBadge(r) {
-        if (r.att_type === "Full Day")         return badge("badge-green",  "Full Day");
-        if (r.att_type === "Late - Full Day")  return badge("badge-yellow", "Late – Full Day");
-        if (r.att_type === "Half Day")         return badge("badge-red",    "Half Day");
-        if (r.login_t && !r.logout_t)          return badge("badge-blue",   "In Progress");
-        return badge("badge-gray", "Absent");
+        if (r.att_type==="Full Day")        return badge("badge-green","Full Day");
+        if (r.att_type==="Late - Full Day") return badge("badge-yellow","Late – Full");
+        if (r.att_type==="Half Day")        return badge("badge-red","Half Day");
+        if (r.login_t && !r.logout_t)       return badge("badge-blue","In Progress");
+        return badge("badge-gray","Absent");
       }
-
-      function rowKey(r) {
-        return `${r.emp_id}|${r.login_t}|${r.logout_t}|${r.status}|${r.logout_s}|${r.att_type}`;
-      }
+      function rowKey(r) { return `${r.emp_id}|${r.login_t}|${r.logout_t}|${r.status}|${r.logout_s}|${r.att_type}`; }
 
       function applyLiveData(data) {
-        // Update stat cards
         document.getElementById("statTotal").textContent   = data.total;
         document.getElementById("statPresent").textContent = data.present;
         document.getElementById("statAbsent").textContent  = data.absent;
         document.getElementById("statLate").textContent    = data.late;
-
-        // Update sidebar pending badges (if they exist)
         const newKeys = new Set(data.rows.map(rowKey));
-
-        const tbody = document.getElementById("attendanceTbody");
         let html = "";
-        data.rows.forEach(r => {
-          const isNew   = !prevRowKeys.has(rowKey(r));
-          const rowCls  = isNew ? "row-new" : "";
-          const roleBadge = r.role ? badge("badge-blue", r.role) : badge("badge-gray", "—");
-          html += `<tr class="${rowCls}">
-            <td>${r.emp_id}</td>
-            <td>${r.name}</td>
-            <td>${roleBadge}</td>
-            <td>${r.login_t || "--"}</td>
-            <td>${buildLoginBadge(r.status)}</td>
-            <td>${r.logout_t || "--"}</td>
-            <td>${buildLogoutBadge(r)}</td>
-            <td>${buildAttTypeBadge(r)}</td>
-            <td style="white-space:nowrap;">
-              <button onclick="openEdit('${r.emp_id}','${r.name.replace(/'/g,"\\'")}','${r.role.replace(/'/g,"\\'")}','')"
-                style="padding:4px 10px;border:1px solid #dbeafe;border-radius:6px;background:#eff6ff;color:#1e3a8a;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>
-              <button onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"
-                style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:12px;">🗑️ Delete</button>
-            </td>
-          </tr>`;
-        });
-        tbody.innerHTML = html;
+        if (data.rows.length === 0) {
+          html = `<tr class="empty-row"><td colspan="9">📭 No attendance records for today yet.</td></tr>`;
+        } else {
+          data.rows.forEach(r => {
+            const isNew = !prevRowKeys.has(rowKey(r));
+            const roleBadge = r.role ? badge("badge-blue",r.role) : badge("badge-gray","—");
+            html += `<tr${isNew?" class='row-new'":""}>
+              <td><span style="background:#dbeafe;color:#1e40af;font-weight:700;font-size:12px;padding:4px 10px;border-radius:8px;letter-spacing:0.3px;">${r.emp_id}</span></td>
+              <td>${r.name}</td>
+              <td>${roleBadge}</td>
+              <td>${r.login_t||"—"}</td>
+              <td>${buildLoginBadge(r.status)}</td>
+              <td>${r.logout_t||"—"}</td>
+              <td>${buildLogoutBadge(r)}</td>
+              <td>${buildAttTypeBadge(r)}</td>
+              <td>
+                <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${r.emp_id}','${r.name.replace(/'/g,"\\'")}','${(r.role||"").replace(/'/g,"\\'")}','','')">✏️ Edit</button>
+                <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+              </td>
+            </tr>`;
+          });
+        }
+        document.getElementById("attendanceTbody").innerHTML = html;
         prevRowKeys = newKeys;
-
-        // Update last-refreshed text
-        lastRefresh = Date.now();
-        updateLastUpdated();
+        lastRefresh = Date.now(); updateLastUpdated();
       }
 
       function confirmDelete(empId, name) {
-        if (!confirm(`Delete employee ${name} (${empId})? This cannot be undone.`)) return;
+        if (!confirm(`Delete ${name} (${empId})? This cannot be undone.`)) return;
         const f = document.createElement("form");
-        f.method = "POST"; f.action = `/delete_employee/${empId}`;
+        f.method="POST"; f.action=`/delete_employee/${empId}`;
         document.body.appendChild(f); f.submit();
       }
-
       function updateLastUpdated() {
-        const secs = Math.round((Date.now() - lastRefresh) / 1000);
-        document.getElementById("lastUpdated").textContent =
-          secs < 5 ? "Updated just now" : `Updated ${secs}s ago`;
+        const s = Math.round((Date.now()-lastRefresh)/1000);
+        document.getElementById("lastUpdated").textContent = s < 5 ? "Updated just now" : `Updated ${s}s ago`;
       }
-
       async function refreshDashboard() {
         try {
-          const res  = await fetch("/api/dashboard_live");
+          const res = await fetch("/api/dashboard_live");
           if (!res.ok) return;
-          const data = await res.json();
-          applyLiveData(data);
-        } catch(e) {
-          // silently ignore network errors — keep showing stale data
-        }
+          applyLiveData(await res.json());
+        } catch(e) {}
       }
 
-      // Build initial prevRowKeys from server-rendered rows so first refresh
-      // only flashes genuinely new rows, not all of them.
       document.querySelectorAll("#attendanceTbody tr").forEach(tr => {
         const cells = tr.querySelectorAll("td");
-        if (cells.length >= 8) {
-          prevRowKeys.add(cells[0].textContent + "|" +
-            cells[3].textContent + "|" + cells[5].textContent);
-        }
+        if (cells.length >= 8) prevRowKeys.add(cells[0].textContent+"|"+cells[3].textContent+"|"+cells[5].textContent);
       });
 
       setInterval(refreshDashboard, REFRESH_INTERVAL);
       setInterval(updateLastUpdated, 5000);
-      // First silent refresh after 5s to catch anyone who just checked in
       setTimeout(refreshDashboard, 5000);
     </script>
-
   </body>
 </html>
