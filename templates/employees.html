@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>All Employees</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: #1e3a8a; padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .sidebar .brand { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+      .sidebar .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 30px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 14px; margin: 4px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.25s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
+      .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(255,255,255,0.65); padding-top: 20px; }
+      .badge-count {
+        margin-left: auto; background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+      }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 26px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+      /* SEARCH + COUNT BAR */
+      .toolbar {
+        display: flex; align-items: center; gap: 14px;
+        margin-bottom: 18px; flex-wrap: wrap;
+      }
+      .search-box {
+        flex: 1; min-width: 220px;
+        padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px;
+        background: #ffffff; color: #1e293b; font-size: 14px; outline: none;
+      }
+      .search-box:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+      .emp-count { font-size: 13px; color: #64748b; white-space: nowrap; }
+
+      /* TABLE SECTION */
+      .section {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 16px; padding: 22px;
+      }
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #eff6ff; }
+      .empty-cell { text-align: center; padding: 40px; color: #94a3b8; }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+      .badge-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .badge-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+      .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
+      /* MUTED TEXT */
+      .muted { color: #94a3b8; }
+
+      /* ACTION BUTTONS */
+      .btn-edit {
+        padding: 5px 12px; border: none; border-radius: 7px;
+        background: #dbeafe; color: #1d4ed8;
+        font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        margin-right: 6px;
+      }
+      .btn-edit:hover { background: #bfdbfe; }
+      .btn-del {
+        padding: 5px 12px; border: none; border-radius: 7px;
+        background: #fee2e2; color: #dc2626;
+        font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+      }
+      .btn-del:hover { background: #fecaca; }
+
+      /* EDIT MODAL */
+      .modal-backdrop {
+        display: none; position: fixed; inset: 0;
+        background: rgba(15,23,42,0.45); z-index: 1000;
+        align-items: center; justify-content: center;
+      }
+      .modal-box {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 20px; padding: 32px; width: 100%; max-width: 460px;
+        box-shadow: 0 20px 60px rgba(30,58,138,0.15);
+      }
+      .modal-box h3 { font-size: 18px; color: #1e293b; margin-bottom: 22px; }
+      .field-group { margin-bottom: 14px; }
+      .field-group label {
+        display: block; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        color: #64748b; margin-bottom: 5px;
+      }
+      .field-group input {
+        width: 100%; padding: 10px 13px;
+        border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
+        transition: 0.2s;
+      }
+      .field-group input:disabled { background: #f1f5f9; color: #94a3b8; }
+      .field-group input:focus { border-color: #93c5fd; background: #fff; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+      .btn-save {
+        flex: 1; padding: 11px; border: none; border-radius: 10px;
+        background: #1e3a8a; color: white; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-save:hover { background: #1e40af; }
+      .btn-cancel {
+        flex: 1; padding: 11px; border: 1px solid #dbeafe; border-radius: 10px;
+        background: #f8fafc; color: #475569; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn-cancel:hover { background: #e2e8f0; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .sidebar .brand, .sidebar .brand-sub, .sidebar-footer { display: none; }
+        .nav-sep { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management System</div>
+
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item active" href="/employees">👥 Employees</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/view_qrcodes">🔳 QR Codes</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests
+        {% if (pending_leaves | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_leaves }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations
+        {% if (pending_resignations | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_resignations }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/tickets">🎫 Tickets
+        {% if (pending_tickets | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_tickets }}</span>
+        {% endif %}
+      </a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+      <div class="sidebar-footer">Employee Directory</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>👥 All Employees</h1>
+        <p>View and manage employee records, roles, and joining details.</p>
+      </div>
+
+      <div class="toolbar">
+        <input class="search-box" type="text" id="searchInput"
+               placeholder="🔍 Search by name, ID, role or email..."
+               oninput="filterTable()" />
+        <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
+      </div>
+
+      <div class="section">
+        <div class="table-wrap">
+          <table id="empTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Email</th>
+                <th>Date of Joining</th>
+                <th>Total Days Present</th>
+                <th>Last Seen</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in employees %}
+              {% set emp_id, name, role, email, doj, total_days, last_seen = e %}
+              <tr>
+                <td class="muted">{{ loop.index }}</td>
+                <td><strong>{{ emp_id }}</strong></td>
+                <td>{{ name }}</td>
+                <td>
+                  {% if role %}
+                    <span class="badge badge-blue">{{ role }}</span>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if email %}
+                    {{ email }}
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if doj %}
+                    {{ doj.strftime('%d %b %Y') }}
+                  {% else %}
+                    <span class="muted">Not set</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if total_days %}
+                    <span class="badge badge-green">{{ total_days }} days</span>
+                  {% else %}
+                    <span class="muted">0 days</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if last_seen %}
+                    {{ last_seen.strftime('%d %b %Y') }}
+                  {% else %}
+                    <span class="muted">Never</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button class="btn-edit"
+                    onclick="openEdit(
+                      '{{ emp_id }}',
+                      '{{ name | replace("'", "\\'") }}',
+                      '{{ role or "" }}',
+                      '{{ email or "" }}',
+                      '{{ doj.strftime("%Y-%m-%d") if doj else "" }}'
+                    )">✏️ Edit</button>
+                  <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
+                        onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
+                    <button type="submit" class="btn-del">🗑 Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="9" class="empty-cell">No employees registered yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div class="modal-backdrop" id="editModal">
+      <div class="modal-box">
+        <h3>✏️ Edit Employee</h3>
+        <form action="/edit_employee" method="POST">
+          <input type="hidden" name="emp_id" id="edit_emp_id" />
+
+          <div class="field-group">
+            <label>Employee ID</label>
+            <input id="edit_emp_id_display" type="text" disabled />
+          </div>
+          <div class="field-group">
+            <label>Full Name</label>
+            <input name="name" id="edit_name" type="text" required />
+          </div>
+          <div class="field-group">
+            <label>Role / Designation</label>
+            <input name="role" id="edit_role" type="text" placeholder="e.g. Developer" />
+          </div>
+          <div class="field-group">
+            <label>Email</label>
+            <input name="email" id="edit_email" type="email" placeholder="employee@company.com" />
+          </div>
+          <div class="field-group">
+            <label>Date of Joining</label>
+            <input name="date_of_joining" id="edit_doj" type="date" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn-save">Save Changes</button>
+            <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function filterTable() {
+        const q    = document.getElementById("searchInput").value.toLowerCase();
+        const rows = document.querySelectorAll("#empTable tbody tr");
+        let visible = 0;
+        rows.forEach(row => {
+          const match = row.textContent.toLowerCase().includes(q);
+          row.style.display = match ? "" : "none";
+          if (match) visible++;
+        });
+        document.getElementById("empCount").textContent =
+          visible + " employee" + (visible !== 1 ? "s" : "");
+      }
+
+      function openEdit(empId, name, role, email, doj) {
+        document.getElementById("edit_emp_id").value         = empId;
+        document.getElementById("edit_emp_id_display").value = empId;
+        document.getElementById("edit_name").value           = name;
+        document.getElementById("edit_role").value           = role;
+        document.getElementById("edit_email").value          = email;
+        document.getElementById("edit_doj").value            = doj;
+        document.getElementById("editModal").style.display   = "flex";
+      }
+      function closeEdit() {
+        document.getElementById("editModal").style.display = "none";
+      }
+      document.getElementById("editModal").addEventListener("click", function(e) {
+        if (e.target === this) closeEdit();
+      });
+    </script>
+
+  </body>
+</html>

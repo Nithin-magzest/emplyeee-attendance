@@ -45,7 +45,12 @@
         padding: 20px;
         color: #1e293b;
         text-align: center;
+        text-decoration: none;
+        display: block;
+        cursor: pointer;
+        transition: 0.2s;
       }
+      .stat-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.12); transform: translateY(-2px); }
       .stat-card .num { font-size: 38px; font-weight: 700; line-height: 1; }
       .stat-card .lbl { font-size: 13px; color: #64748b; margin-top: 6px; }
       .stat-card.green .num { color: #16a34a; }
@@ -145,6 +150,7 @@
       <div class="brand-sub">Attendance Management System</div>
 
       <a class="nav-item active" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/employees">👥 Employees</a>
       <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
       <a class="nav-item" href="/salary_report">💰 Salary Report</a>
       <hr class="nav-sep" />
@@ -212,22 +218,22 @@
 
       <!-- STATS -->
       <div class="stats">
-        <div class="stat-card blue">
+        <a class="stat-card blue" href="/employees" title="View all employees">
           <div class="num" id="statTotal">{{ total }}</div>
           <div class="lbl">👥 Total Employees</div>
-        </div>
-        <div class="stat-card green">
+        </a>
+        <a class="stat-card green" href="/today_present" title="See who is present today">
           <div class="num" id="statPresent">{{ present }}</div>
           <div class="lbl">✅ Present Today</div>
-        </div>
-        <div class="stat-card red">
+        </a>
+        <a class="stat-card red" href="/today_absent" title="See who is absent today">
           <div class="num" id="statAbsent">{{ absent }}</div>
           <div class="lbl">❌ Absent Today</div>
-        </div>
-        <div class="stat-card yellow">
+        </a>
+        <a class="stat-card yellow" href="/today_late" title="See late logins today">
           <div class="num" id="statLate">{{ late }}</div>
           <div class="lbl">⚠️ Late Logins</div>
-        </div>
+        </a>
       </div>
 
       <!-- TODAY'S ATTENDANCE -->
@@ -310,7 +316,7 @@
                   {% endif %}
                 </td>
                 <td style="white-space:nowrap;">
-                  <button onclick="openEdit('{{ emp_id }}','{{ name }}','{{ role or '' }}','{{ loop.index }}')"
+                  <button onclick="openEdit('{{ emp_id }}','{{ name }}','{{ role or '' }}','','')"
                     style="padding:4px 10px;border:1px solid #dbeafe;border-radius:6px;background:#eff6ff;color:#1e3a8a;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>
                   <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                     onsubmit="return confirm('Delete employee {{ name }} ({{ emp_id }})? This cannot be undone.')">
@@ -339,6 +345,8 @@
               <input type="text"  name="emp_id" placeholder="Employee ID (e.g. EMP001)"    required />
               <input type="email" name="email"  placeholder="Email (for salary slips)"     />
               <input type="text"  name="role"   placeholder="Role (e.g. Developer)"        />
+              <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:4px;">Date of Joining</label>
+              <input type="date"  name="date_of_joining" title="Date of joining" />
 
               <!-- hidden file input that actually submits -->
               <input type="file" name="face" id="regFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'reg')" />
@@ -529,6 +537,9 @@
             style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:14px;" />
           <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Role</label>
           <input name="role" id="edit_role" type="text"
+            style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:14px;" />
+          <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Date of Joining</label>
+          <input name="date_of_joining" id="edit_doj" type="date"
             style="width:100%;padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;margin-bottom:20px;" />
           <div style="display:flex;gap:10px;">
             <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(90deg,#667eea,#764ba2);color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
@@ -666,11 +677,13 @@
         if (e.target === this) closeCameraModal();
       });
 
-      function openEdit(empId, name, role, idx) {
+      function openEdit(empId, name, role, email, doj) {
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
         document.getElementById("edit_name").value           = name;
+        document.getElementById("edit_email").value          = email;
         document.getElementById("edit_role").value           = role;
+        document.getElementById("edit_doj").value            = doj;
         document.getElementById("editModal").style.display   = "flex";
       }
       function closeEdit() {

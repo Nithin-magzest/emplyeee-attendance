@@ -188,6 +188,8 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN role VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN shift_id INT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN date_of_joining DATE DEFAULT NULL",
+        "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
     ]:
         try:
             cursor.execute(sql)
@@ -687,6 +689,80 @@ def dashboard_live():
         "pending_tickets":      pending_tickets,
     })
 
+# ---------------- TODAY FILTERED VIEWS ----------------
+def _today_pending_counts(cursor):
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pl = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pr = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pt = cursor.fetchone()[0]
+    return pl, pr, pt
+
+@app.route("/today_present")
+@admin_required
+def today_present():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today = datetime.date.today()
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, a.login_time, a.logout_time,
+               a.status, a.logout_status, a.attendance_type
+        FROM employees e
+        JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
+        WHERE a.login_time IS NOT NULL
+        ORDER BY a.login_time
+    """, (today,))
+    rows = cursor.fetchall()
+    pl, pr, pt = _today_pending_counts(cursor)
+    cursor.close(); db.close()
+    return render_template("today_attendance.html",
+        filter_type="present", title="Present Today",
+        rows=rows, today=today.strftime("%d %b %Y"),
+        pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
+
+@app.route("/today_absent")
+@admin_required
+def today_absent():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today = datetime.date.today()
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
+        WHERE a.employee_id IS NULL
+        ORDER BY e.name
+    """, (today,))
+    rows = cursor.fetchall()
+    pl, pr, pt = _today_pending_counts(cursor)
+    cursor.close(); db.close()
+    return render_template("today_attendance.html",
+        filter_type="absent", title="Absent Today",
+        rows=rows, today=today.strftime("%d %b %Y"),
+        pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
+
+@app.route("/today_late")
+@admin_required
+def today_late():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today = datetime.date.today()
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, a.login_time, a.status
+        FROM employees e
+        JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
+        WHERE a.status IN ('Late Login', 'Half Day Login')
+        ORDER BY a.login_time
+    """, (today,))
+    rows = cursor.fetchall()
+    pl, pr, pt = _today_pending_counts(cursor)
+    cursor.close(); db.close()
+    return render_template("today_attendance.html",
+        filter_type="late", title="Late Logins Today",
+        rows=rows, today=today.strftime("%d %b %Y"),
+        pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
+
 # ---------------- ADMIN ACTIONS ----------------
 @app.route("/admin_action", methods=["POST"])
 @admin_required
@@ -696,11 +772,12 @@ def admin_action():
     cursor = db.cursor(buffered=True)
 
     if action == "register":
-        name     = request.form["name"]
-        emp_id   = request.form["emp_id"]
-        email    = request.form.get("email", "").strip() or None
-        role     = request.form.get("role", "").strip() or None
-        file     = request.files["face"]
+        name            = request.form["name"]
+        emp_id          = request.form["emp_id"]
+        email           = request.form.get("email", "").strip() or None
+        role            = request.form.get("role", "").strip() or None
+        date_of_joining = request.form.get("date_of_joining", "").strip() or None
+        file            = request.files["face"]
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
 
@@ -718,9 +795,9 @@ def admin_action():
         hashed_pwd = generate_password_hash(auto_pass)
         try:
             cursor.execute(
-                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (name, emp_id, email, role, filepath, qr_path, hashed_pwd)
+                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, date_of_joining) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (name, emp_id, email, role, filepath, qr_path, hashed_pwd, date_of_joining)
             )
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -849,25 +926,57 @@ def delete_employee(emp_id):
     else:
         flash(f"Employee '{emp_id}' not found.", "error")
     cursor.close(); db.close()
-    return redirect("/admin")
+    return redirect("/employees")
 
 
 @app.route("/edit_employee", methods=["POST"])
 @admin_required
 def edit_employee():
-    emp_id   = request.form["emp_id"].strip()
-    name     = request.form.get("name", "").strip()
-    email    = request.form.get("email", "").strip() or None
-    role     = request.form.get("role", "").strip() or None
+    emp_id          = request.form["emp_id"].strip()
+    name            = request.form.get("name", "").strip()
+    email           = request.form.get("email", "").strip() or None
+    role            = request.form.get("role", "").strip() or None
+    date_of_joining = request.form.get("date_of_joining", "").strip() or None
     db       = get_db_connection()
     cursor   = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s WHERE employee_id=%s",
-        (name, email, role, emp_id)
+        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
+        (name, email, role, date_of_joining, emp_id)
     )
     db.commit(); cursor.close(); db.close()
     flash(f"Employee '{emp_id}' updated successfully.", "success")
-    return redirect("/admin")
+    return redirect("/employees")
+
+
+@app.route("/employees")
+@admin_required
+def view_employees():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+               COUNT(a.date)  AS total_days,
+               MAX(a.date)    AS last_seen
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id = a.employee_id
+        GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining
+        ORDER BY e.name
+    """)
+    employees = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.close()
+    db.close()
+    return render_template("employees.html",
+        employees=employees,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
 
 
 @app.route("/view_qrcodes")
