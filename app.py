@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash
+﻿from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash
 from flask_cors import CORS
 import cv2
 import datetime
+import html as _html
 import face_recognition
 from database import get_db_connection
 from qr_generator import generate_qr
@@ -9,6 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 import os
 import math
+import re
 import calendar
 import mysql.connector
 import smtplib
@@ -23,6 +25,9 @@ import threading
 import io as _io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -59,6 +64,30 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# ---------------- CSRF PROTECTION ----------------
+_EMP_ID_RE = re.compile(r'^[A-Za-z0-9_\-]+$')
+
+def _csrf_token():
+    if "_csrf" not in session:
+        session["_csrf"] = secrets.token_hex(32)
+    return session["_csrf"]
+
+app.jinja_env.globals["csrf_token"] = _csrf_token
+
+@app.before_request
+def _enforce_csrf():
+    if request.method != "POST":
+        return
+    if request.path.startswith("/api/"):
+        return
+    if request.is_json:
+        return
+    token_in_form = request.form.get("_csrf_token", "")
+    token_in_header = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("_csrf", "")
+    if not expected or not secrets.compare_digest(expected, token_in_form or token_in_header):
+        return jsonify({"error": "CSRF validation failed"}), 403
 
 # Office location (single source of truth)
 OFFICE_LAT = 17.494664737165042
@@ -277,7 +306,7 @@ def get_attendance_type(login_status, logout_status):
 
 def calculate_deduction(salary_per_day, attendance_type):
     spd = float(salary_per_day)
-    if attendance_type == "Full Day":
+    if attendance_type in ("Full Day", "Approved Leave"):
         return 0.0
     if attendance_type == "Late - Full Day":
         return round(spd * LATE_DEDUCTION_RATE, 2)
@@ -977,6 +1006,29 @@ def view_employees():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
     )
+
+
+@app.route("/change_admin_password", methods=["POST"])
+@admin_required
+def change_admin_password():
+    current_pw = request.form.get("current_password", "")
+    new_pw     = request.form.get("new_password", "")
+    confirm_pw = request.form.get("confirm_password", "")
+    if not new_pw or new_pw != confirm_pw:
+        return redirect("/admin?pwd_error=mismatch")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT password FROM admin_users WHERE username='admin'")
+    row = cursor.fetchone()
+    if not row or not check_password_hash(row[0], current_pw):
+        cursor.close(); db.close()
+        return redirect("/admin?pwd_error=wrong")
+    cursor.execute(
+        "UPDATE admin_users SET password=%s WHERE username='admin'",
+        (generate_password_hash(new_pw),)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/admin?pwd_ok=1")
 
 
 @app.route("/view_qrcodes")
@@ -1864,10 +1916,10 @@ def employee_portal():
         if row:
             _, login_t, logout_t, status, _ls, att_type = row
             final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-            if   final == "Full Day":               full_days   += 1
-            elif final == "Late - Full Day":        late_days   += 1
-            elif final in ("Half Day", "Present"):  half_days   += 1
-            else:                                   absent_days += 1
+            if   final in ("Full Day", "Approved Leave"): full_days   += 1
+            elif final == "Late - Full Day":             late_days   += 1
+            elif final in ("Half Day", "Present"):       half_days   += 1
+            else:                                        absent_days += 1
             if login_t and logout_t:
                 li = login_t.total_seconds()  if hasattr(login_t,  "total_seconds") else (login_t.hour*3600  + login_t.minute*60  + login_t.second)
                 lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else (logout_t.hour*3600 + logout_t.minute*60 + logout_t.second)
@@ -1947,6 +1999,7 @@ def employee_portal():
         resigned=request.args.get("resigned") == "1",
         ticket_sent=request.args.get("ticket_sent") == "1",
         month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        selected_month=f"{year}-{month:02d}",
         att_pct=att_pct,
         total_hours=total_hours_str,
         cal_json=cal_json,
@@ -2134,6 +2187,18 @@ def leave_action(lid):
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+        if action == "Approved":
+            cursor.execute(
+                "SELECT employee_id, leave_date FROM leave_requests WHERE id=%s", (lid,)
+            )
+            row = cursor.fetchone()
+            if row:
+                emp_id, leave_date = row
+                cursor.execute("""
+                    INSERT INTO attendance (employee_id, date, attendance_type)
+                    VALUES (%s, %s, 'Approved Leave')
+                    ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
+                """, (emp_id, leave_date))
         db.commit()
         cursor.close(); db.close()
     return redirect("/leave_requests")
@@ -2548,7 +2613,7 @@ def api_monthly_report():
             if row:
                 _, _, login_t, logout_t, status, _logout_status, att_type = row
                 final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-                if final == "Full Day": full_days += 1
+                if final in ("Full Day", "Approved Leave"): full_days += 1
                 elif final == "Late - Full Day": late_days += 1
                 elif final in ("Half Day", "Present"): half_days += 1
                 else: absent += 1
@@ -3176,4 +3241,4 @@ def api_ticket_action(tid):
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

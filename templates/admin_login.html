@@ -135,6 +135,7 @@
         {% endif %}
 
         <form method="POST">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <label>Username</label>
           <input type="text" name="username" placeholder="Enter admin username" required autofocus />
 
@@ -159,8 +160,12 @@
         </div>
 
         <form action="/employee_login" method="POST">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <label>Employee ID</label>
           <input type="text" name="emp_id" placeholder="Enter your Employee ID" required />
+
+          <label>PIN</label>
+          <input type="password" name="pin" placeholder="Enter your PIN (default: Employee ID)" required />
 
           <button type="submit" class="btn btn-employee">Login to My Portal</button>
         </form>

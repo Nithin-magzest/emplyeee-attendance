@@ -108,6 +108,7 @@
       <div class="card">
         <h3>📡 SMTP Configuration</h3>
         <form method="POST" action="/email_config">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <div class="form-row">
             <div class="form-group">
               <label>SMTP Host</label>
@@ -159,6 +160,8 @@
     </div>
 
     <script>
+      const _csrfToken = {{ csrf_token() | tojson }};
+
       function sendTestEmail() {
         const email = document.getElementById('testEmail').value.trim();
         const res   = document.getElementById('testResult');
@@ -170,6 +173,7 @@
 
         const fd = new FormData();
         fd.append('test_to', email);
+        fd.append('_csrf_token', _csrfToken);
 
         fetch('/test_email', { method: 'POST', body: fd })
           .then(r => r.json())

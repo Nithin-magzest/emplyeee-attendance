@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Employee — {{ emp[0] }}</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      }
+      .card {
+        background: rgba(255,255,255,0.12);
+        backdrop-filter: blur(16px);
+        border-radius: 20px; padding: 44px 38px;
+        width: 100%; max-width: 440px; color: white;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      }
+      .card-header { text-align: center; margin-bottom: 32px; }
+      .card-header .icon { font-size: 44px; }
+      .card-header h1 { font-size: 22px; font-weight: 700; margin-top: 12px; }
+      .card-header p { font-size: 13px; opacity: 0.55; margin-top: 5px; }
+      label {
+        display: block; font-size: 12px; opacity: 0.7;
+        font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px;
+      }
+      input {
+        width: 100%; padding: 12px 14px;
+        border: none; border-radius: 10px;
+        background: rgba(255,255,255,0.18); color: white; font-size: 15px;
+        outline: none; transition: 0.2s; margin-bottom: 18px;
+      }
+      input::placeholder { color: rgba(255,255,255,0.4); }
+      input:focus { background: rgba(255,255,255,0.28); }
+      input:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn {
+        width: 100%; padding: 13px; border: none; border-radius: 10px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        color: white; font-size: 15px; font-weight: 700;
+        cursor: pointer; transition: 0.2s;
+      }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(102,126,234,0.4); }
+      .back { display: block; text-align: center; margin-top: 20px; font-size: 13px;
+              color: rgba(255,255,255,0.5); text-decoration: none; }
+      .back:hover { color: rgba(255,255,255,0.85); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="card-header">
+        <div class="icon">✏️</div>
+        <h1>Edit Employee</h1>
+        <p>Update name, email, or role</p>
+      </div>
+
+      <form action="/edit_employee" method="POST">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="emp_id" value="{{ emp[0] }}" />
+
+        <label>Employee ID (read-only)</label>
+        <input type="text" value="{{ emp[0] }}" disabled />
+
+        <label>Full Name</label>
+        <input type="text" name="name" value="{{ emp[1] }}" required placeholder="Full name" />
+
+        <label>Email (for salary slips)</label>
+        <input type="email" name="email" value="{{ emp[2] or '' }}" placeholder="employee@company.com" />
+
+        <label>Role / Designation</label>
+        <input type="text" name="role" value="{{ emp[3] or '' }}" placeholder="e.g. Developer, Manager" />
+
+        <button type="submit" class="btn">Save Changes</button>
+      </form>
+
+      <a href="/admin" class="back">← Back to Admin Panel</a>
+    </div>
+  </body>
+</html>

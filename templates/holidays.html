@@ -128,6 +128,7 @@
       <div class="section">
         <h3>➕ Add Holiday / Leave</h3>
         <form action="/add_holiday" method="POST">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <div class="add-form">
             <div class="form-group">
               <label>Date</label>
@@ -177,6 +178,7 @@
                 <td>
                   <form action="/delete_holiday/{{ h[0] }}" method="POST"
                         onsubmit="return confirm('Delete this entry?');" class="form-inline">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <button type="submit" class="btn-del">🗑 Delete</button>
                   </form>
                 </td>
