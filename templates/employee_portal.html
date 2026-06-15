@@ -544,7 +544,6 @@
       <div class="mod-title">📝 Apply for Leave <span>Submit a leave request to your admin</span></div>
       <div class="section" id="apply-leave">
         <form action="/request_leave" method="POST" id="leave-form">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 
           <div class="form-group">
             <label>Leave Date</label>
@@ -630,7 +629,6 @@
 
         <!-- Raise Ticket Form -->
         <form method="POST" action="/raise_ticket" class="ticket-raise-form">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <div class="ticket-form-grid">
             <div class="form-group ticket-field">
               <label for="ticket-category">Category</label>
@@ -751,7 +749,6 @@
               This action is official and cannot be undone.
             </div>
             <form action="/request_resignation" method="POST" id="resign-form-d">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <div class="form-group">
                 <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
                 <input type="date" name="last_working_day" id="resign-date-d" required title="Select your last working day" />
@@ -788,7 +785,6 @@
             Submitting this form sends a formal resignation notice to the HR/Admin team. This action cannot be undone.
           </div>
           <form action="/request_resignation" method="POST" id="resign-form">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <div class="form-group">
               <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
               <input type="date" name="last_working_day" id="resign-date" required title="Select your last working day" />
@@ -832,7 +828,6 @@
           <div class="toast toast-red">❌ New passwords do not match.</div>
         {% endif %}
         <form action="/change_password" method="POST" style="max-width:360px;">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <div class="form-group">
             <label>Current Password</label>
             <input type="password" name="current_password" required

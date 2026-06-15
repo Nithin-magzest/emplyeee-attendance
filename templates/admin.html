@@ -320,7 +320,6 @@
                     style="padding:4px 10px;border:1px solid #dbeafe;border-radius:6px;background:#eff6ff;color:#1e3a8a;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>
                   <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                     onsubmit="return confirm('Delete employee {{ name }} ({{ emp_id }})? This cannot be undone.')">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <button type="submit"
                       style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:12px;">🗑️ Delete</button>
                   </form>
@@ -341,7 +340,6 @@
           <div class="form-card" style="min-width:300px;">
             <h4>👤 Register Employee</h4>
             <form id="regForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateRegForm()">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <input type="hidden" name="action" value="register" />
               <input type="text"  name="name"   placeholder="Full Name"                    required />
               <input type="text"  name="emp_id" placeholder="Employee ID (e.g. EMP001)"    required />
@@ -399,7 +397,6 @@
           <div class="form-card">
             <h4>📅 Add Holiday</h4>
             <form action="/admin_action" method="POST">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <input type="hidden" name="action" value="holiday" />
               <input type="date" name="date" required title="Holiday date" />
               <input type="text" name="holiday_name" placeholder="Holiday Name" required />
@@ -411,7 +408,6 @@
           <div class="form-card">
             <h4>💰 Set Daily Salary</h4>
             <form action="/admin_action" method="POST">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <input type="hidden" name="action" value="salary" />
               <input type="text" name="emp_id" placeholder="Employee ID" required />
               <input type="number" name="salary" placeholder="Salary per day (₹)" step="0.01" min="0" required />
@@ -423,7 +419,6 @@
           <div class="form-card" style="min-width:260px;">
             <h4>📷 Update Face Photo</h4>
             <form id="updForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateUpdForm()">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <input type="hidden" name="action" value="update_face" />
               <input type="text" name="emp_id" placeholder="Employee ID" required />
               <input type="file" name="face" id="updFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'upd')" />
@@ -487,7 +482,6 @@
           <p style="color:#ff7e7e;margin-bottom:14px;">❌ New passwords do not match.</p>
         {% endif %}
         <form action="/change_admin_password" method="POST" style="max-width:360px;">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <input type="password" name="current_password" placeholder="Current Password" required
                  style="width:100%;padding:10px 12px;border:none;border-radius:8px;
                         background:rgba(255,255,255,0.2);color:white;font-size:14px;
@@ -560,7 +554,6 @@
       <div style="background:linear-gradient(135deg,#302b63,#24243e);border-radius:18px;padding:32px;width:100%;max-width:420px;color:white;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
         <h3 style="margin-bottom:20px;">✏️ Edit Employee</h3>
         <form action="/edit_employee" method="POST" id="editForm">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <input type="hidden" name="emp_id" id="edit_emp_id" />
           <label style="font-size:12px;opacity:0.7;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Employee ID</label>
           <input id="edit_emp_id_display" type="text" disabled

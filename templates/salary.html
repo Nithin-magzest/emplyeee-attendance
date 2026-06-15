@@ -163,7 +163,6 @@
                   </div>
                   <form action="/update_salary" method="POST"
                         id="form-{{ loop.index }}" class="edit-form">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" name="emp_id" value="{{ emp_id }}" />
                     <input type="number" name="salary" step="0.01" min="0"
                            value="{{ spd if spd else '' }}"

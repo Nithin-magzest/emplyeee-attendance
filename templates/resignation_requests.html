@@ -160,12 +160,10 @@
                 <td>
                   {% if status == 'Pending' %}
                   <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" name="action" value="Accepted" />
                     <button type="submit" class="btn-accept">✓ Accept</button>
                   </form>
                   <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" name="action" value="Declined" />
                     <button type="submit" class="btn-decline">✗ Decline</button>
                   </form>

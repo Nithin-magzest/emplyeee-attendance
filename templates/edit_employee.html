@@ -55,7 +55,6 @@
       </div>
 
       <form action="/edit_employee" method="POST">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         <input type="hidden" name="emp_id" value="{{ emp[0] }}" />
 
         <label>Employee ID (read-only)</label>

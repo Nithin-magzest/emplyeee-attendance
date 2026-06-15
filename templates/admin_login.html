@@ -249,7 +249,6 @@
           {% endif %}
 
           <form method="POST">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <label class="field-label">Username</label>
             <input class="field-input" type="text" name="username"
                    placeholder="Enter admin username" required autofocus />
@@ -276,7 +275,6 @@
           <div class="panel-sub">View attendance, apply for leave &amp; more</div>
 
           <form action="/employee_login" method="POST">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <label class="field-label">Employee ID</label>
             <input class="field-input" type="text" name="emp_id"
                    placeholder="e.g. EMP001" required />

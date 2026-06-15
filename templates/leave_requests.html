@@ -154,12 +154,10 @@
                 <td>
                   {% if status == 'Pending' %}
                   <form action="/leave_action/{{ lid }}" method="POST" class="form-inline">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" name="action" value="Approved" />
                     <button type="submit" class="btn-approve">✓ Approve</button>
                   </form>
                   <form action="/leave_action/{{ lid }}" method="POST" class="form-inline">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                     <input type="hidden" name="action" value="Rejected" />
                     <button type="submit" class="btn-reject">✗ Reject</button>
                   </form>

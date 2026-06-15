@@ -63,7 +63,6 @@
       {% endif %}
 
       <form action="/change_pin" method="POST">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         <label>Current PIN</label>
         <input type="password" name="current_pin" placeholder="Enter your current PIN" required autofocus />
         <label>New PIN</label>
