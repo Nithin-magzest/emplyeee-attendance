@@ -132,6 +132,7 @@
       }
       .action-card h4   { font-size: 13px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
       .action-card .sub { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+      .action-card form { flex: 1; display: flex; flex-direction: column; }
       .action-card input {
         width: 100%; padding: 8px 11px;
         border: 1px solid #dbeafe; border-radius: 8px;
@@ -484,21 +485,32 @@
           <div class="flash flash-error" style="max-width:420px;">❌ New passwords do not match.</div>
         {% endif %}
 
-        <form action="/change_admin_password" method="POST" class="pwd-form" style="max-width:420px;">
-          <div class="field">
-            <label>Current Password</label>
-            <input type="password" name="current_password" placeholder="Enter current password" required />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;max-width:860px;">
+          <form action="/change_admin_password" method="POST" class="pwd-form">
+            <div class="field">
+              <label>Current Password</label>
+              <input type="password" name="current_password" placeholder="Enter current password" required />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;">
+              <div class="field">
+                <label>New Password</label>
+                <input type="password" name="new_password" placeholder="Enter new password" required />
+              </div>
+              <div class="field">
+                <label>Confirm New Password</label>
+                <input type="password" name="confirm_password" placeholder="Re-enter new password" required />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-navy" style="max-width:200px;">🔒 Update Password</button>
+          </form>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;font-size:13px;color:#475569;line-height:1.8;">
+            <div style="font-weight:700;color:#0f172a;margin-bottom:8px;">🛡️ Password Tips</div>
+            <div>✅ At least 8 characters</div>
+            <div>✅ Mix of letters and numbers</div>
+            <div>✅ Avoid common passwords</div>
+            <div>✅ Don't reuse old passwords</div>
           </div>
-          <div class="field">
-            <label>New Password</label>
-            <input type="password" name="new_password" placeholder="Enter new password" required />
-          </div>
-          <div class="field">
-            <label>Confirm New Password</label>
-            <input type="password" name="confirm_password" placeholder="Re-enter new password" required />
-          </div>
-          <button type="submit" class="btn btn-navy" style="max-width:200px;">🔒 Update Password</button>
-        </form>
+        </div>
       </div>
 
     </div><!-- /main -->
