@@ -1859,19 +1859,19 @@ def change_password():
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current):
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=wrong")
+        return redirect("/employee_portal?pwd_error=wrong#change-password")
     if len(new_pwd) < 6:
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=short")
+        return redirect("/employee_portal?pwd_error=short#change-password")
     if new_pwd != confirm:
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=mismatch")
+        return redirect("/employee_portal?pwd_error=mismatch#change-password")
     cursor.execute(
         "UPDATE employees SET password=%s WHERE employee_id=%s",
         (generate_password_hash(new_pwd), emp_id)
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/employee_portal?pwd_ok=1")
+    return redirect("/employee_portal?pwd_ok=1#change-password")
 
 
 @app.route("/employee_portal")
@@ -2160,7 +2160,7 @@ def request_leave():
         except Exception:
             pass
 
-    return redirect("/employee_portal?leave_sent=1")
+    return redirect("/employee_portal?leave_sent=1#apply-leave")
 
 
 @app.route("/leave_requests")
@@ -2261,7 +2261,7 @@ def request_resignation():
         except Exception:
             pass
 
-    return redirect("/employee_portal?resigned=1")
+    return redirect("/employee_portal?resigned=1#resign")
 
 
 @app.route("/resignation_requests")

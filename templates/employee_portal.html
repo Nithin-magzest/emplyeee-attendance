@@ -6,7 +6,8 @@
     <title>My Portal — {{ emp[1] }}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #eff6ff; min-height: 100vh; display: flex; }
+      html { scroll-behavior: smooth; }
+      body { background: #eff6ff; height: 100vh; overflow: hidden; display: flex; }
 
       /* SIDEBAR */
       .sidebar {
@@ -15,6 +16,7 @@
         padding: 25px 18px; color: white;
         display: flex; flex-direction: column;
       }
+      .nav-spacer { flex: 1; }
       .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
       .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
       .nav-emp { font-size: 13px; color: rgba(255,255,255,0.7); padding: 6px 14px; margin-bottom: 16px; }
@@ -31,7 +33,7 @@
       .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
 
       /* MAIN */
-      .main { flex: 1; padding: 28px; color: #1e293b; }
+      .main { flex: 1; padding: 28px; color: #1e293b; height: 100vh; overflow-y: auto; }
       .page-header { margin-bottom: 22px; }
       .page-header h1 { font-size: 24px; color: #1e293b; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
@@ -280,9 +282,21 @@
         .cards-row { grid-template-columns: 1fr; }
         .stats { grid-template-columns: repeat(2, 1fr); }
       }
+      /* MODULE VIEWS */
+      .view { display: none; }
+      .view.active { display: block; }
+      .mod-title {
+        font-size: 20px; font-weight: 700; color: #1e293b;
+        margin-bottom: 20px; padding-bottom: 14px;
+        border-bottom: 2px solid #dbeafe;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .mod-title span { font-size: 13px; font-weight: 400; color: #64748b; margin-left: 4px; }
+
       @media (max-width: 768px) {
-        body { flex-direction: column; }
-        .sidebar { width: 100%; min-height: unset; }
+        body { flex-direction: column; height: auto; overflow: visible; }
+        .sidebar { width: 100%; height: auto; min-height: unset; position: relative; }
+        .main { height: auto; overflow-y: visible; }
       }
     </style>
   </head>
@@ -292,12 +306,14 @@
       <div class="brand">👤 My Portal</div>
       <div class="brand-sub">Employee Self-Service</div>
       <div class="nav-emp">{{ emp[1] }}</div>
-      <a class="nav-item active" href="/employee_portal">🏠 Dashboard</a>
-      <a class="nav-item" href="#attendance">📋 My Attendance</a>
-      <a class="nav-item" href="#apply-leave">📝 Apply Leave</a>
-      <a class="nav-item" href="#leave-history">📬 Leave History</a>
-      <a class="nav-item nav-ticket" href="#tickets">🎫 Tickets</a>
-      <a class="nav-item nav-resign" href="#resign">🚨 Resign</a>
+      <a class="nav-item active" id="nav-dashboard"      href="#" onclick="showView('dashboard');return false;">🏠 Dashboard</a>
+      <a class="nav-item"        id="nav-attendance"    href="#" onclick="showView('attendance');return false;">📋 My Attendance</a>
+      <a class="nav-item"        id="nav-apply-leave"   href="#" onclick="showView('apply-leave');return false;">📝 Apply Leave</a>
+      <a class="nav-item"        id="nav-leave-history" href="#" onclick="showView('leave-history');return false;">📬 Leave History</a>
+      <a class="nav-item nav-ticket" id="nav-tickets"   href="#" onclick="showView('tickets');return false;">🎫 Tickets</a>
+      <a class="nav-item nav-resign" id="nav-resign"    href="#" onclick="showView('resign');return false;">🚨 Resign</a>
+      <a class="nav-item"        id="nav-change-password" href="#" onclick="showView('change-password');return false;">🔒 Change Password</a>
+      <div class="nav-spacer"></div>
       <hr class="nav-sep" />
       <a class="nav-item" href="/employee_logout">🚪 Logout</a>
     </div>
@@ -314,6 +330,8 @@
       <div class="toast toast-blue">🎫 Ticket raised successfully! Admin will respond shortly.</div>
       {% endif %}
 
+      <!-- ═══ VIEW: DASHBOARD ═══ -->
+      <div id="view-dashboard" class="view">
       <div class="page-header">
         <h1>Welcome, {{ emp[1] }}! 👋</h1>
         <p>{{ today }} &nbsp;|&nbsp; <span id="clock"></span></p>
@@ -426,7 +444,11 @@
         </div>
       </div>
 
-      <!-- FILTER + CALENDAR + TABLE -->
+      </div><!-- /view-dashboard -->
+
+      <!-- ═══ VIEW: MY ATTENDANCE ═══ -->
+      <div id="view-attendance" class="view">
+      <div class="mod-title">📋 My Attendance <span>View and filter your monthly attendance records</span></div>
       <div id="attendance">
 
         <!-- Filter bar -->
@@ -515,10 +537,12 @@
         </div>
 
       </div>
+      </div><!-- /view-attendance -->
 
-      <!-- APPLY FOR LEAVE -->
+      <!-- ═══ VIEW: APPLY LEAVE ═══ -->
+      <div id="view-apply-leave" class="view">
+      <div class="mod-title">📝 Apply for Leave <span>Submit a leave request to your admin</span></div>
       <div class="section" id="apply-leave">
-        <h3>📝 Apply for Leave</h3>
         <form action="/request_leave" method="POST" id="leave-form">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 
@@ -549,8 +573,11 @@
           <button type="submit" class="btn-leave">Submit Leave Request</button>
         </form>
       </div>
+      </div><!-- /view-apply-leave -->
 
-      <!-- MY LEAVE HISTORY -->
+      <!-- ═══ VIEW: LEAVE HISTORY ═══ -->
+      <div id="view-leave-history" class="view">
+      <div class="mod-title">📬 Leave History <span>Track status of all your leave requests</span></div>
       <div class="section" id="leave-history">
         <h3>📬 My Leave Requests</h3>
         <div class="table-wrap">
@@ -593,8 +620,11 @@
           </table>
         </div>
       </div>
+      </div><!-- /view-leave-history -->
 
-      <!-- TICKETS SECTION -->
+      <!-- ═══ VIEW: TICKETS ═══ -->
+      <div id="view-tickets" class="view">
+      <div class="mod-title">🎫 Support Tickets <span>Raise a complaint or request admin support</span></div>
       <div class="section" id="tickets">
         <h3>🎫 Support Tickets &amp; Complaints</h3>
 
@@ -674,10 +704,12 @@
           <div class="ticket-empty">No tickets raised yet.</div>
         {% endif %}
       </div>
+      </div><!-- /view-tickets -->
 
-      <!-- RESIGNATION SECTION -->
+      <!-- ═══ VIEW: RESIGN ═══ -->
+      <div id="view-resign" class="view">
+      <div class="mod-title">🚨 Resignation <span>Submit your official resignation notice</span></div>
       <div class="section" id="resign">
-        <h3>🚨 Resignation</h3>
 
         {% if my_resignation %}
           {% set res_lwd, res_reason, res_status, res_created = my_resignation %}
@@ -784,10 +816,12 @@
           </form>
         {% endif %}
       </div>
+      </div><!-- /view-resign -->
 
-      <!-- CHANGE PASSWORD -->
+      <!-- ═══ VIEW: CHANGE PASSWORD ═══ -->
+      <div id="view-change-password" class="view">
+      <div class="mod-title">🔒 Change Password <span>Update your account password</span></div>
       <div class="section" id="change-password">
-        <h3>🔒 Change Password</h3>
         {% if request.args.get('pwd_ok') %}
           <div class="toast toast-green">✅ Password changed successfully.</div>
         {% elif request.args.get('pwd_error') == 'wrong' %}
@@ -820,6 +854,7 @@
           </button>
         </form>
       </div>
+      </div><!-- /view-change-password -->
 
     </div><!-- /main -->
 
@@ -979,6 +1014,36 @@
 
       initResignForm('');    // main form (no active resignation)
       initResignForm('-d');  // re-submit form (after Declined)
+
+      // ── MODULE VIEW SWITCHER ──
+      var mainEl = document.querySelector('.main');
+
+      function showView(viewId) {
+        // hide all views
+        document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+        // show target view
+        var target = document.getElementById('view-' + viewId);
+        if (target) target.classList.add('active');
+        // update nav active state
+        document.querySelectorAll('.nav-item').forEach(function(a) { a.classList.remove('active'); });
+        var navEl = document.getElementById('nav-' + viewId);
+        if (navEl) navEl.classList.add('active');
+        // scroll main to top
+        mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+        // update URL hash without reloading
+        history.replaceState(null, '', '#' + viewId);
+      }
+
+      // On page load: check URL hash to show the right view
+      (function() {
+        var hash = window.location.hash.replace('#', '');
+        var validViews = ['dashboard','attendance','apply-leave','leave-history','tickets','resign','change-password'];
+        if (hash && validViews.indexOf(hash) !== -1) {
+          showView(hash);
+        } else {
+          showView('dashboard');
+        }
+      })();
     </script>
 
   </body>
