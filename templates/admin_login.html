@@ -8,7 +8,7 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body {
         min-height: 100vh;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: #eff6ff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -17,15 +17,14 @@
       }
 
       .page-title {
-        color: white;
+        color: #1e293b;
         font-size: 20px;
         font-weight: 700;
         letter-spacing: 0.3px;
         margin-bottom: 6px;
-        opacity: 0.95;
       }
       .page-sub {
-        color: rgba(255,255,255,0.6);
+        color: #64748b;
         font-size: 13px;
         margin-bottom: 30px;
       }
@@ -40,43 +39,43 @@
 
       .card {
         flex: 1;
-        background: rgba(255,255,255,0.13);
-        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+        background: #ffffff;
+        border: 1px solid #dbeafe;
         border-radius: 20px;
         padding: 36px 32px;
-        color: white;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        color: #1e293b;
+        box-shadow: 0 8px 32px rgba(30,58,138,0.08);
       }
 
       .card-header { text-align: center; margin-bottom: 26px; }
       .card-header .icon { font-size: 44px; }
-      .card-header h2 { font-size: 22px; font-weight: 700; margin-top: 10px; }
-      .card-header p { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+      .card-header h2 { font-size: 22px; font-weight: 700; margin-top: 10px; color: #1e293b; }
+      .card-header p { font-size: 12px; color: #64748b; margin-top: 4px; }
 
       .divider {
         width: 1px;
         min-height: 360px;
-        background: rgba(255,255,255,0.18);
+        background: #dbeafe;
         align-self: stretch;
         border-radius: 2px;
       }
 
       label { display: block; text-align: left; font-size: 12px; font-weight: 600;
-              text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; opacity: 0.75; }
+              text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; color: #475569; }
       input {
         width: 100%;
         padding: 11px 14px;
         border-radius: 10px;
-        border: none;
-        background: rgba(255,255,255,0.18);
-        color: white;
+        border: 1px solid #dbeafe;
+        background: #f8fafc;
+        color: #1e293b;
         font-size: 14px;
         margin-bottom: 15px;
         outline: none;
         transition: 0.2s;
       }
-      input::placeholder { color: rgba(255,255,255,0.45); }
-      input:focus { background: rgba(255,255,255,0.28); }
+      input::placeholder { color: #94a3b8; }
+      input:focus { border-color: #93c5fd; background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
 
       .btn {
         width: 100%;
@@ -90,23 +89,25 @@
         transition: 0.25s;
         margin-top: 4px;
       }
-      .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.28); }
-      .btn-admin    { background: linear-gradient(90deg, #f093fb, #f5576c); }
-      .btn-employee { background: linear-gradient(90deg, #667eea, #764ba2); }
+      .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(30,58,138,0.2); }
+      .btn-admin    { background: #1e3a8a; }
+      .btn-admin:hover { background: #1e40af; }
+      .btn-employee { background: #3b82f6; }
+      .btn-employee:hover { background: #2563eb; }
 
       .error {
-        background: rgba(255,80,80,0.22);
-        border: 1px solid rgba(255,100,100,0.45);
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
         padding: 10px 14px;
         border-radius: 9px;
         font-size: 13px;
         margin-bottom: 14px;
-        color: #ffe0e0;
+        color: #dc2626;
       }
 
       .back { display: block; text-align: center; margin-top: 18px;
-              font-size: 12px; color: rgba(255,255,255,0.55); text-decoration: none; }
-      .back:hover { color: rgba(255,255,255,0.9); }
+              font-size: 12px; color: #94a3b8; text-decoration: none; }
+      .back:hover { color: #3b82f6; }
 
       @media (max-width: 620px) {
         .cards { flex-direction: column; max-width: 380px; }

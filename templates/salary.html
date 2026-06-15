@@ -6,17 +6,17 @@
     <title>Salary Configuration</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
 
       /* SIDEBAR */
       .sidebar {
         width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: rgba(0,0,0,0.25); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        background: #1e3a8a;
         padding: 25px 18px; color: white;
         display: flex; flex-direction: column;
       }
       .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 28px; }
       .nav-item {
         display: flex; align-items: center; gap: 10px;
         padding: 10px 14px; margin: 3px 0;
@@ -25,40 +25,41 @@
       }
       .nav-item:hover { background: rgba(255,255,255,0.15); }
       .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
-      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
 
       /* MAIN */
-      .main { flex: 1; padding: 28px; color: white; }
+      .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; }
-      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
       .section {
-        background: rgba(255,255,255,0.08);
+        background: #ffffff;
+        border: 1px solid #dbeafe;
         border-radius: 16px; padding: 22px; margin-bottom: 22px;
       }
-      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
 
       /* TABLE */
       .table-wrap { overflow-x: auto; border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       th {
-        background: rgba(255,255,255,0.12);
+        background: #dbeafe; color: #1e3a8a;
         padding: 11px 16px; text-align: left;
         font-weight: 600; white-space: nowrap;
       }
-      td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); vertical-align: middle; }
+      td { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; color: #1e293b; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: rgba(255,255,255,0.04); }
+      tr:hover td { background: #eff6ff; }
 
-      .emp-id  { font-size: 12px; opacity: 0.55; }
-      .salary-val { font-weight: 700; color: #6ee56e; font-size: 15px; }
-      .no-salary { color: rgba(255,255,255,0.35); font-style: italic; font-size: 13px; }
+      .emp-id  { font-size: 12px; color: #94a3b8; }
+      .salary-val { font-weight: 700; color: #16a34a; font-size: 15px; }
+      .no-salary { color: #94a3b8; font-style: italic; font-size: 13px; }
       .badge-role {
         display: inline-block; padding: 2px 9px;
         border-radius: 20px; font-size: 12px; font-weight: 600;
-        background: rgba(126,207,255,0.15); color: #7ecfff;
-        border: 1px solid rgba(126,207,255,0.3);
+        background: #dbeafe; color: #1d4ed8;
+        border: 1px solid #93c5fd;
       }
 
       /* EDIT INLINE */
@@ -66,11 +67,11 @@
       .edit-form.open { display: flex; }
       .edit-form input[type="number"] {
         width: 130px; padding: 6px 10px;
-        border: none; border-radius: 7px;
-        background: rgba(255,255,255,0.2); color: white; font-size: 14px;
+        border: 1px solid #dbeafe; border-radius: 7px;
+        background: #f8fafc; color: #1e293b; font-size: 14px;
         outline: none;
       }
-      .edit-form input[type="number"]:focus { background: rgba(255,255,255,0.3); }
+      .edit-form input[type="number"]:focus { border-color: #93c5fd; background: #fff; }
       .btn-save {
         padding: 6px 14px; border: none; border-radius: 7px;
         background: #22c55e; color: white; font-size: 13px; font-weight: 700;
@@ -78,21 +79,21 @@
       }
       .btn-save:hover { background: #16a34a; }
       .btn-cancel {
-        padding: 6px 12px; border: none; border-radius: 7px;
-        background: rgba(255,255,255,0.15); color: white; font-size: 13px;
+        padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 7px;
+        background: #f1f5f9; color: #64748b; font-size: 13px;
         cursor: pointer; transition: 0.2s;
       }
-      .btn-cancel:hover { background: rgba(255,255,255,0.25); }
+      .btn-cancel:hover { background: #e2e8f0; }
       .btn-edit {
         padding: 5px 12px; border: none; border-radius: 7px;
-        background: rgba(59,130,246,0.25); color: #93c5fd;
-        border: 1px solid rgba(59,130,246,0.4); font-size: 12px;
+        background: #dbeafe; color: #1d4ed8;
+        border: 1px solid #93c5fd; font-size: 12px;
         cursor: pointer; transition: 0.2s;
       }
-      .btn-edit:hover { background: rgba(59,130,246,0.45); color: #fff; }
+      .btn-edit:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
 
-      .empty-cell { text-align: center; padding: 30px; opacity: 0.5; }
-      .muted { opacity: 0.35; }
+      .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
+      .muted { color: #94a3b8; }
 
       @media (max-width: 768px) {
         body { flex-direction: column; }

@@ -6,57 +6,58 @@
     <title>Email Settings</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); min-height: 100vh; display: flex; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
 
-      .sidebar { width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: rgba(0,0,0,0.3); backdrop-filter: blur(12px); padding: 25px 18px; color: white; display: flex; flex-direction: column; }
+      .sidebar { width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #1e3a8a; padding: 25px 18px; color: white; display: flex; flex-direction: column; }
       .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 28px; }
       .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 3px 0; color: white; text-decoration: none; border-radius: 10px; font-size: 14px; transition: 0.2s; }
       .nav-item:hover { background: rgba(255,255,255,0.15); }
       .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
-      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
 
-      .main { flex: 1; padding: 28px; color: white; }
+      .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 28px; }
-      .page-header h1 { font-size: 24px; }
-      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 5px; }
+      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 5px; }
 
-      .card { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); border-radius: 16px; padding: 28px; margin-bottom: 22px; max-width: 600px; }
-      .card h3 { font-size: 16px; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+      .card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 28px; margin-bottom: 22px; max-width: 600px; }
+      .card h3 { font-size: 16px; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
 
       .form-group { margin-bottom: 16px; }
-      .form-group label { display: block; font-size: 13px; opacity: 0.75; margin-bottom: 6px; }
-      .form-group input { width: 100%; padding: 11px 14px; border: none; border-radius: 10px; background: rgba(255,255,255,0.12); color: white; font-size: 14px; outline: none; transition: 0.2s; }
-      .form-group input:focus { background: rgba(255,255,255,0.2); box-shadow: 0 0 0 2px rgba(99,102,241,0.5); }
-      .form-group input::placeholder { color: rgba(255,255,255,0.4); }
+      .form-group label { display: block; font-size: 13px; color: #475569; margin-bottom: 6px; }
+      .form-group input { width: 100%; padding: 11px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
+      .form-group input:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+      .form-group input::placeholder { color: #94a3b8; }
       .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
 
       .btn { padding: 11px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
       .btn:hover { transform: translateY(-1px); }
-      .btn-primary { background: #6366f1; color: white; }
-      .btn-primary:hover { background: #4f46e5; }
-      .btn-test { background: rgba(255,255,255,0.15); color: white; }
-      .btn-test:hover { background: rgba(255,255,255,0.25); }
+      .btn-primary { background: #3b82f6; color: white; }
+      .btn-primary:hover { background: #2563eb; }
+      .btn-test { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+      .btn-test:hover { background: #e2e8f0; }
 
       .actions { display: flex; gap: 12px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
 
       .alert { padding: 12px 18px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-      .alert-success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
-      .alert-info    { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #a5b4fc; }
+      .alert-success { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
+      .alert-info    { background: #ede9fe; border: 1px solid #c4b5fd; color: #4c1d95; }
 
-      .hint-box { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.8; opacity: 0.75; margin-bottom: 22px; max-width: 600px; }
-      .hint-box strong { color: #fbbf24; }
-      .hint-box code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-      .hint-box a { color: #a5b4fc; }
+      .hint-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.8; color: #475569; margin-bottom: 22px; max-width: 600px; }
+      .hint-box strong { color: #d97706; }
+      .hint-box code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #1e293b; }
+      .hint-box a { color: #3b82f6; }
       .alert-info-mb { margin-bottom: 16px; }
 
       .test-row { display: flex; gap: 10px; align-items: center; }
-      .test-row input { flex: 1; padding: 10px 14px; border: none; border-radius: 10px; background: rgba(255,255,255,0.12); color: white; font-size: 14px; outline: none; }
-      .test-row input::placeholder { color: rgba(255,255,255,0.4); }
+      .test-row input { flex: 1; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; }
+      .test-row input::placeholder { color: #94a3b8; }
+      .test-row input:focus { border-color: #93c5fd; background: #fff; }
 
       #testResult { font-size: 13px; margin-top: 10px; padding: 10px 14px; border-radius: 8px; display: none; }
-      #testResult.success { background: rgba(34,197,94,0.15); color: #4ade80; }
-      #testResult.error   { background: rgba(239,68,68,0.15);  color: #f87171; }
+      #testResult.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+      #testResult.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
       @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; min-height: auto; } .form-row { grid-template-columns: 1fr; } }
     </style>
