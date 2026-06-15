@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Photos</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: #1e3a8a; padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .sidebar .brand { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+      .sidebar .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 30px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 14px; margin: 4px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.25s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
+      .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(255,255,255,0.65); padding-top: 20px; }
+      .badge-count {
+        margin-left: auto; background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+      }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 26px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+      /* SEARCH BAR */
+      .filter-bar {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 14px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 14px;
+        flex-wrap: wrap; margin-bottom: 22px;
+      }
+      .filter-bar input {
+        flex: 1; min-width: 200px;
+        padding: 9px 13px; border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 13px; outline: none;
+      }
+      .filter-bar input:focus { border-color: #93c5fd; }
+      .filter-bar label { font-size: 13px; color: #64748b; font-weight: 600; white-space: nowrap; }
+      .emp-counter { font-size: 13px; color: #64748b; margin-left: auto; }
+
+      /* PHOTO GRID */
+      .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 18px;
+      }
+      .photo-card {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 16px; padding: 20px 16px;
+        text-align: center; transition: 0.2s;
+      }
+      .photo-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.08); }
+      .photo-wrap {
+        width: 100px; height: 100px; border-radius: 50%;
+        overflow: hidden; margin: 0 auto 14px;
+        border: 3px solid #dbeafe; background: #eff6ff;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .photo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+      .photo-placeholder { font-size: 36px; line-height: 1; }
+      .emp-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; word-break: break-word; }
+      .emp-id   { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+      .emp-role { display: inline-block; margin-top: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .no-role  { font-size: 12px; color: #94a3b8; }
+
+      .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 15px; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .sidebar .brand, .sidebar .brand-sub, .sidebar-footer { display: none; }
+        .nav-sep { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management System</div>
+
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/employees">👥 Employees</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <a class="nav-item" href="/admin_payslips">💳 Pay Slips</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/view_qrcodes">🔳 QR Codes</a>
+      <a class="nav-item active" href="/view_photos">📷 Employee Photos</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <a class="nav-item" href="/tickets">🎫 Tickets</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+      <div class="sidebar-footer">Employee Directory</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>📷 Employee Photos</h1>
+        <p>Browse all registered employee profile photos.</p>
+      </div>
+
+      <div class="filter-bar">
+        <label>Search</label>
+        <input type="text" id="searchInput" placeholder="Name, ID, or role…" oninput="filterCards()" />
+        <span class="emp-counter" id="empCounter">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
+      </div>
+
+      {% if employees %}
+      <div class="photo-grid" id="photoGrid">
+        {% for emp_id, name, role, email, face_image in employees %}
+        <div class="photo-card" data-name="{{ name | lower }}" data-id="{{ emp_id | lower }}" data-role="{{ (role or '') | lower }}">
+          <div class="photo-wrap">
+            {% if face_image and face_image.endswith('.jpg') or face_image and face_image.endswith('.png') %}
+              <img src="/dataset/{{ emp_id }}.jpg"
+                   alt="{{ name }}"
+                   onerror="this.parentNode.innerHTML='<span class=\'photo-placeholder\'>👤</span>'" />
+            {% else %}
+              <span class="photo-placeholder">👤</span>
+            {% endif %}
+          </div>
+          <div class="emp-name">{{ name }}</div>
+          <div class="emp-id">{{ emp_id }}</div>
+          {% if role %}
+            <span class="emp-role">{{ role }}</span>
+          {% else %}
+            <span class="no-role">No role</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">No employees registered yet.</div>
+      {% endif %}
+
+    </div>
+
+    <script>
+      function filterCards() {
+        var q = document.getElementById("searchInput").value.toLowerCase();
+        var cards = document.querySelectorAll(".photo-card");
+        var visible = 0;
+        cards.forEach(function(card) {
+          var match = card.dataset.name.includes(q) ||
+                      card.dataset.id.includes(q)   ||
+                      card.dataset.role.includes(q);
+          card.style.display = match ? "" : "none";
+          if (match) visible++;
+        });
+        document.getElementById("empCounter").textContent =
+          visible + " employee" + (visible !== 1 ? "s" : "");
+      }
+    </script>
+
+  </body>
+</html>

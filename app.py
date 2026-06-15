@@ -337,9 +337,26 @@ def fetch_holidays_set(year, month):
     return holidays
 
 def get_billable_past_days(year, month):
-    today    = datetime.date.today()
-    holidays = fetch_holidays_set(year, month)
-    return [d for d in get_working_days(year, month) if d not in holidays and d <= today]
+    today = datetime.date.today()
+    # Holidays are included — they count as paid working days
+    return [d for d in get_working_days(year, month) if d <= today]
+
+def fetch_leave_map(year, month):
+    """Return {emp_id: set(leave_dates)} for approved leaves in the given month."""
+    _, last_day = calendar.monthrange(year, month)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT employee_id, leave_date FROM leave_requests "
+        "WHERE status = 'Approved' AND leave_date BETWEEN %s AND %s",
+        (datetime.date(year, month, 1), datetime.date(year, month, last_day))
+    )
+    leave_map = {}
+    for eid, ld in cursor.fetchall():
+        leave_map.setdefault(eid, set()).add(ld)
+    cursor.close()
+    db.close()
+    return leave_map
 
 # ---------------- EMAIL HELPERS ----------------
 def get_email_config():
@@ -372,7 +389,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
   .emp-info td {{ padding: 5px 8px; font-size: 14px; }}
   .emp-info td:first-child {{ font-weight: 600; color: #555; width: 140px; }}
   .section-title {{ font-size: 15px; font-weight: 700; color: #444; margin: 20px 0 10px; border-bottom: 2px solid #eee; padding-bottom: 6px; }}
-  .att-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }}
+  .att-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }}
   .att-card {{ background: #f8f9fc; border-radius: 8px; padding: 12px; text-align: center; }}
   .att-card .num {{ font-size: 22px; font-weight: 700; }}
   .att-card .lbl {{ font-size: 11px; color: #888; margin-top: 3px; }}
@@ -410,6 +427,8 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
       <div class="att-card"><div class="num yellow">{e['late_days']}</div><div class="lbl">Late Days</div></div>
       <div class="att-card"><div class="num yellow">{e['half_days']}</div><div class="lbl">Half Days</div></div>
       <div class="att-card"><div class="num red">{e['absent']}</div><div class="lbl">Absent</div></div>
+      <div class="att-card"><div class="num blue">{e.get('holiday_days', 0)}</div><div class="lbl">Holidays (Paid)</div></div>
+      <div class="att-card"><div class="num" style="color:#9333ea">{e.get('leave_days', 0)}</div><div class="lbl">Leave Days</div></div>
     </div>
 
     <div class="section-title">Salary Breakdown</div>
@@ -486,52 +505,71 @@ def build_attendance_email(employee_name, emp_id, action, status, time_str, toda
   </div>
 </div>"""
 
-def compute_salary_entry(emp_id, name, spd, att_map, billable_past):
+def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                         holidays_set=None, leave_dates=None):
+    if holidays_set is None:
+        holidays_set = set()
+    if leave_dates is None:
+        leave_dates = set()
+
     emp_att = att_map.get(emp_id, {})
     full_days = half_days = late_days = absent_days = 0
+    holiday_days = leave_days_count = 0
 
     for d in billable_past:
-        row = emp_att.get(d)
-        if row:
-            _, _, login_t, logout_t, status, _logout_status, att_type = row
-            final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-            if final == "Full Day":
-                full_days += 1
-            elif final == "Late - Full Day":
-                late_days += 1
-            elif final in ("Half Day", "Present"):
-                half_days += 1
+        if d in holidays_set:
+            # Holiday → paid as full day, no attendance required
+            full_days += 1
+            holiday_days += 1
+        elif d in leave_dates:
+            # Approved leave → not a working day, no pay and no absent deduction
+            leave_days_count += 1
+        else:
+            row = emp_att.get(d)
+            if row:
+                _, _, login_t, logout_t, status, _logout_status, att_type = row
+                final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
+                if final == "Full Day":
+                    full_days += 1
+                elif final == "Late - Full Day":
+                    late_days += 1
+                elif final in ("Half Day", "Present"):
+                    half_days += 1
+                else:
+                    absent_days += 1
             else:
                 absent_days += 1
-        else:
-            absent_days += 1
+
+    effective_billable = len(billable_past) - leave_days_count
 
     spd_f      = float(spd)
     full_earn  = round(full_days  * spd_f, 2)
     late_earn  = round(late_days  * spd_f * (1 - LATE_DEDUCTION_RATE), 2)
     half_earn  = round(half_days  * spd_f * (1 - HALF_DAY_RATE), 2)
     net        = round(full_earn + late_earn + half_earn, 2)
-    gross      = round(spd_f * len(billable_past), 2)
+    gross      = round(spd_f * effective_billable, 2)
     deduction  = round(gross - net, 2)
 
     return {
-        "emp_id":     emp_id,
-        "name":       name,
-        "spd":        round(spd_f, 2),
-        "billable":   len(billable_past),
-        "full_days":  full_days,
-        "half_days":  half_days,
-        "late_days":  late_days,
-        "absent":     absent_days,
-        "full_earn":  full_earn,
-        "late_earn":  late_earn,
-        "half_earn":  half_earn,
-        "gross":      gross,
-        "absent_ded": round(absent_days * spd_f, 2),
-        "half_ded":   round(half_days   * spd_f * HALF_DAY_RATE, 2),
-        "late_ded":   round(late_days   * spd_f * LATE_DEDUCTION_RATE, 2),
-        "deduction":  deduction,
-        "net":        net,
+        "emp_id":        emp_id,
+        "name":          name,
+        "spd":           round(spd_f, 2),
+        "billable":      effective_billable,
+        "holiday_days":  holiday_days,
+        "leave_days":    leave_days_count,
+        "full_days":     full_days,
+        "half_days":     half_days,
+        "late_days":     late_days,
+        "absent":        absent_days,
+        "full_earn":     full_earn,
+        "late_earn":     late_earn,
+        "half_earn":     half_earn,
+        "gross":         gross,
+        "absent_ded":    round(absent_days * spd_f, 2),
+        "half_ded":      round(half_days   * spd_f * HALF_DAY_RATE, 2),
+        "late_ded":      round(late_days   * spd_f * LATE_DEDUCTION_RATE, 2),
+        "deduction":     deduction,
+        "net":           net,
     }
 
 # ---------------- HOME ----------------
@@ -1031,6 +1069,36 @@ def view_qrcodes():
     cursor.close(); db.close()
     return render_template("qrcodes.html", employees=employees)
 
+
+@app.route("/dataset/<path:filename>")
+@admin_required
+def serve_dataset(filename):
+    from flask import send_from_directory
+    return send_from_directory(os.path.abspath("dataset"), filename)
+
+
+@app.route("/my_photo")
+def my_photo():
+    from flask import send_from_directory
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return "", 403
+    photo_path = os.path.join("dataset", emp_id + ".jpg")
+    if not os.path.exists(photo_path):
+        return "", 404
+    return send_from_directory(os.path.abspath("dataset"), emp_id + ".jpg")
+
+
+@app.route("/view_photos")
+@admin_required
+def view_photos():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, name, role, email, face_image FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("employee_photos.html", employees=employees)
+
 # ---------------- SHIFTS ----------------
 @app.route("/shifts", methods=["GET"])
 @admin_required
@@ -1449,13 +1517,25 @@ def salary_report():
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
 
-    billable_past = get_billable_past_days(year, month)
+    cursor.execute("""
+        SELECT employee_id, leave_date FROM leave_requests
+        WHERE status = 'Approved' AND leave_date BETWEEN %s AND %s
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    leave_map = {}
+    for eid, ld in cursor.fetchall():
+        leave_map.setdefault(eid, set()).add(ld)
+
     cursor.close()
     db.close()
 
+    holidays_set  = fetch_holidays_set(year, month)
+    billable_past = get_billable_past_days(year, month)
+
     salary_data = []
     for emp_id, name, email, spd in employees:
-        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
+        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                     holidays_set=holidays_set,
+                                     leave_dates=leave_map.get(emp_id, set()))
         entry["email"] = email
         salary_data.append(entry)
 
@@ -1545,10 +1625,20 @@ def send_salary_email():
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
 
+    _, last_day2 = calendar.monthrange(year, month)
+    cursor.execute(
+        "SELECT leave_date FROM leave_requests "
+        "WHERE status='Approved' AND employee_id=%s AND leave_date BETWEEN %s AND %s",
+        (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day2))
+    )
+    leave_dates = {row[0] for row in cursor.fetchall()}
+
     cursor.close(); db.close()
 
+    holidays_set  = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
-    entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
+    entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                         holidays_set=holidays_set, leave_dates=leave_dates)
     month_name    = datetime.date(year, month, 1).strftime("%B %Y")
     html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
 
@@ -1590,8 +1680,19 @@ def send_all_salary_emails():
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
 
+    _, last_day_all = calendar.monthrange(year, month)
+    cursor.execute(
+        "SELECT employee_id, leave_date FROM leave_requests "
+        "WHERE status='Approved' AND leave_date BETWEEN %s AND %s",
+        (datetime.date(year, month, 1), datetime.date(year, month, last_day_all))
+    )
+    leave_map_all = {}
+    for eid, ld in cursor.fetchall():
+        leave_map_all.setdefault(eid, set()).add(ld)
+
     cursor.close(); db.close()
 
+    holidays_set  = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
     month_name    = datetime.date(year, month, 1).strftime("%B %Y")
 
@@ -1602,7 +1703,9 @@ def send_all_salary_emails():
         if not email:
             skipped += 1
             continue
-        entry     = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
+        entry     = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                         holidays_set=holidays_set,
+                                         leave_dates=leave_map_all.get(emp_id, set()))
         html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
         try:
             send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
@@ -1872,7 +1975,7 @@ def employee_portal():
     cursor = db.cursor(buffered=True)
 
     cursor.execute(
-        "SELECT employee_id, name, role, email FROM employees WHERE employee_id=%s",
+        "SELECT employee_id, name, role, email, face_image FROM employees WHERE employee_id=%s",
         (emp_id,)
     )
     emp = cursor.fetchone()
@@ -1974,6 +2077,15 @@ def employee_portal():
 
     cursor.close(); db.close()
 
+    # Build last 12 months list for pay slips section
+    payslip_months = []
+    py, pm = today.year, today.month
+    for _ in range(12):
+        payslip_months.append((py, pm, calendar.month_name[pm]))
+        pm -= 1
+        if pm == 0:
+            pm = 12; py -= 1
+
     return render_template("employee_portal.html",
         emp=emp,
         today=today.strftime("%d %b %Y"),
@@ -2000,6 +2112,7 @@ def employee_portal():
         sel_month=month,
         years=list(range(today.year - 2, today.year + 1)),
         months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
+        payslip_months=payslip_months,
     )
 
 
@@ -3226,6 +3339,91 @@ def api_ticket_action(tid):
     )
     db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True, "status": new_status})
+
+
+# ---------------- PAY SLIPS ----------------
+@app.route("/view_payslip/<emp_id>/<int:year>/<int:month>")
+def view_payslip(emp_id, year, month):
+    is_admin = session.get("admin_logged_in")
+    is_own   = session.get("employee_id") == emp_id
+    if not is_admin and not is_own:
+        return redirect("/employee_login")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT e.name, e.email, COALESCE(s.salary_per_day, 0) "
+        "FROM employees e LEFT JOIN salary_config s ON e.employee_id = s.employee_id "
+        "WHERE e.employee_id = %s",
+        (emp_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return "Employee not found", 404
+    name, email, spd = row
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT date, employee_id, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance
+        WHERE employee_id=%s AND date BETWEEN %s AND %s
+    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    att_map = {}
+    for r in cursor.fetchall():
+        att_map.setdefault(r[1], {})[r[0]] = r
+
+    cursor.execute(
+        "SELECT leave_date FROM leave_requests "
+        "WHERE status='Approved' AND employee_id=%s AND leave_date BETWEEN %s AND %s",
+        (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day))
+    )
+    leave_dates = {r[0] for r in cursor.fetchall()}
+    cursor.close(); db.close()
+
+    holidays_set  = fetch_holidays_set(year, month)
+    billable_past = get_billable_past_days(year, month)
+    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                 holidays_set=holidays_set, leave_dates=leave_dates)
+
+    month_name = calendar.month_name[month] + f" {year}"
+    return build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+
+
+@app.route("/admin_payslips")
+@admin_required
+def admin_payslips():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT employee_id, name, role FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    cursor.close(); db.close()
+
+    today = datetime.date.today()
+    slip_months = []
+    y, m = today.year, today.month
+    for _ in range(12):
+        slip_months.append((y, m, calendar.month_name[m]))
+        m -= 1
+        if m == 0:
+            m = 12; y -= 1
+
+    return render_template("admin_payslips.html",
+        employees=employees,
+        slip_months=slip_months,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets
+    )
 
 
 # ---------------- RUN ----------------

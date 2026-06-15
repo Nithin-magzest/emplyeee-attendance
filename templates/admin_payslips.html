@@ -1,0 +1,217 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pay Slips</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: #1e3a8a; padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .sidebar .brand { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+      .sidebar .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 30px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 14px; margin: 4px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.25s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
+      .sidebar-footer { margin-top: auto; font-size: 12px; color: rgba(255,255,255,0.65); padding-top: 20px; }
+      .badge-count {
+        margin-left: auto; background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+      }
+
+      /* MAIN */
+      .main { flex: 1; padding: 28px; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 26px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+      /* FILTER BAR */
+      .filter-bar {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 14px; padding: 16px 22px;
+        display: flex; align-items: center; gap: 16px;
+        flex-wrap: wrap; margin-bottom: 22px;
+      }
+      .filter-bar label { font-size: 13px; color: #64748b; font-weight: 600; }
+      .filter-bar select {
+        padding: 9px 13px; border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 13px; outline: none;
+        min-width: 180px;
+      }
+      .filter-bar select:focus { border-color: #93c5fd; }
+
+      /* SECTION */
+      .section {
+        background: #ffffff; border: 1px solid #dbeafe;
+        border-radius: 16px; padding: 22px;
+      }
+      .section-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .emp-count { font-size: 13px; color: #64748b; font-weight: 400; margin-left: 6px; }
+
+      /* TABLE */
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #eff6ff; }
+      .empty-cell { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+
+      /* BADGES */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+      .badge-blue { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .muted { color: #94a3b8; }
+
+      /* BUTTONS */
+      .btn-view {
+        padding: 6px 16px; border: none; border-radius: 8px;
+        background: #1e3a8a; color: white;
+        font-size: 12px; font-weight: 600; cursor: pointer;
+        text-decoration: none; display: inline-block; transition: 0.2s;
+      }
+      .btn-view:hover { background: #1e40af; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .sidebar .brand, .sidebar .brand-sub, .sidebar-footer { display: none; }
+        .nav-sep { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management System</div>
+
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/employees">👥 Employees</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <a class="nav-item active" href="/admin_payslips">💳 Pay Slips</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/view_qrcodes">🔳 QR Codes</a>
+      <a class="nav-item" href="/view_photos">📷 Employee Photos</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests
+        {% if (pending_leaves | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_leaves }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations
+        {% if (pending_resignations | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_resignations }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/tickets">🎫 Tickets
+        {% if (pending_tickets | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_tickets }}</span>
+        {% endif %}
+      </a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+      <div class="sidebar-footer">Pay Slip Manager</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>💳 Pay Slips</h1>
+        <p>View individual salary slips for any employee and month.</p>
+      </div>
+
+      <!-- MONTH SELECTOR -->
+      <div class="filter-bar">
+        <label>Select Month</label>
+        <select id="selMonth" onchange="updateLinks()">
+          {% for y, m, mname in slip_months %}
+          <option value="{{ y }}/{{ m }}" {% if loop.first %}selected{% endif %}>{{ mname }} {{ y }}</option>
+          {% endfor %}
+        </select>
+        <span style="font-size:13px;color:#64748b;">Click <strong>View Pay Slip</strong> next to any employee to open their slip in a new tab.</span>
+      </div>
+
+      <!-- EMPLOYEE TABLE -->
+      <div class="section">
+        <div class="section-title">
+          👥 Employees
+          <span class="emp-count">{{ employees | length }} total</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Pay Slip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for emp in employees %}
+              {% set emp_id, emp_name, emp_role = emp %}
+              <tr>
+                <td class="muted">{{ loop.index }}</td>
+                <td><strong>{{ emp_id }}</strong></td>
+                <td>{{ emp_name }}</td>
+                <td>
+                  {% if emp_role %}
+                    <span class="badge badge-blue">{{ emp_role }}</span>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a class="btn-view slip-link"
+                     data-emp="{{ emp_id }}"
+                     href="/view_payslip/{{ emp_id }}/{{ slip_months[0][0] }}/{{ slip_months[0][1] }}"
+                     target="_blank">
+                    👁 View Pay Slip
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="empty-cell">No employees registered yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      function updateLinks() {
+        const val  = document.getElementById("selMonth").value; // "YYYY/M"
+        const parts = val.split("/");
+        const year  = parts[0];
+        const month = parts[1];
+        document.querySelectorAll(".slip-link").forEach(function(a) {
+          const empId = a.dataset.emp;
+          a.href = "/view_payslip/" + empId + "/" + year + "/" + month;
+        });
+      }
+    </script>
+
+  </body>
+</html>

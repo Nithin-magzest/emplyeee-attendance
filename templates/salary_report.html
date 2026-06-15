@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -102,6 +102,7 @@
       <hr class="nav-sep" />
       <a class="nav-item" href="/view_holidays">📅 Holidays</a>
       <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/view_photos">📷 Employee Photos</a>
       <a class="nav-item" href="/email_config">✉️ Email Settings</a>
       <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
       <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
@@ -200,7 +201,15 @@
                   {% endif %}
                 </td>
                 <td>₹{{ "%.2f" | format(e.spd) }}</td>
-                <td>{{ e.billable }}</td>
+                <td>
+                  {{ e.billable }}
+                  {% if (e.holiday_days | default(0)) > 0 or (e.leave_days | default(0)) > 0 %}
+                  <br><span style="font-size:11px;color:#64748b;">
+                    {% if (e.holiday_days | default(0)) > 0 %}🎉 {{ e.holiday_days }}h{% endif %}
+                    {% if (e.leave_days | default(0)) > 0 %} 📋 {{ e.leave_days }}l{% endif %}
+                  </span>
+                  {% endif %}
+                </td>
                 <td><span class="badge b-green">{{ e.full_days }}</span></td>
                 <td><span class="badge b-yellow">{{ e.late_days }}</span></td>
                 <td><span class="badge b-yellow">{{ e.half_days }}</span></td>
@@ -263,12 +272,14 @@
 
       <!-- DEDUCTION RULES -->
       <div class="rules-box">
-        <strong>Deduction Rules for {{ month_name }}:</strong><br>
+        <strong>Salary Rules for {{ month_name }}:</strong><br>
         ✅ <strong>Full Day</strong> — Login ≤ 9:00 AM + Logout ≥ 6:00 PM → No deduction (100% pay)<br>
         ⚠️ <strong>Late – Full Day</strong> — Login 9:00 AM–1:00 PM + Logout ≥ 6:00 PM → {{ late_rate }}% deduction<br>
         ⚠️ <strong>Half Day</strong> — Login after 1:00 PM OR Logout before 1:00 PM OR Logout 1:00–6:00 PM → {{ half_rate }}% deduction<br>
         ❌ <strong>Absent</strong> — No attendance record → 100% deduction (no pay)<br>
-        <em>Hover over Deductions column for breakdown per employee.</em>
+        🎉 <strong>Holiday</strong> — Public holiday → Paid as Full Day (no attendance required)<br>
+        📋 <strong>Leave (Approved)</strong> — Approved leave day → Not counted as a working day (no pay, no deduction)<br>
+        <em>Work Days column: 🎉 = holiday days included, 📋 = leave days excluded</em>
       </div>
     </div>
 

@@ -18,8 +18,23 @@
       }
       .nav-spacer { flex: 1; }
       .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
       .nav-emp { font-size: 13px; color: rgba(255,255,255,0.7); padding: 6px 14px; margin-bottom: 16px; }
+      .sidebar-profile {
+        display: flex; align-items: center; gap: 11px;
+        padding: 10px 14px; margin-bottom: 16px;
+        background: rgba(255,255,255,0.1); border-radius: 12px;
+      }
+      .sidebar-avatar {
+        width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+        background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; font-weight: 700; color: white;
+        overflow: hidden; border: 2px solid rgba(255,255,255,0.3);
+      }
+      .sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .sidebar-emp-name { font-size: 13px; font-weight: 600; color: white; word-break: break-word; }
+      .sidebar-emp-role { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px; }
       .nav-item {
         display: flex; align-items: center; gap: 10px;
         padding: 10px 14px; margin: 3px 0;
@@ -57,11 +72,13 @@
 
       /* PROFILE */
       .profile-avatar {
-        width: 50px; height: 50px; border-radius: 50%;
+        width: 80px; height: 80px; border-radius: 50%;
         background: linear-gradient(135deg, #1e3a8a, #3b82f6);
         display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 700; margin-bottom: 12px; color: white;
+        font-size: 28px; font-weight: 700; margin-bottom: 12px; color: white;
+        overflow: hidden; border: 3px solid #dbeafe; flex-shrink: 0;
       }
+      .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
       .profile-name { font-size: 17px; font-weight: 700; color: #1e293b; }
       .profile-sub  { font-size: 12px; color: #64748b; margin-top: 2px; }
       .profile-rows { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
@@ -278,6 +295,20 @@
       .ls-approved { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       .ls-rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
+      /* PAY SLIPS GRID */
+      .payslip-hint { font-size: 13px; color: #64748b; margin-bottom: 18px; }
+      .payslip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+      .payslip-card {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 18px 10px; background: #f8fafc; border: 1px solid #dbeafe;
+        border-radius: 12px; text-decoration: none; color: #1e293b;
+        transition: background 0.2s, border-color 0.2s; gap: 6px;
+      }
+      .payslip-card:hover { background: #dbeafe; border-color: #93c5fd; }
+      .payslip-card .ps-icon { font-size: 22px; }
+      .payslip-card .ps-month { font-size: 13px; font-weight: 700; color: #1e3a8a; }
+      .payslip-card .ps-cta { font-size: 11px; color: #94a3b8; }
+
       @media (max-width: 900px) {
         .cards-row { grid-template-columns: 1fr; }
         .stats { grid-template-columns: repeat(2, 1fr); }
@@ -305,11 +336,25 @@
     <div class="sidebar">
       <div class="brand">👤 My Portal</div>
       <div class="brand-sub">Employee Self-Service</div>
-      <div class="nav-emp">{{ emp[1] }}</div>
+      <div class="sidebar-profile">
+        <div class="sidebar-avatar">
+          {% if emp[4] %}
+            <img src="/my_photo" alt="{{ emp[1] }}"
+                 onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+          {% else %}
+            {{ emp[1][0] | upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div class="sidebar-emp-name">{{ emp[1] }}</div>
+          <div class="sidebar-emp-role">{{ emp[2] or 'Employee' }}</div>
+        </div>
+      </div>
       <a class="nav-item active" id="nav-dashboard"      href="#" onclick="showView('dashboard');return false;">🏠 Dashboard</a>
       <a class="nav-item"        id="nav-attendance"    href="#" onclick="showView('attendance');return false;">📋 My Attendance</a>
       <a class="nav-item"        id="nav-apply-leave"   href="#" onclick="showView('apply-leave');return false;">📝 Apply Leave</a>
       <a class="nav-item"        id="nav-leave-history" href="#" onclick="showView('leave-history');return false;">📬 Leave History</a>
+      <a class="nav-item"        id="nav-payslips"      href="#" onclick="showView('payslips');return false;">💳 Pay Slips</a>
       <a class="nav-item nav-ticket" id="nav-tickets"   href="#" onclick="showView('tickets');return false;">🎫 Tickets</a>
       <a class="nav-item nav-resign" id="nav-resign"    href="#" onclick="showView('resign');return false;">🚨 Resign</a>
       <a class="nav-item"        id="nav-change-password" href="#" onclick="showView('change-password');return false;">🔒 Change Password</a>
@@ -343,7 +388,14 @@
         <!-- PROFILE CARD -->
         <div class="card">
           <div class="card-title">👤 My Profile</div>
-          <div class="profile-avatar">{{ emp[1][0] | upper }}</div>
+          <div class="profile-avatar">
+            {% if emp[4] %}
+              <img src="/my_photo" alt="{{ emp[1] }}"
+                   onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+            {% else %}
+              {{ emp[1][0] | upper }}
+            {% endif %}
+          </div>
           <div class="profile-name">{{ emp[1] }}</div>
           <div class="profile-sub">ID: {{ emp[0] }}</div>
           <div class="profile-rows">
@@ -813,6 +865,21 @@
         {% endif %}
       </div>
       </div><!-- /view-resign -->
+
+      <!-- ═══ VIEW: PAY SLIPS ═══ -->
+      <div id="view-payslips" class="view">
+      <div class="mod-title">💳 My Pay Slips <span>View your salary slips by month</span></div>
+      <p class="payslip-hint">Click any month to open your salary slip in a new tab.</p>
+      <div class="payslip-grid">
+        {% for y, m, mname in payslip_months %}
+        <a class="payslip-card" href="/view_payslip/{{ emp[0] }}/{{ y }}/{{ m }}" target="_blank">
+          <span class="ps-icon">💳</span>
+          <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
+          <span class="ps-cta">View Slip →</span>
+        </a>
+        {% endfor %}
+      </div>
+      </div><!-- /view-payslips -->
 
       <!-- ═══ VIEW: CHANGE PASSWORD ═══ -->
       <div id="view-change-password" class="view">
