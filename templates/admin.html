@@ -151,6 +151,11 @@
           <span class="badge-count">{{ pending_resignations }}</span>
         {% endif %}
       </a>
+      <a class="nav-item" href="/tickets">🎫 Tickets
+        {% if (pending_tickets | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_tickets }}</span>
+        {% endif %}
+      </a>
       <hr class="nav-sep" />
       <a class="nav-item" href="/logout">🚪 Logout</a>
 

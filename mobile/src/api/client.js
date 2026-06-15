@@ -54,3 +54,14 @@ export const submitLeaveRequest = (leave_date, reason) =>
 
 export const submitResignation = (last_working_day, reason) =>
   client.post('/api/employee/resign', { last_working_day, reason });
+
+export const fetchEmployeeTickets = () => client.get('/api/employee/tickets');
+
+export const raiseTicket = (category, subject, description, priority) =>
+  client.post('/api/employee/raise_ticket', { category, subject, description, priority });
+
+// ── Admin: Tickets ─────────────────────────────────────────────────
+export const fetchAllTickets = () => client.get('/api/tickets');
+
+export const ticketAction = (tid, status, admin_response) =>
+  client.post(`/api/tickets/${tid}/action`, { status, admin_response });

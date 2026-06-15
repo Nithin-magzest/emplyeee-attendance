@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Support Tickets</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; display: flex; }
+
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: rgba(0,0,0,0.25);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        padding: 25px 18px; color: white;
+        display: flex; flex-direction: column;
+      }
+      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; opacity: 0.55; margin-bottom: 28px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin: 3px 0;
+        color: white; text-decoration: none;
+        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 10px 0; }
+      .badge-count {
+        margin-left: auto; background: #ef4444; color: white;
+        border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+      }
+      .sidebar-footer { margin-top: auto; font-size: 12px; opacity: 0.55; padding-top: 20px; }
+
+      .main { flex: 1; padding: 28px; color: white; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; }
+      .page-header p { font-size: 13px; opacity: 0.65; margin-top: 4px; }
+
+      .ticket-card {
+        background: rgba(255,255,255,0.08);
+        border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+        border-left: 4px solid transparent;
+      }
+      .ticket-card.pri-high   { border-left-color: #ef4444; }
+      .ticket-card.pri-medium { border-left-color: #fbbf24; }
+      .ticket-card.pri-low    { border-left-color: rgba(255,255,255,0.25); }
+      .ticket-card.resolved   { opacity: 0.65; }
+
+      .ticket-header { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+      .ticket-id     { font-size: 12px; opacity: 0.45; flex-shrink: 0; padding-top: 2px; }
+      .ticket-subject { font-size: 15px; font-weight: 700; flex: 1; }
+      .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+      .b-red    { background: rgba(239,68,68,0.2);   color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+      .b-yellow { background: rgba(251,191,36,0.2);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+      .b-blue   { background: rgba(99,102,241,0.2);  color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); }
+      .b-orange { background: rgba(251,146,60,0.2);  color: #fb923c; border: 1px solid rgba(251,146,60,0.4); }
+      .b-green  { background: rgba(34,197,94,0.2);   color: #4ade80; border: 1px solid rgba(34,197,94,0.4); }
+      .b-gray   { background: rgba(200,200,200,0.15); color: #ccc;   border: 1px solid rgba(200,200,200,0.3); }
+
+      .ticket-meta { font-size: 12px; opacity: 0.5; margin-bottom: 8px; }
+      .ticket-desc { font-size: 13px; opacity: 0.8; line-height: 1.55; margin-bottom: 12px; white-space: pre-wrap; }
+
+      .respond-form { display: flex; flex-direction: column; gap: 10px; }
+      .respond-row   { display: flex; gap: 10px; flex-wrap: wrap; }
+      .respond-select {
+        padding: 8px 12px; border: none; border-radius: 8px;
+        background: rgba(255,255,255,0.15); color: white; font-size: 13px; outline: none;
+      }
+      .respond-select option { background: #302b63; color: white; }
+      .respond-textarea {
+        flex: 1; min-width: 260px; padding: 9px 13px; border: none; border-radius: 8px;
+        background: rgba(255,255,255,0.12); color: white; font-size: 13px;
+        outline: none; resize: vertical; min-height: 60px;
+      }
+      .respond-textarea::placeholder { color: rgba(255,255,255,0.4); }
+      .respond-textarea:focus, .respond-select:focus { background: rgba(255,255,255,0.22); }
+      .btn-respond {
+        padding: 9px 22px; border: none; border-radius: 8px;
+        background: linear-gradient(90deg, #6366f1, #4f46e5);
+        color: white; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap;
+      }
+      .btn-respond:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(99,102,241,0.4); }
+
+      .existing-response {
+        background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3);
+        border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #a5b4fc;
+        margin-bottom: 10px;
+      }
+      .existing-response strong { display: block; font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+      .section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .empty-msg { opacity: 0.45; font-size: 14px; padding: 20px 0; }
+
+      .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+      .filter-btn {
+        padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1);
+        color: white; text-decoration: none; transition: 0.2s;
+      }
+      .filter-btn:hover, .filter-btn.active { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); font-weight: 600; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; min-height: auto; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management System</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests
+        {% if (pending_leaves | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_leaves }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations
+        {% if (pending_resignations | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_resignations }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item active" href="/tickets">🎫 Tickets
+        {% if (pending_tickets | default(0)) > 0 %}
+          <span class="badge-count">{{ pending_tickets }}</span>
+        {% endif %}
+      </a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+      <div class="sidebar-footer">Shift: {{ shift_start }} – {{ shift_end }}</div>
+    </div>
+
+    <div class="main">
+      <div class="page-header">
+        <h1>🎫 Support Tickets</h1>
+        <p>{{ today }} &nbsp;·&nbsp; {{ all_tickets | length }} total &nbsp;·&nbsp; {{ pending_tickets }} open</p>
+      </div>
+
+      {% set open_tickets     = all_tickets | selectattr(6, 'equalto', 'Open')        | list %}
+      {% set inprog_tickets   = all_tickets | selectattr(6, 'equalto', 'In Progress') | list %}
+      {% set resolved_tickets = all_tickets | rejectattr(6, 'equalto', 'Open') | rejectattr(6, 'equalto', 'In Progress') | list %}
+
+      <!-- OPEN -->
+      {% if open_tickets %}
+      <div class="section-title">🔴 Open</div>
+      {% for t in open_tickets %}
+        {% set tid, emp_id, emp_name, tcat, tsubj, tdesc, tpri, tstat, tresp, tdate, tupd = t %}
+        <div class="ticket-card pri-{{ tpri | lower }}">
+          <div class="ticket-header">
+            <span class="ticket-id">#{{ tid }}</span>
+            <span class="ticket-subject">{{ tsubj }}</span>
+            {% if tpri == 'High' %}<span class="badge b-red">🔴 High</span>
+            {% elif tpri == 'Low' %}<span class="badge b-gray">Low</span>
+            {% else %}<span class="badge b-yellow">Medium</span>{% endif %}
+            <span class="badge b-blue">Open</span>
+          </div>
+          <div class="ticket-meta">{{ emp_name }} ({{ emp_id }}) &nbsp;·&nbsp; {{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y %H:%M') if tdate else '—' }}</div>
+          <div class="ticket-desc">{{ tdesc }}</div>
+          {% if tresp %}
+          <div class="existing-response"><strong>Current Response</strong>{{ tresp }}</div>
+          {% endif %}
+          <form method="POST" action="/ticket_action/{{ tid }}" class="respond-form">
+            <div class="respond-row">
+              <select name="status" class="respond-select" title="Update ticket status">
+                <option value="Open" selected>Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+              </select>
+              <textarea name="admin_response" class="respond-textarea" placeholder="Add / update response…">{{ tresp or '' }}</textarea>
+              <button type="submit" class="btn-respond">Update</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+      {% endif %}
+
+      <!-- IN PROGRESS -->
+      {% if inprog_tickets %}
+      <div class="section-title">🟠 In Progress</div>
+      {% for t in inprog_tickets %}
+        {% set tid, emp_id, emp_name, tcat, tsubj, tdesc, tpri, tstat, tresp, tdate, tupd = t %}
+        <div class="ticket-card pri-{{ tpri | lower }}">
+          <div class="ticket-header">
+            <span class="ticket-id">#{{ tid }}</span>
+            <span class="ticket-subject">{{ tsubj }}</span>
+            {% if tpri == 'High' %}<span class="badge b-red">🔴 High</span>
+            {% elif tpri == 'Low' %}<span class="badge b-gray">Low</span>
+            {% else %}<span class="badge b-yellow">Medium</span>{% endif %}
+            <span class="badge b-orange">In Progress</span>
+          </div>
+          <div class="ticket-meta">{{ emp_name }} ({{ emp_id }}) &nbsp;·&nbsp; {{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y %H:%M') if tdate else '—' }}</div>
+          <div class="ticket-desc">{{ tdesc }}</div>
+          {% if tresp %}
+          <div class="existing-response"><strong>Current Response</strong>{{ tresp }}</div>
+          {% endif %}
+          <form method="POST" action="/ticket_action/{{ tid }}" class="respond-form">
+            <div class="respond-row">
+              <select name="status" class="respond-select" title="Update ticket status">
+                <option value="Open">Open</option>
+                <option value="In Progress" selected>In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+              </select>
+              <textarea name="admin_response" class="respond-textarea" placeholder="Add / update response…">{{ tresp or '' }}</textarea>
+              <button type="submit" class="btn-respond">Update</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+      {% endif %}
+
+      <!-- RESOLVED / CLOSED -->
+      {% if resolved_tickets %}
+      <div class="section-title" style="margin-top:10px;">✅ Resolved / Closed</div>
+      {% for t in resolved_tickets %}
+        {% set tid, emp_id, emp_name, tcat, tsubj, tdesc, tpri, tstat, tresp, tdate, tupd = t %}
+        <div class="ticket-card resolved pri-{{ tpri | lower }}">
+          <div class="ticket-header">
+            <span class="ticket-id">#{{ tid }}</span>
+            <span class="ticket-subject">{{ tsubj }}</span>
+            {% if tstat == 'Resolved' %}<span class="badge b-green">Resolved</span>
+            {% else %}<span class="badge b-gray">Closed</span>{% endif %}
+          </div>
+          <div class="ticket-meta">{{ emp_name }} ({{ emp_id }}) &nbsp;·&nbsp; {{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y') if tdate else '—' }}</div>
+          {% if tresp %}
+          <div class="existing-response"><strong>Response</strong>{{ tresp }}</div>
+          {% endif %}
+          <form method="POST" action="/ticket_action/{{ tid }}" class="respond-form">
+            <div class="respond-row">
+              <select name="status" class="respond-select" title="Update ticket status">
+                <option value="Open">Reopen</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved" {% if tstat=='Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Closed"   {% if tstat=='Closed'   %}selected{% endif %}>Closed</option>
+              </select>
+              <textarea name="admin_response" class="respond-textarea" placeholder="Update response…">{{ tresp or '' }}</textarea>
+              <button type="submit" class="btn-respond">Update</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if not all_tickets %}
+        <div class="empty-msg">No tickets raised yet.</div>
+      {% endif %}
+
+    </div>
+  </body>
+</html>

@@ -179,6 +179,47 @@
       .confirm-label { display: flex; align-items: center; gap: 8px; text-transform: none; font-size: 13px; opacity: 0.8; cursor: pointer; }
       .confirm-check { width: 16px; height: 16px; accent-color: #ef4444; flex-shrink: 0; }
       .resign-new-title { margin-bottom: 14px; margin-top: 20px; }
+
+      /* TICKETS */
+      .ticket-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+      .ticket-input, .ticket-select, .ticket-textarea {
+        width: 100%; padding: 10px 13px; border: none; border-radius: 9px;
+        background: rgba(255,255,255,0.13); color: white; font-size: 14px;
+        outline: none; transition: 0.2s;
+      }
+      .ticket-input:focus, .ticket-select:focus, .ticket-textarea:focus { background: rgba(255,255,255,0.22); }
+      .ticket-input::placeholder, .ticket-textarea::placeholder { color: rgba(255,255,255,0.4); }
+      .ticket-select option { background: #1a1a2e; color: white; }
+      .ticket-textarea { resize: vertical; min-height: 80px; }
+      .ticket-full { grid-column: 1 / -1; }
+      .btn-ticket {
+        padding: 11px 28px; border: none; border-radius: 10px;
+        background: linear-gradient(90deg, #6366f1, #4f46e5);
+        color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s;
+      }
+      .btn-ticket:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,0.4); }
+      .ticket-row { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+      .ticket-row-header { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+      .ticket-subject { font-size: 14px; font-weight: 600; flex: 1; }
+      .ticket-meta { font-size: 12px; opacity: 0.5; margin-bottom: 6px; }
+      .ticket-desc { font-size: 13px; opacity: 0.7; line-height: 1.5; margin-bottom: 6px; }
+      .ticket-response { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #a5b4fc; margin-top: 8px; }
+      .ticket-response strong { display: block; font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+      .b-indigo { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); }
+      .b-orange { background: rgba(251,146,60,0.2); color: #fb923c; border: 1px solid rgba(251,146,60,0.4); }
+      .nav-ticket { color: #a5b4fc !important; }
+      .nav-ticket:hover { background: rgba(99,102,241,0.15) !important; }
+      .toast-blue { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.35); color: #a5b4fc; }
+      .ticket-raise-form { margin-bottom: 28px; }
+      .ticket-field { margin-bottom: 0; }
+      .ticket-history-label { font-size: 14px; opacity: 0.7; margin-bottom: 12px; }
+      .ticket-empty { opacity: 0.4; font-size: 13px; padding: 16px 0; }
+      /* shared utility classes replacing remaining inline styles */
+      .dim-val   { opacity: 0.35; }
+      .att-date  { font-size: 11px; }
+      .no-att    { opacity: 0.45; font-size: 14px; padding: 10px 0; }
+      .billable-note { font-weight: 400; opacity: 0.5; font-size: 13px; }
+      .td-date   { opacity: 0.55; font-size: 12px; }
       .resign-status-card {
         background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
         border-radius: 14px; padding: 20px;
@@ -211,6 +252,7 @@
       <a class="nav-item" href="#attendance">📋 My Attendance</a>
       <a class="nav-item" href="#apply-leave">📝 Apply Leave</a>
       <a class="nav-item" href="#leave-history">📬 Leave History</a>
+      <a class="nav-item nav-ticket" href="#tickets">🎫 Tickets</a>
       <a class="nav-item nav-resign" href="#resign">🚨 Resign</a>
       <hr class="nav-sep" />
       <a class="nav-item" href="/employee_logout">🚪 Logout</a>
@@ -223,6 +265,9 @@
       {% endif %}
       {% if resigned %}
       <div class="toast toast-red">📤 Resignation submitted. Admin has been notified by email.</div>
+      {% endif %}
+      {% if ticket_sent %}
+      <div class="toast toast-blue">🎫 Ticket raised successfully! Admin will respond shortly.</div>
       {% endif %}
 
       <div class="page-header">
@@ -245,7 +290,7 @@
               {% if emp[2] %}
                 <span class="badge-role">{{ emp[2] }}</span>
               {% else %}
-                <span style="opacity:0.35">—</span>
+                <span class="dim-val">—</span>
               {% endif %}
             </div>
             <div class="profile-row">
@@ -257,7 +302,7 @@
 
         <!-- TODAY'S ATTENDANCE -->
         <div class="card">
-          <div class="card-title">📅 Today's Attendance &nbsp;<span style="font-size:11px;">{{ today }}</span></div>
+          <div class="card-title">📅 Today's Attendance &nbsp;<span class="att-date">{{ today }}</span></div>
           {% if today_att %}
             {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
             <div>
@@ -303,7 +348,7 @@
               </div>
             </div>
           {% else %}
-            <div style="opacity:0.45;font-size:14px;padding:10px 0;">No attendance recorded today.</div>
+            <div class="no-att">No attendance recorded today.</div>
           {% endif %}
         </div>
 
@@ -332,7 +377,7 @@
       <!-- MONTHLY ATTENDANCE TABLE -->
       <div class="section" id="attendance">
         <h3>📋 {{ month_name }} Attendance
-          <span style="font-weight:400;opacity:0.5;font-size:13px;">({{ billable }} working days)</span>
+          <span class="billable-note">({{ billable }} working days)</span>
         </h3>
         <div class="table-wrap">
           <table>
@@ -439,7 +484,7 @@
                     <span class="badge ls-pending">⏳ Pending</span>
                   {% endif %}
                 </td>
-                <td style="opacity:0.55;font-size:12px;">
+                <td class="td-date">
                   {{ lv_created.strftime('%d %b %Y') if lv_created else '—' }}
                 </td>
               </tr>
@@ -451,6 +496,86 @@
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- TICKETS SECTION -->
+      <div class="section" id="tickets">
+        <h3>🎫 Support Tickets &amp; Complaints</h3>
+
+        <!-- Raise Ticket Form -->
+        <form method="POST" action="/raise_ticket" class="ticket-raise-form">
+          <div class="ticket-form-grid">
+            <div class="form-group ticket-field">
+              <label for="ticket-category">Category</label>
+              <select id="ticket-category" name="category" class="ticket-select" title="Ticket category" required>
+                <option value="" disabled selected>Select category…</option>
+                <option value="Work Issue">Work Issue</option>
+                <option value="HR Query">HR Query</option>
+                <option value="Salary Query">Salary Query</option>
+                <option value="Leave Query">Leave Query</option>
+                <option value="Technical Problem">Technical Problem</option>
+                <option value="Harassment / Misconduct">Harassment / Misconduct</option>
+                <option value="Facility Issue">Facility Issue</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group ticket-field">
+              <label for="ticket-priority">Priority</label>
+              <select id="ticket-priority" name="priority" class="ticket-select" title="Ticket priority">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+            <div class="form-group ticket-full ticket-field">
+              <label for="ticket-subject">Subject</label>
+              <input id="ticket-subject" type="text" name="subject" class="ticket-input" placeholder="Brief summary of the issue…" required maxlength="255">
+            </div>
+            <div class="form-group ticket-full ticket-field">
+              <label for="ticket-desc">Description</label>
+              <textarea id="ticket-desc" name="description" class="ticket-textarea" placeholder="Describe the issue in detail…" required></textarea>
+            </div>
+          </div>
+          <button type="submit" class="btn-ticket">🎫 Raise Ticket</button>
+        </form>
+
+        <!-- Ticket History -->
+        <h3 class="ticket-history-label">My Tickets</h3>
+        {% if my_tickets %}
+          {% for t in my_tickets %}
+            {% set tid, tcat, tsubj, tpri, tstat, tresp, tdate = t %}
+            <div class="ticket-row">
+              <div class="ticket-row-header">
+                <span class="ticket-subject">{{ tsubj }}</span>
+                {% if tpri == 'High' %}
+                  <span class="badge b-red">🔴 High</span>
+                {% elif tpri == 'Low' %}
+                  <span class="badge b-gray">Low</span>
+                {% else %}
+                  <span class="badge b-yellow">Medium</span>
+                {% endif %}
+                {% if tstat == 'Open' %}
+                  <span class="badge b-blue">Open</span>
+                {% elif tstat == 'In Progress' %}
+                  <span class="badge b-orange">In Progress</span>
+                {% elif tstat == 'Resolved' %}
+                  <span class="badge b-green">Resolved</span>
+                {% else %}
+                  <span class="badge b-gray">Closed</span>
+                {% endif %}
+              </div>
+              <div class="ticket-meta">{{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y') if tdate else '—' }}</div>
+              {% if tresp %}
+                <div class="ticket-response">
+                  <strong>Admin Response</strong>
+                  {{ tresp }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="ticket-empty">No tickets raised yet.</div>
+        {% endif %}
       </div>
 
       <!-- RESIGNATION SECTION -->

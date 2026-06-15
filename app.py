@@ -136,6 +136,20 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tickets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            category VARCHAR(100) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL,
+            priority VARCHAR(20) DEFAULT 'Medium',
+            status VARCHAR(30) DEFAULT 'Open',
+            admin_response TEXT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
 
     # Migrations for existing installs
@@ -472,6 +486,9 @@ def admin():
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
     pending_resignations = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
     cursor.close()
     db.close()
 
@@ -487,6 +504,7 @@ def admin():
         shift_end=SHIFT_END.strftime("%I:%M %p"),
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
     )
 
 # ---------------- ADMIN ACTIONS ----------------
@@ -1188,6 +1206,13 @@ def employee_portal():
     """, (emp_id,))
     my_resignation = cursor.fetchone()
 
+    cursor.execute("""
+        SELECT id, category, subject, priority, status, admin_response, created_at
+        FROM tickets WHERE employee_id=%s
+        ORDER BY created_at DESC LIMIT 20
+    """, (emp_id,))
+    my_tickets = cursor.fetchall()
+
     cursor.close(); db.close()
 
     return render_template("employee_portal.html",
@@ -1200,8 +1225,10 @@ def employee_portal():
         billable=len(billable_past),
         my_leaves=my_leaves,
         my_resignation=my_resignation,
+        my_tickets=my_tickets,
         leave_sent=request.args.get("leave_sent") == "1",
         resigned=request.args.get("resigned") == "1",
+        ticket_sent=request.args.get("ticket_sent") == "1",
         month_name=today.strftime("%B %Y"),
     )
 
@@ -1373,6 +1400,81 @@ def resignation_action(rid):
         db.commit()
         cursor.close(); db.close()
     return redirect("/resignation_requests")
+
+
+# ================================================================
+#  TICKETS  (web)
+# ================================================================
+
+@app.route("/raise_ticket", methods=["POST"])
+@employee_required
+def raise_ticket():
+    emp_id      = session["employee_id"]
+    category    = request.form.get("category", "").strip()
+    subject     = request.form.get("subject", "").strip()
+    description = request.form.get("description", "").strip()
+    priority    = request.form.get("priority", "Medium").strip()
+    if not category or not subject or not description:
+        return redirect("/employee_portal#tickets")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO tickets (employee_id, category, subject, description, priority) "
+        "VALUES (%s,%s,%s,%s,%s)",
+        (emp_id, category, subject, description, priority)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?ticket_sent=1#tickets")
+
+
+@app.route("/tickets")
+@admin_required
+def tickets_view():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
+               t.priority, t.status, t.admin_response, t.created_at, t.updated_at
+        FROM tickets t
+        JOIN employees e ON t.employee_id = e.employee_id
+        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'),
+                 FIELD(t.priority,'High','Medium','Low'), t.created_at DESC
+    """)
+    all_tickets = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.close(); db.close()
+    return render_template("tickets.html",
+        all_tickets=all_tickets,
+        pending_tickets=pending_tickets,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        today=datetime.date.today().strftime("%d %b %Y"),
+        shift_start=SHIFT_START.strftime("%I:%M %p"),
+        shift_end=SHIFT_END.strftime("%I:%M %p"),
+    )
+
+
+@app.route("/ticket_action/<int:tid>", methods=["POST"])
+@admin_required
+def ticket_action(tid):
+    new_status     = request.form.get("status", "").strip()
+    admin_response = request.form.get("admin_response", "").strip()
+    allowed = ("Open", "In Progress", "Resolved", "Closed")
+    if new_status not in allowed:
+        return redirect("/tickets")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
+        (new_status, admin_response or None, tid)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/tickets")
 
 
 # ================================================================
@@ -2153,6 +2255,96 @@ def api_employee_resign():
             pass
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
+
+
+# ---------------- API: TICKETS (employee) ----------------
+
+@app.route("/api/employee/tickets", methods=["GET"])
+@employee_api_required
+def api_employee_tickets():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT id, category, subject, description, priority, status, admin_response, created_at
+        FROM tickets WHERE employee_id=%s ORDER BY created_at DESC LIMIT 30
+    """, (emp_id,))
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "tickets": [
+        {"id": r[0], "category": r[1], "subject": r[2], "description": r[3],
+         "priority": r[4], "status": r[5], "admin_response": r[6],
+         "created_at": str(r[7])}
+        for r in rows
+    ]})
+
+
+@app.route("/api/employee/raise_ticket", methods=["POST"])
+@employee_api_required
+def api_employee_raise_ticket():
+    token       = request.headers.get("Authorization", "")[7:]
+    emp_id      = _emp_api_tokens[token]
+    data        = request.get_json() or {}
+    category    = data.get("category", "").strip()
+    subject     = data.get("subject", "").strip()
+    description = data.get("description", "").strip()
+    priority    = data.get("priority", "Medium").strip()
+    if not category or not subject or not description:
+        return jsonify({"ok": False, "msg": "category, subject and description required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO tickets (employee_id, category, subject, description, priority) VALUES (%s,%s,%s,%s,%s)",
+        (emp_id, category, subject, description, priority)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": "Ticket raised successfully."})
+
+
+# ---------------- API: TICKETS (admin) ----------------
+
+@app.route("/api/tickets", methods=["GET"])
+@api_required
+def api_tickets():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
+               t.priority, t.status, t.admin_response, t.created_at, t.updated_at
+        FROM tickets t
+        JOIN employees e ON t.employee_id = e.employee_id
+        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'),
+                 FIELD(t.priority,'High','Medium','Low'), t.created_at DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "tickets": [
+        {"id": r[0], "employee_id": r[1], "name": r[2], "category": r[3],
+         "subject": r[4], "description": r[5], "priority": r[6],
+         "status": r[7], "admin_response": r[8],
+         "created_at": str(r[9]), "updated_at": str(r[10])}
+        for r in rows
+    ]})
+
+
+@app.route("/api/tickets/<int:tid>/action", methods=["POST"])
+@api_required
+def api_ticket_action(tid):
+    data           = request.get_json(silent=True) or {}
+    new_status     = data.get("status", "").strip()
+    admin_response = data.get("admin_response", "").strip()
+    allowed = ("Open", "In Progress", "Resolved", "Closed")
+    if new_status not in allowed:
+        return jsonify({"ok": False, "msg": f"status must be one of {allowed}"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
+        (new_status, admin_response or None, tid)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "status": new_status})
 
 
 # ---------------- RUN ----------------
