@@ -248,14 +248,16 @@
           <div class="error-box">{{ error }}</div>
           {% endif %}
 
-          <form method="POST">
+          <form method="POST" autocomplete="on">
             <label class="field-label">Username</label>
             <input class="field-input" type="text" name="username"
-                   placeholder="Enter admin username" required autofocus />
+                   placeholder="Enter admin username" required autofocus
+                   autocomplete="section-admin username" />
 
             <label class="field-label">Password</label>
             <input class="field-input" type="password" name="password"
-                   placeholder="Enter password" required />
+                   placeholder="Enter password" required
+                   autocomplete="section-admin current-password" />
 
             <button type="submit" class="btn-login btn-admin">Login to Admin Panel →</button>
           </form>
@@ -274,14 +276,16 @@
           <div class="panel-title">Employee Login</div>
           <div class="panel-sub">View attendance, apply for leave &amp; more</div>
 
-          <form action="/employee_login" method="POST">
+          <form action="/employee_login" method="POST" autocomplete="on">
             <label class="field-label">Employee ID</label>
             <input class="field-input" type="text" name="emp_id"
-                   placeholder="e.g. EMP001" required />
+                   placeholder="e.g. EMP001" required
+                   autocomplete="section-employee username" />
 
             <label class="field-label">PIN</label>
             <input class="field-input" type="password" name="pin"
-                   placeholder="Default PIN: your Employee ID" required />
+                   placeholder="Default PIN: your Employee ID" required
+                   autocomplete="section-employee current-password" />
 
             <button type="submit" class="btn-login btn-employee">Login to My Portal →</button>
           </form>
