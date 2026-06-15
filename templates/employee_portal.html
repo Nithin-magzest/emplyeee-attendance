@@ -89,14 +89,60 @@
       .time-val { font-weight: 600; font-size: 15px; color: #1e293b; }
 
       /* STATS */
-      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+      .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 20px; }
       .stat-card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 16px; text-align: center; }
-      .stat-card .num { font-size: 32px; font-weight: 700; line-height: 1; }
-      .stat-card .lbl { font-size: 12px; color: #64748b; margin-top: 5px; }
+      .stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; }
+      .stat-card .lbl { font-size: 11px; color: #64748b; margin-top: 5px; }
       .stat-green  .num { color: #16a34a; }
       .stat-yellow .num { color: #d97706; }
       .stat-red    .num { color: #dc2626; }
       .stat-blue   .num { color: #2563eb; }
+
+      /* CALENDAR */
+      .cal-filter { background: #ffffff; border: 1px solid #dbeafe; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+      .cal-filter label { font-size: 13px; color: #64748b; }
+      .cal-filter select { padding: 7px 10px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; }
+      .cal-filter .btn-view { padding: 8px 18px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+      .cal-filter .btn-pdf  { padding: 8px 18px; border: none; border-radius: 8px; background: #16a34a; color: white; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+      .calendar { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px 22px; margin-bottom: 22px; }
+      .cal-header { display: grid; grid-template-columns: repeat(7, 52px); gap: 6px; justify-content: center; text-align: center; margin-bottom: 6px; }
+      .cal-header span { font-size: 12px; font-weight: 700; color: #94a3b8; padding: 4px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+      .cal-grid  { display: grid; grid-template-columns: repeat(7, 52px); gap: 6px; justify-content: center; }
+      .cal-day {
+        width: 52px; height: 52px; border-radius: 10px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-size: 15px; font-weight: 600; cursor: default;
+        position: relative; transition: transform 0.12s, box-shadow 0.12s;
+      }
+      .cal-day:not(.cal-empty):not(.cal-future):not(.cal-weekend):hover {
+        transform: scale(1.15); box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 2;
+      }
+      .cal-day .day-num { font-size: 15px; font-weight: 700; line-height: 1; }
+      /* tooltip */
+      .cal-day[data-tip]:hover::after {
+        content: attr(data-tip);
+        position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+        background: #1e293b; color: white; font-size: 11px; font-weight: 500;
+        padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      }
+      .cal-day[data-tip]:hover::before {
+        content: ""; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
+        border: 5px solid transparent; border-top-color: #1e293b; pointer-events: none;
+      }
+      .cal-empty  { background: transparent; }
+      .cal-full   { background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
+      .cal-late   { background: #fef9c3; color: #92400e; border: 1.5px solid #fde047; }
+      .cal-half   { background: #fff7ed; color: #c2410c; border: 1.5px solid #fdba74; }
+      .cal-absent { background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; }
+      .cal-holiday{ background: #ede9fe; color: #6d28d9; border: 1.5px solid #c4b5fd; }
+      .cal-weekend{ background: #f8fafc; color: #cbd5e1; border: 1.5px solid #e2e8f0; }
+      .cal-future { background: #f8fafc; color: #e2e8f0; border: 1.5px solid #f1f5f9; }
+      .cal-today  { box-shadow: 0 0 0 2px #3b82f6 !important; }
+      .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: #64748b; }
+      .leg-item   { display: flex; align-items: center; gap: 5px; }
+      .leg-dot    { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
 
       /* SECTION */
       .section { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
@@ -370,53 +416,104 @@
           <div class="num">{{ absent_days }}</div>
           <div class="lbl">❌ Absent</div>
         </div>
+        <div class="stat-card stat-blue">
+          <div class="num">{{ att_pct }}%</div>
+          <div class="lbl">📈 Attendance</div>
+        </div>
+        <div class="stat-card stat-blue">
+          <div class="num" style="font-size:18px;">{{ total_hours }}</div>
+          <div class="lbl">⏱ Hours Worked</div>
+        </div>
       </div>
 
-      <!-- MONTHLY ATTENDANCE TABLE -->
-      <div class="section" id="attendance">
-        <h3>📋 {{ month_name }} Attendance
-          <span class="billable-note">({{ billable }} working days)</span>
-        </h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Login Time</th>
-                <th>Logout Time</th>
-                <th>Login Status</th>
-                <th>Attendance Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for rec in monthly_att %}
-              {% set att_date, login_t, logout_t, login_s, logout_s, att_type = rec %}
-              <tr>
-                <td>{{ att_date.strftime('%d %b, %a') if att_date else '—' }}</td>
-                <td>{{ login_t | fmt_time }}</td>
-                <td>{{ logout_t | fmt_time }}</td>
-                <td>
-                  {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
-                  {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
-                  {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </td>
-                <td>
-                  {% if att_type == 'Full Day' %}<span class="badge b-green">Full Day</span>
-                  {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late – Full</span>
-                  {% elif att_type == 'Half Day' %}<span class="badge b-red">Half Day</span>
-                  {% elif login_t and not logout_t %}<span class="badge b-blue">In Progress</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="5" class="empty-cell">No attendance records this month yet.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <!-- FILTER + CALENDAR + TABLE -->
+      <div id="attendance">
+
+        <!-- Filter bar -->
+        <div class="cal-filter">
+          <label>Month</label>
+          <select id="selMonth">
+            {% for m_num, m_name in months %}
+            <option value="{{ m_num }}" {% if m_num == sel_month %}selected{% endif %}>{{ m_name }}</option>
+            {% endfor %}
+          </select>
+          <label>Year</label>
+          <select id="selYear">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn-view" onclick="applyFilter()">View</button>
+          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" target="_blank" class="btn-pdf">⬇ Download PDF</a>
         </div>
+
+        <!-- Calendar -->
+        <div class="calendar">
+          <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:12px;">
+            📅 {{ month_name }}
+          </div>
+          <div class="cal-header">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+            <span style="color:#dc2626;">Sat</span><span style="color:#dc2626;">Sun</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#dcfce7;border:1px solid #86efac;"></div> Full Day</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fef9c3;border:1px solid #fde047;"></div> Late</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fff7ed;border:1px solid #fdba74;"></div> Half Day</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;border:1px solid #fca5a5;"></div> Absent</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#ede9fe;border:1px solid #c4b5fd;"></div> Holiday</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#f1f5f9;border:1px solid #e2e8f0;"></div> Weekend</div>
+          </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="section">
+          <h3>📋 {{ month_name }} Attendance
+            <span class="billable-note">({{ billable }} working days)</span>
+          </h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Login Time</th>
+                  <th>Logout Time</th>
+                  <th>Login Status</th>
+                  <th>Attendance Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for rec in monthly_att %}
+                {% set att_date, login_t, logout_t, login_s, logout_s, att_type = rec %}
+                <tr>
+                  <td>{{ att_date.strftime('%d %b, %a') if att_date else '—' }}</td>
+                  <td>{{ login_t | fmt_time }}</td>
+                  <td>{{ logout_t | fmt_time }}</td>
+                  <td>
+                    {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
+                    {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
+                    {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if att_type == 'Full Day' %}<span class="badge b-green">Full Day</span>
+                    {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late – Full</span>
+                    {% elif att_type == 'Half Day' %}<span class="badge b-red">Half Day</span>
+                    {% elif login_t and not logout_t %}<span class="badge b-blue">In Progress</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="empty-cell">No attendance records this month yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
       <!-- APPLY FOR LEAVE -->
@@ -700,20 +797,20 @@
           <div class="form-group">
             <label>Current Password</label>
             <input type="password" name="current_password" required
-              style="padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;width:100%;" />
+              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
           </div>
           <div class="form-group">
             <label>New Password</label>
             <input type="password" name="new_password" required minlength="6"
-              style="padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;width:100%;" />
+              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
           </div>
           <div class="form-group">
             <label>Confirm New Password</label>
             <input type="password" name="confirm_password" required minlength="6"
-              style="padding:10px 13px;border:none;border-radius:9px;background:rgba(255,255,255,0.15);color:white;font-size:14px;outline:none;width:100%;" />
+              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
           </div>
           <button type="submit"
-            style="padding:11px 28px;border:none;border-radius:10px;background:linear-gradient(90deg,#667eea,#764ba2);color:white;font-size:14px;font-weight:700;cursor:pointer;">
+            style="padding:11px 28px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">
             Update Password
           </button>
         </form>
@@ -729,6 +826,59 @@
       }
       setInterval(updateClock, 1000);
       updateClock();
+
+      /* ── CALENDAR ── */
+      (function() {
+        const data     = {{ cal_json | safe }};
+        const firstDow = {{ cal_first_dow }};
+        const year     = {{ cal_year }};
+        const month    = {{ cal_month }};
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const now      = new Date();
+        const todayDay = (now.getFullYear() === year && now.getMonth() + 1 === month) ? now.getDate() : -1;
+
+        const tipMap = {
+          full:    "Full Day",
+          late:    "Late – Full Day",
+          half:    "Half Day",
+          absent:  "Absent",
+          holiday: "Holiday",
+          weekend: "Weekend",
+          future:  ""
+        };
+
+        const grid = document.getElementById("calGrid");
+
+        for (let i = 0; i < firstDow; i++) {
+          const el = document.createElement("div");
+          el.className = "cal-day cal-empty";
+          grid.appendChild(el);
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+          const type = data[d] || "future";
+          const el   = document.createElement("div");
+          el.className = `cal-day cal-${type}`;
+          if (d === todayDay) el.classList.add("cal-today");
+          if (tipMap[type]) el.setAttribute("data-tip", tipMap[type]);
+          el.innerHTML = `<span class="day-num">${d}</span>`;
+          grid.appendChild(el);
+        }
+      })();
+
+      function applyFilter() {
+        const m = document.getElementById("selMonth").value;
+        const y = document.getElementById("selYear").value;
+        window.location.href = `/employee_portal?month=${m}&year=${y}#attendance`;
+      }
+
+      // Keep PDF link in sync with dropdowns
+      document.getElementById("selMonth").addEventListener("change", updatePdfLink);
+      document.getElementById("selYear").addEventListener("change",  updatePdfLink);
+      function updatePdfLink() {
+        const m = document.getElementById("selMonth").value;
+        const y = document.getElementById("selYear").value;
+        document.getElementById("pdfLink").href = `/my_attendance_pdf?month=${m}&year=${y}`;
+      }
 
       // Default leave date to tomorrow
       (function() {

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shift Management</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      .sidebar {
+        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: #1e3a8a; padding: 25px 18px; color: white; display: flex; flex-direction: column;
+      }
+      .brand { font-size: 20px; font-weight: bold; margin-bottom: 4px; }
+      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 28px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 10px; padding: 11px 14px; margin: 4px 0;
+        color: white; text-decoration: none; border-radius: 10px; font-size: 14px; transition: 0.25s;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.15); }
+      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0; }
+
+      .main { flex: 1; padding: 28px; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header p  { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+
+      .card {
+        background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px;
+      }
+      .card h3 { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+
+      .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+      .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+      label { font-size: 12px; color: #64748b; display: block; margin-bottom: 4px; }
+      input[type=text], input[type=time], select {
+        width: 100%; padding: 9px 12px; border: 1px solid #dbeafe; border-radius: 8px;
+        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
+      }
+      input:focus, select:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+      .hint { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+      .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.2s; }
+      .btn:hover { transform: translateY(-1px); }
+      .btn-blue  { background: #3b82f6; color: white; width: 100%; margin-top: 6px; }
+      .btn-green { background: #16a34a; color: white; padding: 7px 14px; font-size: 13px; }
+      .btn-red   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 5px 10px; font-size: 12px; }
+
+      /* shift cards */
+      .shift-list { display: flex; flex-direction: column; gap: 12px; }
+      .shift-item {
+        background: #f8fafc; border: 1px solid #dbeafe; border-radius: 12px;
+        padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .shift-item .info { flex: 1; }
+      .shift-item .s-name { font-size: 15px; font-weight: 700; color: #1e3a8a; margin-bottom: 4px; }
+      .shift-item .s-times { font-size: 12px; color: #64748b; display: flex; gap: 14px; flex-wrap: wrap; }
+      .s-times span { display: flex; align-items: center; gap: 4px; }
+      .time-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+      .dot-green  { background: #16a34a; }
+      .dot-yellow { background: #d97706; }
+      .dot-red    { background: #dc2626; }
+      .badge-count { background: #dbeafe; color: #1d4ed8; border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 700; margin-left: 8px; }
+
+      /* employee table */
+      .section { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; }
+      .section h3 { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #f8fafc; }
+      .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+      .b-blue   { background: #dbeafe; color: #1d4ed8; }
+      .b-gray   { background: #f1f5f9; color: #64748b; }
+
+      .shift-select {
+        padding: 5px 10px; border: 1px solid #dbeafe; border-radius: 7px;
+        background: #f8fafc; color: #1e293b; font-size: 13px; cursor: pointer;
+      }
+      .saved-tick { color: #16a34a; font-size: 13px; display: none; margin-left: 6px; }
+
+      .toast {
+        position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+        background: #1e3a8a; color: white; padding: 12px 20px; border-radius: 10px;
+        font-size: 14px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        opacity: 0; transition: opacity 0.3s;
+      }
+      .toast.show { opacity: 1; }
+
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar { width: 100%; height: auto; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="sidebar">
+      <div class="brand">⚙️ Admin Panel</div>
+      <div class="brand-sub">Attendance Management</div>
+      <a class="nav-item" href="/admin">🏠 Dashboard</a>
+      <a class="nav-item" href="/monthly_report">📊 Monthly Report</a>
+      <a class="nav-item" href="/salary_report">💰 Salary Report</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/view_holidays">📅 Holidays</a>
+      <a class="nav-item" href="/view_salary">💵 Salary Config</a>
+      <a class="nav-item active" href="/shifts">🕐 Shift Management</a>
+      <a class="nav-item" href="/view_qrcodes">🔳 QR Codes</a>
+      <a class="nav-item" href="/email_config">✉️ Email Settings</a>
+      <a class="nav-item" href="/leave_requests">📋 Leave Requests</a>
+      <a class="nav-item" href="/resignation_requests">📤 Resignations</a>
+      <a class="nav-item" href="/tickets">🎫 Tickets</a>
+      <hr class="nav-sep" />
+      <a class="nav-item" href="/logout">🚪 Logout</a>
+    </div>
+
+    <div class="main">
+
+      <div class="page-header">
+        <h1>🕐 Shift Management</h1>
+        <p>Define work shifts and assign them to employees. Default shift: {{ default_start }} – {{ default_end }}.</p>
+      </div>
+
+      {% if request.args.get('saved') %}
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 18px;margin-bottom:16px;color:#15803d;font-size:14px;">
+        ✅ Shift saved successfully.
+      </div>
+      {% endif %}
+      {% if request.args.get('deleted') %}
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 18px;margin-bottom:16px;color:#dc2626;font-size:14px;">
+        🗑️ Shift deleted. Employees using it have been reset to default.
+      </div>
+      {% endif %}
+
+      <div class="grid">
+
+        <!-- ADD SHIFT FORM -->
+        <div class="card">
+          <h3>➕ Create New Shift</h3>
+          <form method="POST" action="/add_shift">
+            <div style="margin-bottom:10px;">
+              <label>Shift Name</label>
+              <input type="text" name="name" placeholder="e.g. Morning Shift, Night Shift" required />
+            </div>
+            <div class="form-row three">
+              <div>
+                <label>Start Time</label>
+                <input type="time" name="start_time" value="09:00" required />
+                <div class="hint">Shift begins</div>
+              </div>
+              <div>
+                <label>Late / Half threshold</label>
+                <input type="time" name="half_time" value="13:00" required />
+                <div class="hint">After this = Half Day</div>
+              </div>
+              <div>
+                <label>End Time</label>
+                <input type="time" name="end_time" value="18:00" required />
+                <div class="hint">Shift ends / overtime starts</div>
+              </div>
+            </div>
+            <div style="background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:12px;color:#1e3a8a;margin:10px 0;">
+              <strong>How it works:</strong><br>
+              Login ≤ Start → Full Day &nbsp;|&nbsp;
+              Login between Start–Threshold → Late &nbsp;|&nbsp;
+              Login after Threshold → Half Day &nbsp;|&nbsp;
+              Logout after End → Overtime counted
+            </div>
+            <button type="submit" class="btn btn-blue">Save Shift</button>
+          </form>
+        </div>
+
+        <!-- SHIFT LIST -->
+        <div class="card">
+          <h3>📋 Existing Shifts</h3>
+
+          <!-- Default shift (read-only) -->
+          <div class="shift-item" style="background:#eff6ff;border-color:#93c5fd;margin-bottom:8px;">
+            <div class="info">
+              <div class="s-name">🔵 Default Shift <span style="font-size:11px;font-weight:400;color:#64748b;">(global fallback)</span></div>
+              <div class="s-times">
+                <span><span class="time-dot dot-green"></span> Start: {{ default_start }}</span>
+                <span><span class="time-dot dot-yellow"></span> Late/Half: {{ default_half }}</span>
+                <span><span class="time-dot dot-red"></span> End: {{ default_end }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="shift-list">
+            {% for s in shifts %}
+            <div class="shift-item">
+              <div class="info">
+                <div class="s-name">{{ s.name }}
+                  <span class="badge-count" id="cnt-{{ s.id }}">
+                    {{ employees | selectattr('shift', 'equalto', s.name) | list | length }} emp
+                  </span>
+                </div>
+                <div class="s-times">
+                  <span><span class="time-dot dot-green"></span> {{ s.start }}</span>
+                  <span><span class="time-dot dot-yellow"></span> {{ s.half }}</span>
+                  <span><span class="time-dot dot-red"></span> {{ s.end }}</span>
+                </div>
+              </div>
+              <form method="POST" action="/delete_shift/{{ s.id }}"
+                onsubmit="return confirm('Delete shift {{ s.name }}? Employees will fall back to default.')">
+                <button type="submit" class="btn btn-red">🗑️ Delete</button>
+              </form>
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">
+              No custom shifts yet. Create one above.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMPLOYEE ASSIGNMENT TABLE -->
+      <div class="section">
+        <h3>👥 Assign Shifts to Employees</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>ID</th>
+                <th>Role</th>
+                <th>Current Shift</th>
+                <th>Change Shift</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in employees %}
+              <tr>
+                <td><strong>{{ e.name }}</strong></td>
+                <td style="color:#64748b;font-size:12px;">{{ e.emp_id }}</td>
+                <td>
+                  {% if e.role %}
+                    <span class="badge b-blue">{{ e.role }}</span>
+                  {% else %}
+                    <span class="badge b-gray">—</span>
+                  {% endif %}
+                </td>
+                <td id="cur-{{ e.emp_id }}">
+                  <span class="badge {% if e.shift == 'Default' %}b-gray{% else %}b-blue{% endif %}">
+                    {{ e.shift }}
+                  </span>
+                </td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <select class="shift-select" id="sel-{{ e.emp_id }}" onchange="assignShift('{{ e.emp_id }}', this)">
+                      <option value="">Default</option>
+                      {% for s in shifts %}
+                      <option value="{{ s.id }}" {% if e.shift == s.name %}selected{% endif %}>{{ s.name }}</option>
+                      {% endfor %}
+                    </select>
+                    <span class="saved-tick" id="tick-{{ e.emp_id }}">✓ Saved</span>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" style="text-align:center;padding:24px;color:#94a3b8;">No employees found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      async function assignShift(empId, sel) {
+        const shiftId = sel.value;
+        const shiftName = sel.options[sel.selectedIndex].text;
+        try {
+          const res  = await fetch("/assign_shift", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `emp_id=${encodeURIComponent(empId)}&shift_id=${encodeURIComponent(shiftId)}`
+          });
+          const data = await res.json();
+          if (data.ok) {
+            const tick = document.getElementById("tick-" + empId);
+            tick.style.display = "inline";
+            setTimeout(() => tick.style.display = "none", 2000);
+
+            // Update current shift badge
+            const cur = document.getElementById("cur-" + empId);
+            const cls = shiftId ? "b-blue" : "b-gray";
+            cur.innerHTML = `<span class="badge ${cls}">${shiftName}</span>`;
+
+            showToast(`✅ ${empId} assigned to ${shiftName}`);
+          }
+        } catch(e) {
+          showToast("❌ Failed to assign shift.");
+        }
+      }
+
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2500);
+      }
+    </script>
+
+  </body>
+</html>

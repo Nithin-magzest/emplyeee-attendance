@@ -17,6 +17,12 @@ import secrets
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import threading
+import io as _io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -162,6 +168,16 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shifts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            start_time TIME NOT NULL,
+            half_time  TIME NOT NULL,
+            end_time   TIME NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
 
     # Migrations for existing installs
@@ -171,6 +187,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN email VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN role VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN shift_id INT DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -218,6 +235,31 @@ def employee_required(f):
     return wrapper
 
 # ---------------- ATTENDANCE HELPERS ----------------
+def _td_to_time(val):
+    """Convert MySQL timedelta or datetime.time to datetime.time."""
+    if val is None:
+        return None
+    if isinstance(val, datetime.time):
+        return val
+    total = int(val.total_seconds())
+    h, rem = divmod(total, 3600)
+    m, s   = divmod(rem, 60)
+    return datetime.time(h % 24, m, s)
+
+def get_employee_shift(emp_id, cursor):
+    """Return (shift_start, shift_half, shift_end, shift_name) for employee.
+    Falls back to global defaults if no shift assigned."""
+    cursor.execute(
+        "SELECT s.start_time, s.half_time, s.end_time, s.name "
+        "FROM employees e JOIN shifts s ON e.shift_id = s.id "
+        "WHERE e.employee_id = %s",
+        (emp_id,)
+    )
+    row = cursor.fetchone()
+    if row:
+        return _td_to_time(row[0]), _td_to_time(row[1]), _td_to_time(row[2]), row[3]
+    return SHIFT_START, SHIFT_HALF, SHIFT_END, "Default"
+
 def get_attendance_type(login_status, logout_status):
     if not login_status:
         return "Absent"
@@ -367,12 +409,21 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 </html>
 """
 
-def send_email_smtp(to_email, subject, html_body, config):
-    msg = MIMEMultipart("alternative")
+def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None, attachment_filename=None):
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
     msg["From"]    = f"{config['from_name']} <{config['user']}>"
     msg["To"]      = to_email
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(alt)
+
+    if attachment_bytes and attachment_filename:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{attachment_filename}"')
+        msg.attach(part)
 
     context = ssl.create_default_context()
     with smtplib.SMTP(config["host"], config["port"]) as server:
@@ -380,6 +431,39 @@ def send_email_smtp(to_email, subject, html_body, config):
         server.starttls(context=context)
         server.login(config["user"], config["password"])
         server.sendmail(config["user"], to_email, msg.as_string())
+
+def send_email_async(to_email, subject, html_body, config, **kwargs):
+    def _send():
+        try:
+            send_email_smtp(to_email, subject, html_body, config, **kwargs)
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
+
+def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
+    color = "#16a34a" if action == "login" else "#2563eb"
+    action_label = "Checked In" if action == "login" else "Checked Out"
+    return f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">&#127970; Employee Attendance System</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Attendance Confirmation</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{employee_name}</strong>,</p>
+    <div style="background:#ffffff;border:1px solid #dbeafe;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="font-size:28px;font-weight:700;color:{color};text-align:center;margin-bottom:4px;">{action_label}</div>
+      <div style="text-align:center;color:#64748b;font-size:13px;">{today_str}</div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+      <table style="width:100%;font-size:14px;color:#1e293b;">
+        <tr><td style="color:#64748b;padding:4px 0;">Employee ID</td><td style="text-align:right;font-weight:600;">{emp_id}</td></tr>
+        <tr><td style="color:#64748b;padding:4px 0;">Time</td><td style="text-align:right;font-weight:600;">{time_str}</td></tr>
+        <tr><td style="color:#64748b;padding:4px 0;">Status</td><td style="text-align:right;font-weight:600;color:{color};">{status}</td></tr>
+      </table>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;text-align:center;">This is an automated message. Please do not reply.</p>
+  </div>
+</div>"""
 
 def compute_salary_entry(emp_id, name, spd, att_map, billable_past):
     emp_att = att_map.get(emp_id, {})
@@ -523,7 +607,85 @@ def admin():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+        now_month=today.month,
+        now_year=today.year,
     )
+
+# ---------------- LIVE DASHBOARD API ----------------
+@app.route("/api/dashboard_live")
+@admin_required
+def dashboard_live():
+    def fmt(t):
+        if t is None:
+            return None
+        if hasattr(t, "strftime"):
+            return t.strftime("%H:%M:%S")
+        total = int(t.total_seconds())
+        h, rem = divmod(total, 3600)
+        m, s   = divmod(rem, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today  = datetime.date.today()
+
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL",
+        (today,)
+    )
+    present = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login'",
+        (today,)
+    )
+    late = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT e.employee_id, e.name, a.login_time, a.logout_time, "
+        "       a.status, a.logout_status, a.attendance_type, e.role "
+        "FROM employees e "
+        "LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
+        "ORDER BY e.name",
+        (today,)
+    )
+    rows = []
+    for emp_id, name, login_t, logout_t, status, logout_s, att_type, role in cursor.fetchall():
+        rows.append({
+            "emp_id":   emp_id,
+            "name":     name,
+            "role":     role or "",
+            "login_t":  fmt(login_t),
+            "logout_t": fmt(logout_t),
+            "status":   status or "",
+            "logout_s": logout_s or "",
+            "att_type": att_type or "",
+        })
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    cursor.close(); db.close()
+
+    return jsonify({
+        "total":   total,
+        "present": present,
+        "absent":  total - present,
+        "late":    late,
+        "rows":    rows,
+        "pending_leaves":       pending_leaves,
+        "pending_resignations": pending_resignations,
+        "pending_tickets":      pending_tickets,
+    })
 
 # ---------------- ADMIN ACTIONS ----------------
 @app.route("/admin_action", methods=["POST"])
@@ -593,6 +755,20 @@ def admin_action():
         cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
         db.commit()
         flash(f"Face photo updated successfully for '{name}' (ID: {emp_id}).", "success")
+
+    elif action == "reset_password":
+        emp_id = request.form.get("emp_id", "").strip()
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+        if not row:
+            flash(f"Employee ID '{emp_id}' not found.", "error")
+        else:
+            cursor.execute(
+                "UPDATE employees SET password=%s WHERE employee_id=%s",
+                (generate_password_hash(emp_id), emp_id)
+            )
+            db.commit()
+            flash(f"Password reset for '{row[0]}' ({emp_id}). They can now login using their Employee ID as the password.", "success")
 
     elif action == "holiday":
         cursor.execute(
@@ -703,6 +879,80 @@ def view_qrcodes():
     employees = cursor.fetchall()
     cursor.close(); db.close()
     return render_template("qrcodes.html", employees=employees)
+
+# ---------------- SHIFTS ----------------
+@app.route("/shifts", methods=["GET"])
+@admin_required
+def shifts():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
+    shift_rows = []
+    for sid, name, st, ht, et in cursor.fetchall():
+        shift_rows.append({
+            "id":    sid, "name": name,
+            "start": _td_to_time(st).strftime("%H:%M") if st else "--",
+            "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
+            "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
+        })
+    cursor.execute(
+        "SELECT e.employee_id, e.name, e.role, s.name "
+        "FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name"
+    )
+    employees = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
+    cursor.close(); db.close()
+    return render_template("shifts.html", shifts=shift_rows, employees=employees,
+                           default_start=SHIFT_START.strftime("%H:%M"),
+                           default_half=SHIFT_HALF.strftime("%H:%M"),
+                           default_end=SHIFT_END.strftime("%H:%M"))
+
+@app.route("/add_shift", methods=["POST"])
+@admin_required
+def add_shift():
+    name  = request.form.get("name", "").strip()
+    start = request.form.get("start_time", "").strip()
+    half  = request.form.get("half_time",  "").strip()
+    end   = request.form.get("end_time",   "").strip()
+    if not all([name, start, half, end]):
+        return redirect("/shifts?error=All+fields+required")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute(
+            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
+            (name, start, half, end)
+        )
+        db.commit()
+    except mysql.connector.errors.IntegrityError:
+        pass
+    cursor.close(); db.close()
+    return redirect("/shifts?saved=1")
+
+@app.route("/delete_shift/<int:sid>", methods=["POST"])
+@admin_required
+def delete_shift(sid):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE employees SET shift_id=NULL WHERE shift_id=%s", (sid,))
+    cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/shifts?deleted=1")
+
+@app.route("/assign_shift", methods=["POST"])
+@admin_required
+def assign_shift():
+    emp_id   = request.form.get("emp_id",   "").strip()
+    shift_id = request.form.get("shift_id", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
+        (shift_id if shift_id else None, emp_id)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/delete_holiday/<int:hid>", methods=["POST"])
@@ -830,6 +1080,194 @@ def monthly_report():
         holiday_count=len(holidays),
         total_working=len([d for d in working_days if d <= today and d not in holidays]),
     )
+
+# ---------------- MONTHLY REPORT EXCEL EXPORT ----------------
+@app.route("/monthly_report_export")
+@admin_required
+def monthly_report_export():
+    from flask import send_file
+    year  = int(request.args.get("year",  datetime.date.today().year))
+    month = int(request.args.get("month", datetime.date.today().month))
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance WHERE date BETWEEN %s AND %s
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+
+    att_map = {}
+    for row in cursor.fetchall():
+        att_map.setdefault(row[0], {})[row[1]] = row
+
+    holidays     = fetch_holidays_set(year, month)
+    working_days = get_working_days(year, month)
+    today        = datetime.date.today()
+    cursor.close(); db.close()
+
+    report = []
+    for emp_id, name in employees:
+        emp_att   = att_map.get(emp_id, {})
+        full_days = half_days = late_days = absent = 0
+        for d in working_days:
+            if d > today or d in holidays:
+                continue
+            row = emp_att.get(d)
+            if row:
+                _, _, login_t, logout_t, status, _ls, att_type = row
+                final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
+                if final == "Full Day":       full_days += 1
+                elif final == "Late - Full Day": late_days += 1
+                elif final in ("Half Day", "Present"): half_days += 1
+                else: absent += 1
+            else:
+                absent += 1
+        billable      = len([d for d in working_days if d <= today and d not in holidays])
+        present_equiv = full_days + late_days + half_days * 0.5
+        pct           = round(present_equiv / billable * 100, 1) if billable > 0 else 0
+        report.append({"emp_id": emp_id, "name": name, "full_days": full_days,
+                        "late_days": late_days, "half_days": half_days,
+                        "absent": absent, "billable": billable, "pct": pct})
+
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Attendance Report"
+
+    # ── styles ──
+    hdr_fill   = PatternFill("solid", fgColor="1E3A8A")
+    hdr_font   = Font(color="FFFFFF", bold=True, size=11)
+    title_font = Font(bold=True, size=13, color="1E3A8A")
+    center     = Alignment(horizontal="center", vertical="center")
+    thin       = Side(style="thin", color="DBEAFE")
+    border     = Border(left=thin, right=thin, top=thin, bottom=thin)
+    alt_fill   = PatternFill("solid", fgColor="EFF6FF")
+
+    # ── title row ──
+    ws.merge_cells("A1:H1")
+    ws["A1"] = f"Monthly Attendance Report — {month_name}"
+    ws["A1"].font      = title_font
+    ws["A1"].alignment = center
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells("A2:H2")
+    ws["A2"] = f"Working Days: {len([d for d in working_days if d <= today and d not in holidays])}   |   Holidays: {len(holidays)}   |   Employees: {len(report)}"
+    ws["A2"].alignment = center
+    ws["A2"].font = Font(size=10, color="64748B")
+    ws.row_dimensions[2].height = 18
+
+    # ── header row ──
+    headers = ["Emp ID", "Name", "Full Days", "Late Days", "Half Days", "Absent", "Working Days", "Attendance %"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col, value=h)
+        cell.fill      = hdr_fill
+        cell.font      = hdr_font
+        cell.alignment = center
+        cell.border    = border
+    ws.row_dimensions[3].height = 22
+
+    # ── data rows ──
+    for i, r in enumerate(report, 4):
+        row_fill = alt_fill if i % 2 == 0 else PatternFill("solid", fgColor="FFFFFF")
+        values = [r["emp_id"], r["name"], r["full_days"], r["late_days"],
+                  r["half_days"], r["absent"], r["billable"], r["pct"]]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=i, column=col, value=val)
+            cell.fill      = row_fill
+            cell.alignment = center if col != 2 else Alignment(horizontal="left", vertical="center")
+            cell.border    = border
+            if col == 8:  # Attendance %
+                pct_val = val
+                if pct_val >= 90:   cell.font = Font(color="15803D", bold=True)
+                elif pct_val >= 70: cell.font = Font(color="D97706", bold=True)
+                else:               cell.font = Font(color="DC2626", bold=True)
+
+    # ── column widths ──
+    col_widths = [12, 24, 12, 12, 12, 10, 14, 14]
+    for col, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = _io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"attendance_{year}_{month:02d}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+# ---------------- ABSENTEE REPORT EMAIL ----------------
+@app.route("/send_absentee_report", methods=["POST"])
+@admin_required
+def send_absentee_report():
+    cfg = get_email_config()
+    if not cfg:
+        return jsonify({"ok": False, "msg": "Email not configured. Go to Email Settings first."})
+
+    today  = datetime.date.today()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    all_emp = cursor.fetchall()
+
+    cursor.execute("SELECT DISTINCT employee_id FROM attendance WHERE date=%s", (today,))
+    present_ids = {r[0] for r in cursor.fetchall()}
+    cursor.close(); db.close()
+
+    absentees = [(eid, nm) for eid, nm in all_emp if eid not in present_ids]
+    total     = len(all_emp)
+    absent    = len(absentees)
+    present   = total - absent
+
+    rows_html = "".join(
+        f"<tr><td style='padding:8px 14px;border-bottom:1px solid #e2e8f0;'>{eid}</td>"
+        f"<td style='padding:8px 14px;border-bottom:1px solid #e2e8f0;'>{nm}</td></tr>"
+        for eid, nm in absentees
+    ) or "<tr><td colspan='2' style='padding:14px;text-align:center;color:#16a34a;'>All employees present!</td></tr>"
+
+    html = f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:600px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">&#127970; Daily Absentee Report</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">{today.strftime('%A, %d %B %Y')}</div>
+  </div>
+  <div style="padding:24px;">
+    <div style="display:flex;gap:16px;margin-bottom:24px;">
+      <div style="flex:1;background:#dcfce7;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#15803d;">{present}</div>
+        <div style="font-size:12px;color:#166534;">Present</div>
+      </div>
+      <div style="flex:1;background:#fee2e2;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#dc2626;">{absent}</div>
+        <div style="font-size:12px;color:#991b1b;">Absent</div>
+      </div>
+      <div style="flex:1;background:#dbeafe;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#1d4ed8;">{total}</div>
+        <div style="font-size:12px;color:#1e40af;">Total</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden;border:1px solid #dbeafe;">
+      <thead>
+        <tr style="background:#dbeafe;">
+          <th style="padding:10px 14px;text-align:left;color:#1e3a8a;font-size:13px;">Employee ID</th>
+          <th style="padding:10px 14px;text-align:left;color:#1e3a8a;font-size:13px;">Name</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </div>
+</div>"""
+
+    try:
+        send_email_smtp(cfg["user"], f"Daily Absentee Report — {today.strftime('%d %b %Y')}", html, cfg)
+        return jsonify({"ok": True, "msg": f"Report sent! {absent} absent out of {total} employees."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"Failed to send: {str(e)}"})
 
 # ---------------- SALARY REPORT ----------------
 @app.route("/salary_report")
@@ -1101,14 +1539,14 @@ def attendance():
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT face_image, name FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT face_image, name, email FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
 
     if not result:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found. Please check your QR code."})
 
-    face_path, employee_name = result
+    face_path, employee_name, employee_email = result
 
     if not os.path.exists(face_path):
         cursor.close(); db.close()
@@ -1148,10 +1586,13 @@ def attendance():
     logout_time         = record[1] if record else None
     login_status_stored = record[2] if record else None
 
+    # Use employee's assigned shift, or global defaults
+    s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
+
     if not login_time:
-        if current_time <= SHIFT_START:
+        if current_time <= s_start:
             login_status = "Full Day Login"
-        elif current_time <= SHIFT_HALF:
+        elif current_time <= s_half:
             login_status = "Late Login"
         else:
             login_status = "Half Day Login"
@@ -1160,16 +1601,26 @@ def attendance():
             (emp_id, today, current_time, login_status)
         )
         db.commit(); cursor.close(); db.close()
+        time_str = current_time.strftime("%H:%M:%S")
+        if employee_email:
+            cfg = get_email_config()
+            if cfg:
+                html = build_attendance_email(employee_name, emp_id, "login", login_status, time_str, today.strftime("%d %b %Y"))
+                send_email_async(employee_email, f"Attendance Check-In — {today.strftime('%d %b %Y')}", html, cfg)
         return jsonify({"ok": True, "type": "login", "name": employee_name,
-                        "status": login_status, "time": current_time.strftime("%H:%M:%S")})
+                        "status": login_status, "time": time_str, "shift": shift_name})
 
     elif not logout_time:
-        if current_time < SHIFT_HALF:
+        if current_time < s_half:
             logout_status = "Half Day Logout"
-        elif current_time < SHIFT_END:
+        elif current_time < s_end:
             logout_status = "Early Logout"
         else:
             logout_status = "Completed"
+        # Overtime: minutes beyond shift end
+        now_mins   = current_time.hour * 60 + current_time.minute
+        end_mins   = s_end.hour * 60 + s_end.minute
+        overtime_m = max(0, now_mins - end_mins)
         att_type = get_attendance_type(login_status_stored, logout_status)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
@@ -1177,9 +1628,18 @@ def attendance():
             (current_time, logout_status, att_type, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
-        return jsonify({"ok": True, "type": "logout", "name": employee_name,
-                        "status": logout_status, "att_type": att_type,
-                        "time": current_time.strftime("%H:%M:%S")})
+        time_str = current_time.strftime("%H:%M:%S")
+        if employee_email:
+            cfg = get_email_config()
+            if cfg:
+                html = build_attendance_email(employee_name, emp_id, "logout", att_type or logout_status, time_str, today.strftime("%d %b %Y"))
+                send_email_async(employee_email, f"Attendance Check-Out — {today.strftime('%d %b %Y')}", html, cfg)
+        resp = {"ok": True, "type": "logout", "name": employee_name,
+                "status": logout_status, "att_type": att_type,
+                "time": time_str, "shift": shift_name}
+        if overtime_m > 0:
+            resp["overtime"] = f"{overtime_m // 60}h {overtime_m % 60}m" if overtime_m >= 60 else f"{overtime_m}m"
+        return jsonify(resp)
 
     else:
         cursor.close(); db.close()
@@ -1274,8 +1734,8 @@ def employee_portal():
     )
     today_att = cursor.fetchone()
 
-    year  = today.year
-    month = today.month
+    year  = int(request.args.get("year",  today.year))
+    month = int(request.args.get("month", today.month))
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type
@@ -1285,9 +1745,11 @@ def employee_portal():
     """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
     monthly_att = cursor.fetchall()
 
+    holidays_set  = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
     att_by_date   = {r[0]: r for r in monthly_att}
     full_days = half_days = late_days = absent_days = 0
+    total_seconds = 0
     for d in billable_past:
         row = att_by_date.get(d)
         if row:
@@ -1297,8 +1759,46 @@ def employee_portal():
             elif final == "Late - Full Day":        late_days   += 1
             elif final in ("Half Day", "Present"):  half_days   += 1
             else:                                   absent_days += 1
+            if login_t and logout_t:
+                li = login_t.total_seconds()  if hasattr(login_t,  "total_seconds") else (login_t.hour*3600  + login_t.minute*60  + login_t.second)
+                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else (logout_t.hour*3600 + logout_t.minute*60 + logout_t.second)
+                if lo > li:
+                    total_seconds += int(lo - li)
         else:
             absent_days += 1
+
+    total_hours_str = f"{total_seconds // 3600}h {(total_seconds % 3600) // 60}m"
+    billable_count  = len(billable_past)
+    present_equiv   = full_days + late_days + half_days * 0.5
+    att_pct         = round(present_equiv / billable_count * 100, 1) if billable_count else 0
+
+    # Calendar data as JSON for JS rendering
+    import json as _json
+    cal_data = {}
+    _, month_days = calendar.monthrange(year, month)
+    for day in range(1, month_days + 1):
+        d = datetime.date(year, month, day)
+        if d in holidays_set:
+            cal_data[day] = "holiday"
+        elif d.weekday() >= 5:
+            cal_data[day] = "weekend"
+        elif d > today:
+            cal_data[day] = "future"
+        else:
+            row = att_by_date.get(d)
+            if row:
+                _, login_t, logout_t, status, _ls, att_type = row
+                final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
+                if   final == "Full Day":               cal_data[day] = "full"
+                elif final == "Late - Full Day":        cal_data[day] = "late"
+                elif final in ("Half Day", "Present"):  cal_data[day] = "half"
+                else:                                   cal_data[day] = "absent"
+            else:
+                cal_data[day] = "absent"
+    cal_json      = _json.dumps(cal_data)
+    cal_year      = year
+    cal_month     = month
+    cal_first_dow = datetime.date(year, month, 1).weekday()  # 0=Mon
 
     cursor.execute("""
         SELECT leave_date, reason, status, created_at
@@ -1330,16 +1830,125 @@ def employee_portal():
         monthly_att=monthly_att,
         full_days=full_days, late_days=late_days,
         half_days=half_days, absent_days=absent_days,
-        billable=len(billable_past),
+        billable=billable_count,
         my_leaves=my_leaves,
         my_resignation=my_resignation,
         my_tickets=my_tickets,
         leave_sent=request.args.get("leave_sent") == "1",
         resigned=request.args.get("resigned") == "1",
         ticket_sent=request.args.get("ticket_sent") == "1",
-        month_name=today.strftime("%B %Y"),
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        att_pct=att_pct,
+        total_hours=total_hours_str,
+        cal_json=cal_json,
+        cal_year=cal_year,
+        cal_month=cal_month,
+        cal_first_dow=cal_first_dow,
+        sel_year=year,
+        sel_month=month,
+        years=list(range(today.year - 2, today.year + 1)),
+        months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
     )
 
+
+@app.route("/my_attendance_pdf")
+@employee_required
+def my_attendance_pdf():
+    emp_id = session["employee_id"]
+    year   = int(request.args.get("year",  datetime.date.today().year))
+    month  = int(request.args.get("month", datetime.date.today().month))
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, name, role, email FROM employees WHERE employee_id=%s", (emp_id,))
+    emp = cursor.fetchone()
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s ORDER BY date
+    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    monthly_att = cursor.fetchall()
+    cursor.close(); db.close()
+
+    billable_past = get_billable_past_days(year, month)
+    att_by_date   = {r[0]: r for r in monthly_att}
+    full_days = half_days = late_days = absent_days = total_sec = 0
+    for d in billable_past:
+        row = att_by_date.get(d)
+        if row:
+            _, login_t, logout_t, status, _ls, att_type = row
+            final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
+            if   final == "Full Day":               full_days   += 1
+            elif final == "Late - Full Day":        late_days   += 1
+            elif final in ("Half Day", "Present"):  half_days   += 1
+            else:                                   absent_days += 1
+            if login_t and logout_t:
+                li = login_t.total_seconds()  if hasattr(login_t,  "total_seconds") else login_t.hour*3600+login_t.minute*60+login_t.second
+                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else logout_t.hour*3600+logout_t.minute*60+logout_t.second
+                if lo > li: total_sec += int(lo - li)
+        else:
+            absent_days += 1
+
+    def fmt(t):
+        if t is None: return "--"
+        if hasattr(t, "strftime"): return t.strftime("%H:%M")
+        s = int(t.total_seconds()); return f"{s//3600:02d}:{(s%3600)//60:02d}"
+
+    rows_html = ""
+    for d in sorted(att_by_date.keys()):
+        row = att_by_date[d]
+        _, lt, lot, ls, _lo, at = row
+        final = at if at else infer_type_legacy(ls, lt, lot)
+        color = {"Full Day":"#16a34a","Late - Full Day":"#d97706","Half Day":"#dc2626","Present":"#d97706"}.get(final,"#6b7280")
+        rows_html += f"<tr><td>{d.strftime('%d %b %Y')}</td><td>{d.strftime('%A')}</td><td>{fmt(lt)}</td><td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{final or 'Absent'}</td></tr>"
+
+    billable = len(billable_past)
+    pct = round((full_days + late_days + half_days*0.5) / billable * 100, 1) if billable else 0
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+    total_h = f"{total_sec//3600}h {(total_sec%3600)//60}m"
+
+    html = f"""<!doctype html><html><head><meta charset="UTF-8">
+<title>Attendance Report — {emp[1]} — {month_name}</title>
+<style>
+  body {{ font-family: "Segoe UI", sans-serif; margin: 0; padding: 32px; color: #1e293b; background: white; }}
+  .header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; border-bottom: 2px solid #1e3a8a; padding-bottom: 18px; }}
+  .title {{ font-size: 22px; font-weight: 700; color: #1e3a8a; }}
+  .sub {{ font-size: 13px; color: #64748b; margin-top: 4px; }}
+  .meta {{ text-align: right; font-size: 13px; color: #64748b; }}
+  .stats {{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }}
+  .stat {{ background: #f8fafc; border: 1px solid #dbeafe; border-radius: 10px; padding: 12px; text-align: center; }}
+  .stat .n {{ font-size: 24px; font-weight: 700; }}
+  .stat .l {{ font-size: 11px; color: #64748b; margin-top: 3px; }}
+  .c-green {{ color: #16a34a; }} .c-yellow {{ color: #d97706; }} .c-red {{ color: #dc2626; }} .c-blue {{ color: #2563eb; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th {{ background: #1e3a8a; color: white; padding: 10px 12px; text-align: left; }}
+  td {{ padding: 9px 12px; border-bottom: 1px solid #e2e8f0; }}
+  tr:last-child td {{ border-bottom: none; }}
+  .footer {{ margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; }}
+  @media print {{ body {{ padding: 16px; }} button {{ display: none; }} }}
+</style></head><body>
+<div class="header">
+  <div><div class="title">Attendance Report</div>
+    <div class="sub">{emp[1]} &nbsp;·&nbsp; {emp[0]} &nbsp;·&nbsp; {emp[2] or 'Employee'}</div>
+    <div class="sub">{month_name}</div></div>
+  <div class="meta">Generated: {datetime.date.today().strftime('%d %b %Y')}<br>
+    <button onclick="window.print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;">🖨️ Print / Save PDF</button>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="n c-green">{full_days}</div><div class="l">Full Days</div></div>
+  <div class="stat"><div class="n c-yellow">{late_days}</div><div class="l">Late Days</div></div>
+  <div class="stat"><div class="n c-yellow">{half_days}</div><div class="l">Half Days</div></div>
+  <div class="stat"><div class="n c-red">{absent_days}</div><div class="l">Absent</div></div>
+  <div class="stat"><div class="n c-blue">{pct}%</div><div class="l">Attendance</div></div>
+  <div class="stat"><div class="n c-blue">{total_h}</div><div class="l">Total Hours</div></div>
+</div>
+<table><thead><tr><th>Date</th><th>Day</th><th>Login</th><th>Logout</th><th>Status</th></tr></thead>
+<tbody>{rows_html}</tbody></table>
+<div class="footer">Employee Attendance System &nbsp;·&nbsp; {emp[1]} &nbsp;·&nbsp; {month_name}</div>
+</body></html>"""
+    return html
 
 @app.route("/request_leave", methods=["POST"])
 @employee_required

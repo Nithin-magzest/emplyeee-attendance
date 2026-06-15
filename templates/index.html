@@ -211,6 +211,12 @@
           <div class="result-row" id="attTypeRow" style="display:none;">
             <span>Attendance Type</span><span id="rAttType" class="val-green">--</span>
           </div>
+          <div class="result-row" id="shiftRow" style="display:none;">
+            <span>Shift</span><span id="rShift" class="val-blue">--</span>
+          </div>
+          <div class="result-row" id="overtimeRow" style="display:none;">
+            <span>Overtime</span><span id="rOvertime" style="color:#f59e0b;font-weight:700;">--</span>
+          </div>
         </div>
 
         <div class="error-box" id="errorBox"></div>
@@ -421,6 +427,7 @@
             $("rAction").textContent           = "Login";
             $("rAction").className             = "val-green";
             $("attTypeRow").style.display      = "none";
+            $("overtimeRow").style.display     = "none";
             const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
             $("rStatus").textContent = s.label;
             $("rStatus").className   = s.cls;
@@ -435,6 +442,18 @@
             $("rAttType").textContent          = t.label;
             $("rAttType").className            = t.cls;
             $("attTypeRow").style.display      = "flex";
+            if (result.overtime) {
+              $("rOvertime").textContent       = "⏱ " + result.overtime;
+              $("overtimeRow").style.display   = "flex";
+            } else {
+              $("overtimeRow").style.display   = "none";
+            }
+          }
+          if (result.shift && result.shift !== "Default") {
+            $("rShift").textContent        = result.shift;
+            $("shiftRow").style.display    = "flex";
+          } else {
+            $("shiftRow").style.display    = "none";
           }
           $("resultBox").style.display = "block";
           $("subText").textContent     = "Click Start to scan your QR code & verify face";
