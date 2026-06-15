@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee QR Codes</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; padding: 28px; }
+      .header { color: white; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
+      .header h1 { font-size: 26px; }
+      .back-btn {
+        padding: 9px 18px; border: 1px solid rgba(255,255,255,0.35); border-radius: 10px;
+        color: white; text-decoration: none; font-size: 13px; background: rgba(255,255,255,0.1);
+        transition: 0.2s;
+      }
+      .back-btn:hover { background: rgba(255,255,255,0.2); }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: rgba(255,255,255,0.14);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        color: white;
+      }
+      .card img {
+        width: 140px; height: 140px;
+        border-radius: 10px;
+        background: white;
+        padding: 6px;
+        margin-bottom: 12px;
+      }
+      .card .emp-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+      .card .emp-id   { font-size: 12px; opacity: 0.6; margin-bottom: 3px; }
+      .card .emp-role { font-size: 12px; opacity: 0.5; margin-bottom: 14px; }
+      .download-btn {
+        display: inline-block; padding: 8px 18px;
+        background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px; color: white; text-decoration: none; font-size: 13px;
+        transition: 0.2s;
+      }
+      .download-btn:hover { background: rgba(255,255,255,0.3); }
+      .empty { text-align: center; color: white; opacity: 0.5; padding: 60px; font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <a class="back-btn" href="/admin">← Back to Dashboard</a>
+      <h1>🔳 Employee QR Codes</h1>
+    </div>
+
+    {% if employees %}
+    <div class="grid">
+      {% for emp_id, name, role, qr_path in employees %}
+      <div class="card">
+        {% if qr_path %}
+          <img src="/{{ qr_path }}" alt="QR Code for {{ name }}" />
+        {% else %}
+          <div style="width:140px;height:140px;border-radius:10px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;opacity:0.4;font-size:13px;">No QR</div>
+        {% endif %}
+        <div class="emp-name">{{ name }}</div>
+        <div class="emp-id">ID: {{ emp_id }}</div>
+        <div class="emp-role">{{ role or '—' }}</div>
+        {% if qr_path %}
+          <a class="download-btn" href="/{{ qr_path }}" download="{{ emp_id }}_qr.png">⬇ Download</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No employees registered yet.</div>
+    {% endif %}
+  </body>
+</html>

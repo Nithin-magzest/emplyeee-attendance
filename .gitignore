@@ -9,3 +9,5 @@ dataset/
 *.db
 .env
 *.log
+.secret_key
+static/qrcodes/

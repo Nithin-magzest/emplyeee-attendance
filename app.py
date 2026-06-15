@@ -36,7 +36,14 @@ def fmt_time_filter(value):
     return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
 
 # ---------------- CONFIG ----------------
-app.secret_key = "super-secret-key"
+_key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
+if os.path.exists(_key_file):
+    with open(_key_file) as _f:
+        app.secret_key = _f.read().strip()
+else:
+    app.secret_key = secrets.token_hex(32)
+    with open(_key_file, "w") as _f:
+        _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = False
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800
@@ -46,6 +53,11 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Office location (single source of truth)
+OFFICE_LAT = 17.494664737165042
+OFFICE_LON = 78.40496618113566
+OFFICE_RADIUS_M = 150   # metres — GPS accuracy needs ~100m buffer
 
 # Shift timings
 SHIFT_START = datetime.time(9, 0)    # Full Day Login cutoff
@@ -158,12 +170,22 @@ def init_db():
         "ALTER TABLE attendance ADD COLUMN attendance_type VARCHAR(50) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN email VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN role VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
             db.commit()
         except mysql.connector.errors.DatabaseError:
             db.rollback()
+
+    # Back-fill password for existing employees that have none (default = their employee_id)
+    cursor.execute("SELECT employee_id FROM employees WHERE password IS NULL")
+    for (eid,) in cursor.fetchall():
+        cursor.execute(
+            "UPDATE employees SET password=%s WHERE employee_id=%s",
+            (generate_password_hash(eid), eid)
+        )
+    db.commit()
 
     # Force-set admin credentials
     hashed = generate_password_hash("admin@123")
@@ -420,10 +442,6 @@ def admin_login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        if username == "admin" and password == "admin@123":
-            session["admin_logged_in"] = True
-            session.permanent = True
-            return redirect("/admin")
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
@@ -523,12 +541,58 @@ def admin_action():
         file     = request.files["face"]
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
-        qr_path  = generate_qr(emp_id)
-        cursor.execute(
-            "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code) VALUES (%s,%s,%s,%s,%s,%s)",
-            (name, emp_id, email, role, filepath, qr_path)
-        )
+
+        # Validate that the uploaded photo contains a detectable face
+        test_img = face_recognition.load_image_file(filepath)
+        if not face_recognition.face_encodings(test_img):
+            os.remove(filepath)
+            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/admin")
+
+        qr_path    = generate_qr(emp_id)
+        auto_pass  = secrets.token_urlsafe(8)   # e.g. "aB3xQ7mR"
+        hashed_pwd = generate_password_hash(auto_pass)
+        try:
+            cursor.execute(
+                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (name, emp_id, email, role, filepath, qr_path, hashed_pwd)
+            )
+            db.commit()
+            flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        except mysql.connector.errors.IntegrityError:
+            db.rollback()
+            os.remove(filepath)
+            flash(f"Employee ID '{emp_id}' already exists. Please use a different ID.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/admin")
+
+    elif action == "update_face":
+        emp_id   = request.form["emp_id"]
+        file     = request.files["face"]
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+        if not row:
+            flash(f"Employee ID '{emp_id}' not found.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/admin")
+        name     = row[0]
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        file.save(filepath)
+        test_img = face_recognition.load_image_file(filepath)
+        if not face_recognition.face_encodings(test_img):
+            os.remove(filepath)
+            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/admin")
+        cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
         db.commit()
+        flash(f"Face photo updated successfully for '{name}' (ID: {emp_id}).", "success")
 
     elif action == "holiday":
         cursor.execute(
@@ -587,6 +651,59 @@ def add_holiday():
     cursor.close()
     db.close()
     return redirect("/view_holidays")
+
+@app.route("/delete_employee/<emp_id>", methods=["POST"])
+@admin_required
+def delete_employee(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT face_image, qr_code FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    if row:
+        for path in row:
+            if path and os.path.exists(path):
+                os.remove(path)
+        cursor.execute("DELETE FROM attendance WHERE employee_id=%s", (emp_id,))
+        cursor.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
+        cursor.execute("DELETE FROM leave_requests WHERE employee_id=%s", (emp_id,))
+        cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
+        cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
+        db.commit()
+        flash(f"Employee '{emp_id}' deleted successfully.", "success")
+    else:
+        flash(f"Employee '{emp_id}' not found.", "error")
+    cursor.close(); db.close()
+    return redirect("/admin")
+
+
+@app.route("/edit_employee", methods=["POST"])
+@admin_required
+def edit_employee():
+    emp_id   = request.form["emp_id"].strip()
+    name     = request.form.get("name", "").strip()
+    email    = request.form.get("email", "").strip() or None
+    role     = request.form.get("role", "").strip() or None
+    db       = get_db_connection()
+    cursor   = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET name=%s, email=%s, role=%s WHERE employee_id=%s",
+        (name, email, role, emp_id)
+    )
+    db.commit(); cursor.close(); db.close()
+    flash(f"Employee '{emp_id}' updated successfully.", "success")
+    return redirect("/admin")
+
+
+@app.route("/view_qrcodes")
+@admin_required
+def view_qrcodes():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, name, role, qr_code FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("qrcodes.html", employees=employees)
+
 
 @app.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
@@ -951,163 +1068,122 @@ def is_within_range(user_lat, user_lon, office_lat, office_lon):
         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return (R * c) <= 6
+    return (R * c) <= OFFICE_RADIUS_M
 
 # ---------------- ATTENDANCE (LOGIN + LOGOUT) ----------------
-@app.route("/attendance")
+@app.route("/attendance", methods=["POST"])
 def attendance():
-    OFFICE_LAT = 17.49375
-    OFFICE_LON = 78.40435
+    import base64, io
+    import numpy as np
+    from PIL import Image
 
-    user_lat = session.get("lat")
-    user_lon = session.get("lon")
+    data       = request.get_json() or {}
+    emp_id     = data.get("employee_id", "").strip()
+    face_b64   = data.get("face_image", "")
+    user_lat   = data.get("lat")
+    user_lon   = data.get("lon")
 
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "No QR code data received."})
     if not user_lat or not user_lon:
         return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
-
     if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
         return jsonify({"ok": False, "msg": "You are outside the office premises."})
+    if not face_b64:
+        return jsonify({"ok": False, "msg": "Face photo not captured."})
 
-    cap = None
-    db  = None
     try:
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            return jsonify({"ok": False, "msg": "Camera not accessible."})
+        img_bytes = base64.b64decode(face_b64)
+        pil_img   = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        frame     = np.array(pil_img)
+    except Exception:
+        return jsonify({"ok": False, "msg": "Invalid face image data."})
 
-        detector       = cv2.QRCodeDetector()
-        qr_employee_id = None
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT face_image, name FROM employees WHERE employee_id=%s", (emp_id,))
+    result = cursor.fetchone()
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                continue
-            data, _, _ = detector.detectAndDecode(frame)
-            cv2.putText(frame, "Show QR Code", (20, 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            if data:
-                qr_employee_id = data.strip()
-                break
-            cv2.imshow("QR Scanner", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                return jsonify({"ok": False, "msg": "Scanner closed."})
+    if not result:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Employee not found. Please check your QR code."})
 
-        db     = get_db_connection()
-        cursor = db.cursor(buffered=True)
+    face_path, employee_name = result
+
+    if not os.path.exists(face_path):
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
+
+    known_image    = face_recognition.load_image_file(face_path)
+    known_encs     = face_recognition.face_encodings(known_image)
+    if not known_encs:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
+    known_encoding = known_encs[0]
+
+    locs = face_recognition.face_locations(frame)
+    encs = face_recognition.face_encodings(frame, locs)
+    if not encs:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "No face detected in photo. Look directly at the camera."})
+
+    matched = any(
+        True in face_recognition.compare_faces([known_encoding], enc)
+        for enc in encs
+    )
+    if not matched:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
+
+    now          = datetime.datetime.now()
+    today        = now.date()
+    current_time = now.time()
+
+    cursor.execute(
+        "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
+        (emp_id, today)
+    )
+    record              = cursor.fetchone()
+    login_time          = record[0] if record else None
+    logout_time         = record[1] if record else None
+    login_status_stored = record[2] if record else None
+
+    if not login_time:
+        if current_time <= SHIFT_START:
+            login_status = "Full Day Login"
+        elif current_time <= SHIFT_HALF:
+            login_status = "Late Login"
+        else:
+            login_status = "Half Day Login"
         cursor.execute(
-            "SELECT face_image, name FROM employees WHERE employee_id=%s",
-            (qr_employee_id,)
+            "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
+            (emp_id, today, current_time, login_status)
         )
-        result = cursor.fetchone()
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "type": "login", "name": employee_name,
+                        "status": login_status, "time": current_time.strftime("%H:%M:%S")})
 
-        if not result:
-            return jsonify({"ok": False, "msg": "Employee not found."})
-
-        face_path, employee_name = result
-
-        if not os.path.exists(face_path):
-            return jsonify({"ok": False, "msg": "Face image missing for this employee. Please re-register."})
-
-        known_image = face_recognition.load_image_file(face_path)
-        enc         = face_recognition.face_encodings(known_image)
-        if not enc:
-            return jsonify({"ok": False, "msg": "Stored face image is invalid."})
-
-        known_encoding = enc[0]
-
-        now          = datetime.datetime.now()
-        today        = now.date()
-        current_time = now.time()
-
+    elif not logout_time:
+        if current_time < SHIFT_HALF:
+            logout_status = "Half Day Logout"
+        elif current_time < SHIFT_END:
+            logout_status = "Early Logout"
+        else:
+            logout_status = "Completed"
+        att_type = get_attendance_type(login_status_stored, logout_status)
         cursor.execute(
-            "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
-            (qr_employee_id, today)
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, logout_status, att_type, emp_id, today)
         )
-        record              = cursor.fetchone()
-        login_time          = record[0] if record else None
-        logout_time         = record[1] if record else None
-        login_status_stored = record[2] if record else None
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "type": "logout", "name": employee_name,
+                        "status": logout_status, "att_type": att_type,
+                        "time": current_time.strftime("%H:%M:%S")})
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                continue
-
-            rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            locs = face_recognition.face_locations(rgb)
-            encs = face_recognition.face_encodings(rgb, locs)
-
-            for face_enc, _ in zip(encs, locs):
-                if True in face_recognition.compare_faces([known_encoding], face_enc):
-
-                    if not login_time:
-                        if current_time <= SHIFT_START:
-                            login_status = "Full Day Login"
-                        elif current_time <= SHIFT_HALF:
-                            login_status = "Late Login"
-                        else:
-                            login_status = "Half Day Login"
-
-                        cursor.execute(
-                            "INSERT INTO attendance (employee_id, date, login_time, status) "
-                            "VALUES (%s,%s,%s,%s)",
-                            (qr_employee_id, today, current_time, login_status)
-                        )
-                        db.commit()
-
-                        return jsonify({
-                            "ok":     True,
-                            "type":   "login",
-                            "name":   employee_name,
-                            "status": login_status,
-                            "time":   current_time.strftime("%H:%M:%S"),
-                        })
-
-                    elif not logout_time:
-                        if current_time < SHIFT_HALF:
-                            logout_status = "Half Day Logout"
-                        elif current_time < SHIFT_END:
-                            logout_status = "Early Logout"
-                        else:
-                            logout_status = "Completed"
-
-                        att_type = get_attendance_type(login_status_stored, logout_status)
-
-                        cursor.execute(
-                            "UPDATE attendance "
-                            "SET logout_time=%s, logout_status=%s, attendance_type=%s "
-                            "WHERE employee_id=%s AND date=%s",
-                            (current_time, logout_status, att_type, qr_employee_id, today)
-                        )
-                        db.commit()
-
-                        return jsonify({
-                            "ok":       True,
-                            "type":     "logout",
-                            "name":     employee_name,
-                            "status":   logout_status,
-                            "att_type": att_type,
-                            "time":     current_time.strftime("%H:%M:%S"),
-                        })
-
-                    else:
-                        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
-
-            cv2.imshow("Face Verification", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-        return jsonify({"ok": False, "msg": "Face verification failed."})
-
-    except Exception as e:
-        return jsonify({"ok": False, "msg": "Scanner error: " + str(e)})
-    finally:
-        try:
-            if cap is not None:
-                cap.release()
-            cv2.destroyAllWindows()
-        except Exception:
-            pass
+    else:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
 
 # ================================================================
 #  EMPLOYEE PORTAL
@@ -1118,22 +1194,26 @@ def employee_login():
     if session.get("employee_id"):
         return redirect("/employee_portal")
     if request.method == "POST":
-        emp_id = request.form["emp_id"].strip()
-        db     = get_db_connection()
-        cursor = db.cursor(buffered=True)
+        emp_id   = request.form["emp_id"].strip()
+        password = request.form.get("password", "").strip()
+        db       = get_db_connection()
+        cursor   = db.cursor(buffered=True)
         cursor.execute(
-            "SELECT employee_id, name, role FROM employees WHERE employee_id=%s",
+            "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
             (emp_id,)
         )
         row = cursor.fetchone()
         cursor.close(); db.close()
-        if row:
-            session["employee_id"]   = row[0]
-            session["employee_name"] = row[1]
-            session["employee_role"] = row[2] or ""
-            session.permanent = True
-            return redirect("/employee_portal")
-        return render_template("employee_login.html", error="Employee ID not found.")
+        if not row:
+            return render_template("employee_login.html", error="Employee ID not found.")
+        stored_pwd = row[3]
+        if stored_pwd and not check_password_hash(stored_pwd, password):
+            return render_template("employee_login.html", error="Incorrect password.")
+        session["employee_id"]   = row[0]
+        session["employee_name"] = row[1]
+        session["employee_role"] = row[2] or ""
+        session.permanent = True
+        return redirect("/employee_portal")
     return render_template("employee_login.html")
 
 
@@ -1143,6 +1223,34 @@ def employee_logout():
     session.pop("employee_name", None)
     session.pop("employee_role", None)
     return redirect("/employee_login")
+
+
+@app.route("/change_password", methods=["POST"])
+@employee_required
+def change_password():
+    emp_id   = session["employee_id"]
+    current  = request.form.get("current_password", "").strip()
+    new_pwd  = request.form.get("new_password", "").strip()
+    confirm  = request.form.get("confirm_password", "").strip()
+    db       = get_db_connection()
+    cursor   = db.cursor(buffered=True)
+    cursor.execute("SELECT password FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    if not row or not check_password_hash(row[0], current):
+        cursor.close(); db.close()
+        return redirect("/employee_portal?pwd_error=wrong")
+    if len(new_pwd) < 6:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?pwd_error=short")
+    if new_pwd != confirm:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?pwd_error=mismatch")
+    cursor.execute(
+        "UPDATE employees SET password=%s WHERE employee_id=%s",
+        (generate_password_hash(new_pwd), emp_id)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?pwd_ok=1")
 
 
 @app.route("/employee_portal")
@@ -1499,11 +1607,6 @@ def api_login():
     data     = request.get_json() or {}
     username = data.get("username", "")
     password = data.get("password", "")
-    # Hard-coded admin shortcut
-    if username == "admin" and password == "admin@123":
-        token = secrets.token_hex(32)
-        _api_tokens[token] = username
-        return jsonify({"ok": True, "token": token, "username": username})
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
@@ -1604,13 +1707,20 @@ def api_register_employee():
         return jsonify({"ok": False, "msg": "name, emp_id and face image required"}), 400
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
-    qr_path  = generate_qr(emp_id)
+    test_img = face_recognition.load_image_file(filepath)
+    if not face_recognition.face_encodings(test_img):
+        os.remove(filepath)
+        return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400
+    qr_path    = generate_qr(emp_id)
+    init_pass  = request.form.get("password", "").strip() or emp_id
+    hashed_pwd = generate_password_hash(init_pass)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute(
-            "INSERT INTO employees (name, employee_id, email, face_image, qr_code) VALUES (%s,%s,%s,%s,%s)",
-            (name, emp_id, email, filepath, qr_path)
+            "INSERT INTO employees (name, employee_id, email, face_image, qr_code, password) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (name, emp_id, email, filepath, qr_path, hashed_pwd)
         )
         db.commit()
     except Exception as e:
@@ -1857,8 +1967,6 @@ def api_checkin():
     lon    = data.get("lon")
     if not emp_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
-    OFFICE_LAT = 17.49375
-    OFFICE_LON = 78.40435
     if lat and lon:
         if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
             return jsonify({"ok": False, "msg": "You are outside the office premises."})

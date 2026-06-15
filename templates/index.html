@@ -5,248 +5,200 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attendance Scanner</title>
     <link rel="icon" href="data:," />
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
 
       body {
         min-height: 100vh;
-        background: #eff6ff;
-        display: flex;
-        flex-direction: column;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex; flex-direction: column;
       }
 
-      /* ── TOP BAR ── */
       .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: flex; align-items: center; justify-content: space-between;
         padding: 14px 28px;
-        background: #1e3a8a;
-        color: white;
-        flex-shrink: 0;
+        background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+        color: white; flex-shrink: 0;
       }
-
-      .topbar .brand {
-        font-size: 18px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
+      .topbar .brand { font-size: 18px; font-weight: 700; }
+      .topbar .brand span { opacity: 0.7; font-weight: 400; font-size: 13px; margin-left: 10px; }
+      .admin-btn {
+        padding: 9px 20px; background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.35); border-radius: 10px;
+        color: white; font-size: 14px; font-weight: 600; text-decoration: none; transition: 0.2s;
       }
+      .admin-btn:hover { background: rgba(255,255,255,0.3); }
 
-      .topbar .brand span {
-        opacity: 0.7;
-        font-weight: 400;
-        font-size: 13px;
-        margin-left: 10px;
-      }
-
-      .admin-login-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 9px 20px;
-        background: rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 10px;
-        color: white;
-        font-size: 14px;
-        font-weight: 600;
-        text-decoration: none;
-        cursor: pointer;
-        transition: 0.25s;
-      }
-
-      .admin-login-btn:hover {
-        background: rgba(255, 255, 255, 0.25);
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-      }
-
-      /* ── PAGE BODY ── */
       .page-body {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 30px 20px;
+        flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px;
       }
 
-      /* ── SCANNER CARD ── */
-      .container {
-        width: 100%;
-        max-width: 460px;
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 24px;
-        padding: 36px 32px;
-        text-align: center;
-        color: #1e293b;
-        box-shadow: 0 8px 32px rgba(30, 58, 138, 0.1);
+      .card {
+        width: 100%; max-width: 460px;
+        background: rgba(255,255,255,0.15); backdrop-filter: blur(14px);
+        border-radius: 24px; padding: 32px 28px;
+        text-align: center; color: white;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.35);
       }
 
-      .live-time {
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        margin-bottom: 4px;
-        color: #1e293b;
-      }
-
-      h2 { font-size: 26px; margin-bottom: 4px; color: #1e293b; }
-
-      .sub {
-        font-size: 13px;
-        color: #64748b;
-        margin-bottom: 24px;
-      }
+      .live-time { font-size: 24px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+      h2 { font-size: 26px; margin-bottom: 4px; }
+      .sub { font-size: 13px; opacity: 0.75; margin-bottom: 22px; }
 
       /* ── SCANNER BOX ── */
-      .scanner-box {
-        width: 220px;
-        height: 220px;
-        margin: 0 auto 24px;
-        border: 2px solid #dbeafe;
-        border-radius: 18px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 13px;
-        color: #94a3b8;
-        background: #f8fafc;
-        position: relative;
-        overflow: hidden;
+      .scanner-wrap {
+        position: relative; width: 260px; height: 260px;
+        margin: 0 auto 22px; border-radius: 18px; overflow: hidden;
+        border: 3px solid rgba(255,255,255,0.35);
+        background: rgba(0,0,0,0.3);
       }
 
-      .scanner-line {
-        position: absolute;
-        top: 0;
-        width: 100%;
-        height: 3px;
-        background: #00ff88;
-        box-shadow: 0 0 12px #00ff88;
-        animation: scan 2.2s linear infinite;
+      #video {
+        width: 100%; height: 100%; object-fit: cover;
+        display: none;
       }
 
-      @keyframes scan {
-        0%   { transform: translateY(0); }
-        100% { transform: translateY(220px); }
+      .scanner-placeholder {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 10px; color: rgba(255,255,255,0.5); font-size: 13px;
       }
+      .scanner-placeholder .icon { font-size: 40px; }
+
+      /* scanning line */
+      .scan-line {
+        display: none;
+        position: absolute; left: 0; right: 0; height: 3px;
+        background: #00ff88; box-shadow: 0 0 14px #00ff88;
+        animation: scanMove 1.8s ease-in-out infinite;
+      }
+      @keyframes scanMove {
+        0%   { top: 0; }
+        50%  { top: calc(100% - 3px); }
+        100% { top: 0; }
+      }
+
+      /* corner brackets */
+      .corners { position: absolute; inset: 0; pointer-events: none; display: none; }
+      .corners::before, .corners::after,
+      .corners span::before, .corners span::after {
+        content: ""; position: absolute;
+        width: 22px; height: 22px;
+        border-color: #00ff88; border-style: solid;
+      }
+      .corners::before  { top: 10px;  left: 10px;  border-width: 3px 0 0 3px; }
+      .corners::after   { top: 10px;  right: 10px; border-width: 3px 3px 0 0; }
+      .corners span::before { bottom: 10px; left: 10px;  border-width: 0 0 3px 3px; }
+      .corners span::after  { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; }
+
+      /* phase overlay */
+      .phase-label {
+        display: none;
+        position: absolute; bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.55); padding: 8px;
+        font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+      }
+      .phase-label.qr  { color: #00ff88; }
+      .phase-label.face { color: #7ecfff; }
+      .phase-label.ok  { color: #6ee56e; }
 
       /* ── BUTTON ── */
       .btn {
-        width: 100%;
-        padding: 14px;
-        border: none;
-        border-radius: 12px;
+        width: 100%; padding: 14px; border: none; border-radius: 12px;
         background: linear-gradient(90deg, #06b6d4, #3b82f6);
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
+        color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s;
       }
+      .btn:hover  { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+      .btn:disabled { background: rgba(255,255,255,0.2); cursor: not-allowed; transform: none; }
 
-      .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); }
-      .btn:disabled { background: rgba(255, 255, 255, 0.2); cursor: not-allowed; transform: none; box-shadow: none; }
-
-      /* ── LOADER ── */
-      .loader { display: none; margin: 16px auto 0; }
-
+      /* ── STATUS BAR ── */
+      .status-bar {
+        display: none; margin-top: 16px;
+        background: rgba(0,0,0,0.2); border-radius: 10px;
+        padding: 12px 16px; font-size: 13px;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .spinner {
+        width: 18px; height: 18px; flex-shrink: 0;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #00ff88; border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
       @keyframes spin { to { transform: rotate(360deg); } }
 
-      .spinner {
-        width: 32px;
-        height: 32px;
-        margin: 0 auto;
-        border: 3px solid #dbeafe;
-        border-top-color: #3b82f6;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-
-      .loader-text { font-size: 13px; margin-top: 8px; color: #64748b; }
-
-      /* ── RESULT BOX ── */
+      /* ── RESULT ── */
       .result-box {
-        display: none;
-        margin-top: 22px;
-        background: #f8fafc;
-        border: 1px solid #dbeafe;
-        border-radius: 14px;
-        padding: 20px;
-        text-align: left;
+        display: none; margin-top: 20px;
+        background: rgba(255,255,255,0.1); border-radius: 14px; padding: 20px; text-align: left;
       }
-
-      .result-box h4 { text-align: center; margin-bottom: 14px; font-size: 15px; color: #1e293b; }
+      .result-box h4 { text-align: center; margin-bottom: 14px; font-size: 15px; }
       .result-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
-      .result-row span:first-child { color: #64748b; }
-      .val-green  { color: #16a34a; font-weight: 700; }
-      .val-yellow { color: #d97706; font-weight: 700; }
-      .val-red    { color: #dc2626; font-weight: 700; }
-      .val-blue   { color: #2563eb; font-weight: 700; }
+      .result-row span:first-child { opacity: 0.7; }
+      .val-green  { color: #6ee56e; font-weight: 700; }
+      .val-yellow { color: #ffd166; font-weight: 700; }
+      .val-red    { color: #ff7e7e; font-weight: 700; }
+      .val-blue   { color: #7ecfff; font-weight: 700; }
 
-      /* ── ERROR BOX ── */
+      /* ── ERROR ── */
       .error-box {
-        display: none;
-        margin-top: 18px;
-        background: #fee2e2;
-        border: 1px solid #fca5a5;
-        border-radius: 12px;
-        padding: 14px;
-        font-size: 14px;
-        color: #dc2626;
-        text-align: center;
+        display: none; margin-top: 16px;
+        background: rgba(255,80,80,0.2); border: 1px solid rgba(255,100,100,0.5);
+        border-radius: 12px; padding: 14px;
+        font-size: 14px; color: #ffcccc; text-align: center;
       }
 
       /* ── RULES ── */
       .rules {
-        margin-top: 20px;
-        font-size: 12px;
-        line-height: 2;
-        color: #475569;
-        text-align: left;
-        background: #f1f5f9;
-        border-radius: 10px;
-        padding: 14px 16px;
+        margin-top: 20px; font-size: 12px; line-height: 2; opacity: 0.8; text-align: left;
+        background: rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 16px;
       }
 
-      @media (max-width: 500px) {
-        .container { padding: 28px 18px; }
+      @media (max-width: 480px) {
+        .card { padding: 24px 16px; }
         .topbar { padding: 12px 16px; }
         .topbar .brand span { display: none; }
+        .scanner-wrap { width: 220px; height: 220px; }
       }
     </style>
   </head>
   <body>
 
-    <!-- TOP BAR -->
     <div class="topbar">
       <div class="brand">
-        &#x1F3E2; Employee Attendance System
+        🏢 Employee Attendance System
         <span>QR &bull; Face &bull; Location</span>
       </div>
-      <a href="/admin_login" class="admin-login-btn">
-        &#x1F512; Admin Login
-      </a>
+      <a href="/admin_login" class="admin-btn">🔒 Admin Login</a>
     </div>
 
-    <!-- PAGE BODY -->
     <div class="page-body">
-      <div class="container">
+      <div class="card">
 
         <div class="live-time" id="liveTime"></div>
         <h2>Mark Attendance</h2>
-        <div class="sub">Scan your QR code &amp; verify face to record attendance</div>
+        <div class="sub" id="subText">Click Start to scan your QR code &amp; verify face</div>
 
-        <div class="scanner-box">
-          Camera opens on click
-          <div class="scanner-line"></div>
+        <!-- SCANNER VIEW -->
+        <div class="scanner-wrap" id="scannerWrap">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="canvas" style="display:none;"></canvas>
+
+          <div class="scanner-placeholder" id="placeholder">
+            <div class="icon">📷</div>
+            <div>Camera opens on click</div>
+          </div>
+
+          <div class="scan-line"  id="scanLine"></div>
+          <div class="corners"    id="corners"><span></span></div>
+          <div class="phase-label" id="phaseLabel"></div>
         </div>
 
-        <button class="btn" id="startBtn" onclick="startAttendance()">&#x1F4F7; Start Scanner</button>
+        <button class="btn" id="startBtn" onclick="startFlow()">📷 Start Scanner</button>
 
-        <div class="loader" id="loader">
+        <div class="status-bar" id="statusBar" style="display:none;">
           <div class="spinner"></div>
-          <div class="loader-text" id="loaderMsg">Getting location...</div>
+          <span id="statusMsg">Initialising...</span>
         </div>
 
         <!-- SUCCESS RESULT -->
@@ -257,134 +209,245 @@
           <div class="result-row"><span>Action</span>  <span id="rAction" class="val-green">--</span></div>
           <div class="result-row"><span>Status</span>  <span id="rStatus" class="val-green">--</span></div>
           <div class="result-row" id="attTypeRow" style="display:none;">
-            <span>Attendance Type</span>
-            <span id="rAttType" class="val-green">--</span>
+            <span>Attendance Type</span><span id="rAttType" class="val-green">--</span>
           </div>
         </div>
 
-        <!-- ERROR -->
         <div class="error-box" id="errorBox"></div>
 
-        <!-- RULES -->
         <div class="rules">
-          <div>&#x2705; Login before 9:00 AM &rarr; Full Day Login</div>
-          <div>&#x26A0;&#xFE0F; Login 9:00 AM &ndash; 1:00 PM &rarr; Late Login (10% deduction)</div>
-          <div>&#x26A0;&#xFE0F; Login after 1:00 PM &rarr; Half Day Login (50% deduction)</div>
-          <div>&#x2705; Logout after 6:00 PM &rarr; Completed (Full/Late)</div>
-          <div>&#x26A0;&#xFE0F; Logout 1:00 PM &ndash; 6:00 PM &rarr; Early Logout (Half Day)</div>
-          <div>&#x26A0;&#xFE0F; Logout before 1:00 PM &rarr; Half Day Logout</div>
+          <div>✅ Login before 9:00 AM → Full Day Login</div>
+          <div>⚠️ Login 9:00 AM – 1:00 PM → Late Login (10% deduction)</div>
+          <div>⚠️ Login after 1:00 PM → Half Day Login (50% deduction)</div>
+          <div>✅ Logout after 6:00 PM → Completed</div>
+          <div>⚠️ Logout 1:00 PM – 6:00 PM → Early Logout (Half Day)</div>
+          <div>⚠️ Logout before 1:00 PM → Half Day Logout</div>
         </div>
 
       </div>
     </div>
 
     <script>
-      // Live clock
-      function updateClock() {
-        document.getElementById("liveTime").innerText =
+      /* ── clock ── */
+      function tick() {
+        document.getElementById("liveTime").textContent =
           new Date().toLocaleTimeString("en-IN", { hour12: true });
       }
-      setInterval(updateClock, 1000);
-      updateClock();
+      setInterval(tick, 1000); tick();
 
-      async function startAttendance() {
-        const btn       = document.getElementById("startBtn");
-        const loader    = document.getElementById("loader");
-        const loaderMsg = document.getElementById("loaderMsg");
-        const resultBox = document.getElementById("resultBox");
-        const errorBox  = document.getElementById("errorBox");
+      /* ── UI helpers ── */
+      const $ = id => document.getElementById(id);
+      function setStatus(msg) {
+        $("statusBar").style.display = "flex";
+        $("statusMsg").textContent   = msg;
+      }
+      function showError(msg) {
+        $("errorBox").innerHTML     = "❌ " + msg;
+        $("errorBox").style.display = "block";
+        $("statusBar").style.display = "none";
+      }
+      function resetUI() {
+        $("startBtn").disabled        = false;
+        $("resultBox").style.display  = "none";
+        $("errorBox").style.display   = "none";
+        $("statusBar").style.display  = "none";
+      }
+      function setPhase(phase) {
+        const lbl = $("phaseLabel");
+        lbl.style.display = "block";
+        if (phase === "qr") {
+          lbl.className   = "phase-label qr";
+          lbl.textContent = "📷 Show your QR code to the camera";
+          $("scanLine").style.display  = "block";
+          $("corners").style.display   = "block";
+          $("subText").textContent     = "Hold your QR code up to the camera";
+        } else if (phase === "face") {
+          lbl.className   = "phase-label face";
+          lbl.textContent = "👤 QR detected! Now look at the camera";
+          $("scanLine").style.display  = "none";
+          $("corners").style.display   = "none";
+          $("subText").textContent     = "Hold still — capturing your face…";
+        } else if (phase === "ok") {
+          lbl.className   = "phase-label ok";
+          lbl.textContent = "✅ Face captured! Verifying…";
+        }
+      }
 
-        btn.disabled            = true;
-        resultBox.style.display = "none";
-        errorBox.style.display  = "none";
-        loader.style.display    = "block";
-        loaderMsg.innerText     = "Getting location...";
+      /* ── camera ── */
+      let stream = null;
+      let scanLoop = null;
+
+      async function openCamera(facingMode) {
+        if (stream) { stream.getTracks().forEach(t => t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode }, width: { ideal: 640 }, height: { ideal: 640 } },
+          audio: false,
+        });
+        const vid = $("video");
+        vid.srcObject = stream;
+        vid.style.display = "block";
+        $("placeholder").style.display = "none";
+        return new Promise(res => vid.onloadedmetadata = () => { vid.play(); res(); });
+      }
+
+      function stopCamera() {
+        if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+        if (stream)   { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        $("video").style.display       = "block";
+        $("video").srcObject           = null;
+        $("placeholder").style.display = "none";
+        $("scanLine").style.display    = "none";
+        $("corners").style.display     = "none";
+        $("phaseLabel").style.display  = "none";
+      }
+
+      /* ── capture a frame as base64 JPEG ── */
+      function captureFrame() {
+        const vid = $("video");
+        const c   = $("canvas");
+        c.width   = vid.videoWidth  || 640;
+        c.height  = vid.videoHeight || 640;
+        c.getContext("2d").drawImage(vid, 0, 0);
+        return c.toDataURL("image/jpeg", 0.85).split(",")[1];
+      }
+
+      /* ── QR scan loop ── */
+      function startQRScan() {
+        return new Promise((resolve, reject) => {
+          const vid = $("video");
+          const c   = $("canvas");
+          const deadline = Date.now() + 30000;
+
+          function frame() {
+            if (Date.now() > deadline) {
+              reject(new Error("QR code not detected within 30 seconds. Please try again."));
+              return;
+            }
+            if (vid.readyState >= 2) {
+              c.width  = vid.videoWidth;
+              c.height = vid.videoHeight;
+              const ctx = c.getContext("2d");
+              ctx.drawImage(vid, 0, 0);
+              const img  = ctx.getImageData(0, 0, c.width, c.height);
+              const code = jsQR(img.data, img.width, img.height, {
+                inversionAttempts: "dontInvert",
+              });
+              if (code && code.data.trim()) {
+                resolve(code.data.trim());
+                return;
+              }
+            }
+            scanLoop = requestAnimationFrame(frame);
+          }
+          scanLoop = requestAnimationFrame(frame);
+        });
+      }
+
+      /* ── main flow ── */
+      async function startFlow() {
+        $("startBtn").disabled       = true;
+        $("resultBox").style.display = "none";
+        $("errorBox").style.display  = "none";
 
         try {
+          /* STEP 1 – location */
+          setStatus("Getting your location…");
           const position = await new Promise((res, rej) =>
-            navigator.geolocation.getCurrentPosition(res, rej)
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
           );
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
 
-          loaderMsg.innerText = "Verifying location...";
-          await fetch("/location", {
+          /* STEP 2 – open camera for QR */
+          setStatus("Opening camera…");
+          await openCamera("environment");
+          setPhase("qr");
+          $("statusBar").style.display = "none";
+
+          /* STEP 3 – scan QR in browser */
+          const employeeId = await startQRScan();
+          if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+
+          /* STEP 4 – switch to front camera for face */
+          setPhase("face");
+          setStatus("Switching to face camera…");
+          await openCamera("user");
+          $("statusBar").style.display = "none";
+
+          /* short delay so user can face the camera */
+          await new Promise(r => setTimeout(r, 2000));
+          setPhase("ok");
+          const faceImage = captureFrame();
+
+          /* STEP 5 – stop camera & send to server */
+          stopCamera();
+          setStatus("Verifying identity…");
+
+          const resp = await fetch("/attendance", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({
-              lat: position.coords.latitude,
-              lon: position.coords.longitude,
-            }),
+            body:    JSON.stringify({ employee_id: employeeId, face_image: faceImage, lat, lon }),
           });
+          const result = await resp.json();
 
-          loaderMsg.innerText = "Scanning QR Code... (Show QR to camera)";
-          const resp = await fetch("/attendance");
-          const data = await resp.json();
+          $("statusBar").style.display = "none";
+          $("startBtn").disabled       = false;
 
-          loader.style.display = "none";
-          btn.disabled         = false;
-
-          if (!data.ok) {
-            errorBox.innerText     = "&#x274C; " + data.msg;
-            errorBox.style.display = "block";
+          if (!result.ok) {
+            showError(result.msg);
             return;
           }
 
-          document.getElementById("rName").innerText = data.name;
-          document.getElementById("rTime").innerText = data.time;
+          /* STEP 6 – show result */
+          $("rName").textContent = result.name;
+          $("rTime").textContent = result.time;
 
-          if (data.type === "login") {
-            document.getElementById("resultTitle").innerText = "Login Recorded ✅";
-            document.getElementById("rAction").innerText     = "Login";
-            document.getElementById("rAction").className     = "val-green";
-            document.getElementById("attTypeRow").style.display = "none";
+          const statusMap = {
+            "Full Day Login":  { label: "Full Day Login ✅",  cls: "val-green"  },
+            "Late Login":      { label: "Late Login ⚠️",      cls: "val-yellow" },
+            "Half Day Login":  { label: "Half Day Login ⚠️",  cls: "val-red"    },
+            "Completed":       { label: "Completed ✅",        cls: "val-green"  },
+            "Early Logout":    { label: "Early Logout ⚠️",    cls: "val-yellow" },
+            "Half Day Logout": { label: "Half Day Logout ⚠️", cls: "val-red"    },
+          };
+          const typeMap = {
+            "Full Day":        { label: "Full Day ✅",        cls: "val-green"  },
+            "Late - Full Day": { label: "Late – Full Day ⚠️", cls: "val-yellow" },
+            "Half Day":        { label: "Half Day ⚠️",        cls: "val-red"    },
+          };
 
-            const statusMap = {
-              "Full Day Login": { label: "Full Day Login ✅", cls: "val-green" },
-              "Late Login":     { label: "Late Login ⚠️",    cls: "val-yellow" },
-              "Half Day Login": { label: "Half Day Login ⚠️", cls: "val-red" },
-            };
-            const s  = statusMap[data.status] || { label: data.status, cls: "val-blue" };
-            const el = document.getElementById("rStatus");
-            el.innerText  = s.label;
-            el.className  = s.cls;
-
-          } else if (data.type === "logout") {
-            document.getElementById("resultTitle").innerText = "Logout Recorded ✅";
-            document.getElementById("rAction").innerText     = "Logout";
-            document.getElementById("rAction").className     = "val-blue";
-
-            const statusMap = {
-              "Completed":       { label: "Completed ✅",       cls: "val-green"  },
-              "Early Logout":    { label: "Early Logout ⚠️",    cls: "val-yellow" },
-              "Half Day Logout": { label: "Half Day Logout ⚠️", cls: "val-red"    },
-            };
-            const s  = statusMap[data.status] || { label: data.status, cls: "val-blue" };
-            const el = document.getElementById("rStatus");
-            el.innerText = s.label;
-            el.className = s.cls;
-
-            const typeMap = {
-              "Full Day":        { label: "Full Day ✅",         cls: "val-green"  },
-              "Late - Full Day": { label: "Late – Full Day ⚠️",  cls: "val-yellow" },
-              "Half Day":        { label: "Half Day ⚠️",         cls: "val-red"    },
-            };
-            const t  = typeMap[data.att_type] || { label: data.att_type, cls: "val-blue" };
-            const ta = document.getElementById("rAttType");
-            ta.innerText = t.label;
-            ta.className = t.cls;
-            document.getElementById("attTypeRow").style.display = "flex";
+          if (result.type === "login") {
+            $("resultTitle").textContent       = "Login Recorded ✅";
+            $("rAction").textContent           = "Login";
+            $("rAction").className             = "val-green";
+            $("attTypeRow").style.display      = "none";
+            const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
+            $("rStatus").textContent = s.label;
+            $("rStatus").className   = s.cls;
+          } else {
+            $("resultTitle").textContent       = "Logout Recorded ✅";
+            $("rAction").textContent           = "Logout";
+            $("rAction").className             = "val-blue";
+            const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
+            $("rStatus").textContent = s.label;
+            $("rStatus").className   = s.cls;
+            const t = typeMap[result.att_type] || { label: result.att_type, cls: "val-blue" };
+            $("rAttType").textContent          = t.label;
+            $("rAttType").className            = t.cls;
+            $("attTypeRow").style.display      = "flex";
           }
-
-          resultBox.style.display = "block";
+          $("resultBox").style.display = "block";
+          $("subText").textContent     = "Click Start to scan your QR code & verify face";
 
         } catch (err) {
-          loader.style.display = "none";
-          btn.disabled         = false;
+          stopCamera();
+          $("startBtn").disabled = false;
+          $("statusBar").style.display = "none";
           if (err.code === 1) {
-            errorBox.innerText = "❌ Location access denied. Please allow location and try again.";
+            showError("Location access denied. Please allow location in your browser settings.");
           } else {
-            errorBox.innerText = "❌ Error: " + (err.message || "Attendance system error.");
+            showError(err.message || "Something went wrong. Please try again.");
           }
-          errorBox.style.display = "block";
         }
       }
     </script>
