@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,149 +6,192 @@
     <title>My Portal — {{ emp[1] }}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      html { scroll-behavior: smooth; }
-      body { background: #eff6ff; height: 100vh; overflow: hidden; display: flex; }
+      html, body { height: 100%; }
+      body { background: #eff6ff; display: flex; flex-direction: column; min-height: 100dvh; }
 
-      /* SIDEBAR */
-      .sidebar {
-        width: 230px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: #1e3a8a;
-        padding: 25px 18px; color: white;
-        display: flex; flex-direction: column;
+      /* ── APP HEADER ── */
+      .app-header {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+        height: 60px; background: #1e3a8a;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.25);
       }
-      .nav-spacer { flex: 1; }
-      .brand { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-      .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
-      .nav-emp { font-size: 13px; color: rgba(255,255,255,0.7); padding: 6px 14px; margin-bottom: 16px; }
-      .sidebar-profile {
-        display: flex; align-items: center; gap: 11px;
-        padding: 10px 14px; margin-bottom: 16px;
-        background: rgba(255,255,255,0.1); border-radius: 12px;
-      }
-      .sidebar-avatar {
-        width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+      .app-header-left { display: flex; flex-direction: column; }
+      .app-title { font-size: 16px; font-weight: 700; color: white; line-height: 1.2; }
+      .app-clock { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 1px; }
+      .hdr-avatar {
+        width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
         background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+        border: 2.5px solid rgba(255,255,255,0.4);
+        overflow: hidden; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
-        font-size: 16px; font-weight: 700; color: white;
-        overflow: hidden; border: 2px solid rgba(255,255,255,0.3);
+        font-size: 15px; font-weight: 700; color: white;
+        -webkit-tap-highlight-color: transparent;
       }
-      .sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
-      .sidebar-emp-name { font-size: 13px; font-weight: 600; color: white; word-break: break-word; }
-      .sidebar-emp-role { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px; }
-      .nav-item {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px 14px; margin: 3px 0;
-        color: white; text-decoration: none;
-        border-radius: 10px; font-size: 14px; transition: 0.2s;
+      .hdr-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+      /* ── PROFILE SHEET ── */
+      .sheet-overlay {
+        display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.4); z-index: 300;
       }
-      .nav-item:hover { background: rgba(255,255,255,0.15); }
-      .nav-item.active { background: rgba(255,255,255,0.2); font-weight: 600; }
-      .nav-resign { color: #fca5a5 !important; }
-      .nav-resign:hover { background: rgba(239,68,68,0.2) !important; }
-      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 10px 0; }
+      .sheet-overlay.open { display: block; }
+      .profile-sheet {
+        position: fixed; top: 60px; left: 0; right: 0; z-index: 400;
+        background: white; border-radius: 0 0 22px 22px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        transform: translateY(-110%);
+        transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+        overflow: hidden; max-height: calc(100dvh - 70px); overflow-y: auto;
+      }
+      .profile-sheet.open { transform: translateY(0); }
+      .ps-header {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        padding: 20px 18px; display: flex; align-items: center; gap: 14px;
+      }
+      .ps-big-avatar {
+        width: 66px; height: 66px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.4);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 700; color: white;
+      }
+      .ps-big-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .ps-emp-name  { font-size: 17px; font-weight: 700; color: white; }
+      .ps-emp-role  { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 3px; }
+      .ps-emp-meta  { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+      .ps-nav { padding: 6px 0 12px; }
+      .ps-nav-item {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 18px; font-size: 15px; color: #1e293b;
+        cursor: pointer; text-decoration: none; transition: background 0.15s;
+        border: none; background: none; width: 100%; text-align: left; font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .ps-nav-item + .ps-nav-item { border-top: 1px solid #f1f5f9; }
+      .ps-nav-item:hover, .ps-nav-item:focus { background: #f0f7ff; outline: none; }
+      .ps-nav-item .pni-icon  { font-size: 20px; width: 28px; text-align: center; }
+      .ps-nav-item .pni-label { font-weight: 500; }
+      .ps-nav-item.danger { color: #dc2626; }
+      .ps-nav-item.active-sheet { color: #1d4ed8; background: #eff6ff; font-weight: 600; }
 
-      /* MAIN */
-      .main { flex: 1; padding: 28px; color: #1e293b; height: 100vh; overflow-y: auto; }
-      .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
-      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+      /* ── MAIN CONTENT ── */
+      .app-content {
+        padding: 72px 16px 82px;
+        flex: 1; overflow-y: auto;
+      }
 
-      /* TOAST */
+      /* ── BOTTOM NAV ── */
+      .bottom-nav {
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+        height: 62px; background: white; border-top: 1px solid #e2e8f0;
+        display: flex; align-items: stretch;
+        box-shadow: 0 -3px 16px rgba(0,0,0,0.07);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .bn-item {
+        flex: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 3px;
+        border: none; background: none; cursor: pointer;
+        color: #94a3b8; transition: color 0.18s;
+        font-family: inherit; -webkit-tap-highlight-color: transparent;
+        padding: 6px 2px;
+      }
+      .bn-item.active { color: #1e3a8a; }
+      .bn-icon  { font-size: 21px; line-height: 1; }
+      .bn-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
+
+      /* ── TOAST ── */
       .toast {
-        border-radius: 10px; padding: 12px 18px;
-        font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+        border-radius: 10px; padding: 11px 15px;
+        font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 9px;
       }
       .toast-green { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
       .toast-red   { background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; }
+      .toast-blue  { background: #ede9fe; border: 1px solid #c4b5fd; color: #4c1d95; }
 
-      /* CARDS ROW */
-      .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
-      .card {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 16px; padding: 22px;
+      /* ── VIEW SWITCHER ── */
+      .view { display: none; }
+      .view.active { display: block; }
+      .mod-title {
+        font-size: 18px; font-weight: 700; color: #1e293b;
+        margin-bottom: 16px; padding-bottom: 12px;
+        border-bottom: 2px solid #dbeafe;
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
       }
-      .card-title { font-size: 13px; color: #64748b; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+      .mod-title span { font-size: 12px; font-weight: 400; color: #64748b; }
 
-      /* PROFILE */
+      /* ── CARDS ROW ── */
+      .cards-row { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
+      @media (min-width: 580px) { .cards-row { grid-template-columns: 1fr 1fr; } }
+      .card { background: white; border: 1px solid #dbeafe; border-radius: 16px; padding: 16px; }
+      .card-title { font-size: 12px; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+      /* ── PROFILE CARD ── */
       .profile-avatar {
-        width: 80px; height: 80px; border-radius: 50%;
+        width: 68px; height: 68px; border-radius: 50%;
         background: linear-gradient(135deg, #1e3a8a, #3b82f6);
         display: flex; align-items: center; justify-content: center;
-        font-size: 28px; font-weight: 700; margin-bottom: 12px; color: white;
-        overflow: hidden; border: 3px solid #dbeafe; flex-shrink: 0;
+        font-size: 24px; font-weight: 700; margin-bottom: 10px; color: white;
+        overflow: hidden; border: 3px solid #dbeafe;
       }
       .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-      .profile-name { font-size: 17px; font-weight: 700; color: #1e293b; }
+      .profile-name { font-size: 15px; font-weight: 700; color: #1e293b; }
       .profile-sub  { font-size: 12px; color: #64748b; margin-top: 2px; }
-      .profile-rows { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+      .profile-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
       .profile-row  { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1e293b; }
-      .profile-row .lbl { color: #94a3b8; width: 52px; flex-shrink: 0; font-size: 12px; }
-      .badge-role {
-        display: inline-block; padding: 2px 9px; border-radius: 20px;
-        font-size: 12px; font-weight: 600;
-        background: #dbeafe; color: #1d4ed8;
-        border: 1px solid #93c5fd;
-      }
+      .profile-row .lbl { color: #94a3b8; width: 46px; flex-shrink: 0; font-size: 11px; }
+      .badge-role { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
 
-      /* TODAY CARD */
-      .att-status {
-        font-size: 15px; font-weight: 700; padding: 6px 14px;
-        border-radius: 20px; display: inline-block; margin-bottom: 14px;
-      }
+      /* ── TODAY CARD ── */
+      .att-status { font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 20px; display: inline-block; margin-bottom: 10px; }
       .s-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       .s-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
       .s-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
       .s-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
       .s-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+      .time-row { display: flex; gap: 12px; flex-wrap: wrap; }
+      .time-item { display: flex; flex-direction: column; gap: 2px; }
+      .time-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
+      .time-val { font-weight: 600; font-size: 13px; color: #1e293b; }
 
-      .time-row { display: flex; gap: 16px; flex-wrap: wrap; }
-      .time-item { display: flex; flex-direction: column; gap: 3px; }
-      .time-lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
-      .time-val { font-weight: 600; font-size: 15px; color: #1e293b; }
-
-      /* STATS */
-      .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 20px; }
-      .stat-card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 16px; text-align: center; }
-      .stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; }
-      .stat-card .lbl { font-size: 11px; color: #64748b; margin-top: 5px; }
+      /* ── STATS ── */
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+      @media (min-width: 580px) { .stats { grid-template-columns: repeat(6, 1fr); } }
+      .stat-card { background: white; border: 1px solid #dbeafe; border-radius: 12px; padding: 12px 6px; text-align: center; }
+      .stat-card .num { font-size: 22px; font-weight: 700; line-height: 1; }
+      .stat-card .lbl { font-size: 10px; color: #64748b; margin-top: 4px; }
       .stat-green  .num { color: #16a34a; }
       .stat-yellow .num { color: #d97706; }
       .stat-red    .num { color: #dc2626; }
       .stat-blue   .num { color: #2563eb; }
 
-      /* CALENDAR */
-      .cal-filter { background: #ffffff; border: 1px solid #dbeafe; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-      .cal-filter label { font-size: 13px; color: #64748b; }
-      .cal-filter select { padding: 7px 10px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; }
-      .cal-filter .btn-view { padding: 8px 18px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
-      .cal-filter .btn-pdf  { padding: 8px 18px; border: none; border-radius: 8px; background: #16a34a; color: white; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
-
-      .calendar { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px 22px; margin-bottom: 22px; }
-      .cal-header { display: grid; grid-template-columns: repeat(7, 52px); gap: 6px; justify-content: center; text-align: center; margin-bottom: 6px; }
-      .cal-header span { font-size: 12px; font-weight: 700; color: #94a3b8; padding: 4px 0; text-transform: uppercase; letter-spacing: 0.3px; }
-      .cal-grid  { display: grid; grid-template-columns: repeat(7, 52px); gap: 6px; justify-content: center; }
+      /* ── CALENDAR ── */
+      .cal-filter {
+        background: white; border: 1px solid #dbeafe; border-radius: 12px;
+        padding: 12px 14px; display: flex; align-items: center; gap: 8px;
+        flex-wrap: wrap; margin-bottom: 12px;
+      }
+      .cal-filter label { font-size: 12px; color: #64748b; }
+      .cal-filter select { padding: 6px 8px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; }
+      .btn-view { padding: 7px 14px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 12px; font-weight: 600; cursor: pointer; }
+      .btn-pdf  { padding: 7px 14px; border: none; border-radius: 8px; background: #16a34a; color: white; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+      .calendar { background: white; border: 1px solid #dbeafe; border-radius: 14px; padding: 14px; margin-bottom: 16px; }
+      .cal-month-label { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
+      .cal-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; margin-bottom: 4px; }
+      .cal-header span { font-size: 10px; font-weight: 700; color: #94a3b8; padding: 3px 0; text-transform: uppercase; }
+      .cal-grid   { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
       .cal-day {
-        width: 52px; height: 52px; border-radius: 10px;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        font-size: 15px; font-weight: 600; cursor: default;
-        position: relative; transition: transform 0.12s, box-shadow 0.12s;
+        aspect-ratio: 1; border-radius: 7px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 700; position: relative;
+        transition: transform 0.12s; min-height: 32px;
       }
-      .cal-day:not(.cal-empty):not(.cal-future):not(.cal-weekend):hover {
-        transform: scale(1.15); box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 2;
-      }
-      .cal-day .day-num { font-size: 15px; font-weight: 700; line-height: 1; }
-      /* tooltip */
+      .cal-day:not(.cal-empty):not(.cal-future):not(.cal-weekend):hover { transform: scale(1.12); z-index: 2; }
+      .cal-day .day-num { font-size: 12px; font-weight: 700; }
       .cal-day[data-tip]:hover::after {
-        content: attr(data-tip);
-        position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-        background: #1e293b; color: white; font-size: 11px; font-weight: 500;
-        padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      }
-      .cal-day[data-tip]:hover::before {
-        content: ""; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
-        border: 5px solid transparent; border-top-color: #1e293b; pointer-events: none;
+        content: attr(data-tip); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+        background: #1e293b; color: white; font-size: 10px; padding: 3px 6px; border-radius: 5px; white-space: nowrap; pointer-events: none; z-index: 10;
       }
       .cal-empty  { background: transparent; }
       .cal-full   { background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
@@ -159,185 +202,160 @@
       .cal-weekend{ background: #f8fafc; color: #cbd5e1; border: 1.5px solid #e2e8f0; }
       .cal-future { background: #f8fafc; color: #e2e8f0; border: 1.5px solid #f1f5f9; }
       .cal-today  { box-shadow: 0 0 0 2px #3b82f6 !important; }
-      .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: #64748b; }
-      .leg-item   { display: flex; align-items: center; gap: 5px; }
-      .leg-dot    { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+      .cal-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: #64748b; }
+      .leg-item   { display: flex; align-items: center; gap: 4px; }
+      .leg-dot    { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
-      /* SECTION */
-      .section { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
-      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
+      /* ── SECTION ── */
+      .section { background: white; border: 1px solid #dbeafe; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+      .section h3 { font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; color: #1e293b; }
 
-      /* TABLE */
-      .table-wrap { overflow-x: auto; border-radius: 10px; }
-      table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
-      td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
+      /* ── TABLE ── */
+      .table-wrap { overflow-x: auto; border-radius: 8px; -webkit-overflow-scrolling: touch; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 9px 10px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
       tr:last-child td { border-bottom: none; }
       tr:hover td { background: #eff6ff; }
-      .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
+      .empty-cell { text-align: center; padding: 24px; color: #94a3b8; }
 
-      /* BADGES */
-      .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+      /* ── BADGES ── */
+      .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: 600; }
       .b-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       .b-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
       .b-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
       .b-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
       .b-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
       .b-purple { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
-
-      /* LEAVE FORM */
-      .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-      .form-group label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
-      .form-group input[type="date"] {
-        padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
-        max-width: 220px; transition: 0.2s;
-      }
-      .form-group input[type="date"]:focus { border-color: #93c5fd; background: #fff; }
-
-      .reasons-label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
-      .reason-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-      .reason-chip {
-        padding: 8px 16px; border-radius: 25px; cursor: pointer;
-        border: 1px solid #dbeafe;
-        background: #ffffff; color: #475569;
-        font-size: 13px; transition: 0.2s; user-select: none;
-      }
-      .reason-chip:hover { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
-      .reason-chip.active {
-        background: #1e3a8a; color: white;
-        border-color: #1e3a8a; font-weight: 600;
-      }
-      .other-group { display: none; margin-bottom: 14px; }
-      .other-group textarea {
-        width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px;
-        outline: none; resize: vertical; min-height: 80px; transition: 0.2s;
-      }
-      .other-group textarea::placeholder { color: #94a3b8; }
-      .other-group textarea:focus { border-color: #93c5fd; background: #fff; }
-
-      .btn-leave {
-        padding: 11px 28px; border: none; border-radius: 10px;
-        background: #22c55e;
-        color: white; font-size: 14px; font-weight: 700;
-        cursor: pointer; transition: 0.2s;
-      }
-      .btn-leave:hover { background: #16a34a; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(34,197,94,0.25); }
-
-      /* RESIGN */
-      .resign-warning {
-        background: #fff7ed; border: 1px solid #fdba74;
-        border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
-        color: #c2410c; font-size: 13px; line-height: 1.6;
-      }
-      .resign-warning strong { color: #9a3412; }
-      .btn-resign {
-        padding: 11px 28px; border: none; border-radius: 10px;
-        background: #ef4444;
-        color: white; font-size: 14px; font-weight: 700;
-        cursor: pointer; transition: 0.2s;
-      }
-      .btn-resign:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(239,68,68,0.25); }
-      .lwd-hint { color: #94a3b8; font-weight: 400; }
-      .confirm-group { margin-top: 6px; }
-      .confirm-label { display: flex; align-items: center; gap: 8px; text-transform: none; font-size: 13px; color: #475569; cursor: pointer; }
-      .confirm-check { width: 16px; height: 16px; accent-color: #ef4444; flex-shrink: 0; }
-      .resign-new-title { margin-bottom: 14px; margin-top: 20px; }
-
-      /* TICKETS */
-      .ticket-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-      .ticket-input, .ticket-select, .ticket-textarea {
-        width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px;
-        outline: none; transition: 0.2s;
-      }
-      .ticket-input:focus, .ticket-select:focus, .ticket-textarea:focus { border-color: #93c5fd; background: #fff; }
-      .ticket-input::placeholder, .ticket-textarea::placeholder { color: #94a3b8; }
-      .ticket-textarea { resize: vertical; min-height: 80px; }
-      .ticket-full { grid-column: 1 / -1; }
-      .btn-ticket {
-        padding: 11px 28px; border: none; border-radius: 10px;
-        background: #6366f1;
-        color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s;
-      }
-      .btn-ticket:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,0.25); }
-      .ticket-row { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
-      .ticket-row-header { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-      .ticket-subject { font-size: 14px; font-weight: 600; flex: 1; color: #1e293b; }
-      .ticket-meta { font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
-      .ticket-response { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #4c1d95; margin-top: 8px; }
-      .ticket-response strong { display: block; font-size: 11px; color: #6d28d9; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
       .b-indigo { background: #ede9fe; color: #4c1d95; border: 1px solid #c4b5fd; }
       .b-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
-      .nav-ticket { color: #93c5fd !important; }
-      .nav-ticket:hover { background: rgba(99,102,241,0.2) !important; }
-      .toast-blue { background: #ede9fe; border: 1px solid #c4b5fd; color: #4c1d95; }
-      .ticket-raise-form { margin-bottom: 28px; }
-      .ticket-field { margin-bottom: 0; }
-      .ticket-history-label { font-size: 14px; color: #64748b; margin-bottom: 12px; }
-      .ticket-empty { color: #94a3b8; font-size: 13px; padding: 16px 0; }
-      /* shared utility classes */
-      .dim-val   { color: #94a3b8; }
-      .att-date  { font-size: 11px; color: #94a3b8; }
-      .no-att    { color: #94a3b8; font-size: 14px; padding: 10px 0; }
-      .billable-note { font-weight: 400; color: #94a3b8; font-size: 13px; }
-      .td-date   { color: #94a3b8; font-size: 12px; }
-      .resign-status-card {
-        background: #fff7ed; border: 1px solid #fdba74;
-        border-radius: 14px; padding: 20px;
-      }
-      .rs-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; color: #1e293b; }
-      .rs-lbl { color: #94a3b8; min-width: 140px; flex-shrink: 0; font-size: 13px; }
-
-      /* LEAVE STATUS BADGES */
       .ls-pending  { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
       .ls-approved { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       .ls-rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
-      /* PAY SLIPS GRID */
-      .payslip-hint { font-size: 13px; color: #64748b; margin-bottom: 18px; }
-      .payslip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+      /* ── LEAVE FORM ── */
+      .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+      .form-group label { font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+      .form-group input[type="date"],
+      .form-group input[type="password"] {
+        padding: 10px 12px; border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
+        width: 100%; transition: 0.2s;
+      }
+      .form-group input:focus { border-color: #93c5fd; background: #fff; }
+      .reasons-label { font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
+      .reason-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .reason-chip {
+        padding: 7px 13px; border-radius: 25px; cursor: pointer;
+        border: 1px solid #dbeafe; background: white; color: #475569;
+        font-size: 13px; transition: 0.18s; user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .reason-chip:hover { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+      .reason-chip.active { background: #1e3a8a; color: white; border-color: #1e3a8a; font-weight: 600; }
+      .other-group { display: none; margin-bottom: 14px; }
+      .other-group textarea {
+        width: 100%; padding: 10px 12px; border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 14px;
+        outline: none; resize: vertical; min-height: 80px; transition: 0.2s;
+      }
+      .other-group textarea:focus { border-color: #93c5fd; background: #fff; }
+      .btn-leave {
+        padding: 12px 24px; border: none; border-radius: 10px; background: #22c55e;
+        color: white; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+      }
+
+      /* ── RESIGN ── */
+      .resign-warning {
+        background: #fff7ed; border: 1px solid #fdba74;
+        border-radius: 12px; padding: 13px 15px; margin-bottom: 16px;
+        color: #c2410c; font-size: 13px; line-height: 1.6;
+      }
+      .resign-warning strong { color: #9a3412; }
+      .btn-resign {
+        padding: 12px 24px; border: none; border-radius: 10px; background: #ef4444;
+        color: white; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+      }
+      .lwd-hint { color: #94a3b8; font-weight: 400; font-size: 11px; }
+      .confirm-group { margin-top: 6px; }
+      .confirm-label { display: flex; align-items: center; gap: 8px; text-transform: none; font-size: 13px; color: #475569; cursor: pointer; }
+      .confirm-check { width: 16px; height: 16px; accent-color: #ef4444; flex-shrink: 0; }
+      .resign-new-title { margin-bottom: 14px; margin-top: 18px; }
+      .resign-status-card { background: #fff7ed; border: 1px solid #fdba74; border-radius: 14px; padding: 16px; }
+      .rs-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 13px; color: #1e293b; }
+      .rs-lbl { color: #94a3b8; min-width: 120px; flex-shrink: 0; font-size: 12px; }
+
+      /* ── TICKETS ── */
+      .ticket-form-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+      @media (min-width: 480px) { .ticket-form-grid { grid-template-columns: 1fr 1fr; } }
+      .ticket-input, .ticket-select, .ticket-textarea {
+        width: 100%; padding: 10px 12px; border: 1px solid #dbeafe; border-radius: 9px;
+        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s;
+      }
+      .ticket-input:focus, .ticket-select:focus, .ticket-textarea:focus { border-color: #93c5fd; background: #fff; }
+      .ticket-textarea { resize: vertical; min-height: 80px; }
+      .ticket-full { grid-column: 1 / -1; }
+      .btn-ticket {
+        padding: 12px 24px; border: none; border-radius: 10px; background: #6366f1;
+        color: white; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+      }
+      .ticket-row { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 13px; margin-bottom: 10px; }
+      .ticket-row-header { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
+      .ticket-subject { font-size: 14px; font-weight: 600; flex: 1; color: #1e293b; min-width: 100px; }
+      .ticket-meta { font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+      .ticket-response { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px; padding: 9px 11px; font-size: 13px; color: #4c1d95; margin-top: 8px; }
+      .ticket-response strong { display: block; font-size: 10px; color: #6d28d9; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+      .ticket-raise-form { margin-bottom: 22px; }
+      .ticket-field { margin-bottom: 0; }
+      .ticket-history-label { font-size: 14px; color: #64748b; margin-bottom: 10px; margin-top: 18px; }
+      .ticket-empty { color: #94a3b8; font-size: 13px; padding: 12px 0; }
+
+      /* ── PAY SLIPS ── */
+      .payslip-hint { font-size: 13px; color: #64748b; margin-bottom: 14px; }
+      .payslip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
       .payslip-card {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 18px 10px; background: #f8fafc; border: 1px solid #dbeafe;
-        border-radius: 12px; text-decoration: none; color: #1e293b;
-        transition: background 0.2s, border-color 0.2s; gap: 6px;
+        padding: 16px 8px; background: #f8fafc; border: 1px solid #dbeafe;
+        border-radius: 12px; text-decoration: none; color: #1e293b; gap: 5px; transition: 0.18s;
       }
       .payslip-card:hover { background: #dbeafe; border-color: #93c5fd; }
-      .payslip-card .ps-icon { font-size: 22px; }
-      .payslip-card .ps-month { font-size: 13px; font-weight: 700; color: #1e3a8a; }
-      .payslip-card .ps-cta { font-size: 11px; color: #94a3b8; }
+      .ps-icon  { font-size: 20px; }
+      .ps-month { font-size: 12px; font-weight: 700; color: #1e3a8a; }
+      .ps-cta   { font-size: 11px; color: #94a3b8; }
 
-      @media (max-width: 900px) {
-        .cards-row { grid-template-columns: 1fr; }
-        .stats { grid-template-columns: repeat(2, 1fr); }
-      }
-      /* MODULE VIEWS */
-      .view { display: none; }
-      .view.active { display: block; }
-      .mod-title {
-        font-size: 20px; font-weight: 700; color: #1e293b;
-        margin-bottom: 20px; padding-bottom: 14px;
-        border-bottom: 2px solid #dbeafe;
-        display: flex; align-items: center; gap: 10px;
-      }
-      .mod-title span { font-size: 13px; font-weight: 400; color: #64748b; margin-left: 4px; }
-
-      @media (max-width: 768px) {
-        body { flex-direction: column; height: auto; overflow: visible; }
-        .sidebar { width: 100%; height: auto; min-height: unset; position: relative; }
-        .main { height: auto; overflow-y: visible; }
-      }
+      /* ── MISC ── */
+      .dim-val   { color: #94a3b8; }
+      .att-date  { font-size: 11px; color: #94a3b8; }
+      .no-att    { color: #94a3b8; font-size: 13px; padding: 8px 0; }
+      .billable-note { font-weight: 400; color: #94a3b8; font-size: 11px; }
+      .page-header { margin-bottom: 14px; }
+      .page-header h1 { font-size: 20px; color: #1e293b; font-weight: 700; }
+      .page-header p  { font-size: 12px; color: #64748b; margin-top: 3px; }
     </style>
   </head>
   <body>
 
-    <div class="sidebar">
-      <div class="brand">👤 My Portal</div>
-      <div class="brand-sub">Employee Self-Service</div>
-      <div class="sidebar-profile">
-        <div class="sidebar-avatar">
+    <!-- ══ APP HEADER ══ -->
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="app-title">👤 My Portal</div>
+        <div class="app-clock" id="clock"></div>
+      </div>
+      <div class="hdr-avatar" onclick="toggleSheet()">
+        {% if emp[4] %}
+          <img src="/my_photo" alt="{{ emp[1] }}"
+               onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+        {% else %}
+          {{ emp[1][0] | upper }}
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- ══ PROFILE SHEET ══ -->
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+    <div class="profile-sheet" id="profileSheet">
+      <div class="ps-header">
+        <div class="ps-big-avatar">
           {% if emp[4] %}
             <img src="/my_photo" alt="{{ emp[1] }}"
                  onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
@@ -346,164 +364,165 @@
           {% endif %}
         </div>
         <div>
-          <div class="sidebar-emp-name">{{ emp[1] }}</div>
-          <div class="sidebar-emp-role">{{ emp[2] or 'Employee' }}</div>
+          <div class="ps-emp-name">{{ emp[1] }}</div>
+          <div class="ps-emp-role">{{ emp[2] or 'Employee' }}</div>
+          <div class="ps-emp-meta">ID: {{ emp[0] }}</div>
+          {% if emp[3] %}<div class="ps-emp-meta">{{ emp[3] }}</div>{% endif %}
         </div>
       </div>
-      <a class="nav-item active" id="nav-dashboard"      href="#" onclick="showView('dashboard');return false;">🏠 Dashboard</a>
-      <a class="nav-item"        id="nav-attendance"    href="#" onclick="showView('attendance');return false;">📋 My Attendance</a>
-      <a class="nav-item"        id="nav-apply-leave"   href="#" onclick="showView('apply-leave');return false;">📝 Apply Leave</a>
-      <a class="nav-item"        id="nav-leave-history" href="#" onclick="showView('leave-history');return false;">📬 Leave History</a>
-      <a class="nav-item"        id="nav-payslips"      href="#" onclick="showView('payslips');return false;">💳 Pay Slips</a>
-      <a class="nav-item nav-ticket" id="nav-tickets"   href="#" onclick="showView('tickets');return false;">🎫 Tickets</a>
-      <a class="nav-item nav-resign" id="nav-resign"    href="#" onclick="showView('resign');return false;">🚨 Resign</a>
-      <a class="nav-item"        id="nav-change-password" href="#" onclick="showView('change-password');return false;">🔒 Change Password</a>
-      <div class="nav-spacer"></div>
-      <hr class="nav-sep" />
-      <a class="nav-item" href="/employee_logout">🚪 Logout</a>
+      <div class="ps-nav">
+        <button type="button" class="ps-nav-item" id="psn-leave-history"
+                onclick="showView('leave-history')">
+          <span class="pni-icon">📬</span><span class="pni-label">Leave History</span>
+        </button>
+        <button type="button" class="ps-nav-item" id="psn-tickets"
+                onclick="showView('tickets')">
+          <span class="pni-icon">🎫</span><span class="pni-label">Support Tickets</span>
+        </button>
+        <button type="button" class="ps-nav-item" id="psn-resign"
+                onclick="showView('resign')">
+          <span class="pni-icon">🚨</span><span class="pni-label">Resign</span>
+        </button>
+        <button type="button" class="ps-nav-item" id="psn-change-password"
+                onclick="showView('change-password')">
+          <span class="pni-icon">🔒</span><span class="pni-label">Change Password</span>
+        </button>
+        <a class="ps-nav-item danger" href="/employee_logout">
+          <span class="pni-icon">🚪</span><span class="pni-label">Logout</span>
+        </a>
+      </div>
     </div>
 
-    <div class="main">
+    <!-- ══ APP CONTENT ══ -->
+    <div class="app-content" id="appContent">
 
       {% if leave_sent %}
-      <div class="toast toast-green">✅ Leave request submitted! Admin has been notified by email.</div>
+      <div class="toast toast-green">✅ Leave request submitted! Admin has been notified.</div>
       {% endif %}
       {% if resigned %}
-      <div class="toast toast-red">📤 Resignation submitted. Admin has been notified by email.</div>
+      <div class="toast toast-red">📤 Resignation submitted. Admin has been notified.</div>
       {% endif %}
       {% if ticket_sent %}
-      <div class="toast toast-blue">🎫 Ticket raised successfully! Admin will respond shortly.</div>
+      <div class="toast toast-blue">🎫 Ticket raised! Admin will respond shortly.</div>
       {% endif %}
 
-      <!-- ═══ VIEW: DASHBOARD ═══ -->
+      <!-- ══ VIEW: DASHBOARD ══ -->
       <div id="view-dashboard" class="view">
-      <div class="page-header">
-        <h1>Welcome, {{ emp[1] }}! 👋</h1>
-        <p>{{ today }} &nbsp;|&nbsp; <span id="clock"></span></p>
-      </div>
+        <div class="page-header">
+          <h1>Welcome, {{ emp[1] }}! 👋</h1>
+          <p>{{ today }}</p>
+        </div>
 
-      <!-- PROFILE + TODAY ROW -->
-      <div class="cards-row">
+        <div class="cards-row">
+          <div class="card">
+            <div class="card-title">👤 My Profile</div>
+            <div class="profile-avatar">
+              {% if emp[4] %}
+                <img src="/my_photo" alt="{{ emp[1] }}"
+                     onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+              {% else %}
+                {{ emp[1][0] | upper }}
+              {% endif %}
+            </div>
+            <div class="profile-name">{{ emp[1] }}</div>
+            <div class="profile-sub">ID: {{ emp[0] }}</div>
+            <div class="profile-rows">
+              <div class="profile-row">
+                <span class="lbl">Role</span>
+                {% if emp[2] %}<span class="badge-role">{{ emp[2] }}</span>
+                {% else %}<span class="dim-val">—</span>{% endif %}
+              </div>
+              <div class="profile-row">
+                <span class="lbl">Email</span>
+                <span style="font-size:12px;">{{ emp[3] or '—' }}</span>
+              </div>
+            </div>
+          </div>
 
-        <!-- PROFILE CARD -->
-        <div class="card">
-          <div class="card-title">👤 My Profile</div>
-          <div class="profile-avatar">
-            {% if emp[4] %}
-              <img src="/my_photo" alt="{{ emp[1] }}"
-                   onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+          <div class="card">
+            <div class="card-title">📅 Today's Attendance &nbsp;<span class="att-date">{{ today }}</span></div>
+            {% if today_att %}
+              {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
+              <div>
+                {% if att_type == 'Full Day' %}
+                  <span class="att-status s-green">✅ Full Day</span>
+                {% elif att_type == 'Late - Full Day' %}
+                  <span class="att-status s-yellow">⚠️ Late — Full Day</span>
+                {% elif att_type == 'Half Day' %}
+                  <span class="att-status s-red">🔶 Half Day</span>
+                {% elif login_t and not logout_t %}
+                  <span class="att-status s-blue">🔵 Currently In</span>
+                {% else %}
+                  <span class="att-status s-gray">— Absent</span>
+                {% endif %}
+              </div>
+              <div class="time-row">
+                <div class="time-item">
+                  <div class="time-lbl">Login</div>
+                  <div class="time-val">{{ login_t | fmt_time }}</div>
+                </div>
+                <div class="time-item">
+                  <div class="time-lbl">Login Status</div>
+                  <div class="time-val">
+                    {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full</span>
+                    {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
+                    {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </div>
+                </div>
+                <div class="time-item">
+                  <div class="time-lbl">Logout</div>
+                  <div class="time-val">{{ logout_t | fmt_time }}</div>
+                </div>
+                <div class="time-item">
+                  <div class="time-lbl">Logout Status</div>
+                  <div class="time-val">
+                    {% if logout_s == 'Completed' %}<span class="badge b-green">Done</span>
+                    {% elif logout_s == 'Early Logout' %}<span class="badge b-yellow">Early</span>
+                    {% elif logout_s == 'Half Day Logout' %}<span class="badge b-red">Half</span>
+                    {% elif login_t %}<span class="badge b-blue">Still In</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </div>
+                </div>
+              </div>
             {% else %}
-              {{ emp[1][0] | upper }}
+              <div class="no-att">No attendance recorded today.</div>
             {% endif %}
           </div>
-          <div class="profile-name">{{ emp[1] }}</div>
-          <div class="profile-sub">ID: {{ emp[0] }}</div>
-          <div class="profile-rows">
-            <div class="profile-row">
-              <span class="lbl">Role</span>
-              {% if emp[2] %}
-                <span class="badge-role">{{ emp[2] }}</span>
-              {% else %}
-                <span class="dim-val">—</span>
-              {% endif %}
-            </div>
-            <div class="profile-row">
-              <span class="lbl">Email</span>
-              <span>{{ emp[3] or '—' }}</span>
-            </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card stat-green">
+            <div class="num">{{ full_days }}</div>
+            <div class="lbl">✅ Full Days</div>
+          </div>
+          <div class="stat-card stat-yellow">
+            <div class="num">{{ late_days }}</div>
+            <div class="lbl">⚠️ Late</div>
+          </div>
+          <div class="stat-card stat-yellow">
+            <div class="num">{{ half_days }}</div>
+            <div class="lbl">🔶 Half</div>
+          </div>
+          <div class="stat-card stat-red">
+            <div class="num">{{ absent_days }}</div>
+            <div class="lbl">❌ Absent</div>
+          </div>
+          <div class="stat-card stat-blue">
+            <div class="num">{{ att_pct }}%</div>
+            <div class="lbl">📈 Attendance</div>
+          </div>
+          <div class="stat-card stat-blue">
+            <div class="num" style="font-size:15px;">{{ total_hours }}</div>
+            <div class="lbl">⏱ Hours</div>
           </div>
         </div>
-
-        <!-- TODAY'S ATTENDANCE -->
-        <div class="card">
-          <div class="card-title">📅 Today's Attendance &nbsp;<span class="att-date">{{ today }}</span></div>
-          {% if today_att %}
-            {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
-            <div>
-              {% if att_type == 'Full Day' %}
-                <span class="att-status s-green">✅ Full Day</span>
-              {% elif att_type == 'Late - Full Day' %}
-                <span class="att-status s-yellow">⚠️ Late — Full Day</span>
-              {% elif att_type == 'Half Day' %}
-                <span class="att-status s-red">🔶 Half Day</span>
-              {% elif login_t and not logout_t %}
-                <span class="att-status s-blue">🔵 Currently In</span>
-              {% else %}
-                <span class="att-status s-gray">— Absent</span>
-              {% endif %}
-            </div>
-            <div class="time-row">
-              <div class="time-item">
-                <div class="time-lbl">Login</div>
-                <div class="time-val">{{ login_t | fmt_time }}</div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Login Status</div>
-                <div class="time-val">
-                  {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
-                  {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
-                  {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Logout</div>
-                <div class="time-val">{{ logout_t | fmt_time }}</div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Logout Status</div>
-                <div class="time-val">
-                  {% if logout_s == 'Completed' %}<span class="badge b-green">Done</span>
-                  {% elif logout_s == 'Early Logout' %}<span class="badge b-yellow">Early</span>
-                  {% elif logout_s == 'Half Day Logout' %}<span class="badge b-red">Half</span>
-                  {% elif login_t %}<span class="badge b-blue">Still In</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </div>
-              </div>
-            </div>
-          {% else %}
-            <div class="no-att">No attendance recorded today.</div>
-          {% endif %}
-        </div>
-
-      </div>
-
-      <!-- MONTHLY STATS -->
-      <div class="stats">
-        <div class="stat-card stat-green">
-          <div class="num">{{ full_days }}</div>
-          <div class="lbl">✅ Full Days</div>
-        </div>
-        <div class="stat-card stat-yellow">
-          <div class="num">{{ late_days }}</div>
-          <div class="lbl">⚠️ Late Days</div>
-        </div>
-        <div class="stat-card stat-yellow">
-          <div class="num">{{ half_days }}</div>
-          <div class="lbl">🔶 Half Days</div>
-        </div>
-        <div class="stat-card stat-red">
-          <div class="num">{{ absent_days }}</div>
-          <div class="lbl">❌ Absent</div>
-        </div>
-        <div class="stat-card stat-blue">
-          <div class="num">{{ att_pct }}%</div>
-          <div class="lbl">📈 Attendance</div>
-        </div>
-        <div class="stat-card stat-blue">
-          <div class="num" style="font-size:18px;">{{ total_hours }}</div>
-          <div class="lbl">⏱ Hours Worked</div>
-        </div>
-      </div>
-
       </div><!-- /view-dashboard -->
 
-      <!-- ═══ VIEW: MY ATTENDANCE ═══ -->
+      <!-- ══ VIEW: ATTENDANCE ══ -->
       <div id="view-attendance" class="view">
-      <div class="mod-title">📋 My Attendance <span>View and filter your monthly attendance records</span></div>
-      <div id="attendance">
+        <div class="mod-title">📋 My Attendance <span>Monthly records</span></div>
 
-        <!-- Filter bar -->
         <div class="cal-filter">
           <label>Month</label>
           <select id="selMonth">
@@ -518,295 +537,264 @@
             {% endfor %}
           </select>
           <button class="btn-view" onclick="applyFilter()">View</button>
-          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" target="_blank" class="btn-pdf">⬇ Download PDF</a>
+          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" target="_blank" class="btn-pdf">⬇ PDF</a>
         </div>
 
-        <!-- Calendar -->
         <div class="calendar">
-          <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:12px;">
-            📅 {{ month_name }}
-          </div>
+          <div class="cal-month-label">📅 {{ month_name }}</div>
           <div class="cal-header">
             <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
             <span style="color:#dc2626;">Sat</span><span style="color:#dc2626;">Sun</span>
           </div>
           <div class="cal-grid" id="calGrid"></div>
           <div class="cal-legend">
-            <div class="leg-item"><div class="leg-dot" style="background:#dcfce7;border:1px solid #86efac;"></div> Full Day</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#dcfce7;border:1px solid #86efac;"></div> Full</div>
             <div class="leg-item"><div class="leg-dot" style="background:#fef9c3;border:1px solid #fde047;"></div> Late</div>
-            <div class="leg-item"><div class="leg-dot" style="background:#fff7ed;border:1px solid #fdba74;"></div> Half Day</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fff7ed;border:1px solid #fdba74;"></div> Half</div>
             <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;border:1px solid #fca5a5;"></div> Absent</div>
             <div class="leg-item"><div class="leg-dot" style="background:#ede9fe;border:1px solid #c4b5fd;"></div> Holiday</div>
             <div class="leg-item"><div class="leg-dot" style="background:#f1f5f9;border:1px solid #e2e8f0;"></div> Weekend</div>
           </div>
         </div>
 
-        <!-- Attendance Table -->
         <div class="section">
-          <h3>📋 {{ month_name }} Attendance
-            <span class="billable-note">({{ billable }} working days)</span>
-          </h3>
+          <h3>📋 {{ month_name }} <span class="billable-note">({{ billable }} working days)</span></h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Login Time</th>
-                  <th>Logout Time</th>
-                  <th>Login Status</th>
-                  <th>Attendance Type</th>
+                  <th>Date</th><th>Login</th><th>Logout</th><th>Status</th><th>Type</th>
                 </tr>
               </thead>
               <tbody>
                 {% for rec in monthly_att %}
                 {% set att_date, login_t, logout_t, login_s, logout_s, att_type = rec %}
                 <tr>
-                  <td>{{ att_date.strftime('%d %b, %a') if att_date else '—' }}</td>
+                  <td>{{ att_date.strftime('%d %b') if att_date else '—' }}</td>
                   <td>{{ login_t | fmt_time }}</td>
                   <td>{{ logout_t | fmt_time }}</td>
                   <td>
-                    {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
+                    {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full</span>
                     {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
-                    {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
+                    {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half</span>
                     {% else %}<span class="badge b-gray">—</span>{% endif %}
                   </td>
                   <td>
-                    {% if att_type == 'Full Day' %}<span class="badge b-green">Full Day</span>
-                    {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late – Full</span>
-                    {% elif att_type == 'Half Day' %}<span class="badge b-red">Half Day</span>
-                    {% elif login_t and not logout_t %}<span class="badge b-blue">In Progress</span>
+                    {% if att_type == 'Full Day' %}<span class="badge b-green">Full</span>
+                    {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late</span>
+                    {% elif att_type == 'Half Day' %}<span class="badge b-red">Half</span>
+                    {% elif login_t and not logout_t %}<span class="badge b-blue">In…</span>
                     {% else %}<span class="badge b-gray">—</span>{% endif %}
                   </td>
                 </tr>
                 {% else %}
-                <tr>
-                  <td colspan="5" class="empty-cell">No attendance records this month yet.</td>
-                </tr>
+                <tr><td colspan="5" class="empty-cell">No records this month.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
         </div>
-
-      </div>
       </div><!-- /view-attendance -->
 
-      <!-- ═══ VIEW: APPLY LEAVE ═══ -->
+      <!-- ══ VIEW: APPLY LEAVE ══ -->
       <div id="view-apply-leave" class="view">
-      <div class="mod-title">📝 Apply for Leave <span>Submit a leave request to your admin</span></div>
-      <div class="section" id="apply-leave">
-        <form action="/request_leave" method="POST" id="leave-form">
-
-          <div class="form-group">
-            <label>Leave Date</label>
-            <input type="date" name="leave_date" id="leave-date"
-                   required title="Select date for leave" />
-          </div>
-
-          <div class="reasons-label">Select Reason</div>
-          <div class="reason-chips">
-            <div class="reason-chip" data-reason="Sick Leave">🤒 Sick Leave</div>
-            <div class="reason-chip" data-reason="Personal Work">🏠 Personal Work</div>
-            <div class="reason-chip" data-reason="Family Emergency">👨‍👩‍👧 Family Emergency</div>
-            <div class="reason-chip" data-reason="Medical Appointment">💊 Medical Appointment</div>
-            <div class="reason-chip" data-reason="Vacation">✈️ Vacation</div>
-            <div class="reason-chip" data-reason="__other__">✏️ Other...</div>
-          </div>
-
-          <div class="other-group" id="other-group">
-            <textarea id="other-text"
-                      placeholder="Describe your reason for leave…"
-                      title="Enter leave reason"></textarea>
-          </div>
-
-          <input type="hidden" name="reason" id="reason-input" />
-
-          <button type="submit" class="btn-leave">Submit Leave Request</button>
-        </form>
-      </div>
+        <div class="mod-title">📝 Apply for Leave <span>Submit a leave request</span></div>
+        <div class="section">
+          <form action="/request_leave" method="POST" id="leave-form">
+            <div class="form-group">
+              <label>Leave Date</label>
+              <input type="date" name="leave_date" id="leave-date" required title="Select leave date" />
+            </div>
+            <div class="reasons-label">Select Reason</div>
+            <div class="reason-chips" id="leave-chips">
+              <div class="reason-chip" data-reason="Sick Leave">🤒 Sick Leave</div>
+              <div class="reason-chip" data-reason="Personal Work">🏠 Personal Work</div>
+              <div class="reason-chip" data-reason="Family Emergency">👨‍👩‍👧 Family Emergency</div>
+              <div class="reason-chip" data-reason="Medical Appointment">💊 Medical Appointment</div>
+              <div class="reason-chip" data-reason="Vacation">✈️ Vacation</div>
+              <div class="reason-chip" data-reason="__other__">✏️ Other...</div>
+            </div>
+            <div class="other-group" id="other-group">
+              <textarea id="other-text" placeholder="Describe your reason for leave…" title="Leave reason"></textarea>
+            </div>
+            <input type="hidden" name="reason" id="reason-input" />
+            <button type="submit" class="btn-leave">Submit Leave Request</button>
+          </form>
+        </div>
       </div><!-- /view-apply-leave -->
 
-      <!-- ═══ VIEW: LEAVE HISTORY ═══ -->
+      <!-- ══ VIEW: LEAVE HISTORY ══ -->
       <div id="view-leave-history" class="view">
-      <div class="mod-title">📬 Leave History <span>Track status of all your leave requests</span></div>
-      <div class="section" id="leave-history">
-        <h3>📬 My Leave Requests</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Leave Date</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Submitted On</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for lv in my_leaves %}
-              {% set lv_date, lv_reason, lv_status, lv_created = lv %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ lv_date }}</td>
-                <td>{{ lv_reason }}</td>
-                <td>
-                  {% if lv_status == 'Approved' %}
-                    <span class="badge ls-approved">✅ Approved</span>
-                  {% elif lv_status == 'Rejected' %}
-                    <span class="badge ls-rejected">❌ Rejected</span>
-                  {% else %}
-                    <span class="badge ls-pending">⏳ Pending</span>
-                  {% endif %}
-                </td>
-                <td class="td-date">
-                  {{ lv_created.strftime('%d %b %Y') if lv_created else '—' }}
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="5" class="empty-cell">No leave requests submitted yet.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="mod-title">📬 Leave History <span>Status of your leave requests</span></div>
+        <div class="section">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Date</th><th>Reason</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {% for lv in my_leaves %}
+                {% set lv_date, lv_reason, lv_status, lv_created = lv %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ lv_date }}</td>
+                  <td>{{ lv_reason }}</td>
+                  <td>
+                    {% if lv_status == 'Approved' %}<span class="badge ls-approved">✅ Approved</span>
+                    {% elif lv_status == 'Rejected' %}<span class="badge ls-rejected">❌ Rejected</span>
+                    {% else %}<span class="badge ls-pending">⏳ Pending</span>{% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty-cell">No leave requests yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
       </div><!-- /view-leave-history -->
 
-      <!-- ═══ VIEW: TICKETS ═══ -->
+      <!-- ══ VIEW: PAY SLIPS ══ -->
+      <div id="view-payslips" class="view">
+        <div class="mod-title">💳 My Pay Slips <span>Salary slips by month</span></div>
+        <p class="payslip-hint">Tap any month to view your salary slip.</p>
+        <div class="payslip-grid">
+          {% for y, m, mname in payslip_months %}
+          <a class="payslip-card" href="/view_payslip/{{ emp[0] }}/{{ y }}/{{ m }}" target="_blank">
+            <span class="ps-icon">💳</span>
+            <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
+            <span class="ps-cta">View →</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div><!-- /view-payslips -->
+
+      <!-- ══ VIEW: TICKETS ══ -->
       <div id="view-tickets" class="view">
-      <div class="mod-title">🎫 Support Tickets <span>Raise a complaint or request admin support</span></div>
-      <div class="section" id="tickets">
-        <h3>🎫 Support Tickets &amp; Complaints</h3>
-
-        <!-- Raise Ticket Form -->
-        <form method="POST" action="/raise_ticket" class="ticket-raise-form">
-          <div class="ticket-form-grid">
-            <div class="form-group ticket-field">
-              <label for="ticket-category">Category</label>
-              <select id="ticket-category" name="category" class="ticket-select" title="Ticket category" required>
-                <option value="" disabled selected>Select category…</option>
-                <option value="Work Issue">Work Issue</option>
-                <option value="HR Query">HR Query</option>
-                <option value="Salary Query">Salary Query</option>
-                <option value="Leave Query">Leave Query</option>
-                <option value="Technical Problem">Technical Problem</option>
-                <option value="Harassment / Misconduct">Harassment / Misconduct</option>
-                <option value="Facility Issue">Facility Issue</option>
-                <option value="Other">Other</option>
-              </select>
+        <div class="mod-title">🎫 Support Tickets <span>Raise a complaint or request</span></div>
+        <div class="section">
+          <form method="POST" action="/raise_ticket" class="ticket-raise-form">
+            <div class="ticket-form-grid">
+              <div class="form-group ticket-field">
+                <label for="ticket-category">Category</label>
+                <select id="ticket-category" name="category" class="ticket-select" required title="Category">
+                  <option value="" disabled selected>Select category…</option>
+                  <option>Work Issue</option><option>HR Query</option>
+                  <option>Salary Query</option><option>Leave Query</option>
+                  <option>Technical Problem</option><option>Harassment / Misconduct</option>
+                  <option>Facility Issue</option><option>Other</option>
+                </select>
+              </div>
+              <div class="form-group ticket-field">
+                <label for="ticket-priority">Priority</label>
+                <select id="ticket-priority" name="priority" class="ticket-select" title="Priority">
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+              <div class="form-group ticket-full ticket-field">
+                <label for="ticket-subject">Subject</label>
+                <input id="ticket-subject" type="text" name="subject" class="ticket-input" placeholder="Brief summary…" required maxlength="255">
+              </div>
+              <div class="form-group ticket-full ticket-field">
+                <label for="ticket-desc">Description</label>
+                <textarea id="ticket-desc" name="description" class="ticket-textarea" placeholder="Describe the issue…" required></textarea>
+              </div>
             </div>
-            <div class="form-group ticket-field">
-              <label for="ticket-priority">Priority</label>
-              <select id="ticket-priority" name="priority" class="ticket-select" title="Ticket priority">
-                <option value="Low">Low</option>
-                <option value="Medium" selected>Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
-            <div class="form-group ticket-full ticket-field">
-              <label for="ticket-subject">Subject</label>
-              <input id="ticket-subject" type="text" name="subject" class="ticket-input" placeholder="Brief summary of the issue…" required maxlength="255">
-            </div>
-            <div class="form-group ticket-full ticket-field">
-              <label for="ticket-desc">Description</label>
-              <textarea id="ticket-desc" name="description" class="ticket-textarea" placeholder="Describe the issue in detail…" required></textarea>
-            </div>
-          </div>
-          <button type="submit" class="btn-ticket">🎫 Raise Ticket</button>
-        </form>
-
-        <!-- Ticket History -->
-        <h3 class="ticket-history-label">My Tickets</h3>
-        {% if my_tickets %}
-          {% for t in my_tickets %}
-            {% set tid, tcat, tsubj, tpri, tstat, tresp, tdate = t %}
-            <div class="ticket-row">
-              <div class="ticket-row-header">
-                <span class="ticket-subject">{{ tsubj }}</span>
-                {% if tpri == 'High' %}
-                  <span class="badge b-red">🔴 High</span>
-                {% elif tpri == 'Low' %}
-                  <span class="badge b-gray">Low</span>
-                {% else %}
-                  <span class="badge b-yellow">Medium</span>
-                {% endif %}
-                {% if tstat == 'Open' %}
-                  <span class="badge b-blue">Open</span>
-                {% elif tstat == 'In Progress' %}
-                  <span class="badge b-orange">In Progress</span>
-                {% elif tstat == 'Resolved' %}
-                  <span class="badge b-green">Resolved</span>
-                {% else %}
-                  <span class="badge b-gray">Closed</span>
+            <button type="submit" class="btn-ticket">🎫 Raise Ticket</button>
+          </form>
+          <div class="ticket-history-label">My Tickets</div>
+          {% if my_tickets %}
+            {% for t in my_tickets %}
+              {% set tid, tcat, tsubj, tpri, tstat, tresp, tdate = t %}
+              <div class="ticket-row">
+                <div class="ticket-row-header">
+                  <span class="ticket-subject">{{ tsubj }}</span>
+                  {% if tpri == 'High' %}<span class="badge b-red">🔴 High</span>
+                  {% elif tpri == 'Low' %}<span class="badge b-gray">Low</span>
+                  {% else %}<span class="badge b-yellow">Medium</span>{% endif %}
+                  {% if tstat == 'Open' %}<span class="badge b-blue">Open</span>
+                  {% elif tstat == 'In Progress' %}<span class="badge b-orange">In Progress</span>
+                  {% elif tstat == 'Resolved' %}<span class="badge b-green">Resolved</span>
+                  {% else %}<span class="badge b-gray">Closed</span>{% endif %}
+                </div>
+                <div class="ticket-meta">{{ tcat }} · {{ tdate.strftime('%d %b %Y') if tdate else '—' }}</div>
+                {% if tresp %}
+                  <div class="ticket-response"><strong>Admin Response</strong>{{ tresp }}</div>
                 {% endif %}
               </div>
-              <div class="ticket-meta">{{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y') if tdate else '—' }}</div>
-              {% if tresp %}
-                <div class="ticket-response">
-                  <strong>Admin Response</strong>
-                  {{ tresp }}
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        {% else %}
-          <div class="ticket-empty">No tickets raised yet.</div>
-        {% endif %}
-      </div>
+            {% endfor %}
+          {% else %}
+            <div class="ticket-empty">No tickets raised yet.</div>
+          {% endif %}
+        </div>
       </div><!-- /view-tickets -->
 
-      <!-- ═══ VIEW: RESIGN ═══ -->
+      <!-- ══ VIEW: RESIGN ══ -->
       <div id="view-resign" class="view">
-      <div class="mod-title">🚨 Resignation <span>Submit your official resignation notice</span></div>
-      <div class="section" id="resign">
-
-        {% if my_resignation %}
-          {% set res_lwd, res_reason, res_status, res_created = my_resignation %}
-          <div class="resign-status-card">
-            <div class="rs-row">
-              <span class="rs-lbl">Status</span>
-              {% if res_status == 'Accepted' %}
-                <span class="badge b-red">✅ Accepted</span>
-              {% elif res_status == 'Declined' %}
-                <span class="badge b-gray">❌ Declined</span>
-              {% else %}
-                <span class="badge b-yellow">⏳ Pending Review</span>
+        <div class="mod-title">🚨 Resignation <span>Submit your resignation notice</span></div>
+        <div class="section">
+          {% if my_resignation %}
+            {% set res_lwd, res_reason, res_status, res_created = my_resignation %}
+            <div class="resign-status-card">
+              <div class="rs-row">
+                <span class="rs-lbl">Status</span>
+                {% if res_status == 'Accepted' %}<span class="badge b-red">✅ Accepted</span>
+                {% elif res_status == 'Declined' %}<span class="badge b-gray">❌ Declined</span>
+                {% else %}<span class="badge b-yellow">⏳ Pending Review</span>{% endif %}
+              </div>
+              <div class="rs-row"><span class="rs-lbl">Last Working Day</span><span>{{ res_lwd }}</span></div>
+              <div class="rs-row"><span class="rs-lbl">Reason</span><span>{{ res_reason }}</span></div>
+              <div class="rs-row">
+                <span class="rs-lbl">Submitted On</span>
+                <span style="opacity:0.55;font-size:12px;">{{ res_created.strftime('%d %b %Y') if res_created else '—' }}</span>
+              </div>
+              {% if res_status == 'Declined' %}
+              <p style="margin-top:10px;font-size:13px;opacity:0.65;">Your resignation was declined. Submit a new one below.</p>
               {% endif %}
             </div>
-            <div class="rs-row">
-              <span class="rs-lbl">Last Working Day</span>
-              <span>{{ res_lwd }}</span>
-            </div>
-            <div class="rs-row">
-              <span class="rs-lbl">Reason</span>
-              <span>{{ res_reason }}</span>
-            </div>
-            <div class="rs-row">
-              <span class="rs-lbl">Submitted On</span>
-              <span style="opacity:0.55;font-size:12px;">{{ res_created.strftime('%d %b %Y') if res_created else '—' }}</span>
-            </div>
             {% if res_status == 'Declined' %}
-            <p style="margin-top:14px;font-size:13px;opacity:0.65;">Your resignation was declined. You may submit a new one below.</p>
-            {% endif %}
-          </div>
-
-          {% if res_status == 'Declined' %}
-          <div>
-            <p class="reasons-label resign-new-title">Submit New Resignation</p>
-            <div class="resign-warning">
-              <strong>⚠️ Please read before proceeding:</strong><br>
-              A <strong>1-month notice period</strong> is required. Your last working day must be at least
-              30 days from today. Submit at least 15 days before your chosen last day.
-              This action is official and cannot be undone.
+            <div style="margin-top:16px;">
+              <p class="reasons-label resign-new-title">Submit New Resignation</p>
+              <div class="resign-warning"><strong>⚠️ 1-month notice period required.</strong><br>Last working day must be at least 30 days from today.</div>
+              <form action="/request_resignation" method="POST" id="resign-form-d">
+                <div class="form-group">
+                  <label>Last Working Day <span class="lwd-hint">(min. 30 days)</span></label>
+                  <input type="date" name="last_working_day" id="resign-date-d" required title="Last working day" />
+                </div>
+                <div class="reasons-label">Reason</div>
+                <div class="reason-chips" id="resign-chips-d">
+                  <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
+                  <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
+                  <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
+                  <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
+                  <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
+                  <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
+                </div>
+                <div class="other-group" id="resign-other-group-d">
+                  <textarea id="resign-other-text-d" placeholder="Describe your reason…" title="Resignation reason"></textarea>
+                </div>
+                <input type="hidden" name="resign_reason" id="resign-reason-input-d" />
+                <div class="form-group confirm-group">
+                  <label class="confirm-label">
+                    <input type="checkbox" id="resign-confirm-d" class="confirm-check" required />
+                    I understand this is official and cannot be undone.
+                  </label>
+                </div>
+                <button type="submit" class="btn-resign">📤 Submit Resignation</button>
+              </form>
             </div>
-            <form action="/request_resignation" method="POST" id="resign-form-d">
+            {% endif %}
+          {% else %}
+            <div class="resign-warning"><strong>⚠️ Please read before proceeding:</strong><br>A <strong>1-month notice period</strong> is required. This sends a formal resignation to HR/Admin and cannot be undone.</div>
+            <form action="/request_resignation" method="POST" id="resign-form">
               <div class="form-group">
-                <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
-                <input type="date" name="last_working_day" id="resign-date-d" required title="Select your last working day" />
+                <label>Last Working Day <span class="lwd-hint">(min. 30 days)</span></label>
+                <input type="date" name="last_working_day" id="resign-date" required title="Last working day" />
               </div>
-              <div class="reasons-label">Reason for Resignation</div>
-              <div class="reason-chips" id="resign-chips-d">
+              <div class="reasons-label">Reason</div>
+              <div class="reason-chips" id="resign-chips">
                 <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
                 <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
                 <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
@@ -814,189 +802,181 @@
                 <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
                 <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
               </div>
-              <div class="other-group" id="resign-other-group-d">
-                <textarea id="resign-other-text-d" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
+              <div class="other-group" id="resign-other-group">
+                <textarea id="resign-other-text" placeholder="Describe your reason…" title="Resignation reason"></textarea>
               </div>
-              <input type="hidden" name="resign_reason" id="resign-reason-input-d" />
+              <input type="hidden" name="resign_reason" id="resign-reason-input" />
               <div class="form-group confirm-group">
                 <label class="confirm-label">
-                  <input type="checkbox" id="resign-confirm-d" class="confirm-check" required />
-                  I understand this resignation notice is official and cannot be undone.
+                  <input type="checkbox" id="resign-confirm" class="confirm-check" required />
+                  I understand this is official and cannot be undone.
                 </label>
               </div>
               <button type="submit" class="btn-resign">📤 Submit Resignation</button>
             </form>
-          </div>
           {% endif %}
-
-        {% else %}
-          <div class="resign-warning">
-            <strong>⚠️ Please read before proceeding:</strong><br>
-            A <strong>1-month notice period</strong> is required. Your last working day must be at least
-            30 days from today. You must apply at least 15 days before your chosen last day.
-            Submitting this form sends a formal resignation notice to the HR/Admin team. This action cannot be undone.
-          </div>
-          <form action="/request_resignation" method="POST" id="resign-form">
-            <div class="form-group">
-              <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
-              <input type="date" name="last_working_day" id="resign-date" required title="Select your last working day" />
-            </div>
-            <div class="reasons-label">Reason for Resignation</div>
-            <div class="reason-chips" id="resign-chips">
-              <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
-              <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
-              <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
-              <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
-              <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
-              <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
-            </div>
-            <div class="other-group" id="resign-other-group">
-              <textarea id="resign-other-text" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
-            </div>
-            <input type="hidden" name="resign_reason" id="resign-reason-input" />
-            <div class="form-group confirm-group">
-              <label class="confirm-label">
-                <input type="checkbox" id="resign-confirm" class="confirm-check" required />
-                I understand this resignation notice is official and cannot be undone.
-              </label>
-            </div>
-            <button type="submit" class="btn-resign">📤 Submit Resignation</button>
-          </form>
-        {% endif %}
-      </div>
+        </div>
       </div><!-- /view-resign -->
 
-      <!-- ═══ VIEW: PAY SLIPS ═══ -->
-      <div id="view-payslips" class="view">
-      <div class="mod-title">💳 My Pay Slips <span>View your salary slips by month</span></div>
-      <p class="payslip-hint">Click any month to open your salary slip in a new tab.</p>
-      <div class="payslip-grid">
-        {% for y, m, mname in payslip_months %}
-        <a class="payslip-card" href="/view_payslip/{{ emp[0] }}/{{ y }}/{{ m }}" target="_blank">
-          <span class="ps-icon">💳</span>
-          <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
-          <span class="ps-cta">View Slip →</span>
-        </a>
-        {% endfor %}
-      </div>
-      </div><!-- /view-payslips -->
-
-      <!-- ═══ VIEW: CHANGE PASSWORD ═══ -->
+      <!-- ══ VIEW: CHANGE PASSWORD ══ -->
       <div id="view-change-password" class="view">
-      <div class="mod-title">🔒 Change Password <span>Update your account password</span></div>
-      <div class="section" id="change-password">
-        {% if request.args.get('pwd_ok') %}
-          <div class="toast toast-green">✅ Password changed successfully.</div>
-        {% elif request.args.get('pwd_error') == 'wrong' %}
-          <div class="toast toast-red">❌ Current password is incorrect.</div>
-        {% elif request.args.get('pwd_error') == 'short' %}
-          <div class="toast toast-red">❌ New password must be at least 6 characters.</div>
-        {% elif request.args.get('pwd_error') == 'mismatch' %}
-          <div class="toast toast-red">❌ New passwords do not match.</div>
-        {% endif %}
-        <form action="/change_password" method="POST" style="max-width:360px;">
-          <div class="form-group">
-            <label>Current Password</label>
-            <input type="password" name="current_password" required
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <div class="form-group">
-            <label>New Password</label>
-            <input type="password" name="new_password" required minlength="6"
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <div class="form-group">
-            <label>Confirm New Password</label>
-            <input type="password" name="confirm_password" required minlength="6"
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <button type="submit"
-            style="padding:11px 28px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">
-            Update Password
-          </button>
-        </form>
-      </div>
+        <div class="mod-title">🔒 Change Password <span>Update your account password</span></div>
+        <div class="section">
+          {% if request.args.get('pwd_ok') %}
+            <div class="toast toast-green">✅ Password changed successfully.</div>
+          {% elif request.args.get('pwd_error') == 'wrong' %}
+            <div class="toast toast-red">❌ Current password is incorrect.</div>
+          {% elif request.args.get('pwd_error') == 'short' %}
+            <div class="toast toast-red">❌ New password must be at least 6 characters.</div>
+          {% elif request.args.get('pwd_error') == 'mismatch' %}
+            <div class="toast toast-red">❌ New passwords do not match.</div>
+          {% endif %}
+          <form action="/change_password" method="POST">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" name="current_password" required />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" name="new_password" required minlength="6" />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" name="confirm_password" required minlength="6" />
+            </div>
+            <button type="submit"
+              style="padding:12px 24px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;width:100%;">
+              Update Password
+            </button>
+          </form>
+        </div>
       </div><!-- /view-change-password -->
 
-    </div><!-- /main -->
+    </div><!-- /app-content -->
+
+    <!-- ══ BOTTOM NAV ══ -->
+    <nav class="bottom-nav">
+      <button type="button" class="bn-item" id="bn-dashboard" onclick="showView('dashboard')">
+        <span class="bn-icon">🏠</span><span class="bn-label">Home</span>
+      </button>
+      <button type="button" class="bn-item" id="bn-attendance" onclick="showView('attendance')">
+        <span class="bn-icon">📋</span><span class="bn-label">Attendance</span>
+      </button>
+      <button type="button" class="bn-item" id="bn-apply-leave" onclick="showView('apply-leave')">
+        <span class="bn-icon">📝</span><span class="bn-label">Leave</span>
+      </button>
+      <button type="button" class="bn-item" id="bn-payslips" onclick="showView('payslips')">
+        <span class="bn-icon">💳</span><span class="bn-label">Pay Slips</span>
+      </button>
+      <button type="button" class="bn-item" id="bn-more" onclick="toggleSheet()">
+        <span class="bn-icon">☰</span><span class="bn-label">More</span>
+      </button>
+    </nav>
 
     <script>
+      /* ── CLOCK ── */
       function updateClock() {
-        const now = new Date();
-        document.getElementById("clock").innerText =
-          now.toLocaleTimeString("en-IN", {hour12: true});
+        document.getElementById("clock").textContent =
+          new Date().toLocaleTimeString("en-IN", { hour12: true });
       }
       setInterval(updateClock, 1000);
       updateClock();
 
+      /* ── PROFILE SHEET ── */
+      function toggleSheet() {
+        var sheet   = document.getElementById("profileSheet");
+        var overlay = document.getElementById("sheetOverlay");
+        if (sheet.classList.contains("open")) {
+          sheet.classList.remove("open");
+          overlay.classList.remove("open");
+        } else {
+          sheet.classList.add("open");
+          overlay.classList.add("open");
+        }
+      }
+      function closeSheet() {
+        document.getElementById("profileSheet").classList.remove("open");
+        document.getElementById("sheetOverlay").classList.remove("open");
+      }
+
+      /* ── VIEW SWITCHER ── */
+      function showView(viewId) {
+        document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+        var target = document.getElementById('view-' + viewId);
+        if (target) target.classList.add('active');
+
+        document.querySelectorAll('.bn-item').forEach(function(b) { b.classList.remove('active'); });
+        var bnEl = document.getElementById('bn-' + viewId);
+        if (bnEl) {
+          bnEl.classList.add('active');
+        } else {
+          document.getElementById('bn-more').classList.add('active');
+        }
+
+        document.querySelectorAll('.ps-nav-item').forEach(function(b) { b.classList.remove('active-sheet'); });
+        var psnEl = document.getElementById('psn-' + viewId);
+        if (psnEl) psnEl.classList.add('active-sheet');
+
+        document.getElementById('appContent').scrollTo({ top: 0, behavior: 'smooth' });
+        history.replaceState(null, '', '#' + viewId);
+        closeSheet();
+      }
+
       /* ── CALENDAR ── */
       (function() {
-        const data     = {{ cal_json | safe }};
-        const firstDow = {{ cal_first_dow }};
-        const year     = {{ cal_year }};
-        const month    = {{ cal_month }};
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const now      = new Date();
-        const todayDay = (now.getFullYear() === year && now.getMonth() + 1 === month) ? now.getDate() : -1;
+        var data        = {{ cal_json | safe }};
+        var firstDow    = {{ cal_first_dow }};
+        var year        = {{ cal_year }};
+        var month       = {{ cal_month }};
+        var daysInMonth = new Date(year, month, 0).getDate();
+        var now         = new Date();
+        var todayDay    = (now.getFullYear() === year && now.getMonth() + 1 === month) ? now.getDate() : -1;
+        var tipMap      = { full:"Full Day", late:"Late – Full", half:"Half Day", absent:"Absent", holiday:"Holiday", weekend:"Weekend", future:"" };
+        var grid        = document.getElementById("calGrid");
 
-        const tipMap = {
-          full:    "Full Day",
-          late:    "Late – Full Day",
-          half:    "Half Day",
-          absent:  "Absent",
-          holiday: "Holiday",
-          weekend: "Weekend",
-          future:  ""
-        };
-
-        const grid = document.getElementById("calGrid");
-
-        for (let i = 0; i < firstDow; i++) {
-          const el = document.createElement("div");
+        for (var i = 0; i < firstDow; i++) {
+          var el = document.createElement("div");
           el.className = "cal-day cal-empty";
           grid.appendChild(el);
         }
-        for (let d = 1; d <= daysInMonth; d++) {
-          const type = data[d] || "future";
-          const el   = document.createElement("div");
-          el.className = `cal-day cal-${type}`;
+        for (var d = 1; d <= daysInMonth; d++) {
+          var type = data[d] || "future";
+          var el   = document.createElement("div");
+          el.className = "cal-day cal-" + type;
           if (d === todayDay) el.classList.add("cal-today");
           if (tipMap[type]) el.setAttribute("data-tip", tipMap[type]);
-          el.innerHTML = `<span class="day-num">${d}</span>`;
+          el.innerHTML = '<span class="day-num">' + d + '</span>';
           grid.appendChild(el);
         }
       })();
 
+      /* ── ATTENDANCE FILTER ── */
       function applyFilter() {
-        const m = document.getElementById("selMonth").value;
-        const y = document.getElementById("selYear").value;
-        window.location.href = `/employee_portal?month=${m}&year=${y}#attendance`;
+        var m = document.getElementById("selMonth").value;
+        var y = document.getElementById("selYear").value;
+        window.location.href = '/employee_portal?month=' + m + '&year=' + y + '#attendance';
       }
-
-      // Keep PDF link in sync with dropdowns
       document.getElementById("selMonth").addEventListener("change", updatePdfLink);
       document.getElementById("selYear").addEventListener("change",  updatePdfLink);
       function updatePdfLink() {
-        const m = document.getElementById("selMonth").value;
-        const y = document.getElementById("selYear").value;
-        document.getElementById("pdfLink").href = `/my_attendance_pdf?month=${m}&year=${y}`;
+        var m = document.getElementById("selMonth").value;
+        var y = document.getElementById("selYear").value;
+        document.getElementById("pdfLink").href = '/my_attendance_pdf?month=' + m + '&year=' + y;
       }
 
-      // Default leave date to tomorrow
+      /* ── LEAVE DATE ── */
       (function() {
-        const d = new Date();
+        var d = new Date();
         d.setDate(d.getDate() + 1);
-        const iso = d.toISOString().split('T')[0];
+        var iso = d.toISOString().split('T')[0];
         document.getElementById('leave-date').value = iso;
         document.getElementById('leave-date').min   = iso;
       })();
 
-      // Reason chip selection
-      document.querySelectorAll('.reason-chip').forEach(function(chip) {
+      /* ── LEAVE REASON CHIPS ── */
+      document.getElementById('leave-chips').querySelectorAll('.reason-chip').forEach(function(chip) {
         chip.addEventListener('click', function() {
-          document.querySelectorAll('.reason-chip').forEach(function(c) {
-            c.classList.remove('active');
-          });
+          document.getElementById('leave-chips').querySelectorAll('.reason-chip').forEach(function(c) { c.classList.remove('active'); });
           chip.classList.add('active');
           var reason = chip.dataset.reason;
           if (reason === '__other__') {
@@ -1009,102 +989,61 @@
           }
         });
       });
-
       document.getElementById('other-text').addEventListener('input', function() {
         document.getElementById('reason-input').value = this.value;
       });
-
       document.getElementById('leave-form').addEventListener('submit', function(e) {
         if (!document.getElementById('reason-input').value.trim()) {
           e.preventDefault();
-          alert('Please select a reason or click "Other..." to type your reason.');
+          alert('Please select a reason for leave.');
         }
       });
 
-      // Resign chip selection — shared initializer for both forms
+      /* ── RESIGN FORM INIT ── */
       function initResignForm(sfx) {
-        var form = document.getElementById('resign-form' + sfx);
+        var form      = document.getElementById('resign-form' + sfx);
         if (!form) return;
-        var chipsEl    = document.getElementById('resign-chips' + sfx);
-        var reasonEl   = document.getElementById('resign-reason-input' + sfx);
-        var otherGrp   = document.getElementById('resign-other-group' + sfx);
-        var otherTxt   = document.getElementById('resign-other-text' + sfx);
-        var dateEl     = document.getElementById('resign-date' + sfx);
-        var confirmEl  = document.getElementById('resign-confirm' + sfx);
+        var chipsEl   = document.getElementById('resign-chips' + sfx);
+        var reasonEl  = document.getElementById('resign-reason-input' + sfx);
+        var otherGrp  = document.getElementById('resign-other-group' + sfx);
+        var otherTxt  = document.getElementById('resign-other-text' + sfx);
+        var dateEl    = document.getElementById('resign-date' + sfx);
+        var confirmEl = document.getElementById('resign-confirm' + sfx);
 
         chipsEl.querySelectorAll('.reason-chip').forEach(function(chip) {
           chip.addEventListener('click', function() {
             chipsEl.querySelectorAll('.reason-chip').forEach(function(c) { c.classList.remove('active'); });
             chip.classList.add('active');
-            var reason = chip.dataset.reason;
-            if (reason === '__resign_other__') {
+            if (chip.dataset.reason === '__resign_other__') {
               otherGrp.style.display = 'block';
               reasonEl.value = '';
               otherTxt.focus();
             } else {
               otherGrp.style.display = 'none';
-              reasonEl.value = reason;
+              reasonEl.value = chip.dataset.reason;
             }
           });
         });
-
-        otherTxt.addEventListener('input', function() {
-          reasonEl.value = this.value;
-        });
-
-        // Set min last working day to 30 days from today (1-month notice period)
+        otherTxt.addEventListener('input', function() { reasonEl.value = this.value; });
         (function() {
           var d = new Date();
           d.setDate(d.getDate() + 30);
           var iso = d.toISOString().split('T')[0];
-          dateEl.min   = iso;
-          dateEl.value = iso;
+          dateEl.min = iso; dateEl.value = iso;
         })();
-
         form.addEventListener('submit', function(e) {
-          if (!reasonEl.value.trim()) {
-            e.preventDefault();
-            alert('Please select a reason for resignation.');
-            return;
-          }
-          if (!confirmEl.checked) {
-            e.preventDefault();
-            alert('Please confirm you understand this action is official.');
-          }
+          if (!reasonEl.value.trim()) { e.preventDefault(); alert('Please select a reason.'); return; }
+          if (!confirmEl.checked)     { e.preventDefault(); alert('Please confirm this action is official.'); }
         });
       }
+      initResignForm('');
+      initResignForm('-d');
 
-      initResignForm('');    // main form (no active resignation)
-      initResignForm('-d');  // re-submit form (after Declined)
-
-      // ── MODULE VIEW SWITCHER ──
-      var mainEl = document.querySelector('.main');
-
-      function showView(viewId) {
-        // hide all views
-        document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-        // show target view
-        var target = document.getElementById('view-' + viewId);
-        if (target) target.classList.add('active');
-        // update nav active state
-        document.querySelectorAll('.nav-item').forEach(function(a) { a.classList.remove('active'); });
-        var navEl = document.getElementById('nav-' + viewId);
-        if (navEl) navEl.classList.add('active');
-        // scroll main to top
-        mainEl.scrollTo({ top: 0, behavior: 'smooth' });
-        // update URL hash without reloading
-        history.replaceState(null, '', '#' + viewId);
-      }
-
-      // On page load: check URL hash to show the right view
+      /* ── INITIAL VIEW ── */
       (function() {
-        var hash = window.location.hash.replace('#', '');
-        var validViews = ['dashboard','attendance','apply-leave','leave-history','tickets','resign','change-password'];
-        if (hash && validViews.indexOf(hash) !== -1) {
-          showView(hash);
-        } else {
-          showView('dashboard');
-        }
+        var hash  = window.location.hash.replace('#', '');
+        var valid = ['dashboard','attendance','apply-leave','leave-history','payslips','tickets','resign','change-password'];
+        showView((hash && valid.indexOf(hash) !== -1) ? hash : 'dashboard');
       })();
     </script>
 
