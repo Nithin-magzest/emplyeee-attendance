@@ -951,13 +951,13 @@ def is_within_range(user_lat, user_lon, office_lat, office_lon):
         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return (R * c) <= 30
+    return (R * c) <= 6
 
 # ---------------- ATTENDANCE (LOGIN + LOGOUT) ----------------
 @app.route("/attendance")
 def attendance():
-    OFFICE_LAT = 17.494664737165042
-    OFFICE_LON = 78.40496618113566
+    OFFICE_LAT = 17.49375
+    OFFICE_LON = 78.40435
 
     user_lat = session.get("lat")
     user_lon = session.get("lon")
@@ -1857,8 +1857,8 @@ def api_checkin():
     lon    = data.get("lon")
     if not emp_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
-    OFFICE_LAT = 17.494664737165042
-    OFFICE_LON = 78.40496618113566
+    OFFICE_LAT = 17.49375
+    OFFICE_LON = 78.40435
     if lat and lon:
         if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
             return jsonify({"ok": False, "msg": "You are outside the office premises."})
@@ -2123,8 +2123,8 @@ def api_employee_checkin():
     lat    = data.get("lat")
     lon    = data.get("lon")
 
-    OFFICE_LAT = 17.494664737165042
-    OFFICE_LON = 78.40496618113566
+    OFFICE_LAT = 17.49375
+    OFFICE_LON = 78.40435
     if lat and lon:
         if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
             return jsonify({"ok": False, "msg": "You are outside the office premises."})
