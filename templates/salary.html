@@ -196,7 +196,15 @@
       </div>
 
       <div class="section">
-        <h3>👥 All Employees</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h3 style="margin:0;">👥 All Employees</h3>
+          <div style="position:relative;">
+            <input type="text" id="inPageEmpSearch" placeholder="🔍 Filter employee…" autocomplete="off"
+              oninput="filterSalaryConfRows(this.value)"
+              style="padding:8px 12px 8px 34px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;width:210px;" />
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -208,7 +216,7 @@
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="salaryConfTbody">
               {% for s in salaries %}
               {% set emp_id, name, spd, role, last_revised = s %}
               {% set mon = (spd * 26) if spd else 0 %}
@@ -380,6 +388,13 @@
         btn.addEventListener("click", function() { cancelEdit(btn.dataset.idx); });
       });
     </script>
-
+  <script>
+  function filterSalaryConfRows(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#salaryConfTbody tr').forEach(function(row) {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+  </script>
   </body>
 </html>
