@@ -442,8 +442,54 @@
                   <label>Date of Joining</label>
                   <input type="date" name="date_of_joining" style="max-width:260px;" />
                 </div>
+
+                <!-- Work Mode -->
+                <div class="field" style="grid-column:1 / -1;">
+                  <label>Work Mode <span style="color:#dc2626;">*</span></label>
+                  <div style="display:flex;gap:12px;margin-top:4px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 18px;border:2px solid #dbeafe;border-radius:10px;font-weight:600;font-size:13px;transition:0.15s;" id="wm-office-lbl">
+                      <input type="radio" name="work_mode" value="office" checked onchange="toggleWorkLocation(this.value)" style="accent-color:#1e3a8a;width:15px;height:15px;" />
+                      🏢 Work from Office
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 18px;border:2px solid #dbeafe;border-radius:10px;font-weight:600;font-size:13px;transition:0.15s;" id="wm-wfh-lbl">
+                      <input type="radio" name="work_mode" value="wfh" onchange="toggleWorkLocation(this.value)" style="accent-color:#059669;width:15px;height:15px;" />
+                      🏠 Work from Home
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Office Location Picker (hidden for WFH) -->
+                <div class="field" id="locationSection" style="grid-column:1 / -1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px;margin-top:4px;">
+                  <label style="color:#0369a1;font-weight:700;margin-bottom:8px;display:block;">📍 Office Location <span style="font-weight:400;font-size:11px;color:#64748b;">(Employee must be within 300 m to mark attendance)</span></label>
+                  <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                    <div>
+                      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Latitude</div>
+                      <input type="number" name="work_lat" id="reg_work_lat" step="0.000001" min="-90" max="90"
+                             placeholder="e.g. 17.494664" style="width:100%;padding:9px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:13px;outline:none;background:#fff;" />
+                    </div>
+                    <div>
+                      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Longitude</div>
+                      <input type="number" name="work_lon" id="reg_work_lon" step="0.000001" min="-180" max="180"
+                             placeholder="e.g. 78.404966" style="width:100%;padding:9px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:13px;outline:none;background:#fff;" />
+                    </div>
+                    <button type="button" onclick="useMyLocationForReg()"
+                      style="padding:9px 14px;border:none;border-radius:8px;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                      📡 Use My Location
+                    </button>
+                  </div>
+                  <div style="margin-top:10px;">
+                    <div id="reg_map_preview" style="width:100%;height:180px;border-radius:8px;border:1px solid #bae6fd;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0369a1;overflow:hidden;">
+                      <span id="reg_map_hint">Enter coordinates or click "Use My Location" to see the map</span>
+                      <iframe id="reg_map_iframe" src="" style="display:none;width:100%;height:100%;border:none;" allowfullscreen></iframe>
+                    </div>
+                    <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                      Leave blank to use the default office location configured in the system.
+                    </div>
+                  </div>
+                </div>
+
               </div>
-              <button type="submit" class="btn btn-navy" style="max-width:200px;margin-top:6px;">✅ Register Employee</button>
+              <button type="submit" class="btn btn-navy" style="max-width:200px;margin-top:12px;">✅ Register Employee</button>
             </div>
 
             <!-- Right: Face Photo -->
@@ -646,9 +692,41 @@
             <label>Role</label>
             <input name="role" id="edit_role" type="text" />
           </div>
-          <div class="field" style="margin-bottom:22px;">
+          <div class="field" style="margin-bottom:16px;">
             <label>Date of Joining</label>
             <input name="date_of_joining" id="edit_doj" type="date" />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label>Work Mode</label>
+            <div style="display:flex;gap:10px;margin-top:4px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="radio" name="work_mode" id="edit_wm_office" value="office" onchange="editToggleLocation(this.value)" style="accent-color:#1e3a8a;" />
+                🏢 Office
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="radio" name="work_mode" id="edit_wm_wfh" value="wfh" onchange="editToggleLocation(this.value)" style="accent-color:#059669;" />
+                🏠 Work from Home
+              </label>
+            </div>
+          </div>
+          <div id="edit_locationSection" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:8px;">📍 Office Location <span style="font-weight:400;color:#64748b;">(leave blank to use default)</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div>
+                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
+                <input type="number" name="work_lat" id="edit_work_lat" step="0.000001" min="-90" max="90"
+                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+              </div>
+              <div>
+                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
+                <input type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180"
+                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+              </div>
+            </div>
+            <button type="button" onclick="useMyLocationForEdit()"
+              style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+              📡 Use My Location
+            </button>
           </div>
           <div style="display:flex;gap:10px;">
             <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
@@ -735,14 +813,60 @@
         if (!document.getElementById("updFaceFile").files.length) { alert("Please take or upload a face photo."); return false; } return true;
       }
 
+      /* ── WORK MODE TOGGLE (Registration form) ── */
+      function toggleWorkLocation(mode) {
+        document.getElementById("locationSection").style.display = mode === "wfh" ? "none" : "block";
+      }
+
+      function updateRegMapPreview() {
+        var lat = document.getElementById("reg_work_lat").value;
+        var lon = document.getElementById("reg_work_lon").value;
+        if (!lat || !lon) return;
+        var iframe = document.getElementById("reg_map_iframe");
+        var hint   = document.getElementById("reg_map_hint");
+        iframe.src = "https://maps.google.com/maps?q=" + lat + "," + lon + "&z=17&output=embed";
+        iframe.style.display = "block";
+        hint.style.display   = "none";
+      }
+      document.getElementById("reg_work_lat").addEventListener("change", updateRegMapPreview);
+      document.getElementById("reg_work_lon").addEventListener("change", updateRegMapPreview);
+
+      function useMyLocationForReg() {
+        if (!navigator.geolocation) { alert("Geolocation not supported by your browser."); return; }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          document.getElementById("reg_work_lat").value = pos.coords.latitude.toFixed(6);
+          document.getElementById("reg_work_lon").value = pos.coords.longitude.toFixed(6);
+          updateRegMapPreview();
+        }, function() { alert("Could not get location. Please enter coordinates manually."); });
+      }
+
+      /* ── WORK MODE TOGGLE (Edit modal) ── */
+      function editToggleLocation(mode) {
+        document.getElementById("edit_locationSection").style.display = mode === "wfh" ? "none" : "block";
+      }
+
+      function useMyLocationForEdit() {
+        if (!navigator.geolocation) { alert("Geolocation not supported by your browser."); return; }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          document.getElementById("edit_work_lat").value = pos.coords.latitude.toFixed(6);
+          document.getElementById("edit_work_lon").value = pos.coords.longitude.toFixed(6);
+        }, function() { alert("Could not get location. Please enter coordinates manually."); });
+      }
+
       /* ── EDIT MODAL ── */
-      function openEdit(empId, name, role, email, doj) {
+      function openEdit(empId, name, role, email, doj, workMode, workLat, workLon) {
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
         document.getElementById("edit_name").value           = name;
         document.getElementById("edit_email").value          = email || "";
         document.getElementById("edit_role").value           = role  || "";
         document.getElementById("edit_doj").value            = doj   || "";
+        var wm = workMode || "office";
+        document.getElementById("edit_wm_office").checked = wm === "office";
+        document.getElementById("edit_wm_wfh").checked    = wm === "wfh";
+        document.getElementById("edit_work_lat").value    = workLat || "";
+        document.getElementById("edit_work_lon").value    = workLon || "";
+        editToggleLocation(wm);
         document.getElementById("editModal").style.display   = "flex";
       }
       function closeEdit() { document.getElementById("editModal").style.display = "none"; }

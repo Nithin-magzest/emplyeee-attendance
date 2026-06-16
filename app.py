@@ -82,7 +82,7 @@ def _enforce_csrf():
 # Office location (single source of truth)
 OFFICE_LAT = 17.494664737165042
 OFFICE_LON = 78.40496618113566
-OFFICE_RADIUS_M = 150   # metres — GPS accuracy needs ~100m buffer
+OFFICE_RADIUS_M = 300   # metres — 300 m radius as per policy
 
 # Shift timings
 SHIFT_START = datetime.time(9, 0)    # Full Day Login cutoff
@@ -237,6 +237,9 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN bank_account VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN bank_ifsc VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN uan_number VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN work_mode VARCHAR(20) DEFAULT 'office'",
+        "ALTER TABLE employees ADD COLUMN work_lat DECIMAL(10,8) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN work_lon DECIMAL(11,8) DEFAULT NULL",
         "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
         "ALTER TABLE salary_config ADD COLUMN last_revised DATE DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL",
@@ -895,6 +898,11 @@ def admin_action():
         email           = request.form.get("email", "").strip() or None
         role            = request.form.get("role", "").strip() or None
         date_of_joining = request.form.get("date_of_joining", "").strip() or None
+        work_mode       = request.form.get("work_mode", "office").strip() or "office"
+        work_lat_raw    = request.form.get("work_lat", "").strip()
+        work_lon_raw    = request.form.get("work_lon", "").strip()
+        work_lat        = float(work_lat_raw) if work_lat_raw else None
+        work_lon        = float(work_lon_raw) if work_lon_raw else None
         file            = request.files["face"]
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
@@ -913,9 +921,11 @@ def admin_action():
         hashed_pwd = generate_password_hash(auto_pass)
         try:
             cursor.execute(
-                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, date_of_joining) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                (name, emp_id, email, role, filepath, qr_path, hashed_pwd, date_of_joining)
+                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
+                "date_of_joining, work_mode, work_lat, work_lon) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
+                 date_of_joining, work_mode, work_lat, work_lon)
             )
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -1095,10 +1105,23 @@ def edit_employee():
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
     db       = get_db_connection()
     cursor   = db.cursor(buffered=True)
-    cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
-        (name, email, role, date_of_joining, emp_id)
-    )
+    if request.form.get("update_work_mode"):
+        work_mode    = request.form.get("work_mode", "office").strip() or "office"
+        work_lat_raw = request.form.get("work_lat", "").strip()
+        work_lon_raw = request.form.get("work_lon", "").strip()
+        work_lat     = float(work_lat_raw) if work_lat_raw else None
+        work_lon     = float(work_lon_raw) if work_lon_raw else None
+        cursor.execute(
+            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
+            "work_mode=%s, work_lat=%s, work_lon=%s WHERE employee_id=%s",
+            (name, email, role, date_of_joining, work_mode, work_lat, work_lon, emp_id)
+        )
+    else:
+        cursor.execute(
+            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s "
+            "WHERE employee_id=%s",
+            (name, email, role, date_of_joining, emp_id)
+        )
     db.commit(); cursor.close(); db.close()
     flash(f"Employee '{emp_id}' updated successfully.", "success")
     return redirect("/employees")
@@ -1112,10 +1135,12 @@ def view_employees():
     cursor.execute("""
         SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
                COUNT(a.date)  AS total_days,
-               MAX(a.date)    AS last_seen
+               MAX(a.date)    AS last_seen,
+               e.work_mode, e.work_lat, e.work_lon
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
-        GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining
+        GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                 e.work_mode, e.work_lat, e.work_lon
         ORDER BY e.name
     """)
     employees = cursor.fetchall()
@@ -2000,10 +2025,6 @@ def attendance():
 
     if not emp_id:
         return jsonify({"ok": False, "msg": "No QR code data received."})
-    if not user_lat or not user_lon:
-        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
-    if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
-        return jsonify({"ok": False, "msg": "You are outside the office premises."})
     if not face_b64:
         return jsonify({"ok": False, "msg": "Face photo not captured."})
 
@@ -2016,14 +2037,27 @@ def attendance():
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT face_image, name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute(
+        "SELECT face_image, name, email, work_mode, work_lat, work_lon "
+        "FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
 
     if not result:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found. Please check your QR code."})
 
-    face_path, employee_name, employee_email = result
+    face_path, employee_name, employee_email, emp_work_mode, emp_work_lat, emp_work_lon = result
+
+    # Location check — WFH employees skip, office employees must be within 300 m
+    if emp_work_mode != 'wfh':
+        if not user_lat or not user_lon:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
+        chk_lat = float(emp_work_lat) if emp_work_lat else OFFICE_LAT
+        chk_lon = float(emp_work_lon) if emp_work_lon else OFFICE_LON
+        if not is_within_range(float(user_lat), float(user_lon), chk_lat, chk_lon):
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "You are outside the designated office location."})
 
     if not os.path.exists(face_path):
         cursor.close(); db.close()
@@ -3591,17 +3625,21 @@ def api_checkin():
     lon    = data.get("lon")
     if not emp_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
-    if lat and lon:
-        if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
-            return jsonify({"ok": False, "msg": "You are outside the office premises."})
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute(
+        "SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
     if not result:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
-    employee_name = result[0]
+    employee_name, emp_work_mode, emp_work_lat, emp_work_lon = result
+    if emp_work_mode != 'wfh' and lat and lon:
+        chk_lat = float(emp_work_lat) if emp_work_lat else OFFICE_LAT
+        chk_lon = float(emp_work_lon) if emp_work_lon else OFFICE_LON
+        if not is_within_range(float(lat), float(lon), chk_lat, chk_lon):
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "You are outside the designated office location."})
     now           = datetime.datetime.now()
     today         = now.date()
     current_time  = now.time()

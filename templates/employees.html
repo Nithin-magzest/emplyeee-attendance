@@ -216,7 +216,7 @@
             </thead>
             <tbody>
               {% for e in employees %}
-              {% set emp_id, name, role, email, doj, total_days, last_seen = e %}
+              {% set emp_id, name, role, email, doj, total_days, last_seen, work_mode, work_lat, work_lon = e %}
               <tr>
                 <td class="muted">{{ loop.index }}</td>
                 <td><strong>{{ emp_id }}</strong></td>
@@ -263,7 +263,10 @@
                       '{{ name | replace("'", "\\'") }}',
                       '{{ role or "" }}',
                       '{{ email or "" }}',
-                      '{{ doj.strftime("%Y-%m-%d") if doj else "" }}'
+                      '{{ doj.strftime("%Y-%m-%d") if doj else "" }}',
+                      '{{ work_mode or "office" }}',
+                      '{{ work_lat or "" }}',
+                      '{{ work_lon or "" }}'
                     )">✏️ Edit</button>
                   <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                         onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
@@ -288,6 +291,7 @@
         <h3>✏️ Edit Employee</h3>
         <form action="/edit_employee" method="POST">
           <input type="hidden" name="emp_id" id="edit_emp_id" />
+          <input type="hidden" name="update_work_mode" value="1" />
 
           <div class="field-group">
             <label>Employee ID</label>
@@ -308,6 +312,40 @@
           <div class="field-group">
             <label>Date of Joining</label>
             <input name="date_of_joining" id="edit_doj" type="date" />
+          </div>
+
+          <div class="field-group">
+            <label>Work Mode</label>
+            <div style="display:flex;gap:14px;margin-top:4px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="radio" name="work_mode" id="emp_edit_wm_office" value="office" onchange="empEditToggleLocation(this.value)" style="accent-color:#1e3a8a;" />
+                🏢 Work from Office
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh" onchange="empEditToggleLocation(this.value)" style="accent-color:#059669;" />
+                🏠 Work from Home
+              </label>
+            </div>
+          </div>
+
+          <div id="emp_edit_locationSection" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:8px;">📍 Office Location <span style="font-weight:400;color:#64748b;">(300 m radius — leave blank for default)</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div>
+                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
+                <input type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001" min="-90" max="90"
+                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+              </div>
+              <div>
+                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
+                <input type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" min="-180" max="180"
+                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+              </div>
+            </div>
+            <button type="button" onclick="useMyLocationForEmpEdit()"
+              style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+              📡 Use My Location
+            </button>
           </div>
 
           <div class="modal-actions">
@@ -332,13 +370,31 @@
           visible + " employee" + (visible !== 1 ? "s" : "");
       }
 
-      function openEdit(empId, name, role, email, doj) {
+      function empEditToggleLocation(mode) {
+        document.getElementById("emp_edit_locationSection").style.display = mode === "wfh" ? "none" : "block";
+      }
+
+      function useMyLocationForEmpEdit() {
+        if (!navigator.geolocation) { alert("Geolocation not supported by your browser."); return; }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          document.getElementById("emp_edit_work_lat").value = pos.coords.latitude.toFixed(6);
+          document.getElementById("emp_edit_work_lon").value = pos.coords.longitude.toFixed(6);
+        }, function() { alert("Could not get location. Please enter coordinates manually."); });
+      }
+
+      function openEdit(empId, name, role, email, doj, workMode, workLat, workLon) {
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
         document.getElementById("edit_name").value           = name;
         document.getElementById("edit_role").value           = role;
         document.getElementById("edit_email").value          = email;
         document.getElementById("edit_doj").value            = doj;
+        var wm = workMode || "office";
+        document.getElementById("emp_edit_wm_office").checked = wm === "office";
+        document.getElementById("emp_edit_wm_wfh").checked    = wm === "wfh";
+        document.getElementById("emp_edit_work_lat").value    = workLat || "";
+        document.getElementById("emp_edit_work_lon").value    = workLon || "";
+        empEditToggleLocation(wm);
         document.getElementById("editModal").style.display   = "flex";
       }
       function closeEdit() {
