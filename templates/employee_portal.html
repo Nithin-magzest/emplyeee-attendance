@@ -54,9 +54,14 @@
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
       /* TOAST */
+      @keyframes toastHide {
+        0%,90%  { opacity:1; max-height:80px; margin-bottom:20px; padding:12px 18px; }
+        100%    { opacity:0; max-height:0;   margin-bottom:0;    padding:0 18px; overflow:hidden; }
+      }
       .toast {
         border-radius: 10px; padding: 12px 18px;
         font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+        animation: toastHide 30s forwards;
       }
       .toast-green { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
       .toast-red   { background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; }
@@ -272,8 +277,13 @@
       .ticket-response strong { display: block; font-size: 11px; color: #6d28d9; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
       .b-indigo { background: #ede9fe; color: #4c1d95; border: 1px solid #c4b5fd; }
       .b-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
-      .nav-ticket { color: #93c5fd !important; }
-      .nav-ticket:hover { background: rgba(99,102,241,0.2) !important; }
+      .nav-ticket { color: #ffffff !important; }
+      .nav-ticket:hover { background: rgba(255,255,255,0.15) !important; }
+      .nav-badge {
+        margin-left: auto; background: #ef4444; color: #fff;
+        font-size: 10px; font-weight: 700; padding: 2px 6px;
+        border-radius: 20px; min-width: 18px; text-align: center;
+      }
       .toast-blue { background: #ede9fe; border: 1px solid #c4b5fd; color: #4c1d95; }
       .ticket-raise-form { margin-bottom: 28px; }
       .ticket-field { margin-bottom: 0; }
@@ -354,9 +364,9 @@
       </div>
       <a class="nav-item active" id="nav-dashboard"      href="#" onclick="showView('dashboard');return false;">🏠 Dashboard</a>
       <a class="nav-item"        id="nav-attendance"    href="#" onclick="showView('attendance');return false;">📋 My Attendance</a>
-      <a class="nav-item"        id="nav-apply-leave"   href="#" onclick="showView('apply-leave');return false;">📝 Apply Leave</a>
+      <a class="nav-item"        id="nav-apply-leave"   href="#" onclick="showView('apply-leave');return false;">📝 Apply Leave{% if pending_leaves_count > 0 %}<span class="nav-badge">{{ pending_leaves_count }}</span>{% endif %}</a>
       <a class="nav-item"        id="nav-payslips"      href="#" onclick="showView('payslips');return false;">💳 Pay Slips</a>
-      <a class="nav-item nav-ticket" id="nav-tickets"   href="#" onclick="showView('tickets');return false;">🎫 Tickets</a>
+      <a class="nav-item nav-ticket" id="nav-tickets"   href="#" onclick="showView('tickets');return false;">🎫 Tickets{% if open_tickets_count > 0 %}<span class="nav-badge">{{ open_tickets_count }}</span>{% endif %}</a>
       <a class="nav-item"        id="nav-change-password" href="#" onclick="showView('change-password');return false;">🔒 Change Password</a>
       <a class="nav-item"        id="nav-my-profile"    href="#" onclick="showView('my-profile');return false;">👤 My Profile</a>
       <a class="nav-item nav-resign" id="nav-resign"    href="#" onclick="openResignGate();return false;">🚨 Resignation</a>
@@ -532,6 +542,106 @@
         </div>
       </div>
 
+      <!-- DONUT + HOLIDAYS ROW -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
+
+        <!-- SVG Donut Chart -->
+        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;display:flex;align-items:center;gap:24px;">
+          {% set total_shown = full_days + late_days + half_days + absent_days %}
+          {% if total_shown > 0 %}
+            {% set full_pct  = (full_days  / total_shown * 100) | int %}
+            {% set late_pct  = (late_days  / total_shown * 100) | int %}
+            {% set half_pct  = (half_days  / total_shown * 100) | int %}
+            {% set abs_pct   = (absent_days / total_shown * 100) | int %}
+            {% set circ = 251.2 %}
+            {% set f_d  = (full_pct  / 100 * circ) | round(1) %}
+            {% set l_d  = (late_pct  / 100 * circ) | round(1) %}
+            {% set h_d  = (half_pct  / 100 * circ) | round(1) %}
+            {% set a_d  = (abs_pct   / 100 * circ) | round(1) %}
+            {% set f_o  = 0 %}
+            {% set l_o  = circ - f_d %}
+            {% set h_o  = l_o - l_d %}
+            {% set a_o  = h_o - h_d %}
+            <svg width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0;">
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#e2e8f0" stroke-width="14"/>
+              {% if f_d > 0 %}
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#16a34a" stroke-width="14"
+                stroke-dasharray="{{ f_d }} {{ circ - f_d }}" stroke-dashoffset="{{ circ * 0.25 }}"
+                transform="rotate(-90 55 55)"/>
+              {% endif %}
+              {% if l_d > 0 %}
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#d97706" stroke-width="14"
+                stroke-dasharray="{{ l_d }} {{ circ - l_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d }}"
+                transform="rotate(-90 55 55)"/>
+              {% endif %}
+              {% if h_d > 0 %}
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#f97316" stroke-width="14"
+                stroke-dasharray="{{ h_d }} {{ circ - h_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d }}"
+                transform="rotate(-90 55 55)"/>
+              {% endif %}
+              {% if a_d > 0 %}
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#ef4444" stroke-width="14"
+                stroke-dasharray="{{ a_d }} {{ circ - a_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d - h_d }}"
+                transform="rotate(-90 55 55)"/>
+              {% endif %}
+              <text x="55" y="51" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">{{ att_pct }}%</text>
+              <text x="55" y="65" text-anchor="middle" font-size="9" fill="#94a3b8">attendance</text>
+            </svg>
+          {% else %}
+            <svg width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0;">
+              <circle cx="55" cy="55" r="40" fill="none" stroke="#e2e8f0" stroke-width="14"/>
+              <text x="55" y="58" text-anchor="middle" font-size="11" fill="#94a3b8">No data</text>
+            </svg>
+          {% endif %}
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+            <div style="display:flex;align-items:center;gap:7px;"><span style="width:10px;height:10px;border-radius:3px;background:#16a34a;flex-shrink:0;"></span><span>Full Days <strong>{{ full_days }}</strong></span></div>
+            <div style="display:flex;align-items:center;gap:7px;"><span style="width:10px;height:10px;border-radius:3px;background:#d97706;flex-shrink:0;"></span><span>Late Days <strong>{{ late_days }}</strong></span></div>
+            <div style="display:flex;align-items:center;gap:7px;"><span style="width:10px;height:10px;border-radius:3px;background:#f97316;flex-shrink:0;"></span><span>Half Days <strong>{{ half_days }}</strong></span></div>
+            <div style="display:flex;align-items:center;gap:7px;"><span style="width:10px;height:10px;border-radius:3px;background:#ef4444;flex-shrink:0;"></span><span>Absent <strong>{{ absent_days }}</strong></span></div>
+          </div>
+        </div>
+
+        <!-- Upcoming Holidays -->
+        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;">
+          <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">🗓 Upcoming Holidays</div>
+          {% if upcoming_holidays %}
+            {% for hdate, hname in upcoming_holidays %}
+            <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #f1f5f9;">
+              <div style="background:#ede9fe;border-radius:8px;padding:6px 10px;text-align:center;flex-shrink:0;min-width:42px;">
+                <div style="font-size:14px;font-weight:700;color:#6d28d9;">{{ hdate.strftime('%d') if hdate else '' }}</div>
+                <div style="font-size:10px;color:#8b5cf6;text-transform:uppercase;">{{ hdate.strftime('%b') if hdate else '' }}</div>
+              </div>
+              <div style="font-size:13px;font-weight:600;color:#1e293b;">{{ hname }}</div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="font-size:13px;color:#94a3b8;padding:10px 0;">No upcoming holidays.</div>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- Announcements widget -->
+      {% if announcements %}
+      <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;margin-bottom:20px;">
+        <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px;">📢 Announcements</div>
+        {% for ann_id, ann_title, ann_content, ann_pri, ann_date in announcements %}
+        <div style="border-radius:10px;padding:14px 16px;margin-bottom:10px;border-left:4px solid
+          {% if ann_pri=='Urgent' %}#ef4444{% elif ann_pri=='Important' %}#f59e0b{% else %}#3b82f6{% endif %};
+          background:{% if ann_pri=='Urgent' %}#fff5f5{% elif ann_pri=='Important' %}#fffbeb{% else %}#f0f7ff{% endif %};">
+          <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">
+            {% if ann_pri=='Urgent' %}🔴{% elif ann_pri=='Important' %}🟡{% else %}📢{% endif %}
+            {{ ann_title }}
+            <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;
+              background:{% if ann_pri=='Urgent' %}#fee2e2;color:#dc2626{% elif ann_pri=='Important' %}#fef9c3;color:#92400e{% else %}#dbeafe;color:#1e40af{% endif %};">{{ ann_pri }}</span>
+          </div>
+          <div style="font-size:12px;color:#475569;line-height:1.6;">{{ ann_content }}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px;">{{ ann_date.strftime('%d %b %Y') if ann_date else '' }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       </div><!-- /view-dashboard -->
 
       <!-- ═══ VIEW: MY ATTENDANCE ═══ -->
@@ -630,6 +740,24 @@
       <!-- ═══ VIEW: APPLY LEAVE ═══ -->
       <div id="view-apply-leave" class="view">
       <div class="mod-title">📝 Apply for Leave <span>Submit a leave request and view your history</span></div>
+      <!-- Leave balance bar -->
+      <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:18px 20px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;color:#1e293b;">📊 Leave Balance — {{ today.split(' ')[2] if today else '' }}</div>
+          <div style="display:flex;gap:18px;font-size:12px;">
+            <span style="color:#16a34a;font-weight:700;">✅ Available: {{ leave_balance }}</span>
+            <span style="color:#f59e0b;font-weight:700;">⏳ Used/Pending: {{ leaves_used }}</span>
+            <span style="color:#64748b;font-weight:600;">📅 Quota: {{ annual_leave_quota }}</span>
+          </div>
+        </div>
+        {% set used_pct = ((leaves_used / annual_leave_quota) * 100) | int %}
+        <div style="background:#e2e8f0;border-radius:20px;height:10px;overflow:hidden;">
+          <div style="height:100%;border-radius:20px;width:{{ [used_pct,100]|min }}%;
+            background:{% if used_pct >= 80 %}#ef4444{% elif used_pct >= 50 %}#f59e0b{% else %}#16a34a{% endif %};
+            transition:width 0.4s;"></div>
+        </div>
+      </div>
+
       <div class="section" id="apply-leave">
         <form action="/request_leave" method="POST" id="leave-form">
 
@@ -753,7 +881,7 @@
         {% if my_tickets %}
           {% for t in my_tickets %}
             {% set tid, tcat, tsubj, tpri, tstat, tresp, tdate = t %}
-            <div class="ticket-row">
+            <div class="ticket-row" style="border-left:4px solid {% if tpri=='High' %}#ef4444{% elif tpri=='Low' %}#94a3b8{% else %}#f59e0b{% endif %}">
               <div class="ticket-row-header">
                 <span class="ticket-subject">{{ tsubj }}</span>
                 {% if tpri == 'High' %}
@@ -926,16 +1054,23 @@
 
       <!-- ═══ VIEW: PAY SLIPS ═══ -->
       <div id="view-payslips" class="view">
-      <div class="mod-title">💳 My Pay Slips <span>View your salary slips by month</span></div>
-      <p class="payslip-hint">Click any month to open your salary slip in a new tab.</p>
-      <div class="payslip-grid">
-        {% for y, m, mname in payslip_months %}
-        <a class="payslip-card" href="/view_payslip/{{ emp[0] }}/{{ y }}/{{ m }}" target="_blank">
-          <span class="ps-icon">💳</span>
-          <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
-          <span class="ps-cta">View Slip →</span>
-        </a>
-        {% endfor %}
+      <div class="mod-title">💳 My Pay Slips <span>View salary breakdown and download slips</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <p class="payslip-hint">Click a month to preview or open the full slip.</p>
+          <div class="payslip-grid">
+            {% for y, m, mname in payslip_months %}
+            <div class="payslip-card" style="cursor:pointer;" onclick="loadPayslip({{ y }},{{ m }},'{{ mname[:3] }} {{ y }}')">
+              <span class="ps-icon">💳</span>
+              <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
+              <span class="ps-cta">Preview →</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div id="payslip-panel" style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:22px;display:none;">
+          <div id="payslip-panel-content"></div>
+        </div>
       </div>
       </div><!-- /view-payslips -->
 
@@ -1002,8 +1137,11 @@
             <div style="position:relative; width:100px; height:100px; flex-shrink:0;">
               <div class="profile-avatar" style="width:100px;height:100px;font-size:36px;margin-bottom:0;">
                 {% if emp[4] %}
-                  <img src="/my_photo" alt="{{ emp[1] }}" id="profilePreview"
-                       onerror="this.parentNode.innerHTML='{{ emp[1][0]|upper }}'" />
+                  <a href="/my_photo" target="_blank" style="display:block;width:100%;height:100%;" title="View full photo">
+                    <img src="/my_photo" alt="{{ emp[1] }}" id="profilePreview"
+                         style="width:100%;height:100%;object-fit:cover;"
+                         onerror="this.parentNode.parentNode.innerHTML='{{ emp[1][0]|upper }}'" />
+                  </a>
                 {% else %}
                   <span id="profileInitial">{{ emp[1][0]|upper }}</span>
                 {% endif %}
@@ -1231,6 +1369,48 @@
     </div><!-- /main -->
 
     <script>
+      function loadPayslip(year, month, label) {
+        const panel = document.getElementById('payslip-panel');
+        const content = document.getElementById('payslip-panel-content');
+        content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;">Loading…</div>';
+        panel.style.display = 'block';
+        fetch('/my_payslip_summary/' + year + '/' + month)
+          .then(r => r.json())
+          .then(d => {
+            content.innerHTML = `
+              <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;">💳 ${label} — Salary Breakdown</div>
+              <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Rate: ₹${d.salary_per_day.toFixed(2)} / day</div>
+              <div style="border:1px solid #dbeafe;border-radius:10px;overflow:hidden;margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#f8fafc;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;">
+                  <span>Description</span><span>Days</span><span>Amount</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
+                  <span style="color:#16a34a;">Full Day</span><span>${d.full_days}</span><span>₹${d.full_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
+                  <span style="color:#d97706;">Late – Full Day</span><span>${d.late_days}</span><span>₹${d.late_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
+                  <span style="color:#f97316;">Half Day (×0.5)</span><span>${d.half_days}</span><span>₹${d.half_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;font-weight:700;border-top:2px solid #dbeafe;background:#f0f7ff;">
+                  <span>Gross Pay</span><span></span><span>₹${d.gross.toFixed(2)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;color:#dc2626;">
+                  <span>PF Deduction (12%)</span><span></span><span>−₹${d.pf.toFixed(2)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:15px;font-weight:700;border-top:2px solid #16a34a;background:#dcfce7;color:#15803d;">
+                  <span>Net Pay</span><span></span><span>₹${d.net.toFixed(2)}</span>
+                </div>
+              </div>
+              <a href="/view_payslip/{{ emp[0] }}/${year}/${month}" target="_blank"
+                 style="display:inline-block;padding:9px 20px;background:#1e3a8a;color:#fff;border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;">
+                🖨️ Open Full Slip
+              </a>`;
+          })
+          .catch(() => { content.innerHTML = '<div style="color:#dc2626;padding:20px;">Failed to load. Please try again.</div>'; });
+      }
+
       function updateClock() {
         const now = new Date();
         document.getElementById("clock").innerText =

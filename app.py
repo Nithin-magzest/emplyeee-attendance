@@ -197,6 +197,15 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS announcements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            content TEXT NOT NULL,
+            priority ENUM('Normal','Important','Urgent') DEFAULT 'Normal',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
 
     # Migrations for existing installs
@@ -947,6 +956,44 @@ def admin_action():
     cursor.close()
     db.close()
     return redirect("/admin")
+
+# ---------------- ANNOUNCEMENTS ----------------
+@app.route("/announcements", methods=["GET", "POST"])
+@admin_required
+def announcements_admin():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "add":
+            cursor.execute(
+                "INSERT INTO announcements (title, content, priority) VALUES (%s,%s,%s)",
+                (request.form["title"], request.form["content"], request.form.get("priority","Normal"))
+            )
+            db.commit()
+            flash("Announcement posted.", "success")
+        elif action == "delete":
+            cursor.execute("DELETE FROM announcements WHERE id=%s", (request.form["ann_id"],))
+            db.commit()
+            flash("Announcement deleted.", "success")
+        cursor.close(); db.close()
+        return redirect("/announcements")
+
+    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
+    ann_list = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.close(); db.close()
+    return render_template("announcements.html",
+        ann_list=ann_list,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
 
 # ---------------- VIEW HOLIDAYS ----------------
 @app.route("/view_holidays")
@@ -2465,6 +2512,36 @@ def employee_portal():
     """, (emp_id,))
     my_tickets = cursor.fetchall()
 
+    # Leave balance
+    annual_leave_quota = 12
+    cursor.execute("""
+        SELECT COUNT(*) FROM leave_requests
+        WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
+    """, (emp_id, today.year))
+    leaves_used = cursor.fetchone()[0] or 0
+    leave_balance = max(0, annual_leave_quota - leaves_used)
+
+    # Announcements for dashboard
+    cursor.execute("""
+        SELECT id, title, content, priority, created_at
+        FROM announcements ORDER BY created_at DESC LIMIT 10
+    """)
+    announcements = cursor.fetchall()
+
+    # Pending leave count for nav badge
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Pending'", (emp_id,))
+    pending_leaves_count = cursor.fetchone()[0] or 0
+
+    # Open ticket count for nav badge
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE employee_id=%s AND status='Open'", (emp_id,))
+    open_tickets_count = cursor.fetchone()[0] or 0
+
+    # Upcoming holidays (next 3 from today)
+    cursor.execute("""
+        SELECT date, name FROM holidays WHERE date >= %s ORDER BY date LIMIT 3
+    """, (today,))
+    upcoming_holidays = cursor.fetchall()
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -2503,7 +2580,59 @@ def employee_portal():
         years=list(range(today.year - 2, today.year + 1)),
         months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
         payslip_months=payslip_months,
+        leave_balance=leave_balance,
+        leaves_used=leaves_used,
+        annual_leave_quota=annual_leave_quota,
+        announcements=announcements,
+        pending_leaves_count=pending_leaves_count,
+        open_tickets_count=open_tickets_count,
+        upcoming_holidays=upcoming_holidays,
     )
+
+
+@app.route("/my_payslip_summary/<int:year>/<int:month>")
+@employee_required
+def my_payslip_summary(year, month):
+    import json as _json
+    emp_id = session["employee_id"]
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    spd = float(row[0]) if row else 0.0
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
+    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    att_rows = cursor.fetchall()
+    cursor.close(); db.close()
+
+    att_map = {r[0]: r for r in att_rows}
+    billable = get_billable_past_days(year, month)
+    full = late = half = 0
+    for d in billable:
+        r = att_map.get(d)
+        if r:
+            final = r[5] if r[5] else infer_type_legacy(r[3], r[1], r[2])
+            if final == "Full Day":          full += 1
+            elif final == "Late - Full Day": late += 1
+            elif final in ("Half Day","Present"): half += 1
+
+    full_earn = round(full * spd, 2)
+    late_earn = round(late * spd, 2)
+    half_earn = round(half * spd * 0.5, 2)
+    gross = full_earn + late_earn + half_earn
+    pf = round(gross * 0.12, 2)
+    net = round(gross - pf, 2)
+
+    return _json.dumps({
+        "salary_per_day": spd,
+        "full_days": full, "late_days": late, "half_days": half,
+        "full_earn": full_earn, "late_earn": late_earn, "half_earn": half_earn,
+        "gross": gross, "pf": pf, "net": net
+    }), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/my_attendance_pdf")
