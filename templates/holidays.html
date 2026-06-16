@@ -1,138 +1,125 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Holidays & Leaves</title>
+    <title>Holidays &amp; Leaves</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
-      .sidebar {
-        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
-        padding: 22px 14px; color: white;
-        display: flex; flex-direction: column; flex-shrink: 0;
-        box-shadow: 4px 0 20px rgba(0,0,0,0.18);
-      }
+      /* ── SIDEBAR ── */
+      .sidebar { width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%); padding: 22px 14px; color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.18); }
       .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
       .brand-icon { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-      .brand     { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+      .brand { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
       .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
       .nav-group-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin: 14px 0 4px; }
       .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s; position: relative; }
-      .nav-item:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+      .nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
       .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
       .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
       .nav-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); }
       .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
-      .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
+      .nav-item:hover .nav-icon { background: rgba(255,255,255,0.12); }
       .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
       .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
       .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
 
-      .main { flex: 1; padding: 28px; color: #1e293b; }
+      /* ── MAIN ── */
+      .main { flex: 1; padding: 28px; overflow-x: hidden; }
       .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header h1 { font-size: 24px; color: #1e293b; font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
-      .section {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 16px; padding: 22px; margin-bottom: 22px;
-      }
-      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
+      /* ── STAT PILLS ── */
+      .stats-row { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+      .stat-pill { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #dbeafe; border-radius: 12px; padding: 12px 18px; flex: 1; min-width: 140px; }
+      .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+      .stat-icon.yellow { background: #fef9c3; }
+      .stat-icon.purple { background: #ede9fe; }
+      .stat-icon.blue   { background: #dbeafe; }
+      .stat-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+      .stat-value { font-size: 22px; font-weight: 800; color: #1e293b; line-height: 1.1; }
 
-      /* ADD FORM */
-      .add-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-      .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
-      .form-group label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
-      .form-group input, .form-group select {
-        padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
-        transition: 0.2s;
-      }
-      .form-group input::placeholder { color: #94a3b8; }
-      .form-group input:focus, .form-group select:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-      .btn-add {
-        padding: 10px 22px; border: none; border-radius: 9px;
-        background: #22c55e; color: white;
-        font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s;
-        white-space: nowrap; align-self: flex-end;
-      }
-      .btn-add:hover { background: #16a34a; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(34,197,94,0.25); }
+      /* ── CONTENT GRID ── */
+      .content-grid { display: grid; grid-template-columns: 340px 1fr; gap: 22px; align-items: start; }
 
-      /* TABLE */
-      .table-wrap { overflow-x: auto; border-radius: 10px; }
-      table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      th {
-        background: #dbeafe; color: #1e3a8a;
-        padding: 11px 16px; text-align: left;
-        font-weight: 600; white-space: nowrap;
-      }
-      td { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+      /* ── CARDS ── */
+      .card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
+      .card-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+      /* ── ADD FORM ── */
+      .field { margin-bottom: 14px; }
+      .field label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 5px; }
+      .field input, .field select { width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
+      .field input:focus, .field select:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,0.2); }
+      .field input::placeholder { color: #94a3b8; }
+
+      .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+      .type-btn { padding: 10px; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: 0.18s; }
+      .type-btn.active-holiday { border-color: #fde047; background: #fef9c3; color: #92400e; }
+      .type-btn.active-leave   { border-color: #c4b5fd; background: #ede9fe; color: #6d28d9; }
+      .type-btn:hover { border-color: #93c5fd; }
+
+      .btn-add { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #16a34a, #22c55e); color: white; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 4px; }
+      .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(34,197,94,0.3); }
+
+      /* ── LIST SECTION ── */
+      .list-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
+      .list-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+      .list-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+
+      .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .search-wrap { position: relative; }
+      .search-wrap input { padding: 8px 12px 8px 32px; border: 1.5px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; width: 200px; }
+      .search-wrap input:focus { border-color: #93c5fd; }
+      .search-wrap span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+
+      .filter-type { padding: 8px 12px; border: 1.5px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; cursor: pointer; }
+
+      /* ── TABLE ── */
+      .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #f8fafc; color: #475569; padding: 10px 16px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
+      td { padding: 11px 16px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
+      tr:hover td { background: #f8faff; }
 
-      .badge-holiday {
-        display: inline-block; padding: 3px 10px;
-        border-radius: 20px; font-size: 12px; font-weight: 600;
-        background: #fef9c3; color: #92400e;
-        border: 1px solid #fde047;
-      }
-      .badge-leave {
-        display: inline-block; padding: 3px 10px;
-        border-radius: 20px; font-size: 12px; font-weight: 600;
-        background: #ede9fe; color: #6d28d9;
-        border: 1px solid #c4b5fd;
-      }
-      .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
+      .badge-holiday { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+      .badge-leave   { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
 
-      .btn-del {
-        padding: 5px 12px; border: none; border-radius: 7px;
-        background: #fee2e2; color: #dc2626;
-        border: 1px solid #fca5a5; font-size: 12px;
-        cursor: pointer; transition: 0.2s;
-      }
+      .day-badge { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+      .btn-del { padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 7px; background: #fee2e2; color: #dc2626; font-size: 12px; cursor: pointer; transition: 0.2s; font-weight: 600; }
       .btn-del:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
-      .form-inline { display: inline; }
 
-      @media (max-width: 768px) {
-        body { flex-direction: column; }
-        .sidebar { width: 100%; min-height: unset; }
-        .add-form { flex-direction: column; }
-      }
+      .empty-cell { text-align: center; padding: 36px; color: #94a3b8; font-size: 14px; }
+
+      @media (max-width: 1100px) { .content-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 768px)  { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } }
     </style>
   </head>
   <body>
 
-            <div class="sidebar">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div>
+      </div>
       <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
       <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item active" href="/view_holidays"><span class="nav-icon">📅</span>Holidays
-      </a>
-      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config
-      </a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management
-      </a>
-      </a>
-      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes
-      </a>
-      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings
-      </a>
+      <a class="nav-item active" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config</a>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings</a>
       <div class="nav-group-label" style="margin-top:10px;">Requests</div>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
@@ -144,79 +131,186 @@
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
-    <!-- ADD FORM -->
-      <div class="section">
-        <h3>➕ Add Holiday / Leave</h3>
-        <form action="/add_holiday" method="POST">
-          <div class="add-form">
-            <div class="form-group">
-              <label>Date</label>
-              <input type="date" name="date" title="Select date" required />
-            </div>
-            <div class="form-group">
-              <label>Type</label>
-              <select name="type" title="Entry type">
-                <option value="Holiday">🎉 Holiday</option>
-                <option value="Leave">🌿 Leave</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Name / Description</label>
-              <input type="text" name="holiday_name" placeholder="e.g. Diwali, Republic Day, Annual Leave…" required />
-            </div>
-            <button type="submit" class="btn-add">+ Add</button>
-          </div>
-        </form>
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="page-header">
+        <h1>📅 Holidays &amp; Leaves</h1>
+        <p>Manage company holidays and leave days. These dates are excluded from attendance calculations.</p>
       </div>
 
-      <!-- LIST -->
-      <div class="section">
-        <h3>📋 All Holidays & Leaves</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Name</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for h in holidays %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ h[1] }}</td>
-                <td>
-                  {% if h[2].startswith('Leave:') %}
-                    <span class="badge-leave">🌿 {{ h[2][6:] }}</span>
-                  {% else %}
-                    <span class="badge-holiday">🎉 {{ h[2] }}</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <form action="/delete_holiday/{{ h[0] }}" method="POST"
-                        onsubmit="return confirm('Delete this entry?');" class="form-inline">
-                    <button type="submit" class="btn-del">🗑 Delete</button>
-                  </form>
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="4" class="empty-cell">No holidays or leaves added yet.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <!-- STATS -->
+      {% set total_holidays = holidays | selectattr(2, 'defined') | list | length %}
+      {% set holiday_count = holidays | selectattr(2, 'ne', None) | list | selectattr(2, 'string') | list | reject('string', 'startswith', 'Leave:') | list | length %}
+      <div class="stats-row">
+        <div class="stat-pill">
+          <div class="stat-icon yellow">🎉</div>
+          <div>
+            <div class="stat-label">Holidays</div>
+            <div class="stat-value">{{ holidays | selectattr(2, 'defined') | list | rejectattr(2, 'string') | list | length + holidays | selectattr(2, 'defined') | list | selectattr(2, 'string') | list | reject('string', 'startswith', 'Leave:') | list | length }}</div>
+          </div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-icon purple">🌿</div>
+          <div>
+            <div class="stat-label">Leaves</div>
+            <div class="stat-value">{{ holidays | selectattr(2, 'string') | list | select('string', 'startswith', 'Leave:') | list | length }}</div>
+          </div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-icon blue">📊</div>
+          <div>
+            <div class="stat-label">Total Entries</div>
+            <div class="stat-value">{{ holidays | length }}</div>
+          </div>
         </div>
       </div>
 
-    </div>
+      <!-- CONTENT GRID -->
+      <div class="content-grid">
 
+        <!-- LEFT: ADD FORM -->
+        <div class="card">
+          <div class="card-title">➕ Add Holiday / Leave</div>
+          <form action="/add_holiday" method="POST" id="addForm">
+
+            <input type="hidden" name="type" id="typeInput" value="Holiday" />
+
+            <div style="margin-bottom:14px;">
+              <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Type</div>
+              <div class="type-toggle">
+                <div class="type-btn active-holiday" id="btnHoliday" onclick="setType('Holiday')">🎉 Holiday</div>
+                <div class="type-btn" id="btnLeave" onclick="setType('Leave')">🌿 Leave</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Date</label>
+              <input type="date" name="date" required />
+            </div>
+
+            <div class="field">
+              <label>Name / Description</label>
+              <input type="text" name="holiday_name" id="nameInput"
+                     placeholder="e.g. Diwali, Republic Day…" required />
+            </div>
+
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:11px 13px;font-size:12px;color:#0369a1;line-height:1.6;margin-bottom:14px;">
+              📌 These dates are marked as non-working days and excluded from attendance and salary calculations.
+            </div>
+
+            <button type="submit" class="btn-add">➕ Add Entry</button>
+          </form>
+        </div>
+
+        <!-- RIGHT: LIST -->
+        <div class="list-card">
+          <div class="list-header">
+            <div class="list-title">📋 All Holidays &amp; Leaves</div>
+            <div class="filter-row">
+              <div class="search-wrap">
+                <span>🔍</span>
+                <input type="text" id="searchInput" placeholder="Search…" oninput="filterTable()" autocomplete="off" />
+              </div>
+              <select class="filter-type" id="filterType" onchange="filterTable()">
+                <option value="">All Types</option>
+                <option value="holiday">🎉 Holiday</option>
+                <option value="leave">🌿 Leave</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Day</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="holidayTbody">
+                {% for h in holidays %}
+                {% set is_leave = h[2] and h[2].startswith('Leave:') %}
+                {% set display_name = h[2][6:] if is_leave else h[2] %}
+                <tr data-name="{{ display_name | lower }}"
+                    data-type="{{ 'leave' if is_leave else 'holiday' }}">
+                  <td style="color:#94a3b8;">{{ loop.index }}</td>
+                  <td><strong>{{ h[1] }}</strong></td>
+                  <td style="color:#64748b;font-size:12px;" id="day-{{ loop.index }}">—</td>
+                  <td>{{ display_name }}</td>
+                  <td>
+                    {% if is_leave %}
+                      <span class="badge-leave">🌿 Leave</span>
+                    {% else %}
+                      <span class="badge-holiday">🎉 Holiday</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <form action="/delete_holiday/{{ h[0] }}" method="POST" style="display:inline;"
+                          onsubmit="return confirm('Delete this entry?');">
+                      <button type="submit" class="btn-del">🗑 Delete</button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="empty-cell">No holidays or leaves added yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /content-grid -->
+    </div><!-- /main -->
+
+    <script>
+      /* ── TYPE TOGGLE ── */
+      function setType(t) {
+        document.getElementById("typeInput").value = t;
+        var bH = document.getElementById("btnHoliday");
+        var bL = document.getElementById("btnLeave");
+        if (t === "Holiday") {
+          bH.className = "type-btn active-holiday";
+          bL.className = "type-btn";
+          document.getElementById("nameInput").placeholder = "e.g. Diwali, Republic Day, Christmas…";
+        } else {
+          bH.className = "type-btn";
+          bL.className = "type-btn active-leave";
+          document.getElementById("nameInput").placeholder = "e.g. Annual Leave, Sick Leave…";
+        }
+      }
+
+      /* ── DAY NAMES ── */
+      var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      document.querySelectorAll("#holidayTbody tr[data-name]").forEach(function(row, i) {
+        var dateCell = row.cells[1];
+        var dayCell  = row.cells[2];
+        if (dateCell && dayCell) {
+          var d = new Date(dateCell.textContent.trim());
+          if (!isNaN(d)) dayCell.textContent = days[d.getDay()];
+        }
+      });
+
+      /* ── FILTER ── */
+      function filterTable() {
+        var q    = document.getElementById("searchInput").value.toLowerCase();
+        var type = document.getElementById("filterType").value;
+        document.querySelectorAll("#holidayTbody tr[data-name]").forEach(function(row) {
+          var matchQ    = !q    || row.dataset.name.includes(q) || row.cells[1].textContent.toLowerCase().includes(q);
+          var matchType = !type || row.dataset.type === type;
+          row.style.display = (matchQ && matchType) ? "" : "none";
+        });
+      }
+    </script>
   </body>
 </html>
