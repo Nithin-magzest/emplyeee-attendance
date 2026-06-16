@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Portal — {{ emp[1] }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       html, body { height: 100%; }
@@ -634,6 +635,11 @@
             </div>
           {% else %}
             <div class="no-att">No attendance recorded today.</div>
+          {% endif %}
+          {% if emp[28] == 'wfh' %}
+          <button onclick="openWfhScanner()" style="margin-top:16px;width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;">
+            🏠 Mark WFH Attendance
+          </button>
           {% endif %}
         </div>
 
@@ -2151,6 +2157,173 @@
         if (e.target === this) closeResignGate();
       });
 
+      /* ── WFH SCANNER ── */
+      var wfhStream   = null;
+      var wfhScanLoop = null;
+
+      function openWfhScanner() {
+        resetWfhUI();
+        document.getElementById("wfhScanModal").style.display = "flex";
+      }
+      function closeWfhScanner() {
+        stopWfhCamera();
+        document.getElementById("wfhScanModal").style.display = "none";
+      }
+      function resetWfhUI() {
+        document.getElementById("wfhStartBtn").disabled       = false;
+        document.getElementById("wfhResult").style.display    = "none";
+        document.getElementById("wfhError").style.display     = "none";
+        document.getElementById("wfhStatus").style.display    = "none";
+        document.getElementById("wfhPhaseLabel").style.display= "none";
+        document.getElementById("wfhScanLine").style.display  = "none";
+        document.getElementById("wfhPlaceholder").style.display = "flex";
+        document.getElementById("wfhVideo").style.display     = "none";
+      }
+      function wfhSetStatus(msg) {
+        var s = document.getElementById("wfhStatus");
+        s.textContent   = msg;
+        s.style.display = "block";
+      }
+      function wfhShowError(msg) {
+        document.getElementById("wfhError").textContent   = "❌ " + msg;
+        document.getElementById("wfhError").style.display = "block";
+        document.getElementById("wfhStatus").style.display= "none";
+      }
+      function wfhSetPhase(phase) {
+        var lbl = document.getElementById("wfhPhaseLabel");
+        lbl.style.display = "block";
+        if (phase === "qr") {
+          lbl.textContent = "📷 Show your QR code to the camera";
+          lbl.style.color = "#2563eb";
+          document.getElementById("wfhScanLine").style.display = "block";
+        } else if (phase === "face") {
+          lbl.textContent = "👤 QR detected! Now look at the camera";
+          lbl.style.color = "#7c3aed";
+          document.getElementById("wfhScanLine").style.display = "none";
+        } else if (phase === "ok") {
+          lbl.textContent = "✅ Face captured! Verifying…";
+          lbl.style.color = "#16a34a";
+        }
+      }
+      async function wfhOpenCamera(facingMode) {
+        if (wfhStream) { wfhStream.getTracks().forEach(function(t){ t.stop(); }); }
+        wfhStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode }, width: { ideal: 640 }, height: { ideal: 640 } },
+          audio: false,
+        });
+        var vid = document.getElementById("wfhVideo");
+        vid.srcObject = wfhStream;
+        vid.style.display = "block";
+        document.getElementById("wfhPlaceholder").style.display = "none";
+        return new Promise(function(res) { vid.onloadedmetadata = function() { vid.play(); res(); }; });
+      }
+      function stopWfhCamera() {
+        if (wfhScanLoop) { cancelAnimationFrame(wfhScanLoop); wfhScanLoop = null; }
+        if (wfhStream)   { wfhStream.getTracks().forEach(function(t){ t.stop(); }); wfhStream = null; }
+      }
+      function wfhCaptureFrame() {
+        var vid = document.getElementById("wfhVideo");
+        var c   = document.getElementById("wfhCanvas");
+        c.width = vid.videoWidth || 640; c.height = vid.videoHeight || 640;
+        c.getContext("2d").drawImage(vid, 0, 0);
+        return c.toDataURL("image/jpeg", 0.85).split(",")[1];
+      }
+      function wfhStartQRScan() {
+        return new Promise(function(resolve, reject) {
+          var vid      = document.getElementById("wfhVideo");
+          var c        = document.getElementById("wfhCanvas");
+          var deadline = Date.now() + 30000;
+          function frame() {
+            if (Date.now() > deadline) { reject(new Error("QR code not detected within 30 seconds. Please try again.")); return; }
+            if (vid.readyState >= 2) {
+              c.width = vid.videoWidth; c.height = vid.videoHeight;
+              var ctx  = c.getContext("2d");
+              ctx.drawImage(vid, 0, 0);
+              var img  = ctx.getImageData(0, 0, c.width, c.height);
+              var code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+              if (code && code.data.trim()) { resolve(code.data.trim()); return; }
+            }
+            wfhScanLoop = requestAnimationFrame(frame);
+          }
+          wfhScanLoop = requestAnimationFrame(frame);
+        });
+      }
+      async function startWfhFlow() {
+        document.getElementById("wfhStartBtn").disabled    = true;
+        document.getElementById("wfhResult").style.display = "none";
+        document.getElementById("wfhError").style.display  = "none";
+        try {
+          wfhSetStatus("Getting your location…");
+          var position = await new Promise(function(res, rej) {
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 });
+          });
+          var lat = position.coords.latitude;
+          var lon = position.coords.longitude;
+
+          wfhSetStatus("Opening camera…");
+          await wfhOpenCamera("environment");
+          wfhSetPhase("qr");
+          document.getElementById("wfhStatus").style.display = "none";
+
+          var employeeId = await wfhStartQRScan();
+          if (wfhScanLoop) { cancelAnimationFrame(wfhScanLoop); wfhScanLoop = null; }
+
+          wfhSetPhase("face");
+          wfhSetStatus("Switching to face camera…");
+          await wfhOpenCamera("user");
+          document.getElementById("wfhStatus").style.display = "none";
+
+          await new Promise(function(r) { setTimeout(r, 2000); });
+          wfhSetPhase("ok");
+          var faceImage = wfhCaptureFrame();
+
+          stopWfhCamera();
+          wfhSetStatus("Verifying identity…");
+
+          var resp = await fetch("/attendance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employee_id: employeeId, face_image: faceImage, lat: lat, lon: lon }),
+          });
+          var result = await resp.json();
+
+          document.getElementById("wfhStatus").style.display    = "none";
+          document.getElementById("wfhPhaseLabel").style.display = "none";
+          document.getElementById("wfhStartBtn").disabled        = false;
+
+          if (!result.ok) { wfhShowError(result.msg); return; }
+
+          var statusMap = {
+            "Full Day Login":  "Full Day Login ✅",  "Late Login": "Late Login ⚠️",
+            "Half Day Login":  "Half Day Login ⚠️",  "Completed":  "Completed ✅",
+            "Early Logout":    "Early Logout ⚠️",    "Half Day Logout": "Half Day Logout ⚠️",
+          };
+          var typeMap = {
+            "Full Day": "Full Day ✅", "Late - Full Day": "Late – Full Day ⚠️", "Half Day": "Half Day ⚠️",
+          };
+          var resBox    = document.getElementById("wfhResult");
+          var resTitle  = result.type === "login" ? "🏠 WFH Login Recorded ✅" : "🏠 WFH Logout Recorded ✅";
+          var resStatus = statusMap[result.status] || result.status;
+          var resType   = result.att_type ? (typeMap[result.att_type] || result.att_type) : "";
+          resBox.innerHTML =
+            "<div style='font-size:15px;font-weight:800;color:#15803d;margin-bottom:12px;'>" + resTitle + "</div>" +
+            "<div style='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #d1fae5;font-size:13px;'><span style='color:#64748b;'>Employee</span><span style='font-weight:700;color:#2563eb;'>" + result.name + "</span></div>" +
+            "<div style='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #d1fae5;font-size:13px;'><span style='color:#64748b;'>Time</span><span style='font-weight:700;color:#2563eb;'>" + result.time + "</span></div>" +
+            "<div style='display:flex;justify-content:space-between;padding:7px 0;" + (resType ? "border-bottom:1px solid #d1fae5;" : "") + "font-size:13px;'><span style='color:#64748b;'>Status</span><span style='font-weight:700;color:#16a34a;'>" + resStatus + "</span></div>" +
+            (resType ? "<div style='display:flex;justify-content:space-between;padding:7px 0;font-size:13px;'><span style='color:#64748b;'>Attendance Type</span><span style='font-weight:700;color:#16a34a;'>" + resType + "</span></div>" : "");
+          resBox.style.display = "block";
+        } catch(err) {
+          stopWfhCamera();
+          document.getElementById("wfhStartBtn").disabled = false;
+          document.getElementById("wfhStatus").style.display = "none";
+          if (err.code === 1) {
+            wfhShowError("Location access denied. Please allow location in your browser settings.");
+          } else {
+            wfhShowError(err.message || "Something went wrong. Please try again.");
+          }
+        }
+      }
+
       function previewPhoto(input) {
         if (!input.files || !input.files[0]) return;
         var file = input.files[0];
@@ -2173,6 +2346,40 @@
         reader.readAsDataURL(file);
       }
     </script>
+
+    <!-- ═══ WFH SCANNER MODAL ═══ -->
+    <div id="wfhScanModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#fff;border-radius:24px;padding:28px 24px 22px;width:100%;max-width:440px;text-align:center;box-shadow:0 24px 64px rgba(15,23,42,0.3);">
+        <div style="font-size:17px;font-weight:800;color:#1e293b;margin-bottom:6px;">&#127968; Mark WFH Attendance</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:18px;">QR code + face verification + location check</div>
+
+        <div style="position:relative;width:240px;height:240px;margin:0 auto 18px;border-radius:18px;overflow:hidden;background:#f0f7ff;border:2px solid #bfdbfe;">
+          <video id="wfhVideo" autoplay playsinline muted style="display:none;width:100%;height:100%;object-fit:cover;"></video>
+          <canvas id="wfhCanvas" style="display:none;"></canvas>
+          <div id="wfhPlaceholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;color:#94a3b8;font-size:13px;">
+            <div style="font-size:44px;">&#128247;</div>
+            <div>Camera opens on click</div>
+          </div>
+          <div id="wfhScanLine" style="display:none;position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#2563eb,#60a5fa,#2563eb,transparent);box-shadow:0 0 10px rgba(59,130,246,0.7);animation:wfhScan 2s ease-in-out infinite;"></div>
+          <div id="wfhPhaseLabel" style="display:none;position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,0.93);padding:9px;font-size:12px;font-weight:700;border-top:1px solid #e2e8f0;"></div>
+        </div>
+
+        <style>
+          @keyframes wfhScan { 0%,100% { top:0; } 50% { top:calc(100% - 3px); } }
+        </style>
+
+        <button id="wfhStartBtn" onclick="startWfhFlow()" style="width:100%;padding:13px;border:none;border-radius:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:10px;">
+          &#128247; Start QR + Face Scanner
+        </button>
+
+        <div id="wfhStatus" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 14px;font-size:13px;color:#1e40af;margin-bottom:10px;"></div>
+        <div id="wfhResult" style="display:none;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1.5px solid #86efac;border-radius:14px;padding:16px;text-align:left;margin-bottom:10px;"></div>
+        <div id="wfhError" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:13px;font-size:13px;color:#dc2626;font-weight:600;margin-bottom:10px;"></div>
+
+        <button onclick="closeWfhScanner()" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;">&#10005; Close</button>
+      </div>
+    </div>
+    <!-- /WFH SCANNER MODAL -->
 
   </body>
 </html>

@@ -2621,7 +2621,7 @@ def employee_portal():
                e.address, e.city, e.state, e.pincode,
                e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
                e.aadhar_number, e.pan_number, e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
-               e.qr_code
+               e.qr_code, e.work_mode
         FROM employees e
         LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         LEFT JOIN shifts sh ON e.shift_id = sh.id
@@ -2635,7 +2635,7 @@ def employee_portal():
     # [14]=address [15]=city [16]=state [17]=pincode
     # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
     # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
-    # [27]=qr_code
+    # [27]=qr_code [28]=work_mode
 
     today = datetime.date.today()
     cursor.execute(
