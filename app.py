@@ -1069,22 +1069,115 @@ def announcements_admin():
         pending_tickets=pending_tickets,
     )
 
+# ---------------- INDIAN PUBLIC HOLIDAYS ----------------
+def get_indian_holidays(year):
+    """Returns sorted list of (date, name) for major Indian public holidays."""
+    fixed = [
+        (1,  1,  "New Year's Day"),
+        (1,  26, "Republic Day"),
+        (8,  15, "Independence Day"),
+        (10, 2,  "Gandhi Jayanti"),
+        (12, 25, "Christmas Day"),
+    ]
+    variable_by_year = {
+        2025: [
+            (1, 14, "Makar Sankranti / Pongal"),
+            (2, 26, "Maha Shivaratri"),
+            (3, 14, "Holi"),
+            (3, 31, "Eid ul-Fitr"),
+            (4, 14, "Dr. Ambedkar Jayanti"),
+            (4, 18, "Good Friday"),
+            (5,  1, "Maharashtra Day / Labour Day"),
+            (6,  7, "Eid ul-Adha"),
+            (8, 16, "Janmashtami"),
+            (10, 2,  "Dussehra / Vijayadasami"),
+            (10, 20, "Diwali (Lakshmi Puja)"),
+            (11,  5, "Guru Nanak Jayanti"),
+        ],
+        2026: [
+            (1, 14, "Makar Sankranti / Pongal"),
+            (2, 15, "Maha Shivaratri"),
+            (3,  5, "Holi"),
+            (3, 20, "Eid ul-Fitr"),
+            (4,  3, "Good Friday"),
+            (4, 14, "Dr. Ambedkar Jayanti / Baisakhi"),
+            (5,  1, "Maharashtra Day / Labour Day"),
+            (5, 27, "Eid ul-Adha"),
+            (8, 21, "Janmashtami"),
+            (10, 21, "Dussehra / Vijayadasami"),
+            (10, 30, "Diwali (Lakshmi Puja)"),
+            (11, 25, "Guru Nanak Jayanti"),
+        ],
+        2027: [
+            (1, 14, "Makar Sankranti / Pongal"),
+            (3,  5, "Maha Shivaratri"),
+            (3, 26, "Holi"),
+            (4,  2, "Good Friday"),
+            (4, 14, "Dr. Ambedkar Jayanti"),
+            (5,  1, "Maharashtra Day / Labour Day"),
+            (8, 15, "Independence Day"),
+            (9,  4, "Janmashtami"),
+            (10, 8,  "Dussehra / Vijayadasami"),
+            (10, 17, "Diwali (Lakshmi Puja)"),
+            (11, 14, "Guru Nanak Jayanti"),
+        ],
+    }
+    result = []
+    for m, d, name in fixed:
+        try:
+            result.append((datetime.date(year, m, d), name))
+        except ValueError:
+            pass
+    for m, d, name in variable_by_year.get(year, []):
+        try:
+            result.append((datetime.date(year, m, d), name))
+        except ValueError:
+            pass
+    return sorted(result, key=lambda x: x[0])
+
 # ---------------- VIEW HOLIDAYS ----------------
 @app.route("/view_holidays")
 @admin_required
 def view_holidays():
+    year = int(request.args.get("year", datetime.date.today().year))
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT * FROM holidays ORDER BY date")
     data = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("holidays.html", holidays=data)
+
+    # Build holiday map: date -> (id, name)
+    holiday_map = {}
+    for row in data:
+        date_val = row[1]
+        if isinstance(date_val, datetime.date):
+            holiday_map[date_val] = (row[0], row[2])
+
+    # Build calendar data, weeks starting Sunday (firstweekday=6)
+    sun_cal = calendar.Calendar(firstweekday=6)
+    today   = datetime.date.today()
+    cal_data = []
+    for month in range(1, 13):
+        month_holidays = {}  # day_number -> (id, name)
+        for date_obj, (hid, hname) in holiday_map.items():
+            if date_obj.year == year and date_obj.month == month:
+                month_holidays[date_obj.day] = (hid, hname)
+        cal_data.append({
+            'month_num':  month,
+            'month_name': calendar.month_name[month],
+            'weeks':      sun_cal.monthdayscalendar(year, month),
+            'holidays':   month_holidays,
+        })
+
+    return render_template("holidays.html", holidays=data, cal_data=cal_data,
+                           year=year, today=today)
 
 @app.route("/add_holiday", methods=["POST"])
 @admin_required
 def add_holiday():
     date         = request.form["date"]
+    year         = date[:4]
     entry_type   = request.form.get("type", "Holiday")
     holiday_name = request.form["holiday_name"].strip()
     if entry_type == "Leave":
@@ -1098,7 +1191,7 @@ def add_holiday():
         pass  # duplicate date — silently ignore
     cursor.close()
     db.close()
-    return redirect("/view_holidays")
+    return redirect(f"/view_holidays?year={year}")
 
 @app.route("/delete_employee/<emp_id>", methods=["POST"])
 @admin_required
@@ -1477,16 +1570,36 @@ def assign_shift():
     return jsonify({"ok": True})
 
 
+@app.route("/import_indian_holidays", methods=["POST"])
+@admin_required
+def import_indian_holidays():
+    year = int(request.form.get("year", datetime.date.today().year))
+    holidays_list = get_indian_holidays(year)
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    for date_obj, name in holidays_list:
+        try:
+            cursor.execute(
+                "INSERT IGNORE INTO holidays (date, name) VALUES (%s, %s)",
+                (date_obj, name)
+            )
+        except Exception:
+            pass
+    db.commit()
+    cursor.close(); db.close()
+    return redirect(f"/view_holidays?year={year}")
+
 @app.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
 def delete_holiday(hid):
+    year = request.form.get("year", datetime.date.today().year)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM holidays WHERE id=%s", (hid,))
     db.commit()
     cursor.close()
     db.close()
-    return redirect("/view_holidays")
+    return redirect(f"/view_holidays?year={year}")
 
 # ---------------- VIEW SALARY CONFIG ----------------
 @app.route("/view_salary")

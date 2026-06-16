@@ -1,13 +1,14 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Holidays & Leaves</title>
+    <title>Holiday Calendar</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
+      /* ── SIDEBAR ── */
       .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
         background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
@@ -28,111 +29,163 @@
       .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
       .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
       .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
-      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
-      .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
+      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+      .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); }
 
-      .main { flex: 1; padding: 28px; color: #1e293b; }
-      .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
-      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+      /* ── MAIN ── */
+      .main { flex: 1; padding: 28px; color: #1e293b; overflow-y: auto; }
+      .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
+      .page-header h1 { font-size: 22px; font-weight: 800; color: #1e293b; }
+      .page-header p  { font-size: 13px; color: #64748b; margin-top: 2px; }
 
-      .section {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 16px; padding: 22px; margin-bottom: 22px;
+      /* ── YEAR NAV ── */
+      .year-nav { display: flex; align-items: center; gap: 10px; }
+      .year-nav a {
+        padding: 7px 14px; border-radius: 9px; text-decoration: none;
+        background: #dbeafe; color: #1e40af; font-weight: 700; font-size: 13px;
+        transition: 0.2s;
       }
-      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
+      .year-nav a:hover { background: #bfdbfe; }
+      .year-nav .cur-year { font-size: 20px; font-weight: 900; color: #1e3a8a; min-width: 60px; text-align: center; }
 
-      /* ADD FORM */
-      .add-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-      .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+      /* ── TOOLBAR ── */
+      .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+      .btn-import {
+        padding: 10px 20px; border: none; border-radius: 10px;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .btn-import:hover { background: linear-gradient(135deg, #d97706, #b45309); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(217,119,6,0.3); }
+      .btn-add-custom {
+        padding: 10px 20px; border: none; border-radius: 10px;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .btn-add-custom:hover { background: linear-gradient(135deg, #16a34a, #15803d); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(34,197,94,0.25); }
+
+      /* ── LEGEND ── */
+      .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; font-size: 12px; color: #475569; }
+      .leg { display: flex; align-items: center; gap: 6px; }
+      .leg-dot { width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0; }
+      .leg-holiday { background: #fef3c7; border: 1.5px solid #f59e0b; }
+      .leg-sunday  { background: #fee2e2; border: 1.5px solid #fca5a5; }
+      .leg-today   { background: #dbeafe; border: 1.5px solid #3b82f6; }
+      .leg-normal  { background: #fff; border: 1.5px solid #e2e8f0; }
+
+      /* ── CALENDAR GRID ── */
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px; margin-bottom: 28px;
+      }
+      .cal-month {
+        background: #fff; border: 1px solid #dbeafe; border-radius: 16px;
+        padding: 14px; box-shadow: 0 2px 8px rgba(30,58,138,0.06);
+      }
+      .cal-month-title {
+        font-size: 14px; font-weight: 800; color: #1e3a8a;
+        text-align: center; margin-bottom: 10px; letter-spacing: 0.3px;
+      }
+      .cal-headers {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        gap: 2px; margin-bottom: 4px;
+      }
+      .cal-headers span {
+        text-align: center; font-size: 10px; font-weight: 700;
+        color: #94a3b8; padding: 2px 0; letter-spacing: 0.4px;
+      }
+      .cal-headers span:first-child { color: #ef4444; }
+      .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+      .cal-day {
+        aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+        transition: 0.15s; position: relative; color: #1e293b;
+        border: 1.5px solid transparent;
+      }
+      .cal-day:hover { transform: scale(1.1); z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+      .cal-day.empty { cursor: default; }
+      .cal-day.empty:hover { transform: none; box-shadow: none; }
+      .cal-day.day-sunday  { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+      .cal-day.day-holiday { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+      .cal-day.day-today   { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+      .cal-day.day-normal  { background: #f8fafc; border-color: #e2e8f0; }
+      .cal-day.day-sunday.day-holiday { background: #fee2e2; border-color: #f59e0b; color: #b45309; }
+      .hol-name {
+        font-size: 7px; font-weight: 600; color: #b45309;
+        line-height: 1.1; max-width: 100%; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap;
+        display: block; text-align: center; padding: 0 1px;
+      }
+
+      /* ── ADD FORM MODAL ── */
+      .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); z-index: 9999; align-items: center; justify-content: center; }
+      .modal-overlay.open { display: flex; }
+      .modal-box {
+        background: #fff; border-radius: 18px; padding: 28px; width: 100%; max-width: 440px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      }
+      .modal-box h3 { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 18px; }
+      .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
       .form-group label { font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
       .form-group input, .form-group select {
         padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
-        transition: 0.2s;
+        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s;
       }
-      .form-group input::placeholder { color: #94a3b8; }
-      .form-group input:focus, .form-group select:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-      .btn-add {
-        padding: 10px 22px; border: none; border-radius: 9px;
-        background: #22c55e; color: white;
-        font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s;
-        white-space: nowrap; align-self: flex-end;
-      }
-      .btn-add:hover { background: #16a34a; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(34,197,94,0.25); }
+      .form-group input:focus, .form-group select:focus { background: #fff; border-color: #93c5fd; }
+      .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+      .btn-cancel { padding: 9px 20px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; color: #64748b; font-weight: 600; cursor: pointer; font-size: 13px; }
+      .btn-save   { padding: 9px 20px; border: none; border-radius: 9px; background: #22c55e; color: #fff; font-weight: 700; cursor: pointer; font-size: 13px; }
 
-      /* TABLE */
+      /* ── LIST SECTION ── */
+      .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
+      .section h3 { font-size: 15px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
       .table-wrap { overflow-x: auto; border-radius: 10px; }
-      table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      th {
-        background: #dbeafe; color: #1e3a8a;
-        padding: 11px 16px; text-align: left;
-        font-weight: 600; white-space: nowrap;
-      }
-      td { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 700; white-space: nowrap; }
+      td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
-
-      .badge-holiday {
-        display: inline-block; padding: 3px 10px;
-        border-radius: 20px; font-size: 12px; font-weight: 600;
-        background: #fef9c3; color: #92400e;
-        border: 1px solid #fde047;
-      }
-      .badge-leave {
-        display: inline-block; padding: 3px 10px;
-        border-radius: 20px; font-size: 12px; font-weight: 600;
-        background: #ede9fe; color: #6d28d9;
-        border: 1px solid #c4b5fd;
-      }
+      tr:hover td { background: #f0f9ff; }
+      .badge-holiday { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+      .badge-leave   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
       .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
-
-      .btn-del {
-        padding: 5px 12px; border: none; border-radius: 7px;
-        background: #fee2e2; color: #dc2626;
-        border: 1px solid #fca5a5; font-size: 12px;
-        cursor: pointer; transition: 0.2s;
-      }
+      .btn-del { padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 7px; background: #fee2e2; color: #dc2626; font-size: 12px; cursor: pointer; transition: 0.2s; }
       .btn-del:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
       .form-inline { display: inline; }
 
+      .info-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #92400e; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 8px; }
+
       @media (max-width: 768px) {
         body { flex-direction: column; }
-        .sidebar { width: 100%; min-height: unset; }
-        .add-form { flex-direction: column; }
+        .sidebar { width: 100%; height: auto; position: static; }
+        .cal-grid { grid-template-columns: 1fr 1fr; }
+        .page-header { flex-direction: column; align-items: flex-start; }
+      }
+      @media (max-width: 480px) {
+        .cal-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
 
-            <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div>
+      </div>
       <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
       <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item active" href="/view_holidays"><span class="nav-icon">📅</span>Holidays
-      </a>
-      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config
-      </a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management
-      </a>
-      </a>
-      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes
-      </a>
-      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings
-      </a>
+      <a class="nav-item active" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config</a>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings</a>
       <div class="nav-group-label" style="margin-top:10px;">Requests</div>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
@@ -144,54 +197,111 @@
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
-    <!-- ADD FORM -->
-      <div class="section">
-        <h3>➕ Add Holiday / Leave</h3>
-        <form action="/add_holiday" method="POST">
-          <div class="add-form">
-            <div class="form-group">
-              <label>Date</label>
-              <input type="date" name="date" title="Select date" required />
-            </div>
-            <div class="form-group">
-              <label>Type</label>
-              <select name="type" title="Entry type">
-                <option value="Holiday">🎉 Holiday</option>
-                <option value="Leave">🌿 Leave</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Name / Description</label>
-              <input type="text" name="holiday_name" placeholder="e.g. Diwali, Republic Day, Annual Leave…" required />
-            </div>
-            <button type="submit" class="btn-add">+ Add</button>
-          </div>
-        </form>
+    <div class="main">
+
+      <!-- Header + Year Nav -->
+      <div class="page-header">
+        <div>
+          <h1>📅 Holiday Calendar</h1>
+          <p>Manage public holidays &amp; leaves. Sunday is the weekly off.</p>
+        </div>
+        <div class="year-nav">
+          <a href="/view_holidays?year={{ year - 1 }}">&#8592; {{ year - 1 }}</a>
+          <span class="cur-year">{{ year }}</span>
+          <a href="/view_holidays?year={{ year + 1 }}">{{ year + 1 }} &#8594;</a>
+        </div>
       </div>
 
-      <!-- LIST -->
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <form action="/import_indian_holidays" method="POST" style="display:inline;">
+          <input type="hidden" name="year" value="{{ year }}">
+          <button type="submit" class="btn-import"
+                  onclick="return confirm('Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
+            🇮🇳 Import Indian Holidays for {{ year }}
+          </button>
+        </form>
+        <button class="btn-add-custom" onclick="openAddModal()">
+          ➕ Add Custom Holiday
+        </button>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="leg"><div class="leg-dot leg-holiday"></div>Public Holiday</div>
+        <div class="leg"><div class="leg-dot leg-sunday"></div>Sunday (Weekly Off)</div>
+        <div class="leg"><div class="leg-dot leg-today"></div>Today</div>
+        <div class="leg"><div class="leg-dot leg-normal"></div>Working Day</div>
+        <span style="font-size:11px;color:#94a3b8;">Click a working day to add holiday &bull; Click a holiday to remove it</span>
+      </div>
+
+      <div class="info-note">
+        ℹ️ <span><strong>Saturday is a working day.</strong> Only Sunday is marked as weekly off. Holidays are paid days — they count toward salary calculation.</span>
+      </div>
+
+      <!-- 12-Month Calendar Grid -->
+      <div class="cal-grid">
+        {% for m in cal_data %}
+        <div class="cal-month">
+          <div class="cal-month-title">{{ m.month_name }} {{ year }}</div>
+          <div class="cal-headers">
+            <span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
+          </div>
+          {% for week in m.weeks %}
+          <div class="cal-week">
+            {% for day in week %}
+              {% set col = loop.index0 %}
+              {% if day == 0 %}
+                <div class="cal-day empty"></div>
+              {% else %}
+                {% set is_sun     = (col == 0) %}
+                {% set is_holiday = (day in m.holidays) %}
+                {% set is_today   = (today.year == year and today.month == m.month_num and today.day == day) %}
+                {% set hol_name   = m.holidays[day][1] if is_holiday else '' %}
+                {% set hol_id     = m.holidays[day][0] if is_holiday else 0 %}
+                {% set date_str   = '%d-%02d-%02d' | format(year, m.month_num, day) %}
+                <div class="cal-day {% if is_holiday %}day-holiday{% elif is_sun %}day-sunday{% elif is_today %}day-today{% else %}day-normal{% endif %}"
+                     title="{% if is_holiday %}{{ hol_name }}{% elif is_sun %}Sunday (Weekly Off){% else %}{{ m.month_name }} {{ day }}, {{ year }}{% endif %}"
+                     data-holiday="{{ is_holiday|tojson }}"
+                     data-hname="{{ hol_name|e }}"
+                     data-hid="{{ hol_id }}"
+                     data-date="{{ date_str }}"
+                     data-year="{{ year }}"
+                     onclick="dayClick(this)">
+                  {{ day }}
+                  {% if is_holiday %}
+                  <span class="hol-name">{{ hol_name[:10] }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- All Holidays List -->
       <div class="section">
-        <h3>📋 All Holidays & Leaves</h3>
+        <h3>📋 All Holidays &amp; Leaves ({{ year }})</h3>
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Name</th>
-                <th>Action</th>
-              </tr>
+              <tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Action</th></tr>
             </thead>
             <tbody>
+              {% set ns = namespace(count=0) %}
               {% for h in holidays %}
+                {% if h[1].year == year %}
+                {% set ns.count = ns.count + 1 %}
               <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ h[1] }}</td>
+                <td>{{ ns.count }}</td>
+                <td>{{ h[1].strftime('%d %b %Y') }}</td>
+                <td style="color:#64748b;font-size:12px;">{{ h[1].strftime('%A') }}</td>
                 <td>
                   {% if h[2].startswith('Leave:') %}
                     <span class="badge-leave">🌿 {{ h[2][6:] }}</span>
@@ -200,23 +310,90 @@
                   {% endif %}
                 </td>
                 <td>
-                  <form action="/delete_holiday/{{ h[0] }}" method="POST"
-                        onsubmit="return confirm('Delete this entry?');" class="form-inline">
-                    <button type="submit" class="btn-del">🗑 Delete</button>
+                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return confirm('Delete this entry?');" class="form-inline">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    <button type="submit" class="btn-del">🗑 Remove</button>
                   </form>
                 </td>
               </tr>
+                {% endif %}
               {% else %}
-              <tr>
-                <td colspan="4" class="empty-cell">No holidays or leaves added yet.</td>
-              </tr>
+              <tr><td colspan="5" class="empty-cell">No holidays added for {{ year }}. Use "Import Indian Holidays" to get started.</td></tr>
               {% endfor %}
+              {% if ns.count == 0 %}
+              <tr><td colspan="5" class="empty-cell">No holidays added for {{ year }}. Use "Import Indian Holidays" to get started.</td></tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
       </div>
 
+    </div><!-- /main -->
+
+    <!-- Add Holiday Modal -->
+    <div class="modal-overlay" id="addModal">
+      <div class="modal-box">
+        <h3>➕ Add Holiday / Leave</h3>
+        <form action="/add_holiday" method="POST">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" name="date" id="modalDate" required />
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select name="type">
+              <option value="Holiday">🎉 Public Holiday</option>
+              <option value="Leave">🌿 Company Leave</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Name / Description</label>
+            <input type="text" name="holiday_name" id="modalName" placeholder="e.g. Diwali, Dussehra…" required />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+            <button type="submit" class="btn-save">Save Holiday</button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <!-- Delete-by-id hidden form (submitted via JS) -->
+    <form id="delForm" method="POST" style="display:none;">
+      <input type="hidden" name="year" value="{{ year }}">
+    </form>
+
+    <script>
+      /* Jinja2 enumerate filter shim — not built-in, use loop.index0 below */
+
+      function openAddModal(dateStr) {
+        document.getElementById('modalDate').value  = dateStr || '';
+        document.getElementById('modalName').value  = '';
+        document.getElementById('addModal').classList.add('open');
+      }
+      function closeAddModal() {
+        document.getElementById('addModal').classList.remove('open');
+      }
+      document.getElementById('addModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAddModal();
+      });
+
+      function dayClick(el) {
+        var isHoliday = el.dataset.holiday === 'true';
+        var holName   = el.dataset.hname;
+        var holId     = el.dataset.hid;
+        var dateStr   = el.dataset.date;
+        if (isHoliday) {
+          if (confirm('Remove "' + holName + '" from the holiday list?')) {
+            var f = document.getElementById('delForm');
+            f.action = '/delete_holiday/' + holId;
+            f.submit();
+          }
+        } else {
+          openAddModal(dateStr);
+        }
+      }
+    </script>
 
   </body>
 </html>
