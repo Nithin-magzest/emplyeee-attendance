@@ -1,37 +1,36 @@
-name: Deploy to Production
+name: CI
 
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
-  deploy:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            set -e
-            cd /opt/employee-attendance
+          python-version: "3.12"
 
-            # Pull latest code
-            git pull origin master
+      - name: Install dependencies
+        run: |
+          pip install flask mysql-connector-python pillow flask-cors python-dotenv
 
-            # Rebuild and restart containers
-            docker compose pull db
-            docker compose build --no-cache app
-            docker compose up -d --force-recreate app
+      - name: Check Python syntax
+        run: |
+          python -m py_compile app.py
+          echo "✅ Syntax OK"
 
-            # Remove dangling images
-            docker image prune -f
-
-            echo "Deploy complete at $(date)"
+      - name: Verify templates exist
+        run: |
+          test -f templates/index.html
+          test -f templates/admin.html
+          test -f templates/employee_portal.html
+          echo "✅ Templates OK"
