@@ -238,7 +238,7 @@
             </thead>
             <tbody id="salaryTbody">
               {% for e in salary_data %}
-              <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }}">
+              <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }} {{ e.email }}">
                 <td>
                   {{ e.name }}<br>
                   <span class="emp-id">{{ e.emp_id }}</span><br>

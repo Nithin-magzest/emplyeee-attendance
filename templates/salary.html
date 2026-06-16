@@ -201,10 +201,10 @@
             </thead>
             <tbody id="salaryConfTbody">
               {% for s in salaries %}
-              {% set emp_id, name, spd, role, last_revised, phone = s %}
+              {% set emp_id, name, spd, role, last_revised, phone, email = s %}
               {% set mon = (spd * 26) if spd else 0 %}
               {% set yr  = (spd * 312) if spd else 0 %}
-              <tr data-search="{{ emp_id }} {{ name }} {{ role }} {{ phone }}">
+              <tr data-search="{{ emp_id }} {{ name }} {{ role }} {{ phone }} {{ email }}">
                 <td><span class="emp-id">{{ emp_id }}</span></td>
                 <td>{{ name }}</td>
                 <td>

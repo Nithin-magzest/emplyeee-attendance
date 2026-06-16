@@ -183,8 +183,8 @@
             </thead>
             <tbody id="payslipTbody">
               {% for emp in employees %}
-              {% set emp_id, emp_name, emp_role, emp_phone = emp %}
-              <tr data-search="{{ emp_id }} {{ emp_name }} {{ emp_role }} {{ emp_phone }}">
+              {% set emp_id, emp_name, emp_role, emp_phone, emp_email = emp %}
+              <tr data-search="{{ emp_id }} {{ emp_name }} {{ emp_role }} {{ emp_phone }} {{ emp_email }}">
                 <td class="muted">{{ loop.index }}</td>
                 <td><strong>{{ emp_id }}</strong></td>
                 <td>{{ emp_name }}</td>

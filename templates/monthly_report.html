@@ -249,7 +249,7 @@
             </thead>
             <tbody id="reportTbody">
               {% for r in report %}
-              <tr data-search="{{ r.emp_id }} {{ r.name }} {{ r.role }} {{ r.phone }}">
+              <tr data-search="{{ r.emp_id }} {{ r.name }} {{ r.role }} {{ r.phone }} {{ r.email }}">
                 <td>{{ r.name }}</td>
                 <td><span class="emp-id">{{ r.emp_id }}</span></td>
                 <td><span class="badge b-green">{{ r.full_days }}</span></td>

@@ -1464,7 +1464,7 @@ def view_salary():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
-               COALESCE(e.phone,'')
+               COALESCE(e.phone,''), COALESCE(e.email,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -1508,7 +1508,7 @@ def monthly_report():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,'') FROM employees ORDER BY name")
+    cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,''), COALESCE(email,'') FROM employees ORDER BY name")
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
@@ -1527,7 +1527,7 @@ def monthly_report():
     today        = datetime.date.today()
 
     report = []
-    for emp_id, name, role, phone in employees:
+    for emp_id, name, role, phone, email in employees:
         emp_att   = att_map.get(emp_id, {})
         full_days = half_days = late_days = absent = 0
 
@@ -1558,6 +1558,7 @@ def monthly_report():
             "name":      name,
             "role":      role,
             "phone":     phone,
+            "email":     email,
             "full_days": full_days,
             "half_days": half_days,
             "late_days": late_days,
@@ -4298,7 +4299,7 @@ def admin_payslips():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT employee_id, name, role, COALESCE(phone,'') FROM employees ORDER BY name")
+    cursor.execute("SELECT employee_id, name, role, COALESCE(phone,''), COALESCE(email,'') FROM employees ORDER BY name")
     employees = cursor.fetchall()
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
