@@ -1224,6 +1224,27 @@ def admin_set_recovery_email():
     return redirect("/admin?email_ok=1#password-management")
 
 
+@app.route("/admin/employee_search")
+@admin_required
+def admin_employee_search():
+    q  = request.args.get("q", "").strip()
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    if q:
+        like = f"%{q}%"
+        cursor.execute("""
+            SELECT employee_id, name, role, email
+            FROM employees
+            WHERE name LIKE %s OR employee_id LIKE %s OR role LIKE %s
+            ORDER BY name LIMIT 8
+        """, (like, like, like))
+    else:
+        cursor.execute("SELECT employee_id, name, role, email FROM employees ORDER BY name LIMIT 8")
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify([{"id": r[0], "name": r[1], "role": r[2] or "", "email": r[3] or ""} for r in rows])
+
+
 @app.route("/admin_forgot_password", methods=["GET", "POST"])
 def admin_forgot_password():
     if request.method == "GET":
