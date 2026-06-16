@@ -183,8 +183,8 @@
             </thead>
             <tbody id="payslipTbody">
               {% for emp in employees %}
-              {% set emp_id, emp_name, emp_role = emp %}
-              <tr>
+              {% set emp_id, emp_name, emp_role, emp_phone = emp %}
+              <tr data-search="{{ emp_id }} {{ emp_name }} {{ emp_role }} {{ emp_phone }}">
                 <td class="muted">{{ loop.index }}</td>
                 <td><strong>{{ emp_id }}</strong></td>
                 <td>{{ emp_name }}</td>
@@ -231,12 +231,8 @@
   <script>
   function filterEmpTable(q) {
     q = q.toLowerCase();
-    var rows = document.querySelectorAll('#payslipTbody tr');
-    var visible = 0;
-    rows.forEach(function(r) {
-      var show = r.textContent.toLowerCase().includes(q);
-      r.style.display = show ? '' : 'none';
-      if (show) visible++;
+    document.querySelectorAll('#payslipTbody tr').forEach(function(r) {
+      r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
     });
   }
   </script>

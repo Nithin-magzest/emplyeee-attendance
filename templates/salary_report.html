@@ -238,7 +238,7 @@
             </thead>
             <tbody id="salaryTbody">
               {% for e in salary_data %}
-              <tr>
+              <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }}">
                 <td>
                   {{ e.name }}<br>
                   <span class="emp-id">{{ e.emp_id }}</span><br>
@@ -406,7 +406,7 @@
     var rows = document.querySelectorAll('#salaryTbody tr');
     var visible = 0;
     rows.forEach(function(r) {
-      var show = r.textContent.toLowerCase().includes(q);
+      var show = (r.dataset.search || r.textContent).toLowerCase().includes(q);
       r.style.display = show ? '' : 'none';
       if (show) visible++;
     });

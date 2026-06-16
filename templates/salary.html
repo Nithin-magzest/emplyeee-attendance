@@ -201,10 +201,10 @@
             </thead>
             <tbody id="salaryConfTbody">
               {% for s in salaries %}
-              {% set emp_id, name, spd, role, last_revised = s %}
+              {% set emp_id, name, spd, role, last_revised, phone = s %}
               {% set mon = (spd * 26) if spd else 0 %}
               {% set yr  = (spd * 312) if spd else 0 %}
-              <tr>
+              <tr data-search="{{ emp_id }} {{ name }} {{ role }} {{ phone }}">
                 <td><span class="emp-id">{{ emp_id }}</span></td>
                 <td>{{ name }}</td>
                 <td>
@@ -375,7 +375,7 @@
   function filterEmpTable(q) {
     q = q.toLowerCase();
     document.querySelectorAll('#salaryConfTbody tr').forEach(function(r) {
-      r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+      r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
     });
   }
   </script>

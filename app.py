@@ -1463,7 +1463,8 @@ def view_salary():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised
+        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+               COALESCE(e.phone,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -1507,7 +1508,7 @@ def monthly_report():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,'') FROM employees ORDER BY name")
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
@@ -1526,7 +1527,7 @@ def monthly_report():
     today        = datetime.date.today()
 
     report = []
-    for emp_id, name in employees:
+    for emp_id, name, role, phone in employees:
         emp_att   = att_map.get(emp_id, {})
         full_days = half_days = late_days = absent = 0
 
@@ -1555,6 +1556,8 @@ def monthly_report():
         report.append({
             "emp_id":    emp_id,
             "name":      name,
+            "role":      role,
+            "phone":     phone,
             "full_days": full_days,
             "half_days": half_days,
             "late_days": late_days,
@@ -1777,7 +1780,8 @@ def salary_report():
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
+        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+               COALESCE(e.role,''), COALESCE(e.phone,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -1810,11 +1814,13 @@ def salary_report():
     billable_past = get_billable_past_days(year, month)
 
     salary_data = []
-    for emp_id, name, email, spd in employees:
+    for emp_id, name, email, spd, role, phone in employees:
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                      holidays_set=holidays_set,
                                      leave_dates=leave_map.get(emp_id, set()))
         entry["email"] = email
+        entry["role"]  = role
+        entry["phone"] = phone
         salary_data.append(entry)
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
@@ -4292,7 +4298,7 @@ def admin_payslips():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT employee_id, name, role FROM employees ORDER BY name")
+    cursor.execute("SELECT employee_id, name, role, COALESCE(phone,'') FROM employees ORDER BY name")
     employees = cursor.fetchall()
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")

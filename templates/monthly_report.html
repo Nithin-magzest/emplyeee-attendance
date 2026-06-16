@@ -249,7 +249,7 @@
             </thead>
             <tbody id="reportTbody">
               {% for r in report %}
-              <tr>
+              <tr data-search="{{ r.emp_id }} {{ r.name }} {{ r.role }} {{ r.phone }}">
                 <td>{{ r.name }}</td>
                 <td><span class="emp-id">{{ r.emp_id }}</span></td>
                 <td><span class="badge b-green">{{ r.full_days }}</span></td>
@@ -296,7 +296,7 @@
     var rows = document.querySelectorAll('#reportTbody tr');
     var visible = 0;
     rows.forEach(function(r) {
-      var show = r.textContent.toLowerCase().includes(q);
+      var show = (r.dataset.search || r.textContent).toLowerCase().includes(q);
       r.style.display = show ? '' : 'none';
       if (show) visible++;
     });
