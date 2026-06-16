@@ -331,6 +331,9 @@
           <div class="result-row" id="attTypeRow" style="display:none;">
             <span>Attendance Type</span><span id="rAttType" class="val-green">--</span>
           </div>
+          <div class="result-row" id="workModeRow" style="display:none;">
+            <span>Mode</span><span id="rWorkMode" class="val-blue">--</span>
+          </div>
           <div class="result-row" id="shiftRow" style="display:none;">
             <span>Shift</span><span id="rShift" class="val-blue">--</span>
           </div>
@@ -554,6 +557,14 @@
             } else {
               $("overtimeRow").style.display= "none";
             }
+          }
+          if (result.work_mode) {
+            const isWfh = result.work_mode === "wfh";
+            $("rWorkMode").textContent = isWfh ? "🏠 Work From Home" : "🏢 Work From Office";
+            $("rWorkMode").className   = isWfh ? "val-green" : "val-blue";
+            $("workModeRow").style.display = "flex";
+          } else {
+            $("workModeRow").style.display = "none";
           }
           if (result.shift && result.shift !== "Default") {
             $("rShift").textContent     = result.shift;

@@ -2153,7 +2153,8 @@ def attendance():
                 html = build_attendance_email(employee_name, emp_id, "login", login_status, time_str, today.strftime("%d %b %Y"))
                 send_email_async(employee_email, f"Attendance Check-In — {today.strftime('%d %b %Y')}", html, cfg)
         return jsonify({"ok": True, "type": "login", "name": employee_name,
-                        "status": login_status, "time": time_str, "shift": shift_name})
+                        "status": login_status, "time": time_str, "shift": shift_name,
+                        "work_mode": emp_work_mode})
 
     elif not logout_time:
         if current_time < s_half:
@@ -2181,7 +2182,7 @@ def attendance():
                 send_email_async(employee_email, f"Attendance Check-Out — {today.strftime('%d %b %Y')}", html, cfg)
         resp = {"ok": True, "type": "logout", "name": employee_name,
                 "status": logout_status, "att_type": att_type,
-                "time": time_str, "shift": shift_name}
+                "time": time_str, "shift": shift_name, "work_mode": emp_work_mode}
         if overtime_m > 0:
             resp["overtime"] = f"{overtime_m // 60}h {overtime_m % 60}m" if overtime_m >= 60 else f"{overtime_m}m"
         return jsonify(resp)
