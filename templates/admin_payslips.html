@@ -155,10 +155,24 @@
             style="padding:8px 12px 8px 34px;border:1.5px solid #dbeafe;border-radius:9px;background:#f8fafc;
                    color:#1e293b;font-size:13px;outline:none;width:200px;" />
         </div>
-        <label>Select Month</label>
-        <select id="selMonth" onchange="updateLinks()">
+        <label>Month</label>
+        <select id="selMonth" onchange="updateLinks()" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;">
+          {% set months_seen = [] %}
           {% for y, m, mname in slip_months %}
-          <option value="{{ y }}/{{ m }}" {% if loop.first %}selected{% endif %}>{{ mname }} {{ y }}</option>
+            {% if m not in months_seen %}
+              {% set _ = months_seen.append(m) %}
+              <option value="{{ m }}" {% if loop.first %}selected{% endif %}>{{ mname }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <label>Year</label>
+        <select id="selYear" onchange="updateLinks()" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;">
+          {% set years_seen = [] %}
+          {% for y, m, mname in slip_months %}
+            {% if y not in years_seen %}
+              {% set _ = years_seen.append(y) %}
+              <option value="{{ y }}" {% if loop.first %}selected{% endif %}>{{ y }}</option>
+            {% endif %}
           {% endfor %}
         </select>
         <span style="font-size:13px;color:#64748b;">Click <strong>View Pay Slip</strong> next to any employee to open their slip in a new tab.</span>
@@ -218,13 +232,10 @@
 
     <script>
       function updateLinks() {
-        const val  = document.getElementById("selMonth").value; // "YYYY/M"
-        const parts = val.split("/");
-        const year  = parts[0];
-        const month = parts[1];
+        const month = document.getElementById("selMonth").value;
+        const year  = document.getElementById("selYear").value;
         document.querySelectorAll(".slip-link").forEach(function(a) {
-          const empId = a.dataset.emp;
-          a.href = "/view_payslip/" + empId + "/" + year + "/" + month;
+          a.href = "/view_payslip/" + a.dataset.emp + "/" + year + "/" + month;
         });
       }
     </script>
