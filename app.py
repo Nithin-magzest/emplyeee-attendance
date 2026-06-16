@@ -1429,6 +1429,43 @@ def delete_shift(sid):
     cursor.close(); db.close()
     return redirect("/shifts?deleted=1")
 
+@app.route("/edit_shift/<int:sid>", methods=["POST"])
+@admin_required
+def edit_shift(sid):
+    name  = request.form.get("name",  "").strip()
+    start = request.form.get("start_time", "").strip()
+    half  = request.form.get("half_time",  "").strip()
+    end   = request.form.get("end_time",   "").strip()
+    if not all([name, start, half, end]):
+        return redirect("/shifts?error=All+fields+required")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE shifts SET name=%s, start_time=%s, half_time=%s, end_time=%s WHERE id=%s",
+        (name, start, half, end, sid)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/shifts?updated=1")
+
+@app.route("/bulk_assign_shift", methods=["POST"])
+@admin_required
+def bulk_assign_shift():
+    shift_id  = request.form.get("shift_id", "").strip()
+    emp_ids   = request.form.getlist("emp_ids")
+    if not emp_ids:
+        return redirect("/shifts?error=No+employees+selected")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    for emp_id in emp_ids:
+        cursor.execute(
+            "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
+            (shift_id if shift_id else None, emp_id)
+        )
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/shifts?bulk_saved=1")
+
 @app.route("/assign_shift", methods=["POST"])
 @admin_required
 def assign_shift():
