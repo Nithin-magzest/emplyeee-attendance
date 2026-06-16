@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,105 +8,108 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
-      .sidebar {
-        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
-        padding: 22px 14px; color: white;
-        display: flex; flex-direction: column; flex-shrink: 0;
-        box-shadow: 4px 0 20px rgba(0,0,0,0.18);
-      }
+      /* ── SIDEBAR ── */
+      .sidebar { width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%); padding: 22px 14px; color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.18); }
       .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
       .brand-icon { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-      .brand     { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+      .brand { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
       .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
       .nav-group-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin: 14px 0 4px; }
       .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s; position: relative; }
-      .nav-item:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+      .nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
       .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
       .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
       .nav-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); }
       .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
-      .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
+      .nav-item:hover .nav-icon { background: rgba(255,255,255,0.12); }
       .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
       .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
       .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
 
-      .main { flex: 1; padding: 28px; color: #1e293b; }
-      .page-header { margin-bottom: 28px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
+      /* ── MAIN ── */
+      .main { flex: 1; padding: 28px; overflow-x: hidden; }
+      .page-header { margin-bottom: 24px; }
+      .page-header h1 { font-size: 24px; color: #1e293b; font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 5px; }
 
-      .card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 28px; margin-bottom: 22px; max-width: 600px; }
-      .card h3 { font-size: 16px; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
+      /* ── FLASH ── */
+      .alert { padding: 13px 18px; border-radius: 11px; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-weight: 500; }
+      .alert-success { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
 
+      /* ── TWO-COLUMN GRID ── */
+      .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+
+      /* ── CARDS ── */
+      .card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 28px; }
+      .card-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 22px; display: flex; align-items: center; gap: 9px; }
+
+      /* ── FORM ── */
       .form-group { margin-bottom: 16px; }
-      .form-group label { display: block; font-size: 13px; color: #475569; margin-bottom: 6px; }
+      .form-group label { display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
       .form-group input { width: 100%; padding: 11px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
-      .form-group input:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+      .form-group input:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,0.2); }
       .form-group input::placeholder { color: #94a3b8; }
       .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+      .field-note { font-size: 12px; color: #64748b; margin-top: 5px; }
 
-      .btn { padding: 11px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-      .btn:hover { transform: translateY(-1px); }
-      .btn-primary { background: #3b82f6; color: white; }
-      .btn-primary:hover { background: #2563eb; }
-      .btn-test { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-      .btn-test:hover { background: #e2e8f0; }
+      .btn-save { width: 100%; padding: 12px; border: none; border-radius: 11px; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 6px; }
+      .btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,0.35); }
 
-      .actions { display: flex; gap: 12px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+      /* ── RIGHT COLUMN ── */
+      .right-col { display: flex; flex-direction: column; gap: 22px; }
 
-      .alert { padding: 12px 18px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-      .alert-success { background: #dcfce7; border: 1px solid #86efac; color: #15803d; }
-      .alert-info    { background: #ede9fe; border: 1px solid #c4b5fd; color: #4c1d95; }
+      /* Provider hints */
+      .hint-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
+      .hint-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .provider-list { display: flex; flex-direction: column; gap: 10px; }
+      .provider-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+      .provider-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+      .provider-info { flex: 1; min-width: 0; }
+      .provider-name { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
+      .provider-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+      .provider-detail code { background: #e2e8f0; padding: 1px 6px; border-radius: 4px; font-size: 11px; color: #1e293b; font-family: monospace; }
+      .provider-detail a { color: #2563eb; }
+      .note-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 11px 14px; font-size: 12px; color: #92400e; line-height: 1.6; margin-top: 4px; }
 
-      .hint-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; font-size: 13px; line-height: 1.8; color: #475569; margin-bottom: 22px; max-width: 600px; }
-      .hint-box strong { color: #d97706; }
-      .hint-box code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #1e293b; }
-      .hint-box a { color: #3b82f6; }
-      .alert-info-mb { margin-bottom: 16px; }
+      /* Current config badge */
+      .current-config { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #4c1d95; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
 
+      /* Test email */
+      .test-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
       .test-row { display: flex; gap: 10px; align-items: center; }
-      .test-row input { flex: 1; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; }
-      .test-row input::placeholder { color: #94a3b8; }
+      .test-row input { flex: 1; padding: 11px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
       .test-row input:focus { border-color: #93c5fd; background: #fff; }
-
-      #testResult { font-size: 13px; margin-top: 10px; padding: 10px 14px; border-radius: 8px; display: none; }
+      .test-row input::placeholder { color: #94a3b8; }
+      .btn-test { padding: 11px 20px; border: 1px solid #dbeafe; border-radius: 10px; background: #f0f9ff; color: #0369a1; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+      .btn-test:hover { background: #dbeafe; }
+      #testResult { font-size: 13px; margin-top: 12px; padding: 11px 14px; border-radius: 9px; display: none; font-weight: 500; }
       #testResult.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       #testResult.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
-      @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; min-height: auto; } .form-row { grid-template-columns: 1fr; } }
+      @media (max-width: 1100px) { .content-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 768px)  { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } .form-row { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
 
     <!-- SIDEBAR -->
-            <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div>
+      </div>
       <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
       <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays
-      </a>
-      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config
-      </a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management
-      </a>
-      </a>
-      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes
-      </a>
-      <a class="nav-item active" href="/email_config"><span class="nav-icon">✉️</span>Email Settings
-      </a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config</a>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+      <a class="nav-item active" href="/email_config"><span class="nav-icon">✉️</span>Email Settings</a>
       <div class="nav-group-label" style="margin-top:10px;">Requests</div>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
@@ -118,8 +121,7 @@
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -128,98 +130,152 @@
 
       <div class="page-header">
         <h1>✉️ Email Settings</h1>
-        <p>Configure SMTP to send salary slips directly to employees.</p>
+        <p>Configure SMTP to send salary slips and notifications directly to employees.</p>
       </div>
 
       {% if saved %}
       <div class="alert alert-success">✅ Email settings saved successfully!</div>
       {% endif %}
 
-      <!-- PROVIDER HINTS -->
-      <div class="hint-box">
-        <strong>Common SMTP Providers:</strong><br>
-        📧 <strong>Gmail:</strong> Host <code>smtp.gmail.com</code> · Port <code>587</code> · Use your Gmail address + <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a><br>
-        📧 <strong>Outlook / Hotmail:</strong> Host <code>smtp.office365.com</code> · Port <code>587</code><br>
-        📧 <strong>Yahoo:</strong> Host <code>smtp.mail.yahoo.com</code> · Port <code>587</code><br>
-        📧 <strong>Custom SMTP:</strong> Use your hosting provider's SMTP details<br>
-        <em>Note: For Gmail, enable 2-Step Verification and generate an App Password — do not use your regular Gmail password.</em>
-      </div>
+      <div class="content-grid">
 
-      <!-- SMTP CONFIG FORM -->
-      <div class="card">
-        <h3>📡 SMTP Configuration</h3>
-        <form method="POST" action="/email_config">
-          <div class="form-row">
-            <div class="form-group">
-              <label>SMTP Host</label>
-              <input type="text" name="smtp_host" placeholder="e.g. smtp.gmail.com" required
-                value="{{ config.host if config else '' }}" />
+        <!-- LEFT: SMTP CONFIG FORM -->
+        <div class="card">
+          <div class="card-title">📡 SMTP Configuration</div>
+          <form method="POST" action="/email_config">
+            <div class="form-row">
+              <div class="form-group">
+                <label>SMTP Host</label>
+                <input type="text" name="smtp_host" placeholder="e.g. smtp.gmail.com" required
+                  value="{{ config.host if config else '' }}" />
+              </div>
+              <div class="form-group">
+                <label>Port</label>
+                <input type="number" name="smtp_port" placeholder="587" required
+                  value="{{ config.port if config else 587 }}" />
+              </div>
             </div>
             <div class="form-group">
-              <label>Port</label>
-              <input type="number" name="smtp_port" placeholder="587" required
-                value="{{ config.port if config else 587 }}" />
+              <label>SMTP Username</label>
+              <input type="email" name="smtp_user" placeholder="you@gmail.com" required
+                value="{{ config.user if config else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>SMTP Password / App Password</label>
+              <input type="password" name="smtp_pass" placeholder="••••••••••••" required
+                value="{{ config.password if config else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>From Name <span style="font-weight:400;text-transform:none;color:#94a3b8;">(shown in email)</span></label>
+              <input type="text" name="from_name" placeholder="Attendance System"
+                value="{{ config.from_name if config else 'Attendance System' }}" />
+            </div>
+            <div class="form-group">
+              <label>From Email <span style="font-weight:400;text-transform:none;color:#94a3b8;">(sender shown to recipients)</span></label>
+              <input type="email" name="from_email" placeholder="e.g. noreply@yourdomain.com"
+                value="{{ config.from_email if config else '' }}" />
+              <div class="field-note">For Brevo: use your verified sender email, not the SMTP login address.</div>
+            </div>
+            <button type="submit" class="btn-save">💾 Save Settings</button>
+          </form>
+        </div>
+
+        <!-- RIGHT: HINTS + TEST -->
+        <div class="right-col">
+
+          <!-- Provider hints -->
+          <div class="hint-card">
+            <div class="hint-title">📋 Common SMTP Providers</div>
+            <div class="provider-list">
+
+              <div class="provider-row">
+                <div class="provider-icon">📧</div>
+                <div class="provider-info">
+                  <div class="provider-name">Gmail</div>
+                  <div class="provider-detail">
+                    Host <code>smtp.gmail.com</code> &nbsp;·&nbsp; Port <code>587</code><br>
+                    Use your Gmail address + <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a>
+                  </div>
+                </div>
+              </div>
+
+              <div class="provider-row">
+                <div class="provider-icon">🏢</div>
+                <div class="provider-info">
+                  <div class="provider-name">Outlook / Hotmail</div>
+                  <div class="provider-detail">
+                    Host <code>smtp.office365.com</code> &nbsp;·&nbsp; Port <code>587</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="provider-row">
+                <div class="provider-icon">🟣</div>
+                <div class="provider-info">
+                  <div class="provider-name">Yahoo Mail</div>
+                  <div class="provider-detail">
+                    Host <code>smtp.mail.yahoo.com</code> &nbsp;·&nbsp; Port <code>587</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="provider-row">
+                <div class="provider-icon">💙</div>
+                <div class="provider-info">
+                  <div class="provider-name">Brevo (Sendinblue)</div>
+                  <div class="provider-detail">
+                    Host <code>smtp-relay.brevo.com</code> &nbsp;·&nbsp; Port <code>587</code><br>
+                    Use the SMTP API key as password; set From Email to your verified sender.
+                  </div>
+                </div>
+              </div>
+
+              <div class="provider-row">
+                <div class="provider-icon">🌐</div>
+                <div class="provider-info">
+                  <div class="provider-name">Custom / Hosting SMTP</div>
+                  <div class="provider-detail">Use your hosting provider's SMTP details from your cPanel or dashboard.</div>
+                </div>
+              </div>
+
+            </div>
+            <div class="note-box" style="margin-top:14px;">
+              ⚠️ For Gmail, enable <strong>2-Step Verification</strong> first, then generate an <strong>App Password</strong> — do not use your regular Gmail password.
             </div>
           </div>
-          <div class="form-group">
-            <label>SMTP Username (your email address)</label>
-            <input type="email" name="smtp_user" placeholder="you@gmail.com" required
-              value="{{ config.user if config else '' }}" />
-          </div>
-          <div class="form-group">
-            <label>SMTP Password / App Password</label>
-            <input type="password" name="smtp_pass" placeholder="••••••••••••" required
-              value="{{ config.password if config else '' }}" />
-          </div>
-          <div class="form-group">
-            <label>From Name (shown in email)</label>
-            <input type="text" name="from_name" placeholder="Attendance System"
-              value="{{ config.from_name if config else 'Attendance System' }}" />
-          </div>
-          <div class="form-group">
-            <label>From Email (sender address shown to recipients)</label>
-            <input type="email" name="from_email" placeholder="e.g. srilatha@magzest.in"
-              value="{{ config.from_email if config else '' }}" />
-            <small style="color:#64748b;font-size:12px;margin-top:4px;display:block;">For Brevo: use your verified sender email (e.g. srilatha@magzest.in), not the SMTP login.</small>
-          </div>
-          <div class="actions">
-            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
-          </div>
-        </form>
-      </div>
 
-      <!-- TEST EMAIL -->
-      {% if config %}
-      <div class="card">
-        <h3>🧪 Test Email</h3>
-        <div class="alert alert-info alert-info-mb">
-          Current config: <strong>{{ config.user }}</strong> via <strong>{{ config.host }}:{{ config.port }}</strong>
-        </div>
-        <div class="test-row">
-          <input type="email" id="testEmail" placeholder="Send test to: recipient@example.com" />
-          <button type="button" class="btn btn-test" onclick="sendTestEmail()">📤 Send Test</button>
-        </div>
-        <div id="testResult"></div>
-      </div>
-      {% endif %}
+          <!-- Test email -->
+          {% if config %}
+          <div class="test-card">
+            <div class="card-title">🧪 Test Email</div>
+            <div class="current-config">
+              📡 <strong>{{ config.user }}</strong> via <strong>{{ config.host }}:{{ config.port }}</strong>
+            </div>
+            <div class="test-row">
+              <input type="email" id="testEmail" placeholder="Enter recipient email to test…" />
+              <button type="button" class="btn-test" onclick="sendTestEmail()">📤 Send Test</button>
+            </div>
+            <div id="testResult"></div>
+          </div>
+          {% endif %}
 
-    </div>
+        </div><!-- /right-col -->
+      </div><!-- /content-grid -->
+
+    </div><!-- /main -->
 
     <script>
       function sendTestEmail() {
         const email = document.getElementById('testEmail').value.trim();
         const res   = document.getElementById('testResult');
         if (!email) { res.textContent = 'Please enter a recipient email.'; res.className = 'error'; res.style.display = 'block'; return; }
-
-        res.textContent = 'Sending…';
+        res.textContent = '⏳ Sending…';
         res.className   = '';
         res.style.display = 'block';
-
         const fd = new FormData();
         fd.append('test_to', email);
-
         fetch('/test_email', { method: 'POST', body: fd })
-          .then(r => { if (r.status === 401) { window.location.href='/admin_login'; return null; } return r.json(); })
+          .then(r => { if (r.status === 401) { window.location.href = '/admin_login'; return null; } return r.json(); })
           .then(data => {
             if (!data) return;
             res.textContent = (data.ok ? '✅ ' : '❌ ') + data.msg;
