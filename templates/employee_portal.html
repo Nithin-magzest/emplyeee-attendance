@@ -1165,24 +1165,37 @@
       <!-- ═══ VIEW: PAY SLIPS ═══ -->
       <div id="view-payslips" class="view">
       <div class="mod-title">💳 My Pay Slips <span>View salary breakdown and download slips</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div>
-          <p class="payslip-hint">Click a month to preview or open the full slip.</p>
-          <div class="payslip-grid">
-            {% for y, m, mname in payslip_months %}
-            <div class="payslip-card" style="cursor:pointer;" onclick="loadPayslip({{ y }},{{ m }},'{{ mname[:3] }} {{ y }}')">
-              <span class="ps-icon">💳</span>
-              <span class="ps-month">{{ mname[:3] }} {{ y }}</span>
-              <span class="ps-cta">Preview →</span>
-            </div>
-            {% endfor %}
-          </div>
+      <p class="payslip-hint">Click a month card to view the full salary breakdown.</p>
+      <div class="payslip-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:18px;">
+        {% for y, m, mname in payslip_months %}
+        <div class="payslip-card" style="cursor:pointer;padding:22px 16px;" onclick="loadPayslip({{ y }},{{ m }},'{{ mname[:3] }} {{ y }}')">
+          <span class="ps-icon" style="font-size:28px;">💳</span>
+          <span class="ps-month" style="font-size:15px;margin-top:8px;">{{ mname[:3] }} {{ y }}</span>
+          <span class="ps-cta" style="font-size:12px;margin-top:4px;">View Slip →</span>
         </div>
-        <div id="payslip-panel" style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:22px;display:none;">
-          <div id="payslip-panel-content"></div>
-        </div>
+        {% endfor %}
       </div>
       </div><!-- /view-payslips -->
+
+      <!-- ═══ PAYSLIP FULL-SCREEN MODAL ═══ -->
+      <div id="payslip-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.7);backdrop-filter:blur(6px);overflow-y:auto;">
+        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+          <div style="background:#fff;border-radius:20px;width:100%;max-width:680px;box-shadow:0 25px 60px rgba(0,0,0,0.3);overflow:hidden;">
+            <!-- Modal header -->
+            <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="color:#fff;font-size:18px;font-weight:700;" id="payslip-modal-title">💳 Salary Breakdown</div>
+                <div style="color:#bfdbfe;font-size:13px;margin-top:4px;">Employee Payslip</div>
+              </div>
+              <button onclick="closePayslipModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">✕ Close</button>
+            </div>
+            <!-- Modal body -->
+            <div id="payslip-modal-content" style="padding:28px;">
+              <div style="text-align:center;color:#94a3b8;padding:40px;">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- ═══ VIEW: CHANGE PASSWORD ═══ -->
       <div id="view-change-password" class="view">
@@ -1831,46 +1844,77 @@
 
     <script>
       function loadPayslip(year, month, label) {
-        const panel = document.getElementById('payslip-panel');
-        const content = document.getElementById('payslip-panel-content');
-        content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;">Loading…</div>';
-        panel.style.display = 'block';
+        const modal   = document.getElementById('payslip-modal');
+        const title   = document.getElementById('payslip-modal-title');
+        const content = document.getElementById('payslip-modal-content');
+        title.textContent = '💳 ' + label + ' — Salary Breakdown';
+        content.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;font-size:15px;">Loading…</div>';
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
         fetch('/my_payslip_summary/' + year + '/' + month)
           .then(r => r.json())
           .then(d => {
             content.innerHTML = `
-              <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;">💳 ${label} — Salary Breakdown</div>
-              <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Rate: ₹${d.salary_per_day.toFixed(2)} / day</div>
-              <div style="border:1px solid #dbeafe;border-radius:10px;overflow:hidden;margin-bottom:14px;">
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#f8fafc;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;">
-                  <span>Description</span><span>Days</span><span>Amount</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
-                  <span style="color:#16a34a;">Full Day</span><span>${d.full_days}</span><span>₹${d.full_earn.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
-                  <span style="color:#d97706;">Late – Full Day</span><span>${d.late_days}</span><span>₹${d.late_earn.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;">
-                  <span style="color:#f97316;">Half Day (×0.5)</span><span>${d.half_days}</span><span>₹${d.half_earn.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;font-weight:700;border-top:2px solid #dbeafe;background:#f0f7ff;">
-                  <span>Gross Pay</span><span></span><span>₹${d.gross.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;border-top:1px solid #e2e8f0;color:#dc2626;">
-                  <span>PF Deduction (12%)</span><span></span><span>−₹${d.pf.toFixed(2)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:12px 14px;font-size:15px;font-weight:700;border-top:2px solid #16a34a;background:#dcfce7;color:#15803d;">
-                  <span>Net Pay</span><span></span><span>₹${d.net.toFixed(2)}</span>
+              <div style="background:#f0f7ff;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+                <div style="font-size:36px;">👤</div>
+                <div>
+                  <div style="font-size:16px;font-weight:700;color:#1e293b;">{{ emp[1] }}</div>
+                  <div style="font-size:13px;color:#64748b;">{{ emp[2] if emp|length > 2 else '' }} &nbsp;|&nbsp; ${label}</div>
+                  <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Daily Rate: ₹${d.salary_per_day.toFixed(2)}</div>
                 </div>
               </div>
-              <a href="/view_payslip/{{ emp[0] }}/${year}/${month}" target="_blank"
-                 style="display:inline-block;padding:9px 20px;background:#1e3a8a;color:#fff;border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;">
-                🖨️ Open Full Slip
-              </a>`;
+              <div style="border:1px solid #dbeafe;border-radius:14px;overflow:hidden;margin-bottom:20px;">
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;padding:12px 18px;background:#1e3a8a;font-size:12px;font-weight:700;color:#bfdbfe;text-transform:uppercase;letter-spacing:.05em;">
+                  <span>Description</span><span style="text-align:center;padding-right:28px;">Days</span><span style="text-align:right;">Amount</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;border-top:1px solid #e2e8f0;align-items:center;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block;"></span><span style="color:#16a34a;font-weight:600;">Full Day Present</span></span>
+                  <span style="text-align:center;padding-right:28px;color:#1e293b;font-weight:600;">${d.full_days}</span>
+                  <span style="text-align:right;color:#1e293b;">₹${d.full_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;border-top:1px solid #e2e8f0;background:#fefce8;align-items:center;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block;"></span><span style="color:#d97706;font-weight:600;">Late – Full Day</span></span>
+                  <span style="text-align:center;padding-right:28px;color:#1e293b;font-weight:600;">${d.late_days}</span>
+                  <span style="text-align:right;color:#1e293b;">₹${d.late_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;border-top:1px solid #e2e8f0;align-items:center;">
+                  <span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block;"></span><span style="color:#f97316;font-weight:600;">Half Day (×0.5)</span></span>
+                  <span style="text-align:center;padding-right:28px;color:#1e293b;font-weight:600;">${d.half_days}</span>
+                  <span style="text-align:right;color:#1e293b;">₹${d.half_earn.toFixed(2)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;font-weight:700;border-top:2px solid #dbeafe;background:#f0f7ff;align-items:center;">
+                  <span style="color:#1e3a8a;">Gross Pay</span><span></span>
+                  <span style="text-align:right;color:#1e3a8a;font-size:16px;">₹${d.gross.toFixed(2)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;border-top:1px solid #e2e8f0;background:#fff5f5;align-items:center;">
+                  <span style="color:#dc2626;font-weight:600;">PF Deduction (12%)</span><span></span>
+                  <span style="text-align:right;color:#dc2626;">−₹${d.pf.toFixed(2)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:18px 18px;font-size:18px;font-weight:700;border-top:2px solid #16a34a;background:linear-gradient(90deg,#dcfce7,#f0fdf4);align-items:center;">
+                  <span style="color:#15803d;">💰 Net Pay</span><span></span>
+                  <span style="text-align:right;color:#15803d;">₹${d.net.toFixed(2)}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <a href="/view_payslip/{{ emp[0] }}/${year}/${month}" target="_blank"
+                   style="flex:1;min-width:160px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 24px;background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff;border-radius:11px;font-size:14px;font-weight:600;text-decoration:none;box-shadow:0 4px 14px rgba(37,99,235,.35);">
+                  🖨️ Open & Print Full Slip
+                </a>
+                <button onclick="closePayslipModal()" style="flex:1;min-width:120px;padding:13px 24px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;">
+                  Close
+                </button>
+              </div>`;
           })
-          .catch(() => { content.innerHTML = '<div style="color:#dc2626;padding:20px;">Failed to load. Please try again.</div>'; });
+          .catch(() => { content.innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center;">Failed to load. Please try again.</div>'; });
       }
+
+      function closePayslipModal() {
+        document.getElementById('payslip-modal').style.display = 'none';
+        document.body.style.overflow = '';
+      }
+      document.getElementById('payslip-modal').addEventListener('click', function(e) {
+        if (e.target === this) closePayslipModal();
+      });
 
       function updateClock() {
         const now = new Date();
