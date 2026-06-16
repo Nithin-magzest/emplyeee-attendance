@@ -214,12 +214,6 @@
            style="padding:9px 22px;border:none;border-radius:8px;background:#16a34a;color:white;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
           ⬇ Download Excel
         </a>
-        <div style="position:relative;margin-left:auto;">
-          <input type="text" id="inPageEmpSearch" placeholder="🔍 Filter employee…" autocomplete="off"
-            oninput="filterReportRows(this.value)"
-            style="padding:8px 12px 8px 34px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;width:200px;" />
-          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
-        </div>
       </form>
 
       <!-- SUMMARY -->
@@ -307,17 +301,5 @@
 
     </div><!-- /main -->
 
-  <script>
-  function filterReportRows(q) {
-    q = q.toLowerCase();
-    var rows = document.querySelectorAll('#reportTbody tr');
-    var count = 0;
-    rows.forEach(function(row) {
-      var match = row.textContent.toLowerCase().includes(q);
-      row.style.display = match ? '' : 'none';
-      if (match) count++;
-    });
-  }
-  </script>
   </body>
 </html>

@@ -196,15 +196,7 @@
       </div>
 
       <div class="section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-          <h3 style="margin:0;">👥 All Employees</h3>
-          <div style="position:relative;">
-            <input type="text" id="inPageEmpSearch" placeholder="🔍 Filter employee…" autocomplete="off"
-              oninput="filterSalaryConfRows(this.value)"
-              style="padding:8px 12px 8px 34px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;width:210px;" />
-            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
-          </div>
-        </div>
+        <h3>👥 All Employees</h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -388,13 +380,5 @@
         btn.addEventListener("click", function() { cancelEdit(btn.dataset.idx); });
       });
     </script>
-  <script>
-  function filterSalaryConfRows(q) {
-    q = q.toLowerCase();
-    document.querySelectorAll('#salaryConfTbody tr').forEach(function(row) {
-      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-    });
-  }
-  </script>
   </body>
 </html>

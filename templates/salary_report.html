@@ -192,12 +192,6 @@
           {% endfor %}
         </select>
         <button type="submit">Generate Report</button>
-        <div style="position:relative;margin-left:auto;">
-          <input type="text" id="inPageEmpSearch" placeholder="🔍 Filter employee…" autocomplete="off"
-            oninput="filterSalaryRows(this.value)"
-            style="padding:8px 12px 8px 34px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;width:200px;" />
-          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
-        </div>
         <button type="button" class="btn-action btn-print" onclick="window.print()">🖨️ Print</button>
         {% if email_configured %}
         <button type="button" class="btn-action btn-email-all" id="sendAllBtn" onclick="sendAllEmails()">
@@ -417,13 +411,5 @@
           });
       }
     </script>
-  <script>
-  function filterSalaryRows(q) {
-    q = q.toLowerCase();
-    document.querySelectorAll('#salaryTbody tr').forEach(function(row) {
-      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-    });
-  }
-  </script>
   </body>
 </html>

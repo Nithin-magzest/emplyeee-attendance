@@ -173,12 +173,6 @@
           {% endfor %}
         </select>
         <span style="font-size:13px;color:#64748b;">Click <strong>View Pay Slip</strong> next to any employee to open their slip in a new tab.</span>
-        <div style="position:relative;margin-left:auto;">
-          <input type="text" id="inPageEmpSearch" placeholder="🔍 Filter employee…" autocomplete="off"
-            oninput="filterPayslipRows(this.value)"
-            style="padding:8px 12px 8px 34px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;width:200px;" />
-          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
-        </div>
       </div>
 
       <!-- EMPLOYEE TABLE -->
@@ -245,13 +239,5 @@
         });
       }
     </script>
-  <script>
-  function filterPayslipRows(q) {
-    q = q.toLowerCase();
-    document.querySelectorAll('#payslipTbody tr').forEach(function(row) {
-      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
-    });
-  }
-  </script>
   </body>
 </html>
