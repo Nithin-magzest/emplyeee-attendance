@@ -2078,16 +2078,20 @@ def attendance():
 
     face_path, employee_name, employee_email, emp_work_mode, emp_work_lat, emp_work_lon = result
 
-    # Location check — WFH employees skip, office employees must be within 300 m
-    if emp_work_mode != 'wfh':
-        if not user_lat or not user_lon:
+    # Location check: WFH → must be within 300 m of home; Office → must be within 300 m of office
+    if not user_lat or not user_lon:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
+    if emp_work_mode == 'wfh':
+        if emp_work_lat and emp_work_lon:
+            if not is_within_range(float(user_lat), float(user_lon), float(emp_work_lat), float(emp_work_lon)):
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+        # no home location set → allow (admin can set it later)
+    else:
+        if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
             cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
-        chk_lat = float(emp_work_lat) if emp_work_lat else OFFICE_LAT
-        chk_lon = float(emp_work_lon) if emp_work_lon else OFFICE_LON
-        if not is_within_range(float(user_lat), float(user_lon), chk_lat, chk_lon):
-            cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": "You are outside the designated office location."})
+            return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
     if not os.path.exists(face_path):
         cursor.close(); db.close()
@@ -3664,12 +3668,16 @@ def api_checkin():
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
     employee_name, emp_work_mode, emp_work_lat, emp_work_lon = result
-    if emp_work_mode != 'wfh' and lat and lon:
-        chk_lat = float(emp_work_lat) if emp_work_lat else OFFICE_LAT
-        chk_lon = float(emp_work_lon) if emp_work_lon else OFFICE_LON
-        if not is_within_range(float(lat), float(lon), chk_lat, chk_lon):
-            cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": "You are outside the designated office location."})
+    if lat and lon:
+        if emp_work_mode == 'wfh':
+            if emp_work_lat and emp_work_lon:
+                if not is_within_range(float(lat), float(lon), float(emp_work_lat), float(emp_work_lon)):
+                    cursor.close(); db.close()
+                    return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+        else:
+            if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "You are outside the office premises."})
     now           = datetime.datetime.now()
     today         = now.date()
     current_time  = now.time()
