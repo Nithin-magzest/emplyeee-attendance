@@ -1693,25 +1693,6 @@
       initResignForm('');    // main form (no active resignation)
       initResignForm('-d');  // re-submit form (after Declined)
 
-      // ── MODULE VIEW SWITCHER ──
-      var mainEl = document.querySelector('.main');
-
-      function showView(viewId) {
-        // hide all views
-        document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-        // show target view
-        var target = document.getElementById('view-' + viewId);
-        if (target) target.classList.add('active');
-        // update nav active state
-        document.querySelectorAll('.nav-item').forEach(function(a) { a.classList.remove('active'); });
-        var navEl = document.getElementById('nav-' + viewId);
-        if (navEl) navEl.classList.add('active');
-        // scroll main to top
-        mainEl.scrollTo({ top: 0, behavior: 'smooth' });
-        // update URL hash without reloading
-        history.replaceState(null, '', '#' + viewId);
-      }
-
       // On page load: check URL hash to show the right view
       (function() {
         var hash = window.location.hash.replace('#', '');
@@ -1753,7 +1734,7 @@
       function confirmResignGate() {
         closeResignGate();
         showView('resign');
-        document.getElementById('nav-resign').classList.add('active');
+        document.getElementById('sbn-resign').classList.add('active');
       }
       // Close modal on overlay click
       document.getElementById('resign-gate-overlay').addEventListener('click', function(e) {
