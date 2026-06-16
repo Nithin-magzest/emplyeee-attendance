@@ -198,6 +198,18 @@
         </a>
       </form>
 
+      <!-- EMPLOYEE SEARCH -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+        <div style="position:relative;width:280px;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
+          <input type="text" id="empTableSearch" placeholder="Search employee by name or ID…" autocomplete="off"
+            oninput="filterEmpTable(this.value)"
+            style="width:100%;padding:10px 14px 10px 38px;border:1.5px solid #dbeafe;border-radius:10px;
+                   background:#fff;color:#1e293b;font-size:13px;outline:none;box-shadow:0 1px 4px rgba(30,58,138,0.07);" />
+        </div>
+        <span id="empTableCount" style="font-size:13px;color:#64748b;font-weight:500;"></span>
+      </div>
+
       <!-- SUMMARY -->
       {% set total_emp  = report | length %}
       {% set avg_full   = (report | sum(attribute='full_days')  / total_emp) | round(1) if total_emp > 0 else 0 %}
@@ -283,5 +295,19 @@
 
     </div><!-- /main -->
 
+  <script>
+  function filterEmpTable(q) {
+    q = q.toLowerCase();
+    var rows = document.querySelectorAll('#reportTbody tr');
+    var visible = 0;
+    rows.forEach(function(r) {
+      var show = r.textContent.toLowerCase().includes(q);
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    var c = document.getElementById('empTableCount');
+    if (c) c.textContent = q ? visible + ' result' + (visible !== 1 ? 's' : '') : '';
+  }
+  </script>
   </body>
 </html>

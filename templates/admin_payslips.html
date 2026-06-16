@@ -159,9 +159,18 @@
 
       <!-- EMPLOYEE TABLE -->
       <div class="section">
-        <div class="section-title">
-          👥 Employees
-          <span class="emp-count">{{ employees | length }} total</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <div class="section-title" style="margin-bottom:0;">
+            👥 Employees
+            <span class="emp-count">{{ employees | length }} total</span>
+          </div>
+          <div style="position:relative;width:280px;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
+            <input type="text" id="empTableSearch" placeholder="Search employee by name or ID…" autocomplete="off"
+              oninput="filterEmpTable(this.value)"
+              style="width:100%;padding:10px 14px 10px 38px;border:1.5px solid #dbeafe;border-radius:10px;
+                     background:#f8fafc;color:#1e293b;font-size:13px;outline:none;box-shadow:0 1px 4px rgba(30,58,138,0.07);" />
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -221,5 +230,17 @@
         });
       }
     </script>
+  <script>
+  function filterEmpTable(q) {
+    q = q.toLowerCase();
+    var rows = document.querySelectorAll('#payslipTbody tr');
+    var visible = 0;
+    rows.forEach(function(r) {
+      var show = r.textContent.toLowerCase().includes(q);
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+  }
+  </script>
   </body>
 </html>
