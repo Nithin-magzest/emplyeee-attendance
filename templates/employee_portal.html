@@ -974,7 +974,7 @@
               <select id="ticket-priority" name="priority" class="ticket-select" title="Ticket priority">
                 <option value="Low">Low</option>
                 <option value="Medium" selected>Medium</option>
-                <option value="High">High</option>
+                <option value="High">🔴 High (Auto)</option>
               </select>
             </div>
             <div class="form-group ticket-full ticket-field">
@@ -2345,6 +2345,32 @@
         };
         reader.readAsDataURL(file);
       }
+    </script>
+
+    <script>
+      /* Auto-set High priority for Harassment / Misconduct tickets */
+      (function() {
+        var cat = document.getElementById('ticket-category');
+        var pri = document.getElementById('ticket-priority');
+        if (!cat || !pri) return;
+        cat.addEventListener('change', function() {
+          if (this.value === 'Harassment / Misconduct') {
+            pri.value = 'High';
+            pri.style.pointerEvents = 'none';
+            pri.style.background = '#fef2f2';
+            pri.style.borderColor = '#fca5a5';
+            pri.style.color = '#dc2626';
+            pri.style.fontWeight = '700';
+          } else {
+            pri.style.pointerEvents = '';
+            pri.value = 'Medium';
+            pri.style.background = '';
+            pri.style.borderColor = '';
+            pri.style.color = '';
+            pri.style.fontWeight = '';
+          }
+        });
+      })();
     </script>
 
     <!-- ═══ WFH SCANNER MODAL ═══ -->
