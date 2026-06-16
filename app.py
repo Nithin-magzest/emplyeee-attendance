@@ -235,6 +235,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN bank_ifsc VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN uan_number VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
+        "ALTER TABLE salary_config ADD COLUMN last_revised DATE DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1275,7 +1276,7 @@ def view_salary():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role
+        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -1288,15 +1289,22 @@ def view_salary():
 @app.route("/update_salary", methods=["POST"])
 @admin_required
 def update_salary():
-    emp_id = request.form["emp_id"]
-    salary = request.form["salary"]
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
+    emp_id     = request.form["emp_id"]
+    salary     = request.form["salary"]
+    hike_date  = request.form.get("hike_date") or None
+    db         = get_db_connection()
+    cursor     = db.cursor(buffered=True)
     cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
-        cursor.execute("UPDATE salary_config SET salary_per_day=%s WHERE employee_id=%s", (salary, emp_id))
+        cursor.execute(
+            "UPDATE salary_config SET salary_per_day=%s, last_revised=%s WHERE employee_id=%s",
+            (salary, hike_date or datetime.date.today(), emp_id)
+        )
     else:
-        cursor.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)", (emp_id, salary))
+        cursor.execute(
+            "INSERT INTO salary_config (employee_id, salary_per_day, last_revised) VALUES (%s,%s,%s)",
+            (emp_id, salary, hike_date or datetime.date.today())
+        )
     db.commit()
     cursor.close()
     db.close()
@@ -3072,6 +3080,8 @@ def api_dashboard():
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
     pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
     cursor.close(); db.close()
 
     return jsonify({
@@ -3079,6 +3089,7 @@ def api_dashboard():
         "absent": total - present, "late": late,
         "today": today.strftime("%d %b %Y"), "today_rows": today_rows,
         "pending_leaves": pending_leaves, "pending_resignations": pending_resignations,
+        "pending_tickets": pending_tickets,
     })
 
 
@@ -3133,6 +3144,70 @@ def api_register_employee():
         return jsonify({"ok": False, "msg": str(e)}), 400
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": f"Employee {name} registered."})
+
+
+@app.route("/api/employees/<emp_id>", methods=["GET"])
+@api_required
+def api_employee_detail(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.email, e.role, e.date_of_joining,
+               COALESCE(s.salary_per_day, 0)
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    return jsonify({"ok": True, "employee": {
+        "employee_id": row[0], "name": row[1], "email": row[2],
+        "role": row[3], "date_of_joining": str(row[4]) if row[4] else None,
+        "salary_per_day": float(row[5])
+    }})
+
+
+@app.route("/api/employees/<emp_id>", methods=["PUT"])
+@api_required
+def api_edit_employee(emp_id):
+    data            = request.get_json() or {}
+    name            = data.get("name", "").strip()
+    email           = data.get("email", "").strip() or None
+    role            = data.get("role", "").strip() or None
+    date_of_joining = data.get("date_of_joining", "").strip() or None
+    if not name:
+        return jsonify({"ok": False, "msg": "name required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
+        (name, email, role, date_of_joining, emp_id)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": "Employee updated."})
+
+
+@app.route("/api/employees/<emp_id>", methods=["DELETE"])
+@api_required
+def api_delete_employee(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT face_image, qr_code FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    for path in row:
+        if path and os.path.exists(path):
+            try: os.remove(path)
+            except: pass
+    for tbl in ("attendance", "salary_config", "leave_requests",
+                "resignation_requests", "tickets", "employees"):
+        cursor.execute(f"DELETE FROM {tbl} WHERE employee_id=%s", (emp_id,))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": f"Employee '{emp_id}' deleted."})
 
 
 @app.route("/api/holidays", methods=["GET"])
@@ -3815,6 +3890,86 @@ def api_employee_raise_ticket():
     return jsonify({"ok": True, "msg": "Ticket raised successfully."})
 
 
+@app.route("/api/employee/change_password", methods=["POST"])
+@employee_api_required
+def api_employee_change_password():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    data   = request.get_json() or {}
+    new_pw = data.get("new_password", "").strip()
+    if not new_pw:
+        return jsonify({"ok": False, "msg": "new_password required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
+                   (generate_password_hash(new_pw), emp_id))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True, "msg": "Password changed successfully."})
+
+
+@app.route("/api/employee/salary", methods=["GET"])
+@employee_api_required
+def api_employee_salary():
+    import calendar as cal
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    try:
+        year  = int(request.args.get("year",  datetime.date.today().year))
+        month = int(request.args.get("month", datetime.date.today().month))
+    except ValueError:
+        return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    emp_row = cursor.fetchone()
+    if not emp_row:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
+    spd_row  = cursor.fetchone()
+    spd      = float(spd_row[0]) if spd_row else 0.0
+    cursor.execute("SELECT date FROM holidays WHERE MONTH(date)=%s AND YEAR(date)=%s", (month, year))
+    holiday_set = {r[0] for r in cursor.fetchall()}
+    _, days_in_month = cal.monthrange(year, month)
+    billable = sum(
+        1 for d in range(1, days_in_month + 1)
+        if datetime.date(year, month, d).weekday() < 5
+        and datetime.date(year, month, d) not in holiday_set
+    )
+    cursor.execute("""
+        SELECT attendance_type FROM attendance
+        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+    """, (emp_id, month, year))
+    att_rows = cursor.fetchall()
+    cursor.execute("""
+        SELECT COUNT(*) FROM leave_requests
+        WHERE employee_id=%s AND MONTH(leave_date)=%s AND YEAR(leave_date)=%s AND status='Approved'
+    """, (emp_id, month, year))
+    leave_days = cursor.fetchone()[0]
+    cursor.close(); db.close()
+    full_days = half_days = late_days = 0
+    for (att_type,) in att_rows:
+        if att_type == 'Full Day':          full_days += 1
+        elif att_type == 'Late - Full Day': full_days += 1; late_days += 1
+        elif att_type in ('Half Day', 'Late - Half Day'): half_days += 1
+    absent    = max(0, billable - full_days - half_days - leave_days)
+    gross     = spd * billable
+    deduction = spd * (absent + half_days * 0.5)
+    net       = gross - deduction
+    return jsonify({
+        "ok": True,
+        "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
+        "year": year, "month": month,
+        "salary": {
+            "emp_id": emp_id, "name": emp_row[0], "email": emp_row[1],
+            "spd": spd, "billable": billable,
+            "full_days": full_days, "half_days": half_days,
+            "late_days": late_days, "absent": absent, "leave_days": leave_days,
+            "gross": gross, "deduction": deduction, "net": net,
+        }
+    })
+
+
 # ---------------- API: TICKETS (admin) ----------------
 
 @app.route("/api/tickets", methods=["GET"])
@@ -3943,6 +4098,92 @@ def admin_payslips():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets
     )
+
+
+# ---------------- API: SHIFTS (JSON) ----------------
+
+@app.route("/api/shifts", methods=["GET"])
+@api_required
+def api_shifts_get():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
+    shifts = [
+        {"id": r[0], "name": r[1],
+         "start": _td_to_time(r[2]).strftime("%H:%M") if r[2] else "--",
+         "half":  _td_to_time(r[3]).strftime("%H:%M") if r[3] else "--",
+         "end":   _td_to_time(r[4]).strftime("%H:%M") if r[4] else "--"}
+        for r in cursor.fetchall()
+    ]
+    cursor.execute(
+        "SELECT e.employee_id, e.name, e.role, s.id, s.name "
+        "FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name"
+    )
+    employees = [
+        {"emp_id": r[0], "name": r[1], "role": r[2] or "",
+         "shift_id": r[3], "shift_name": r[4] or "Default"}
+        for r in cursor.fetchall()
+    ]
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "shifts": shifts, "employees": employees})
+
+
+@app.route("/api/shifts", methods=["POST"])
+@api_required
+def api_shifts_create():
+    data  = request.get_json(silent=True) or {}
+    name  = data.get("name", "").strip()
+    start = data.get("start_time", "").strip()
+    half  = data.get("half_time",  "").strip()
+    end   = data.get("end_time",   "").strip()
+    if not all([name, start, half, end]):
+        return jsonify({"ok": False, "msg": "All fields required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute(
+            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
+            (name, start, half, end)
+        )
+        db.commit()
+        sid = cursor.lastrowid
+    except Exception as e:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "id": sid})
+
+
+@app.route("/api/shifts/<int:sid>", methods=["DELETE"])
+@api_required
+def api_shifts_delete(sid):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE employees SET shift_id=NULL WHERE shift_id=%s", (sid,))
+    cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
+    db.commit()
+    cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/shifts/assign", methods=["POST"])
+@api_required
+def api_shifts_assign():
+    data     = request.get_json(silent=True) or {}
+    emp_id   = data.get("emp_id", "").strip()
+    shift_id = data.get("shift_id")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "emp_id required"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
+        (shift_id if shift_id else None, emp_id)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    return jsonify({"ok": True})
+
 
 
 # ---------------- RUN ----------------

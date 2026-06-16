@@ -67,24 +67,42 @@
         border: 1px solid #93c5fd;
       }
 
+      /* SALARY DISPLAY */
+      .salary-stack { display: flex; flex-direction: column; gap: 3px; }
+      .salary-row { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+      .salary-row .lbl { font-size: 11px; color: #94a3b8; min-width: 52px; }
+      .salary-row-revised { margin-top: 4px; }
+      .salary-val-day  { font-weight: 800; color: #16a34a; font-size: 15px; }
+      .salary-val-mon  { font-weight: 700; color: #2563eb; }
+      .salary-val-yr   { font-weight: 800; color: #7c3aed; font-size: 14px; }
+      .salary-yr-exact { font-size: 11px; color: #a78bfa; margin-left: 2px; }
+      .lpa-hint        { font-size: 12px; color: #7c3aed; font-weight: 700; white-space: nowrap; }
+      .no-salary { color: #94a3b8; font-style: italic; font-size: 13px; }
+
       /* EDIT INLINE */
-      .edit-form { display: none; align-items: center; gap: 8px; margin-top: 6px; }
+      .edit-form { display: none; flex-direction: column; gap: 8px; margin-top: 6px; min-width: 260px; }
       .edit-form.open { display: flex; }
+      .ef-row { display: flex; align-items: center; gap: 8px; }
+      .ef-lbl { font-size: 12px; color: #64748b; min-width: 88px; font-weight: 600; }
       .edit-form input[type="number"] {
-        width: 130px; padding: 6px 10px;
+        flex: 1; padding: 7px 10px;
         border: 1px solid #dbeafe; border-radius: 7px;
         background: #f8fafc; color: #1e293b; font-size: 14px;
-        outline: none;
+        outline: none; min-width: 0;
       }
-      .edit-form input[type="number"]:focus { border-color: #93c5fd; background: #fff; }
+      .edit-form input[type="number"]:focus { border-color: #93c5fd; background: #fff; box-shadow: 0 0 0 3px rgba(147,197,253,0.25); }
+      .ef-hint { font-size: 11px; color: #94a3b8; padding-left: 96px; }
+      .revised-badge { font-size: 11px; color: #7c3aed; background: #f3e8ff; border: 1px solid #ddd6fe; border-radius: 20px; padding: 2px 9px; font-weight: 600; }
+      .revised-badge.muted { color: #94a3b8; background: #f8fafc; border-color: #e2e8f0; font-weight: 500; }
+      .ef-btns { display: flex; gap: 8px; margin-top: 2px; }
       .btn-save {
-        padding: 6px 14px; border: none; border-radius: 7px;
+        padding: 7px 16px; border: none; border-radius: 7px;
         background: #22c55e; color: white; font-size: 13px; font-weight: 700;
         cursor: pointer; transition: 0.2s;
       }
       .btn-save:hover { background: #16a34a; }
       .btn-cancel {
-        padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 7px;
+        padding: 7px 12px; border: 1px solid #e2e8f0; border-radius: 7px;
         background: #f1f5f9; color: #64748b; font-size: 13px;
         cursor: pointer; transition: 0.2s;
       }
@@ -169,13 +187,15 @@
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Role</th>
-                <th>Daily Salary (₹)</th>
+                <th>CTC Breakdown</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {% for s in salaries %}
-              {% set emp_id, name, spd, role = s %}
+              {% set emp_id, name, spd, role, last_revised = s %}
+              {% set mon = (spd * 26) if spd else 0 %}
+              {% set yr  = (spd * 312) if spd else 0 %}
               <tr>
                 <td><span class="emp-id">{{ emp_id }}</span></td>
                 <td>{{ name }}</td>
@@ -187,22 +207,79 @@
                   {% endif %}
                 </td>
                 <td>
+                  <!-- Display -->
                   <div id="disp-{{ loop.index }}">
                     {% if spd and spd > 0 %}
-                      <span class="salary-val">₹{{ "%.2f" | format(spd) }}</span>
+                      <div class="salary-stack">
+                        <div class="salary-row">
+                          <span class="lbl">Per Day</span>
+                          <span class="salary-val-day">₹{{ "%.2f" | format(spd) }}</span>
+                        </div>
+                        <div class="salary-row">
+                          <span class="lbl">Monthly</span>
+                          <span class="salary-val-mon">₹{{ "{:,.2f}".format(mon) }}</span>
+                        </div>
+                        <div class="salary-row">
+                          <span class="lbl">Yearly</span>
+                          <span class="salary-val-yr">{{ "%.3g"|format(yr / 100000) }} LPA</span>
+                          <span class="salary-yr-exact">(₹{{ "{:,.0f}".format(yr) }})</span>
+                        </div>
+                        <div class="salary-row salary-row-revised">
+                          {% if last_revised %}
+                            <span class="revised-badge">🗓 Last revised: {{ last_revised.strftime('%d %b %Y') }}</span>
+                          {% else %}
+                            <span class="revised-badge muted">🗓 Never revised</span>
+                          {% endif %}
+                        </div>
+                      </div>
                     {% else %}
                       <span class="no-salary">Not set</span>
                     {% endif %}
                   </div>
+                  <!-- Edit form -->
                   <form action="/update_salary" method="POST"
-                        id="form-{{ loop.index }}" class="edit-form">
+                        id="form-{{ loop.index }}" class="edit-form"
+                        onsubmit="prepareSubmit('{{ loop.index }}')">
                     <input type="hidden" name="emp_id" value="{{ emp_id }}" />
-                    <input type="number" name="salary" step="0.01" min="0"
-                           value="{{ spd if spd else '' }}"
-                           placeholder="₹ per day" title="Daily salary in rupees" required />
-                    <button type="submit" class="btn-save">Save</button>
-                    <button type="button" class="btn-cancel"
-                            data-idx="{{ loop.index }}">Cancel</button>
+                    <input type="hidden" name="salary" id="hidden-spd-{{ loop.index }}" />
+                    <div class="ef-row">
+                      <span class="ef-lbl">Per Day (₹)</span>
+                      <input type="number" id="inp-day-{{ loop.index }}"
+                             step="0.01" min="0"
+                             value="{{ '%.2f'|format(spd) if spd else '' }}"
+                             placeholder="0.00"
+                             oninput="calcFromDay('{{ loop.index }}')" />
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Monthly (₹)</span>
+                      <input type="number" id="inp-mon-{{ loop.index }}"
+                             step="0.01" min="0"
+                             value="{{ '%.2f'|format(mon) if spd else '' }}"
+                             placeholder="0.00"
+                             oninput="calcFromMon('{{ loop.index }}')" />
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Yearly (₹)</span>
+                      <input type="number" id="inp-yr-{{ loop.index }}"
+                             step="0.01" min="0"
+                             value="{{ '%.2f'|format(yr) if spd else '' }}"
+                             placeholder="0.00"
+                             oninput="calcFromYr('{{ loop.index }}')" />
+                      <span class="lpa-hint" id="lpa-hint-{{ loop.index }}">
+                        {%- if yr > 0 -%}{{ "%.3g"|format(yr / 100000) }} LPA{%- endif -%}
+                      </span>
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Revised On</span>
+                      <input type="date" name="hike_date"
+                             value="{{ last_revised.strftime('%Y-%m-%d') if last_revised else '' }}" />
+                    </div>
+                    <div class="ef-hint">Based on 26 working days/month · Leave date blank to record today</div>
+                    <div class="ef-btns">
+                      <button type="submit" class="btn-save">✅ Update</button>
+                      <button type="button" class="btn-cancel"
+                              data-idx="{{ loop.index }}">Cancel</button>
+                    </div>
                   </form>
                 </td>
                 <td>
@@ -223,10 +300,55 @@
     </div>
 
     <script>
+      var WD = 26; // working days per month
+
+      function r2(v) { return Math.round(v * 100) / 100; }
+
+      function toLPA(y) {
+        if (!y || y <= 0) return "";
+        var lpa = y / 100000;
+        // strip unnecessary trailing zeros (e.g. 3.50 → "3.5", 6.00 → "6")
+        return parseFloat(lpa.toFixed(2)) + " LPA";
+      }
+      function updateLPAHint(i) {
+        var y   = parseFloat(document.getElementById("inp-yr-" + i).value) || 0;
+        var el  = document.getElementById("lpa-hint-" + i);
+        if (el) el.textContent = toLPA(y);
+      }
+
+      function calcFromDay(i) {
+        var d = parseFloat(document.getElementById("inp-day-" + i).value) || 0;
+        setField("inp-mon-" + i, r2(d * WD));
+        setField("inp-yr-"  + i, r2(d * WD * 12));
+        updateLPAHint(i);
+      }
+      function calcFromMon(i) {
+        var m = parseFloat(document.getElementById("inp-mon-" + i).value) || 0;
+        setField("inp-day-" + i, r2(m / WD));
+        setField("inp-yr-"  + i, r2(m * 12));
+        updateLPAHint(i);
+      }
+      function calcFromYr(i) {
+        var y = parseFloat(document.getElementById("inp-yr-" + i).value) || 0;
+        setField("inp-mon-" + i, r2(y / 12));
+        setField("inp-day-" + i, r2(y / (WD * 12)));
+        updateLPAHint(i);
+      }
+      function setField(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val > 0 ? val.toFixed(2) : "";
+      }
+
+      function prepareSubmit(i) {
+        var d = parseFloat(document.getElementById("inp-day-" + i).value) || 0;
+        document.getElementById("hidden-spd-" + i).value = d.toFixed(2);
+      }
+
       function startEdit(i) {
         document.getElementById("disp-" + i).style.display = "none";
         document.getElementById("form-" + i).classList.add("open");
         document.getElementById("editbtn-" + i).style.display = "none";
+        document.getElementById("inp-day-" + i).focus();
       }
       function cancelEdit(i) {
         document.getElementById("disp-" + i).style.display = "";
