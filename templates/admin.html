@@ -749,9 +749,10 @@
         btn.disabled = true; btn.textContent = "Sending…";
         try {
           const res  = await fetch("/send_absentee_report", {method:"POST"});
+          if (res.status === 401) { alert("Session expired. Please log in again."); window.location.href="/admin_login"; return; }
           const data = await res.json();
           alert(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
-        } catch(e) { alert("❌ Network error."); }
+        } catch(e) { alert("❌ Failed to reach server. Check your connection."); }
         btn.disabled = false; btn.innerHTML = "📧 Email Absentees";
       }
 

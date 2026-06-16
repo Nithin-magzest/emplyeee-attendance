@@ -1,4 +1,4 @@
-﻿from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory
 from flask_cors import CORS
 import cv2
 import datetime
@@ -31,6 +31,18 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+@app.context_processor
+def inject_common_vars():
+    return dict(
+        shift_start=SHIFT_START.strftime("%I:%M %p"),
+        shift_end=SHIFT_END.strftime("%I:%M %p"),
+    )
+
+@app.route("/favicon.ico")
+def favicon():
+    ico = os.path.join(app.static_folder, "favicon.ico")
+    return send_from_directory(app.static_folder, "favicon.ico", mimetype="image/x-icon") if os.path.exists(ico) else ("", 204)
 
 # In-memory API token store  { token: username }
 _api_tokens: dict = {}
@@ -245,6 +257,7 @@ def init_db():
         "ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
+        "ALTER TABLE email_config ADD COLUMN from_email VARCHAR(150) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -279,6 +292,14 @@ def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not session.get("admin_logged_in"):
+            is_ajax = (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.headers.get("Accept", "").startswith("application/json")
+                or request.headers.get("Content-Type", "").startswith("application/json")
+                or request.is_json
+            )
+            if is_ajax:
+                return jsonify({"ok": False, "msg": "Session expired. Please log in again.", "redirect": url_for("admin_login")}), 401
             return redirect(url_for("admin_login"))
         return f(*args, **kwargs)
     return wrapper
@@ -398,12 +419,15 @@ def fetch_leave_map(year, month):
 def get_email_config():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name FROM email_config ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     cursor.close()
     db.close()
     if row:
-        return {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4]}
+        return {
+            "host": row[0], "port": row[1], "user": row[2], "password": row[3],
+            "from_name": row[4], "from_email": row[5] or row[2]
+        }
     # Fall back to .env values so team members don't need to configure via UI
     smtp_host = os.environ.get("SMTP_HOST", "")
     smtp_user = os.environ.get("SMTP_USER", "")
@@ -415,6 +439,7 @@ def get_email_config():
             "user": smtp_user,
             "password": smtp_pass,
             "from_name": os.environ.get("SMTP_FROM_NAME", "Attendance System"),
+            "from_email": os.environ.get("SMTP_FROM_EMAIL", smtp_user),
         }
     return None
 
@@ -498,10 +523,14 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 """
 
 def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None, attachment_filename=None):
+    display_from = config.get("from_email") or config["user"]
+    smtp_user    = config["user"]   # SMTP login used for envelope (SPF passes on smtp-brevo.com)
+
     msg = MIMEMultipart("mixed")
-    msg["Subject"] = subject
-    msg["From"]    = f"{config['from_name']} <{config['user']}>"
-    msg["To"]      = to_email
+    msg["Subject"]  = subject
+    msg["From"]     = f"{config['from_name']} <{display_from}>"
+    msg["To"]       = to_email
+    msg["Reply-To"] = display_from
     alt = MIMEMultipart("alternative")
     alt.attach(MIMEText(html_body, "html", "utf-8"))
     msg.attach(alt)
@@ -518,15 +547,15 @@ def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None,
         server.ehlo()
         server.starttls(context=context)
         server.ehlo()
-        server.login(config["user"], config["password"])
-        server.sendmail(config["user"], to_email, msg.as_string())
+        server.login(smtp_user, config["password"])
+        server.sendmail(smtp_user, to_email, msg.as_string())
 
 def send_email_async(to_email, subject, html_body, config, **kwargs):
     def _send():
         try:
             send_email_smtp(to_email, subject, html_body, config, **kwargs)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[EMAIL ERROR] Failed to send to {to_email}: {e}")
     threading.Thread(target=_send, daemon=True).start()
 
 def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
@@ -1731,7 +1760,7 @@ def send_absentee_report():
 </div>"""
 
     try:
-        send_email_smtp(cfg["user"], f"Daily Absentee Report — {today.strftime('%d %b %Y')}", html, cfg)
+        send_email_smtp(cfg.get("from_email", cfg["user"]), f"Daily Absentee Report — {today.strftime('%d %b %Y')}", html, cfg)
         return jsonify({"ok": True, "msg": f"Report sent! {absent} absent out of {total} employees."})
     except Exception as e:
         return jsonify({"ok": False, "msg": f"Failed to send: {str(e)}"})
@@ -1810,25 +1839,26 @@ def email_config():
     cursor = db.cursor(buffered=True)
 
     if request.method == "POST":
-        host      = request.form["smtp_host"].strip()
-        port      = int(request.form["smtp_port"])
-        user      = request.form["smtp_user"].strip()
-        password  = request.form["smtp_pass"].strip()
-        from_name = request.form.get("from_name", "HR Department").strip()
+        host       = request.form["smtp_host"].strip()
+        port       = int(request.form["smtp_port"])
+        user       = request.form["smtp_user"].strip()
+        password   = request.form["smtp_pass"].strip()
+        from_name  = request.form.get("from_name", "Attendance System").strip()
+        from_email = request.form.get("from_email", "").strip() or user
 
         cursor.execute("DELETE FROM email_config")
         cursor.execute(
-            "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name) VALUES (%s,%s,%s,%s,%s)",
-            (host, port, user, password, from_name)
+            "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) VALUES (%s,%s,%s,%s,%s,%s)",
+            (host, port, user, password, from_name, from_email)
         )
         db.commit()
         cursor.close()
         db.close()
         return redirect("/email_config?saved=1")
 
-    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name FROM email_config ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
     row    = cursor.fetchone()
-    config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4]} if row else None
+    config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4], "from_email": row[5] or row[2]} if row else None
     cursor.close()
     db.close()
 
@@ -2961,12 +2991,12 @@ def request_leave():
 </div>"""
         try:
             send_email_smtp(
-                config["user"],
+                config.get("from_email", config["user"]),
                 f"Leave Request — {emp_name} ({leave_date})",
                 html_body, config
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[EMAIL ERROR] Leave request notification failed: {e}")
 
     return redirect("/employee_portal?leave_sent=1#apply-leave")
 
@@ -3062,12 +3092,12 @@ def request_resignation():
 </div>"""
         try:
             send_email_smtp(
-                config["user"],
+                config.get("from_email", config["user"]),
                 f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
                 html_body, config
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[EMAIL ERROR] Resignation notification failed: {e}")
 
     return redirect("/employee_portal?resigned=1#resign")
 
@@ -4017,12 +4047,12 @@ def api_employee_resign():
         )
         try:
             send_email_smtp(
-                config["user"],
+                config.get("from_email", config["user"]),
                 f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
                 html_body, config
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[EMAIL ERROR] Resignation notification failed: {e}")
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 

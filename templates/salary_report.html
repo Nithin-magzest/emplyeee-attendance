@@ -350,8 +350,9 @@
         fd.append('month',  MONTH);
 
         fetch('/send_salary_email', { method: 'POST', body: fd })
-          .then(r => r.json())
+          .then(r => { if (r.status === 401) { window.location.href='/admin_login'; return null; } return r.json(); })
           .then(data => {
+            if (!data) return;
             if (data.ok) {
               showToast('✅ ' + data.msg, 'success');
               btn.textContent = '✅ Sent';
@@ -362,7 +363,7 @@
             }
           })
           .catch(() => {
-            showToast('❌ Network error. Try again.', 'error');
+            showToast('❌ Failed to reach server. Check your connection.', 'error');
             btn.disabled = false;
             btn.textContent = '📧 Send Slip';
           });
@@ -379,14 +380,15 @@
         fd.append('month', MONTH);
 
         fetch('/send_all_salary_emails', { method: 'POST', body: fd })
-          .then(r => r.json())
+          .then(r => { if (r.status === 401) { window.location.href='/admin_login'; return null; } return r.json(); })
           .then(data => {
+            if (!data) return;
             showToast((data.ok ? '✅ ' : '⚠️ ') + data.msg, data.ok ? 'success' : 'error');
             btn.disabled = false;
             btn.textContent = '📧 Send All Salary Slips';
           })
           .catch(() => {
-            showToast('❌ Network error. Try again.', 'error');
+            showToast('❌ Failed to reach server. Check your connection.', 'error');
             btn.disabled = false;
             btn.textContent = '📧 Send All Salary Slips';
           });
