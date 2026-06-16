@@ -11,163 +11,282 @@
 
       body {
         min-height: 100vh;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: #05050f;
         display: flex; flex-direction: column;
+        overflow-x: hidden;
       }
 
+      /* ── ANIMATED BACKGROUND ── */
+      .bg {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background:
+          radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,51,220,0.18) 0%, transparent 60%),
+          radial-gradient(ellipse 60% 50% at 80% 80%, rgba(0,180,255,0.12) 0%, transparent 55%),
+          radial-gradient(ellipse 50% 40% at 50% 50%, rgba(120,40,200,0.08) 0%, transparent 70%),
+          #05050f;
+      }
+      .bg::after {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(80,60,200,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(80,60,200,0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+
+      /* floating orbs */
+      .orb {
+        position: fixed; border-radius: 50%; filter: blur(60px); pointer-events: none; z-index: 0;
+        animation: orbFloat 8s ease-in-out infinite;
+      }
+      .orb1 { width: 300px; height: 300px; background: rgba(99,51,220,0.12); top: -80px; left: -80px; animation-delay: 0s; }
+      .orb2 { width: 250px; height: 250px; background: rgba(0,180,255,0.09); bottom: -60px; right: -60px; animation-delay: 3s; }
+      .orb3 { width: 200px; height: 200px; background: rgba(180,40,255,0.08); top: 40%; left: 60%; animation-delay: 5s; }
+      @keyframes orbFloat {
+        0%,100% { transform: translate(0,0) scale(1); }
+        50%      { transform: translate(20px, -20px) scale(1.05); }
+      }
+
+      /* ── TOPBAR ── */
       .topbar {
+        position: relative; z-index: 10;
         display: flex; align-items: center; justify-content: space-between;
-        padding: 14px 28px;
-        background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
-        color: white; flex-shrink: 0;
+        padding: 14px 32px;
+        background: rgba(5,5,20,0.7);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(100,80,255,0.15);
+        color: white;
       }
-      .topbar .brand { font-size: 18px; font-weight: 700; }
-      .topbar .brand span { opacity: 0.7; font-weight: 400; font-size: 13px; margin-left: 10px; }
+      .brand-wrap { display: flex; align-items: center; gap: 12px; }
+      .brand-dot {
+        width: 36px; height: 36px; border-radius: 10px;
+        background: linear-gradient(135deg, #6333dc, #00b4ff);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        box-shadow: 0 0 16px rgba(99,51,220,0.5);
+      }
+      .brand-text .name { font-size: 15px; font-weight: 700; color: #fff; }
+      .brand-text .tagline { font-size: 11px; color: rgba(150,140,255,0.7); letter-spacing: 0.5px; }
       .admin-btn {
-        padding: 9px 20px; background: rgba(255,255,255,0.18);
-        border: 1px solid rgba(255,255,255,0.35); border-radius: 10px;
-        color: white; font-size: 14px; font-weight: 600; text-decoration: none; transition: 0.2s;
+        padding: 9px 20px;
+        background: rgba(99,51,220,0.2);
+        border: 1px solid rgba(120,80,255,0.35);
+        border-radius: 10px;
+        color: rgba(180,160,255,0.9);
+        font-size: 13px; font-weight: 600; text-decoration: none;
+        transition: 0.25s;
+        box-shadow: 0 0 12px rgba(99,51,220,0.15);
       }
-      .admin-btn:hover { background: rgba(255,255,255,0.3); }
+      .admin-btn:hover {
+        background: rgba(99,51,220,0.35);
+        border-color: rgba(150,100,255,0.6);
+        color: #fff;
+        box-shadow: 0 0 20px rgba(99,51,220,0.35);
+      }
 
+      /* ── PAGE BODY ── */
       .page-body {
-        flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px 20px;
+        flex: 1; position: relative; z-index: 1;
+        display: flex; align-items: center; justify-content: center;
+        padding: 30px 20px;
       }
 
+      /* ── CARD ── */
       .card {
-        width: 100%; max-width: 460px;
-        background: rgba(255,255,255,0.15); backdrop-filter: blur(14px);
-        border-radius: 24px; padding: 32px 28px;
+        width: 100%; max-width: 470px;
+        background: rgba(10,8,30,0.72);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(100,80,255,0.18);
+        border-radius: 28px;
+        padding: 34px 30px;
         text-align: center; color: white;
-        box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+        box-shadow:
+          0 0 0 1px rgba(0,0,0,0.4),
+          0 32px 80px rgba(0,0,0,0.6),
+          0 0 60px rgba(99,51,220,0.08) inset;
+        position: relative; overflow: hidden;
+      }
+      .card::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(120,80,255,0.5), rgba(0,200,255,0.4), transparent);
       }
 
-      .live-time { font-size: 24px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-      h2 { font-size: 26px; margin-bottom: 4px; }
-      .sub { font-size: 13px; opacity: 0.75; margin-bottom: 22px; }
+      /* ── CLOCK ── */
+      .live-time {
+        font-size: 32px; font-weight: 800; letter-spacing: 2px;
+        background: linear-gradient(135deg, #a78bfa, #38bdf8);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        margin-bottom: 2px;
+        text-shadow: none;
+      }
+      .live-date { font-size: 12px; color: rgba(150,140,255,0.6); letter-spacing: 1px; margin-bottom: 6px; }
+      h2 { font-size: 22px; font-weight: 700; color: #e2e0ff; margin-bottom: 4px; }
+      .sub { font-size: 12px; color: rgba(150,140,200,0.7); margin-bottom: 22px; }
 
-      /* ── SCANNER BOX ── */
+      /* ── SCANNER WRAP ── */
       .scanner-wrap {
-        position: relative; width: 260px; height: 260px;
-        margin: 0 auto 22px; border-radius: 18px; overflow: hidden;
-        border: 3px solid rgba(255,255,255,0.35);
-        background: rgba(0,0,0,0.3);
+        position: relative; width: 270px; height: 270px;
+        margin: 0 auto 20px; border-radius: 20px; overflow: hidden;
+        background: rgba(5,5,20,0.8);
+        border: 1.5px solid rgba(99,51,220,0.3);
+        box-shadow: 0 0 30px rgba(99,51,220,0.12), 0 0 0 1px rgba(0,0,0,0.5);
+      }
+      .scanner-wrap.active {
+        border-color: rgba(0,200,255,0.5);
+        box-shadow: 0 0 30px rgba(0,200,255,0.15), 0 0 0 1px rgba(0,0,0,0.5);
       }
 
-      #video {
-        width: 100%; height: 100%; object-fit: cover;
-        display: none;
-      }
+      #video { width: 100%; height: 100%; object-fit: cover; display: none; }
 
       .scanner-placeholder {
         position: absolute; inset: 0;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 10px; color: rgba(255,255,255,0.5); font-size: 13px;
+        gap: 10px; color: rgba(130,110,220,0.5); font-size: 13px;
       }
-      .scanner-placeholder .icon { font-size: 40px; }
+      .scanner-placeholder .icon { font-size: 44px; opacity: 0.6; }
 
-      /* scanning line */
+      /* scan line */
       .scan-line {
         display: none;
-        position: absolute; left: 0; right: 0; height: 3px;
-        background: #00ff88; box-shadow: 0 0 14px #00ff88;
-        animation: scanMove 1.8s ease-in-out infinite;
+        position: absolute; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, transparent, #00e5ff, transparent);
+        box-shadow: 0 0 10px #00e5ff, 0 0 20px rgba(0,229,255,0.5);
+        animation: scanMove 2s ease-in-out infinite;
       }
-      @keyframes scanMove {
-        0%   { top: 0; }
-        50%  { top: calc(100% - 3px); }
-        100% { top: 0; }
-      }
+      @keyframes scanMove { 0%,100% { top: 0; } 50% { top: calc(100% - 2px); } }
 
       /* corner brackets */
       .corners { position: absolute; inset: 0; pointer-events: none; display: none; }
       .corners::before, .corners::after,
       .corners span::before, .corners span::after {
         content: ""; position: absolute;
-        width: 22px; height: 22px;
-        border-color: #00ff88; border-style: solid;
+        width: 24px; height: 24px;
+        border-color: #00e5ff; border-style: solid;
+        box-shadow: 0 0 8px rgba(0,229,255,0.6);
       }
-      .corners::before  { top: 10px;  left: 10px;  border-width: 3px 0 0 3px; }
-      .corners::after   { top: 10px;  right: 10px; border-width: 3px 3px 0 0; }
-      .corners span::before { bottom: 10px; left: 10px;  border-width: 0 0 3px 3px; }
-      .corners span::after  { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; }
+      .corners::before  { top: 12px;  left: 12px;  border-width: 2px 0 0 2px; }
+      .corners::after   { top: 12px;  right: 12px; border-width: 2px 2px 0 0; }
+      .corners span::before { bottom: 12px; left: 12px;  border-width: 0 0 2px 2px; }
+      .corners span::after  { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
 
-      /* phase overlay */
+      /* phase label */
       .phase-label {
         display: none;
         position: absolute; bottom: 0; left: 0; right: 0;
-        background: rgba(0,0,0,0.55); padding: 8px;
-        font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+        background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+        padding: 9px; font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
       }
-      .phase-label.qr  { color: #00ff88; }
-      .phase-label.face { color: #7ecfff; }
-      .phase-label.ok  { color: #6ee56e; }
+      .phase-label.qr   { color: #00e5ff; }
+      .phase-label.face { color: #a78bfa; }
+      .phase-label.ok   { color: #4ade80; }
 
       /* ── BUTTON ── */
       .btn {
-        width: 100%; padding: 14px; border: none; border-radius: 12px;
-        background: linear-gradient(90deg, #06b6d4, #3b82f6);
-        color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        width: 100%; padding: 14px; border: none; border-radius: 14px;
+        background: linear-gradient(135deg, #6333dc, #0ea5e9);
+        color: white; font-size: 15px; font-weight: 700; cursor: pointer;
+        transition: 0.3s; letter-spacing: 0.3px;
+        box-shadow: 0 0 20px rgba(99,51,220,0.35), 0 4px 15px rgba(0,0,0,0.3);
+        position: relative; overflow: hidden;
       }
-      .btn:hover  { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-      .btn:disabled { background: rgba(255,255,255,0.2); cursor: not-allowed; transform: none; }
+      .btn::after {
+        content: '';
+        position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      }
+      .btn:hover  {
+        transform: translateY(-2px);
+        box-shadow: 0 0 32px rgba(99,51,220,0.5), 0 8px 25px rgba(0,0,0,0.4);
+      }
+      .btn:active { transform: translateY(0); }
+      .btn:disabled {
+        background: rgba(80,60,120,0.3); cursor: not-allowed;
+        transform: none; box-shadow: none; color: rgba(255,255,255,0.3);
+      }
 
       /* ── STATUS BAR ── */
       .status-bar {
-        display: none; margin-top: 16px;
-        background: rgba(0,0,0,0.2); border-radius: 10px;
-        padding: 12px 16px; font-size: 13px;
-        display: flex; align-items: center; gap: 10px;
+        display: none; margin-top: 14px;
+        background: rgba(99,51,220,0.1);
+        border: 1px solid rgba(99,51,220,0.2);
+        border-radius: 10px; padding: 11px 16px;
+        font-size: 13px; color: rgba(180,160,255,0.9);
+        align-items: center; gap: 10px;
       }
       .spinner {
-        width: 18px; height: 18px; flex-shrink: 0;
-        border: 2px solid rgba(255,255,255,0.3);
-        border-top-color: #00ff88; border-radius: 50%;
+        width: 16px; height: 16px; flex-shrink: 0;
+        border: 2px solid rgba(99,51,220,0.3);
+        border-top-color: #a78bfa; border-radius: 50%;
         animation: spin 0.7s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
 
       /* ── RESULT ── */
       .result-box {
-        display: none; margin-top: 20px;
-        background: rgba(255,255,255,0.1); border-radius: 14px; padding: 20px; text-align: left;
+        display: none; margin-top: 18px;
+        background: rgba(0,200,100,0.06);
+        border: 1px solid rgba(74,222,128,0.2);
+        border-radius: 16px; padding: 18px; text-align: left;
       }
-      .result-box h4 { text-align: center; margin-bottom: 14px; font-size: 15px; }
-      .result-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
-      .result-row span:first-child { opacity: 0.7; }
-      .val-green  { color: #6ee56e; font-weight: 700; }
-      .val-yellow { color: #ffd166; font-weight: 700; }
-      .val-red    { color: #ff7e7e; font-weight: 700; }
-      .val-blue   { color: #7ecfff; font-weight: 700; }
+      .result-box h4 {
+        text-align: center; margin-bottom: 14px; font-size: 14px;
+        color: #4ade80; letter-spacing: 0.3px;
+      }
+      .result-row { display: flex; justify-content: space-between; margin: 9px 0; font-size: 13px; }
+      .result-row span:first-child { color: rgba(180,160,255,0.55); }
+      .val-green  { color: #4ade80; font-weight: 700; }
+      .val-yellow { color: #fbbf24; font-weight: 700; }
+      .val-red    { color: #f87171; font-weight: 700; }
+      .val-blue   { color: #38bdf8; font-weight: 700; }
 
       /* ── ERROR ── */
       .error-box {
-        display: none; margin-top: 16px;
-        background: rgba(255,80,80,0.2); border: 1px solid rgba(255,100,100,0.5);
-        border-radius: 12px; padding: 14px;
-        font-size: 14px; color: #ffcccc; text-align: center;
+        display: none; margin-top: 14px;
+        background: rgba(239,68,68,0.1);
+        border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 12px; padding: 13px;
+        font-size: 13px; color: #fca5a5; text-align: center;
       }
 
       /* ── RULES ── */
       .rules {
-        margin-top: 20px; font-size: 12px; line-height: 2; opacity: 0.8; text-align: left;
-        background: rgba(255,255,255,0.07); border-radius: 10px; padding: 14px 16px;
+        margin-top: 18px; font-size: 11.5px; line-height: 1; text-align: left;
+        background: rgba(99,51,220,0.06);
+        border: 1px solid rgba(99,51,220,0.12);
+        border-radius: 12px; padding: 14px 16px;
       }
+      .rules .rule { display: flex; align-items: center; gap: 8px; padding: 5px 0; color: rgba(180,160,220,0.7); }
+      .rules .rule:not(:last-child) { border-bottom: 1px solid rgba(99,51,220,0.08); }
+      .rules .badge {
+        font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; flex-shrink: 0;
+      }
+      .badge-green  { background: rgba(74,222,128,0.15); color: #4ade80; }
+      .badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+      .badge-red    { background: rgba(248,113,113,0.15); color: #f87171; }
 
       @media (max-width: 480px) {
         .card { padding: 24px 16px; }
-        .topbar { padding: 12px 16px; }
-        .topbar .brand span { display: none; }
-        .scanner-wrap { width: 220px; height: 220px; }
+        .topbar { padding: 12px 18px; }
+        .brand-text .tagline { display: none; }
+        .scanner-wrap { width: 230px; height: 230px; }
       }
     </style>
   </head>
   <body>
 
+    <div class="bg"></div>
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+
     <div class="topbar">
-      <div class="brand">
-        🏢 Employee Attendance System
-        <span>QR &bull; Face &bull; Location</span>
+      <div class="brand-wrap">
+        <div class="brand-dot">🏢</div>
+        <div class="brand-text">
+          <div class="name">Employee Attendance System</div>
+          <div class="tagline">QR &bull; Face Recognition &bull; Location</div>
+        </div>
       </div>
       <a href="/admin_login" class="admin-btn">🔒 Admin Login</a>
     </div>
@@ -176,10 +295,10 @@
       <div class="card">
 
         <div class="live-time" id="liveTime"></div>
+        <div class="live-date" id="liveDate"></div>
         <h2>Mark Attendance</h2>
         <div class="sub" id="subText">Click Start to scan your QR code &amp; verify face</div>
 
-        <!-- SCANNER VIEW -->
         <div class="scanner-wrap" id="scannerWrap">
           <video id="video" autoplay playsinline muted></video>
           <canvas id="canvas" style="display:none;"></canvas>
@@ -189,8 +308,8 @@
             <div>Camera opens on click</div>
           </div>
 
-          <div class="scan-line"  id="scanLine"></div>
-          <div class="corners"    id="corners"><span></span></div>
+          <div class="scan-line"   id="scanLine"></div>
+          <div class="corners"     id="corners"><span></span></div>
           <div class="phase-label" id="phaseLabel"></div>
         </div>
 
@@ -201,13 +320,12 @@
           <span id="statusMsg">Initialising...</span>
         </div>
 
-        <!-- SUCCESS RESULT -->
         <div class="result-box" id="resultBox">
-          <h4 id="resultTitle">Attendance Recorded</h4>
-          <div class="result-row"><span>Employee</span><span id="rName"   class="val-blue">--</span></div>
-          <div class="result-row"><span>Time</span>    <span id="rTime"   class="val-blue">--</span></div>
-          <div class="result-row"><span>Action</span>  <span id="rAction" class="val-green">--</span></div>
-          <div class="result-row"><span>Status</span>  <span id="rStatus" class="val-green">--</span></div>
+          <h4 id="resultTitle">✅ Attendance Recorded</h4>
+          <div class="result-row"><span>Employee</span><span id="rName"    class="val-blue">--</span></div>
+          <div class="result-row"><span>Time</span>    <span id="rTime"    class="val-blue">--</span></div>
+          <div class="result-row"><span>Action</span>  <span id="rAction"  class="val-green">--</span></div>
+          <div class="result-row"><span>Status</span>  <span id="rStatus"  class="val-green">--</span></div>
           <div class="result-row" id="attTypeRow" style="display:none;">
             <span>Attendance Type</span><span id="rAttType" class="val-green">--</span>
           </div>
@@ -222,12 +340,12 @@
         <div class="error-box" id="errorBox"></div>
 
         <div class="rules">
-          <div>✅ Login before 9:00 AM → Full Day Login</div>
-          <div>⚠️ Login 9:00 AM – 1:00 PM → Late Login (10% deduction)</div>
-          <div>⚠️ Login after 1:00 PM → Half Day Login (50% deduction)</div>
-          <div>✅ Logout after 6:00 PM → Completed</div>
-          <div>⚠️ Logout 1:00 PM – 6:00 PM → Early Logout (Half Day)</div>
-          <div>⚠️ Logout before 1:00 PM → Half Day Logout</div>
+          <div class="rule"><span class="badge badge-green">ON TIME</span>Login before 9:00 AM → Full Day</div>
+          <div class="rule"><span class="badge badge-yellow">LATE</span>Login 9:00 AM – 1:00 PM → Late Login (10% deduction)</div>
+          <div class="rule"><span class="badge badge-red">HALF DAY</span>Login after 1:00 PM → Half Day (50% deduction)</div>
+          <div class="rule"><span class="badge badge-green">FULL</span>Logout after 6:00 PM → Completed</div>
+          <div class="rule"><span class="badge badge-yellow">EARLY</span>Logout 1:00 PM – 6:00 PM → Early Logout (Half Day)</div>
+          <div class="rule"><span class="badge badge-red">HALF</span>Logout before 1:00 PM → Half Day Logout</div>
         </div>
 
       </div>
@@ -236,8 +354,11 @@
     <script>
       /* ── clock ── */
       function tick() {
+        const now = new Date();
         document.getElementById("liveTime").textContent =
-          new Date().toLocaleTimeString("en-IN", { hour12: true });
+          now.toLocaleTimeString("en-IN", { hour12: true });
+        document.getElementById("liveDate").textContent =
+          now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
       }
       setInterval(tick, 1000); tick();
 
@@ -248,8 +369,8 @@
         $("statusMsg").textContent   = msg;
       }
       function showError(msg) {
-        $("errorBox").innerHTML     = "❌ " + msg;
-        $("errorBox").style.display = "block";
+        $("errorBox").innerHTML      = "❌ " + msg;
+        $("errorBox").style.display  = "block";
         $("statusBar").style.display = "none";
       }
       function resetUI() {
@@ -261,18 +382,19 @@
       function setPhase(phase) {
         const lbl = $("phaseLabel");
         lbl.style.display = "block";
+        $("scannerWrap").classList.add("active");
         if (phase === "qr") {
           lbl.className   = "phase-label qr";
           lbl.textContent = "📷 Show your QR code to the camera";
-          $("scanLine").style.display  = "block";
-          $("corners").style.display   = "block";
-          $("subText").textContent     = "Hold your QR code up to the camera";
+          $("scanLine").style.display = "block";
+          $("corners").style.display  = "block";
+          $("subText").textContent    = "Hold your QR code up to the camera";
         } else if (phase === "face") {
           lbl.className   = "phase-label face";
           lbl.textContent = "👤 QR detected! Now look at the camera";
-          $("scanLine").style.display  = "none";
-          $("corners").style.display   = "none";
-          $("subText").textContent     = "Hold still — capturing your face…";
+          $("scanLine").style.display = "none";
+          $("corners").style.display  = "none";
+          $("subText").textContent    = "Hold still — capturing your face…";
         } else if (phase === "ok") {
           lbl.className   = "phase-label ok";
           lbl.textContent = "✅ Face captured! Verifying…";
@@ -305,9 +427,9 @@
         $("scanLine").style.display    = "none";
         $("corners").style.display     = "none";
         $("phaseLabel").style.display  = "none";
+        $("scannerWrap").classList.remove("active");
       }
 
-      /* ── capture a frame as base64 JPEG ── */
       function captureFrame() {
         const vid = $("video");
         const c   = $("canvas");
@@ -317,13 +439,11 @@
         return c.toDataURL("image/jpeg", 0.85).split(",")[1];
       }
 
-      /* ── QR scan loop ── */
       function startQRScan() {
         return new Promise((resolve, reject) => {
           const vid = $("video");
           const c   = $("canvas");
           const deadline = Date.now() + 30000;
-
           function frame() {
             if (Date.now() > deadline) {
               reject(new Error("QR code not detected within 30 seconds. Please try again."));
@@ -335,13 +455,8 @@
               const ctx = c.getContext("2d");
               ctx.drawImage(vid, 0, 0);
               const img  = ctx.getImageData(0, 0, c.width, c.height);
-              const code = jsQR(img.data, img.width, img.height, {
-                inversionAttempts: "dontInvert",
-              });
-              if (code && code.data.trim()) {
-                resolve(code.data.trim());
-                return;
-              }
+              const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+              if (code && code.data.trim()) { resolve(code.data.trim()); return; }
             }
             scanLoop = requestAnimationFrame(frame);
           }
@@ -349,14 +464,11 @@
         });
       }
 
-      /* ── main flow ── */
       async function startFlow() {
         $("startBtn").disabled       = true;
         $("resultBox").style.display = "none";
         $("errorBox").style.display  = "none";
-
         try {
-          /* STEP 1 – location */
           setStatus("Getting your location…");
           const position = await new Promise((res, rej) =>
             navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
@@ -364,28 +476,23 @@
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
 
-          /* STEP 2 – open camera for QR */
           setStatus("Opening camera…");
           await openCamera("environment");
           setPhase("qr");
           $("statusBar").style.display = "none";
 
-          /* STEP 3 – scan QR in browser */
           const employeeId = await startQRScan();
           if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
 
-          /* STEP 4 – switch to front camera for face */
           setPhase("face");
           setStatus("Switching to face camera…");
           await openCamera("user");
           $("statusBar").style.display = "none";
 
-          /* short delay so user can face the camera */
           await new Promise(r => setTimeout(r, 2000));
           setPhase("ok");
           const faceImage = captureFrame();
 
-          /* STEP 5 – stop camera & send to server */
           stopCamera();
           setStatus("Verifying identity…");
 
@@ -399,12 +506,8 @@
           $("statusBar").style.display = "none";
           $("startBtn").disabled       = false;
 
-          if (!result.ok) {
-            showError(result.msg);
-            return;
-          }
+          if (!result.ok) { showError(result.msg); return; }
 
-          /* STEP 6 – show result */
           $("rName").textContent = result.name;
           $("rTime").textContent = result.time;
 
@@ -423,44 +526,44 @@
           };
 
           if (result.type === "login") {
-            $("resultTitle").textContent       = "Login Recorded ✅";
-            $("rAction").textContent           = "Login";
-            $("rAction").className             = "val-green";
-            $("attTypeRow").style.display      = "none";
-            $("overtimeRow").style.display     = "none";
+            $("resultTitle").textContent  = "Login Recorded ✅";
+            $("rAction").textContent      = "Login";
+            $("rAction").className        = "val-green";
+            $("attTypeRow").style.display = "none";
+            $("overtimeRow").style.display= "none";
             const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
             $("rStatus").textContent = s.label;
             $("rStatus").className   = s.cls;
           } else {
-            $("resultTitle").textContent       = "Logout Recorded ✅";
-            $("rAction").textContent           = "Logout";
-            $("rAction").className             = "val-blue";
+            $("resultTitle").textContent  = "Logout Recorded ✅";
+            $("rAction").textContent      = "Logout";
+            $("rAction").className        = "val-blue";
             const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
             $("rStatus").textContent = s.label;
             $("rStatus").className   = s.cls;
             const t = typeMap[result.att_type] || { label: result.att_type, cls: "val-blue" };
-            $("rAttType").textContent          = t.label;
-            $("rAttType").className            = t.cls;
-            $("attTypeRow").style.display      = "flex";
+            $("rAttType").textContent     = t.label;
+            $("rAttType").className       = t.cls;
+            $("attTypeRow").style.display = "flex";
             if (result.overtime) {
-              $("rOvertime").textContent       = "⏱ " + result.overtime;
-              $("overtimeRow").style.display   = "flex";
+              $("rOvertime").textContent    = "⏱ " + result.overtime;
+              $("overtimeRow").style.display= "flex";
             } else {
-              $("overtimeRow").style.display   = "none";
+              $("overtimeRow").style.display= "none";
             }
           }
           if (result.shift && result.shift !== "Default") {
-            $("rShift").textContent        = result.shift;
-            $("shiftRow").style.display    = "flex";
+            $("rShift").textContent     = result.shift;
+            $("shiftRow").style.display = "flex";
           } else {
-            $("shiftRow").style.display    = "none";
+            $("shiftRow").style.display = "none";
           }
           $("resultBox").style.display = "block";
           $("subText").textContent     = "Click Start to scan your QR code & verify face";
 
         } catch (err) {
           stopCamera();
-          $("startBtn").disabled = false;
+          $("startBtn").disabled       = false;
           $("statusBar").style.display = "none";
           if (err.code === 1) {
             showError("Location access denied. Please allow location in your browser settings.");

@@ -208,6 +208,23 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN shift_id INT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN date_of_joining DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN phone VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN gender VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN dob DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN blood_group VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN address TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN city VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN state VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN pincode VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN emergency_contact_phone VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN emergency_contact_relation VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN aadhar_number VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN pan_number VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN bank_name VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN bank_account VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN bank_ifsc VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN uan_number VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
     ]:
         try:
@@ -1986,6 +2003,341 @@ def change_password():
     return redirect("/employee_portal?pwd_ok=1#change-password")
 
 
+@app.route("/update_my_profile", methods=["POST"])
+@employee_required
+def update_my_profile():
+    emp_id = session["employee_id"]
+    fields = {
+        "phone":                      request.form.get("phone", "").strip() or None,
+        "gender":                     request.form.get("gender", "").strip() or None,
+        "dob":                        request.form.get("dob", "").strip() or None,
+        "blood_group":                request.form.get("blood_group", "").strip() or None,
+        "address":                    request.form.get("address", "").strip() or None,
+        "city":                       request.form.get("city", "").strip() or None,
+        "state":                      request.form.get("state", "").strip() or None,
+        "pincode":                    request.form.get("pincode", "").strip() or None,
+        "emergency_contact_name":     request.form.get("emergency_contact_name", "").strip() or None,
+        "emergency_contact_phone":    request.form.get("emergency_contact_phone", "").strip() or None,
+        "emergency_contact_relation": request.form.get("emergency_contact_relation", "").strip() or None,
+    }
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        UPDATE employees SET
+            phone=%s, gender=%s, dob=%s, blood_group=%s,
+            address=%s, city=%s, state=%s, pincode=%s,
+            emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s
+        WHERE employee_id=%s
+    """, (*fields.values(), emp_id))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?profile_saved=1#my-profile")
+
+
+@app.route("/update_my_bank_details", methods=["POST"])
+@employee_required
+def update_my_bank_details():
+    emp_id = session["employee_id"]
+    fields = {
+        "aadhar_number": request.form.get("aadhar_number", "").strip() or None,
+        "pan_number":    request.form.get("pan_number", "").upper().strip() or None,
+        "bank_name":     request.form.get("bank_name", "").strip() or None,
+        "bank_account":  request.form.get("bank_account", "").strip() or None,
+        "bank_ifsc":     request.form.get("bank_ifsc", "").upper().strip() or None,
+        "uan_number":    request.form.get("uan_number", "").strip() or None,
+    }
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        UPDATE employees SET
+            aadhar_number=%s, pan_number=%s, bank_name=%s,
+            bank_account=%s, bank_ifsc=%s, uan_number=%s
+        WHERE employee_id=%s
+    """, (*fields.values(), emp_id))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?bank_saved=1#my-profile")
+
+
+@app.route("/update_my_photo", methods=["POST"])
+@employee_required
+def update_my_photo():
+    from flask import send_from_directory
+    import numpy as np
+    from PIL import Image
+    import base64, io
+    emp_id = session["employee_id"]
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        return redirect("/employee_portal?photo_error=no_file#my-profile")
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png"):
+        return redirect("/employee_portal?photo_error=bad_format#my-profile")
+    try:
+        img = Image.open(file.stream).convert("RGB")
+        img_array = np.array(img)
+        locs = face_recognition.face_locations(img_array)
+        if not locs:
+            return redirect("/employee_portal?photo_error=no_face#my-profile")
+        save_path = os.path.join("dataset", emp_id + ".jpg")
+        img.save(save_path, "JPEG", quality=90)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (emp_id + ".jpg", emp_id))
+        db.commit(); cursor.close(); db.close()
+        return redirect("/employee_portal?photo_saved=1#my-profile")
+    except Exception:
+        return redirect("/employee_portal?photo_error=failed#my-profile")
+
+
+@app.route("/my_qr")
+@employee_required
+def my_qr():
+    from flask import send_file
+    emp_id = session["employee_id"]
+    qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
+    if not os.path.exists(qr_path):
+        # Auto-generate QR and save path to DB
+        generated = generate_qr(emp_id)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (generated, emp_id))
+        db.commit(); cursor.close(); db.close()
+        qr_path = generated
+    return send_file(os.path.abspath(qr_path), as_attachment=True,
+                     download_name=f"QR_{emp_id}.png", mimetype="image/png")
+
+
+@app.route("/my_id_card")
+@employee_required
+def my_id_card():
+    from PIL import Image, ImageDraw, ImageFont
+    import io as _io2
+    from flask import send_file
+
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
+               sh.name AS shift_name, e.blood_group, e.phone
+        FROM employees e
+        LEFT JOIN shifts sh ON e.shift_id = sh.id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.execute("""
+            SELECT employee_id, name, role, email, face_image, date_of_joining,
+                   NULL, blood_group, phone
+            FROM employees WHERE employee_id=%s
+        """, (emp_id,))
+        row = cursor.fetchone()
+    cursor.close(); db.close()
+
+    # ── Colours ──────────────────────────────────────────
+    DARK   = (15,  40, 100)
+    BLUE   = (30,  58, 138)
+    MID    = (37,  99, 235)
+    LIGHT  = (59, 130, 246)
+    PALE   = (219, 234, 254)
+    WHITE  = (255, 255, 255)
+    LGRAY  = (241, 245, 249)
+    MGRAY  = (100, 116, 139)
+    DGRAY  = (15,  23,  42)
+    GOLD   = (251, 191,  36)
+    RED    = (220,  38,  38)
+
+    # ── Font loader ──────────────────────────────────────
+    def fnt(size, bold=False):
+        candidates = (
+            ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+             "/System/Library/Fonts/Helvetica.ttc",
+             "/Library/Fonts/Arial Bold.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+            if bold else
+            ["/System/Library/Fonts/Supplemental/Arial.ttf",
+             "/System/Library/Fonts/Helvetica.ttc",
+             "/Library/Fonts/Arial.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+        )
+        for p in candidates:
+            try: return ImageFont.truetype(p, size)
+            except: pass
+        return ImageFont.load_default()
+
+    def tw(draw, text, font):
+        bb = draw.textbbox((0,0), text, font=font)
+        return bb[2]-bb[0]
+
+    def cx(draw, text, font, card_w, y, color):
+        draw.text(((card_w - tw(draw, text, font))//2, y), text, font=font, fill=color)
+
+    # ── Vertical card size (portrait) ────────────────────
+    CW, CH = 500, 820
+
+    # ════════════════════════════════════════════════════
+    #  FRONT
+    # ════════════════════════════════════════════════════
+    front = Image.new("RGB", (CW, CH), WHITE)
+    fd    = ImageDraw.Draw(front)
+
+    # -- Top header --
+    fd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
+    # Decorative circle top-right
+    fd.ellipse([(CW-100, -60), (CW+60, 100)], fill=MID)
+    cx(fd, "EMPLOYEE ID CARD", fnt(18, bold=True), CW, 18, WHITE)
+    cx(fd, "Attendance Management System", fnt(11), CW, 52, PALE)
+    # Thin gold accent line
+    fd.rectangle([(0, 108), (CW, 113)], fill=GOLD)
+
+    # -- Photo section --
+    fd.rectangle([(0, 113), (CW, 370)], fill=LGRAY)
+    PH_W  = 160
+    PH_H  = 190
+    PH_CX = CW // 2
+    PH_X  = PH_CX - PH_W // 2
+    PH_Y  = 128
+    # Gold border box
+    fd.rounded_rectangle([(PH_X-5, PH_Y-5), (PH_X+PH_W+5, PH_Y+PH_H+5)],
+                         radius=8, fill=GOLD)
+    # White inner border
+    fd.rounded_rectangle([(PH_X-2, PH_Y-2), (PH_X+PH_W+2, PH_Y+PH_H+2)],
+                         radius=6, fill=WHITE)
+    # Photo
+    photo_path = os.path.join("dataset", emp_id + ".jpg")
+    try:
+        ph = Image.open(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
+        front.paste(ph, (PH_X, PH_Y))
+    except Exception:
+        fd.rounded_rectangle([(PH_X, PH_Y), (PH_X+PH_W, PH_Y+PH_H)], radius=4, fill=MID)
+        ini = row[1][0].upper() if row and row[1] else "?"
+        cx(fd, ini, fnt(56, bold=True), CW, PH_Y + PH_H//2 - 38, WHITE)
+
+    # Name & role
+    name_str = (row[1] or "Unknown")[:24]
+    role_str  = (row[2] or "Employee")[:28]
+    cx(fd, name_str,  fnt(18, bold=True), CW, 328, DGRAY)
+    cx(fd, role_str,  fnt(12),            CW, 352, MGRAY)
+
+    # Blue separator
+    fd.rectangle([(40, 372), (CW-40, 374)], fill=PALE)
+
+    # -- Info rows (centered) --
+    info_rows = [
+        ("Employee ID", row[0]  if row            else "—"),
+        ("Email",       row[3]  if row and row[3] else "—"),
+        ("Phone",       row[8]  if row and row[8] else "—"),
+        ("Blood Group", row[7]  if row and row[7] else "—"),
+    ]
+    y = 390
+    for i, (lbl, val) in enumerate(info_rows):
+        if i % 2 == 0:
+            fd.rectangle([(0, y-4), (CW, y+38)], fill=LGRAY)
+        cx(fd, lbl,            fnt(10),            CW, y+2,  MGRAY)
+        cx(fd, str(val)[:34],  fnt(13, bold=True), CW, y+17, DGRAY)
+        y += 44
+
+    # Blood group badge (prominent red pill)
+    bg_val = row[7] if row and row[7] else None
+    if bg_val:
+        bw = tw(fd, bg_val, fnt(13, bold=True)) + 28
+        bx = (CW - bw) // 2
+        by = y + 8
+        fd.rounded_rectangle([(bx, by), (bx+bw, by+32)], radius=16, fill=RED)
+        cx(fd, bg_val, fnt(13, bold=True), CW, by+8, WHITE)
+
+    # -- Footer --
+    fd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
+    fd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
+    cx(fd, "Confidential  •  Not Transferable", fnt(10), CW, CH-44, PALE)
+    cx(fd, "Property of the Organization",       fnt(10), CW, CH-26, (160,185,240))
+
+    # ════════════════════════════════════════════════════
+    #  BACK
+    # ════════════════════════════════════════════════════
+    back = Image.new("RGB", (CW, CH), LGRAY)
+    bd   = ImageDraw.Draw(back)
+
+    # Top header (same style)
+    bd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
+    bd.ellipse([(CW-100, -60), (CW+60, 100)], fill=MID)
+    cx(bd, "ATTENDANCE MANAGEMENT SYSTEM", fnt(14, bold=True), CW, 22, WHITE)
+    cx(bd, "Employee Attendance Card", fnt(11), CW, 52, PALE)
+    bd.rectangle([(0, 108), (CW, 113)], fill=GOLD)
+
+    # QR code — large and centered
+    qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
+    if not os.path.exists(qr_path):
+        qr_path = generate_qr(emp_id)
+
+    QS   = 240
+    qr_x = (CW - QS) // 2
+    qr_y = 148
+    # White card behind QR
+    bd.rounded_rectangle([(qr_x-16, qr_y-16), (qr_x+QS+16, qr_y+QS+16)],
+                         radius=14, fill=WHITE)
+    try:
+        qr_img = Image.open(qr_path).convert("RGB").resize((QS, QS), Image.LANCZOS)
+        back.paste(qr_img, (qr_x, qr_y))
+    except Exception:
+        cx(bd, "QR NOT AVAILABLE", fnt(13), CW, qr_y+QS//2, MGRAY)
+
+    cx(bd, "Scan to Mark Attendance",      fnt(14, bold=True), CW, qr_y+QS+28, BLUE)
+    cx(bd, row[0] if row else "",          fnt(12),            CW, qr_y+QS+52, MGRAY)
+
+    # Divider
+    bd.rectangle([(40, qr_y+QS+78), (CW-40, qr_y+QS+80)], fill=(203,213,225))
+
+    # Info below QR
+    sub_info = [
+        ("Name",         (row[1] or "—")[:26] if row else "—"),
+        ("Designation",  (row[2] or "—")[:26] if row else "—"),
+        ("Blood Group",  (row[7] or "—")      if row else "—"),
+    ]
+    BP = 36
+    sy = qr_y + QS + 94
+    for lbl2, val2 in sub_info:
+        cx(bd, lbl2, fnt(10),            CW, sy,    MGRAY)
+        cx(bd, val2, fnt(12, bold=True), CW, sy+14, DGRAY)
+        sy += 42
+
+    # "If found" note
+    bd.rectangle([(BP, sy+8), (CW-BP, sy+10)], fill=(203,213,225))
+    cx(bd, "If found, please return to:", fnt(10),            CW, sy+18, MGRAY)
+    cx(bd, "HR Department",               fnt(12, bold=True), CW, sy+34, BLUE)
+    if row and row[3]:
+        cx(bd, row[3][:34], fnt(10), CW, sy+54, MGRAY)
+
+    # Magnetic stripe
+    bd.rectangle([(0, CH-100), (CW, CH-68)], fill=DARK)
+
+    # Footer
+    bd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
+    bd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
+    cx(bd, "Authorized Personnel Only  •  Not Transferable", fnt(10), CW, CH-44, PALE)
+    cx(bd, "Misuse is subject to disciplinary action",        fnt(10), CW, CH-26, (160,185,240))
+
+    # ════════════════════════════════════════════════════
+    #  COMBINE side by side  (front | gap | back)
+    # ════════════════════════════════════════════════════
+    GAP   = 40
+    LBL_H = 24
+    BGCOL = (215, 225, 240)
+    total = Image.new("RGB", (CW*2 + GAP, CH + LBL_H), BGCOL)
+    td    = ImageDraw.Draw(total)
+
+    td.text((10,  4), "FRONT", font=fnt(13, bold=True), fill=BLUE)
+    td.text((CW + GAP + 10, 4), "BACK", font=fnt(13, bold=True), fill=BLUE)
+
+    total.paste(front, (0,       LBL_H))
+    total.paste(back,  (CW+GAP,  LBL_H))
+
+    buf = _io2.BytesIO()
+    total.save(buf, format="PNG", dpi=(200, 200))
+    buf.seek(0)
+    return send_file(buf, as_attachment=True,
+                     download_name=f"IDCard_{emp_id}.png", mimetype="image/png")
+
+
 @app.route("/employee_portal")
 @employee_required
 def employee_portal():
@@ -1993,11 +2345,30 @@ def employee_portal():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute(
-        "SELECT employee_id, name, role, email, face_image FROM employees WHERE employee_id=%s",
-        (emp_id,)
-    )
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.email, e.face_image,
+               e.date_of_joining,
+               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               sh.name AS shift_name, sh.start_time AS shift_start, sh.end_time AS shift_end,
+               e.phone, e.gender, e.dob, e.blood_group,
+               e.address, e.city, e.state, e.pincode,
+               e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+               e.aadhar_number, e.pan_number, e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
+               e.qr_code
+        FROM employees e
+        LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
+        LEFT JOIN shifts sh ON e.shift_id = sh.id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
     emp = cursor.fetchone()
+    # emp indices:
+    # [0]=id [1]=name [2]=role [3]=email [4]=face_image [5]=date_of_joining
+    # [6]=salary_per_day [7]=shift_name [8]=shift_start [9]=shift_end
+    # [10]=phone [11]=gender [12]=dob [13]=blood_group
+    # [14]=address [15]=city [16]=state [17]=pincode
+    # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
+    # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
+    # [27]=qr_code
 
     today = datetime.date.today()
     cursor.execute(
