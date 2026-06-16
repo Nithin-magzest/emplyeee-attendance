@@ -177,6 +177,13 @@
 
       <!-- FILTER -->
       <form class="filter-bar" method="GET" action="/monthly_report">
+        <div style="position:relative;">
+          <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
+          <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+            oninput="filterEmpTable(this.value)"
+            style="padding:8px 12px 8px 34px;border:1.5px solid #dbeafe;border-radius:9px;background:#f8fafc;
+                   color:#1e293b;font-size:13px;outline:none;width:200px;" />
+        </div>
         <label>Month</label>
         <select name="month" title="Select month">
           {% for m_num, m_name in months %}
@@ -197,18 +204,6 @@
           ⬇ Download Excel
         </a>
       </form>
-
-      <!-- EMPLOYEE SEARCH -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-        <div style="position:relative;width:280px;">
-          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
-          <input type="text" id="empTableSearch" placeholder="Search employee by name or ID…" autocomplete="off"
-            oninput="filterEmpTable(this.value)"
-            style="width:100%;padding:10px 14px 10px 38px;border:1.5px solid #dbeafe;border-radius:10px;
-                   background:#fff;color:#1e293b;font-size:13px;outline:none;box-shadow:0 1px 4px rgba(30,58,138,0.07);" />
-        </div>
-        <span id="empTableCount" style="font-size:13px;color:#64748b;font-weight:500;"></span>
-      </div>
 
       <!-- SUMMARY -->
       {% set total_emp  = report | length %}
