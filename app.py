@@ -2209,19 +2209,19 @@ def change_password():
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current):
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=wrong#change-password")
+        return redirect("/employee_portal?pwd_error=wrong#my-profile")
     if len(new_pwd) < 6:
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=short#change-password")
+        return redirect("/employee_portal?pwd_error=short#my-profile")
     if new_pwd != confirm:
         cursor.close(); db.close()
-        return redirect("/employee_portal?pwd_error=mismatch#change-password")
+        return redirect("/employee_portal?pwd_error=mismatch#my-profile")
     cursor.execute(
         "UPDATE employees SET password=%s WHERE employee_id=%s",
         (generate_password_hash(new_pwd), emp_id)
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/employee_portal?pwd_ok=1#change-password")
+    return redirect("/employee_portal?pwd_ok=1#my-profile")
 
 
 @app.route("/update_my_profile", methods=["POST"])

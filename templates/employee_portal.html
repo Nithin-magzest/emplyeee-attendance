@@ -457,9 +457,6 @@
       <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">
         <span class="sb-icon">🎫</span>Support Tickets
       </button>
-      <button type="button" class="sb-item" id="sbn-change-password" onclick="showView('change-password')">
-        <span class="sb-icon">🔒</span>Change Password
-      </button>
       <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')">
         <span class="sb-icon">👤</span>My Profile
       </button>
@@ -1197,43 +1194,6 @@
         </div>
       </div>
 
-      <!-- ═══ VIEW: CHANGE PASSWORD ═══ -->
-      <div id="view-change-password" class="view">
-      <div class="mod-title">🔒 Change Password <span>Update your account password</span></div>
-      <div class="section" id="change-password">
-        {% if request.args.get('pwd_ok') %}
-          <div class="toast toast-green">✅ Password changed successfully.</div>
-        {% elif request.args.get('pwd_error') == 'wrong' %}
-          <div class="toast toast-red">❌ Current password is incorrect.</div>
-        {% elif request.args.get('pwd_error') == 'short' %}
-          <div class="toast toast-red">❌ New password must be at least 6 characters.</div>
-        {% elif request.args.get('pwd_error') == 'mismatch' %}
-          <div class="toast toast-red">❌ New passwords do not match.</div>
-        {% endif %}
-        <form action="/change_password" method="POST" style="max-width:360px;">
-          <div class="form-group">
-            <label>Current Password</label>
-            <input type="password" name="current_password" required autocomplete="current-password"
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <div class="form-group">
-            <label>New Password</label>
-            <input type="password" name="new_password" required minlength="6" autocomplete="new-password"
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <div class="form-group">
-            <label>Confirm New Password</label>
-            <input type="password" name="confirm_password" required minlength="6" autocomplete="new-password"
-              style="padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
-          </div>
-          <button type="submit"
-            style="padding:11px 28px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">
-            Update Password
-          </button>
-        </form>
-      </div>
-      </div><!-- /view-change-password -->
-
       <!-- ══ VIEW: MY PROFILE ══ -->
       <div id="view-my-profile" class="view">
         <div class="mod-title">👤 My Profile <span>View and update your personal details</span></div>
@@ -1487,6 +1447,43 @@
             </button>
           </div>
         </form>
+
+        <!-- CHANGE PASSWORD -->
+        <div class="section" style="margin-top:22px;">
+          <h3>🔒 Change Password</h3>
+          {% if request.args.get('pwd_ok') %}
+            <div class="toast toast-green">✅ Password changed successfully.</div>
+          {% elif request.args.get('pwd_error') == 'wrong' %}
+            <div class="toast toast-red">❌ Current password is incorrect.</div>
+          {% elif request.args.get('pwd_error') == 'short' %}
+            <div class="toast toast-red">❌ New password must be at least 6 characters.</div>
+          {% elif request.args.get('pwd_error') == 'mismatch' %}
+            <div class="toast toast-red">❌ New passwords do not match.</div>
+          {% endif %}
+          <form action="/change_password" method="POST" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:end;max-width:760px;">
+            <div class="form-group" style="margin:0;">
+              <label>Current Password</label>
+              <input type="password" name="current_password" required autocomplete="current-password"
+                style="padding:10px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>New Password</label>
+              <input type="password" name="new_password" required minlength="6" autocomplete="new-password"
+                style="padding:10px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label>Confirm New Password</label>
+              <input type="password" name="confirm_password" required minlength="6" autocomplete="new-password"
+                style="padding:10px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;width:100%;" />
+            </div>
+            <div style="grid-column:1/-1;margin-top:4px;">
+              <button type="submit"
+                style="padding:11px 28px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">
+                🔒 Update Password
+              </button>
+            </div>
+          </form>
+        </div>
       </div><!-- /view-my-profile -->
 
       <!-- ═══ VIEW: TERMS & CONDITIONS ═══ -->
@@ -2109,7 +2106,7 @@
       // On page load: check URL hash to show the right view
       (function() {
         var hash = window.location.hash.replace('#', '');
-        var validViews = ['dashboard','attendance','apply-leave','payslips','tickets','change-password','my-profile','resign','terms','rules','limitations','instructions','posh'];
+        var validViews = ['dashboard','attendance','apply-leave','payslips','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
         if (hash && validViews.indexOf(hash) !== -1) {
           showView(hash);
         } else {
