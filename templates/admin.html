@@ -574,6 +574,23 @@
           </div>
 
         </div>
+
+        <!-- Set Admin Recovery Email -->
+        <div style="margin-top:20px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:22px;">
+          <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:4px;">📧 Admin Recovery Email</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Set the email address used to receive password reset links when you forget your admin password.</div>
+          <form action="/admin_set_recovery_email" method="POST" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+            <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+              <label>Recovery Email</label>
+              <input type="email" name="recovery_email" placeholder="admin@example.com" required />
+            </div>
+            <button type="submit" class="btn btn-navy" style="max-width:180px;margin-bottom:0;">💾 Save Email</button>
+          </form>
+          {% if request.args.get('email_ok') %}
+            <div style="margin-top:12px;color:#15803d;font-size:13px;">✅ Recovery email saved successfully.</div>
+          {% endif %}
+        </div>
+
       </div>
 
     </div><!-- /main -->

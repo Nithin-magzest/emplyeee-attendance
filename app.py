@@ -139,7 +139,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS admin_users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL
+            password VARCHAR(255) NOT NULL,
+            email VARCHAR(150) DEFAULT NULL,
+            reset_token VARCHAR(64) DEFAULT NULL,
+            reset_token_expiry DATETIME DEFAULT NULL
         )
     """)
     cursor.execute("""
@@ -236,6 +239,9 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN uan_number VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
         "ALTER TABLE salary_config ADD COLUMN last_revised DATE DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -395,6 +401,18 @@ def get_email_config():
     db.close()
     if row:
         return {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4]}
+    # Fall back to .env values so team members don't need to configure via UI
+    smtp_host = os.environ.get("SMTP_HOST", "")
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    if smtp_host and smtp_user and smtp_pass:
+        return {
+            "host": smtp_host,
+            "port": int(os.environ.get("SMTP_PORT", 587)),
+            "user": smtp_user,
+            "password": smtp_pass,
+            "from_name": os.environ.get("SMTP_FROM_NAME", "Attendance System"),
+        }
     return None
 
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data):
@@ -493,9 +511,10 @@ def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None,
         msg.attach(part)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(config["host"], config["port"]) as server:
+    with smtplib.SMTP(config["host"], config["port"], timeout=20) as server:
         server.ehlo()
         server.starttls(context=context)
+        server.ehlo()
         server.login(config["user"], config["password"])
         server.sendmail(config["user"], to_email, msg.as_string())
 
@@ -1122,6 +1141,104 @@ def change_admin_password():
     )
     db.commit(); cursor.close(); db.close()
     return redirect("/admin?pwd_ok=1")
+
+
+@app.route("/admin_set_recovery_email", methods=["POST"])
+@admin_required
+def admin_set_recovery_email():
+    email = request.form.get("recovery_email", "").strip()
+    if email:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE admin_users SET email=%s WHERE username='admin'", (email,))
+        db.commit(); cursor.close(); db.close()
+    return redirect("/admin?email_ok=1#password-management")
+
+
+@app.route("/admin_forgot_password", methods=["GET", "POST"])
+def admin_forgot_password():
+    if request.method == "GET":
+        return render_template("admin_forgot_password.html",
+                               sent=False, error=None)
+    admin_email = request.form.get("email", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id, email FROM admin_users WHERE username='admin'")
+    row = cursor.fetchone()
+    if not row or not row[1]:
+        cursor.close(); db.close()
+        return render_template("admin_forgot_password.html", sent=False,
+                               error="No email is set for the admin account. Contact your system administrator.")
+    if row[1].lower() != admin_email.lower():
+        cursor.close(); db.close()
+        return render_template("admin_forgot_password.html", sent=False,
+                               error="Email address does not match the admin account.")
+    token   = secrets.token_hex(32)
+    expiry  = datetime.datetime.now() + datetime.timedelta(hours=1)
+    cursor.execute(
+        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE username='admin'",
+        (token, expiry)
+    )
+    db.commit(); cursor.close(); db.close()
+    cfg = get_email_config()
+    if not cfg:
+        return render_template("admin_forgot_password.html", sent=False,
+                               error="Email service not configured. Go to Admin → Email Settings first.")
+    reset_url = f"{request.host_url}admin_reset_password/{token}"
+    html_body = f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">🔐 Admin Password Reset</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Attendance System</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">You requested a password reset for the admin account.</p>
+    <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
+      Reset My Password
+    </a>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, ignore this email.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
+  </div>
+</div>"""
+    try:
+        send_email_smtp(admin_email, "Admin Password Reset — Attendance System", html_body, cfg)
+    except Exception as ex:
+        return render_template("admin_forgot_password.html", sent=False,
+                               error=f"Failed to send email: {str(ex)}")
+    return render_template("admin_forgot_password.html", sent=True, error=None)
+
+
+@app.route("/admin_reset_password/<token>", methods=["GET", "POST"])
+def admin_reset_password(token):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id FROM admin_users WHERE reset_token=%s AND reset_token_expiry > %s",
+        (token, datetime.datetime.now())
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return render_template("admin_reset_password.html", valid=False, done=False, token=token)
+    if request.method == "GET":
+        cursor.close(); db.close()
+        return render_template("admin_reset_password.html", valid=True, done=False, token=token, error=None)
+    new_pw     = request.form.get("new_password", "").strip()
+    confirm_pw = request.form.get("confirm_password", "").strip()
+    if len(new_pw) < 6:
+        cursor.close(); db.close()
+        return render_template("admin_reset_password.html", valid=True, done=False,
+                               token=token, error="Password must be at least 6 characters.")
+    if new_pw != confirm_pw:
+        cursor.close(); db.close()
+        return render_template("admin_reset_password.html", valid=True, done=False,
+                               token=token, error="Passwords do not match.")
+    cursor.execute(
+        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE username='admin'",
+        (generate_password_hash(new_pw),)
+    )
+    db.commit(); cursor.close(); db.close()
+    return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
 
 
 @app.route("/view_qrcodes")
