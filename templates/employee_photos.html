@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Employee Photos</title>
+    <title>Photos &amp; QR Codes</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
-      /* SIDEBAR */      .sidebar {
+      /* SIDEBAR */
+      .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
         background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
         padding: 22px 14px; color: white;
@@ -34,65 +35,79 @@
       /* MAIN */
       .main { flex: 1; padding: 28px; }
       .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 26px; color: #1e293b; }
+      .page-header h1 { font-size: 26px; color: #1e293b; font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
-      /* SEARCH BAR */
+      /* FILTER BAR */
       .filter-bar {
         background: #ffffff; border: 1px solid #dbeafe;
         border-radius: 14px; padding: 14px 20px;
         display: flex; align-items: center; gap: 14px;
         flex-wrap: wrap; margin-bottom: 22px;
       }
-      .filter-bar input {
-        flex: 1; min-width: 200px;
-        padding: 9px 13px; border: 1px solid #dbeafe; border-radius: 9px;
+      .filter-bar label { font-size: 13px; color: #64748b; font-weight: 600; white-space: nowrap; }
+      .search-wrap { position: relative; flex: 1; min-width: 200px; }
+      .search-wrap input {
+        width: 100%; padding: 9px 13px 9px 34px;
+        border: 1px solid #dbeafe; border-radius: 9px;
         background: #f8fafc; color: #1e293b; font-size: 13px; outline: none;
       }
-      .filter-bar input:focus { border-color: #93c5fd; }
-      .filter-bar label { font-size: 13px; color: #64748b; font-weight: 600; white-space: nowrap; }
-      .emp-counter { font-size: 13px; color: #64748b; margin-left: auto; }
+      .search-wrap input:focus { border-color: #93c5fd; }
+      .search-wrap span { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+      .emp-counter { font-size: 13px; color: #64748b; margin-left: auto; white-space: nowrap; }
 
       /* PHOTO GRID */
       .photo-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
         gap: 18px;
       }
       .photo-card {
         background: #ffffff; border: 1px solid #dbeafe;
         border-radius: 16px; padding: 20px 16px;
         text-align: center; transition: 0.2s;
+        display: flex; flex-direction: column; align-items: center;
       }
       .photo-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.08); }
+
+      /* PHOTO CIRCLE */
       .photo-wrap {
         width: 100px; height: 100px; border-radius: 50%;
         overflow: hidden; margin: 0 auto 14px;
         border: 3px solid #dbeafe; background: #eff6ff;
         display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
       }
       .photo-wrap img { width: 100%; height: 100%; object-fit: cover; }
       .photo-placeholder { font-size: 36px; line-height: 1; }
+
       .emp-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; word-break: break-word; }
-      .emp-id   { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-      .emp-role { display: inline-block; margin-top: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .emp-id   { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+      .emp-role { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
       .no-role  { font-size: 12px; color: #94a3b8; }
 
       .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 15px; }
 
-      /* EDIT BUTTON */
-      .btn-edit {
-        margin-top: 12px; width: 100%;
-        padding: 7px 0; border: none; border-radius: 8px; cursor: pointer;
+      /* ACTION BUTTONS */
+      .card-actions { display: flex; gap: 8px; margin-top: 14px; width: 100%; }
+      .btn-edit-photo {
+        flex: 1; padding: 7px 0; border: none; border-radius: 8px; cursor: pointer;
         background: #1e3a8a; color: white; font-size: 12px; font-weight: 600;
         letter-spacing: 0.3px; transition: 0.2s;
       }
-      .btn-edit:hover { background: #1d4ed8; }
+      .btn-edit-photo:hover { background: #1d4ed8; }
+      .btn-view-qr {
+        flex: 0 0 auto; padding: 7px 11px; border: 1px solid #dbeafe; border-radius: 8px; cursor: pointer;
+        background: #f0f9ff; color: #0369a1; font-size: 13px; font-weight: 700;
+        transition: 0.2s; line-height: 1;
+      }
+      .btn-view-qr:hover { background: #dbeafe; border-color: #93c5fd; }
+      .btn-view-qr.no-qr { opacity: 0.35; cursor: not-allowed; }
 
-      /* MODAL OVERLAY */
+      /* ── PHOTO EDIT MODAL ── */
       .modal-overlay {
         display: none; position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45); z-index: 999;
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 999;
         align-items: center; justify-content: center;
       }
       .modal-overlay.open { display: flex; }
@@ -133,6 +148,40 @@
       .upload-msg.success { color: #16a34a; }
       .upload-msg.error   { color: #dc2626; }
 
+      /* ── QR MODAL ── */
+      .qr-modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.55); backdrop-filter: blur(6px); z-index: 1000;
+        align-items: center; justify-content: center;
+      }
+      .qr-modal-overlay.open { display: flex; }
+      .qr-modal-box {
+        background: #fff; border-radius: 20px; padding: 30px 28px 24px;
+        width: 320px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+        text-align: center; position: relative;
+      }
+      .qr-modal-close {
+        position: absolute; top: 14px; right: 16px;
+        background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;
+      }
+      .qr-modal-title { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 2px; }
+      .qr-modal-sub   { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+      .qr-img-wrap {
+        width: 200px; height: 200px; margin: 0 auto 18px;
+        background: #f8fafc; border-radius: 14px;
+        border: 2px solid #dbeafe; padding: 10px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .qr-img-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
+      .qr-no-image { font-size: 13px; color: #94a3b8; }
+      .btn-download-qr {
+        display: inline-block; padding: 10px 24px;
+        background: linear-gradient(135deg, #1e3a8a, #2563eb);
+        color: white; border-radius: 10px; font-size: 14px; font-weight: 700;
+        text-decoration: none; transition: 0.2s;
+      }
+      .btn-download-qr:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+
       @media (max-width: 768px) {
         body { flex-direction: column; }
         .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
@@ -144,34 +193,23 @@
   <body>
 
     <!-- SIDEBAR -->
-            <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">Attendance System</div></div>
+      </div>
       <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
       <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays
-      </a>
-      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config
-      </a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management
-      </a>
-      <a class="nav-item" href="/view_qrcodes"><span class="nav-icon">🔳</span>QR Codes
-      </a>
-      <a class="nav-item active" href="/view_photos"><span class="nav-icon">📷</span>Employee Photos
-      </a>
-      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings
-      </a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config</a>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management</a>
+      <a class="nav-item active" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings</a>
       <div class="nav-group-label" style="margin-top:10px;">Requests</div>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
@@ -183,8 +221,7 @@
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -192,22 +229,32 @@
     <div class="main">
 
       <div class="page-header">
-        <h1>📷 Employee Photos</h1>
-        <p>Browse all registered employee profile photos.</p>
+        <h1>📷 Photos &amp; QR Codes</h1>
+        <p>Browse employee photos and view or download their QR codes. Click 🔳 on any card to open the QR.</p>
       </div>
 
       <div class="filter-bar">
-        <label>Search</label>
-        <input type="text" id="searchInput" placeholder="Name, ID, or role…" oninput="filterCards()" />
+        <label>🔍 Search</label>
+        <div class="search-wrap">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Name, ID, or role…" oninput="filterCards()" autocomplete="off" />
+        </div>
         <span class="emp-counter" id="empCounter">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
       </div>
 
       {% if employees %}
       <div class="photo-grid" id="photoGrid">
-        {% for emp_id, name, role, email, face_image in employees %}
-        <div class="photo-card" data-name="{{ name | lower }}" data-id="{{ emp_id | lower }}" data-role="{{ (role or '') | lower }}">
+        {% for emp_id, name, role, email, face_image, qr_code in employees %}
+        {% set has_photo = face_image and (face_image.endswith('.jpg') or face_image.endswith('.png')) %}
+        {% set has_qr    = qr_code and qr_code|length > 0 %}
+        <div class="photo-card"
+             data-name="{{ name | lower }}"
+             data-id="{{ emp_id | lower }}"
+             data-role="{{ (role or '') | lower }}">
+
+          <!-- Face photo -->
           <div class="photo-wrap">
-            {% if face_image and face_image.endswith('.jpg') or face_image and face_image.endswith('.png') %}
+            {% if has_photo %}
               <img src="/dataset/{{ emp_id }}.jpg"
                    alt="{{ name }}"
                    onerror="this.parentNode.innerHTML='<span class=\'photo-placeholder\'>👤</span>'" />
@@ -215,6 +262,7 @@
               <span class="photo-placeholder">👤</span>
             {% endif %}
           </div>
+
           <div class="emp-name">{{ name }}</div>
           <div class="emp-id">{{ emp_id }}</div>
           {% if role %}
@@ -222,10 +270,40 @@
           {% else %}
             <span class="no-role">No role</span>
           {% endif %}
-          <button type="button" class="btn-edit"
-                  onclick="openEditModal('{{ emp_id }}', '{{ name | e }}', {{ 'true' if (face_image and (face_image.endswith('.jpg') or face_image.endswith('.png'))) else 'false' }})">
-            ✏️ Edit Photo
-          </button>
+
+          <!-- Action buttons -->
+          <div class="card-actions">
+            <button type="button" class="btn-edit-photo"
+                    onclick="openEditModal('{{ emp_id }}', '{{ name | e }}', {{ 'true' if has_photo else 'false' }})">
+              ✏️ Edit Photo
+            </button>
+            <button type="button"
+                    class="btn-view-qr {% if not has_qr %}no-qr{% endif %}"
+                    title="{% if has_qr %}View QR Code{% else %}No QR generated{% endif %}"
+                    onclick="{% if has_qr %}openQrModal('{{ emp_id }}', '{{ name | e }}', '/{{ qr_code }}'){% endif %}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="18" height="18" fill="currentColor">
+                <!-- top-left finder -->
+                <rect x="4" y="4" width="36" height="36" rx="5"/>
+                <rect x="11" y="11" width="22" height="22" rx="3" fill="white"/>
+                <rect x="17" y="17" width="10" height="10"/>
+                <!-- top-right finder -->
+                <rect x="60" y="4" width="36" height="36" rx="5"/>
+                <rect x="67" y="11" width="22" height="22" rx="3" fill="white"/>
+                <rect x="73" y="17" width="10" height="10"/>
+                <!-- bottom-left finder -->
+                <rect x="4" y="60" width="36" height="36" rx="5"/>
+                <rect x="11" y="67" width="22" height="22" rx="3" fill="white"/>
+                <rect x="17" y="73" width="10" height="10"/>
+                <!-- data dots bottom-right -->
+                <rect x="60" y="60" width="10" height="10" rx="2"/>
+                <rect x="76" y="60" width="10" height="10" rx="2"/>
+                <rect x="60" y="76" width="10" height="10" rx="2"/>
+                <rect x="76" y="76" width="10" height="10" rx="2"/>
+                <rect x="68" y="68" width="6" height="6" rx="1"/>
+              </svg>
+            </button>
+          </div>
+
         </div>
         {% endfor %}
       </div>
@@ -238,7 +316,7 @@
     <!-- EDIT PHOTO MODAL -->
     <div class="modal-overlay" id="editModal" onclick="closeOnOverlay(event)">
       <div class="modal-box">
-        <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+        <button type="button" class="modal-close" onclick="closePhotoModal()">✕</button>
         <div class="modal-title" id="modalEmpName"></div>
         <div class="modal-sub" id="modalEmpId"></div>
         <div class="modal-preview" id="modalPreview"></div>
@@ -251,9 +329,21 @@
       </div>
     </div>
 
-    <script>
-      var _currentEmpId = null;
+    <!-- QR CODE MODAL -->
+    <div class="qr-modal-overlay" id="qrModal" onclick="closeQrOnOverlay(event)">
+      <div class="qr-modal-box">
+        <button type="button" class="qr-modal-close" onclick="closeQrModal()">✕</button>
+        <div class="qr-modal-title" id="qrModalName"></div>
+        <div class="qr-modal-sub" id="qrModalId"></div>
+        <div class="qr-img-wrap">
+          <img id="qrModalImg" src="" alt="QR Code" />
+        </div>
+        <a id="qrDownloadBtn" class="btn-download-qr" href="#" download>⬇ Download QR Code</a>
+      </div>
+    </div>
 
+    <script>
+      /* ── SEARCH / FILTER ── */
       function filterCards() {
         var q = document.getElementById("searchInput").value.toLowerCase();
         var cards = document.querySelectorAll(".photo-card");
@@ -269,31 +359,32 @@
           visible + " employee" + (visible !== 1 ? "s" : "");
       }
 
+      /* ── PHOTO EDIT MODAL ── */
+      var _currentEmpId = null;
+
       function openEditModal(empId, empName, hasPhoto) {
         _currentEmpId = empId;
         document.getElementById("modalEmpName").textContent = empName;
         document.getElementById("modalEmpId").textContent = empId;
-
         var preview = document.getElementById("modalPreview");
         if (hasPhoto) {
           preview.innerHTML = '<img src="/dataset/' + empId + '.jpg?t=' + Date.now() + '" alt="' + empName + '" onerror="this.parentNode.innerHTML=\'👤\'" />';
         } else {
           preview.innerHTML = "👤";
         }
-
         document.getElementById("photoInput").value = "";
         document.getElementById("uploadBtn").disabled = true;
         document.getElementById("uploadMsg").textContent = "";
         document.getElementById("editModal").classList.add("open");
       }
 
-      function closeModal() {
+      function closePhotoModal() {
         document.getElementById("editModal").classList.remove("open");
         _currentEmpId = null;
       }
 
       function closeOnOverlay(e) {
-        if (e.target === document.getElementById("editModal")) closeModal();
+        if (e.target === document.getElementById("editModal")) closePhotoModal();
       }
 
       function previewPhoto(e) {
@@ -312,15 +403,12 @@
       function uploadPhoto() {
         var file = document.getElementById("photoInput").files[0];
         if (!file || !_currentEmpId) return;
-
         var btn = document.getElementById("uploadBtn");
         var msg = document.getElementById("uploadMsg");
         btn.disabled = true;
         btn.textContent = "Uploading…";
-
         var fd = new FormData();
         fd.append("photo", file);
-
         fetch("/update_photo/" + _currentEmpId, { method: "POST", body: fd })
           .then(function(r) { return r.json(); })
           .then(function(data) {
@@ -328,18 +416,14 @@
               msg.className = "upload-msg success";
               msg.textContent = "✓ Photo updated successfully!";
               btn.textContent = "Upload Photo";
-
-              /* refresh the photo on the card in the grid */
-              var cards = document.querySelectorAll(".photo-card");
-              cards.forEach(function(card) {
+              document.querySelectorAll(".photo-card").forEach(function(card) {
                 if (card.dataset.id === _currentEmpId.toLowerCase()) {
                   var wrap = card.querySelector(".photo-wrap");
                   wrap.innerHTML = '<img src="/dataset/' + _currentEmpId + '.jpg?t=' + Date.now() +
                     '" alt="" onerror="this.parentNode.innerHTML=\'<span class=\\\'photo-placeholder\\\'>👤</span>\'" />';
                 }
               });
-
-              setTimeout(closeModal, 1200);
+              setTimeout(closePhotoModal, 1200);
             } else {
               msg.className = "upload-msg error";
               msg.textContent = "✗ " + (data.msg || "Upload failed");
@@ -353,6 +437,25 @@
             btn.disabled = false;
             btn.textContent = "Upload Photo";
           });
+      }
+
+      /* ── QR MODAL ── */
+      function openQrModal(empId, empName, qrPath) {
+        document.getElementById("qrModalName").textContent = empName;
+        document.getElementById("qrModalId").textContent = empId;
+        document.getElementById("qrModalImg").src = qrPath + "?t=" + Date.now();
+        document.getElementById("qrDownloadBtn").href = qrPath;
+        document.getElementById("qrDownloadBtn").download = empId + "_qr.png";
+        document.getElementById("qrModal").classList.add("open");
+      }
+
+      function closeQrModal() {
+        document.getElementById("qrModal").classList.remove("open");
+        document.getElementById("qrModalImg").src = "";
+      }
+
+      function closeQrOnOverlay(e) {
+        if (e.target === document.getElementById("qrModal")) closeQrModal();
       }
     </script>
 

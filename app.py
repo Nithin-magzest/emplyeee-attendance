@@ -1314,12 +1314,7 @@ def admin_reset_password(token):
 @app.route("/view_qrcodes")
 @admin_required
 def view_qrcodes():
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, name, role, qr_code FROM employees ORDER BY name")
-    employees = cursor.fetchall()
-    cursor.close(); db.close()
-    return render_template("qrcodes.html", employees=employees)
+    return redirect("/view_photos")
 
 
 @app.route("/dataset/<path:filename>")
@@ -1346,7 +1341,7 @@ def my_photo():
 def view_photos():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, name, role, email, face_image FROM employees ORDER BY name")
+    cursor.execute("SELECT employee_id, name, role, email, face_image, qr_code FROM employees ORDER BY name")
     employees = cursor.fetchall()
     cursor.close(); db.close()
     return render_template("employee_photos.html", employees=employees)
