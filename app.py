@@ -618,6 +618,21 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
         "net":           net,
     }
 
+# ---------------- ERROR HANDLERS ----------------
+import traceback as _traceback
+
+@app.errorhandler(500)
+def internal_error(e):
+    tb = _traceback.format_exc()
+    print("[500 ERROR]", tb)
+    return f"<h2>500 – Internal Server Error</h2><pre style='color:red'>{tb}</pre>", 500
+
+@app.errorhandler(Exception)
+def unhandled_exception(e):
+    tb = _traceback.format_exc()
+    print("[UNHANDLED]", tb)
+    return f"<h2>Error: {type(e).__name__}: {e}</h2><pre style='color:red'>{tb}</pre>", 500
+
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
@@ -2321,12 +2336,16 @@ def my_id_card():
     # ── Font loader ──────────────────────────────────────
     def fnt(size, bold=False):
         candidates = (
-            ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            ["C:/Windows/Fonts/arialbd.ttf",
+             "C:/Windows/Fonts/calibrib.ttf",
+             "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
              "/System/Library/Fonts/Helvetica.ttc",
              "/Library/Fonts/Arial Bold.ttf",
              "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
             if bold else
-            ["/System/Library/Fonts/Supplemental/Arial.ttf",
+            ["C:/Windows/Fonts/arial.ttf",
+             "C:/Windows/Fonts/calibri.ttf",
+             "/System/Library/Fonts/Supplemental/Arial.ttf",
              "/System/Library/Fonts/Helvetica.ttc",
              "/Library/Fonts/Arial.ttf",
              "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
@@ -2336,12 +2355,20 @@ def my_id_card():
             except: pass
         return ImageFont.load_default()
 
+    def _safe_text(text):
+        try:
+            text.encode('latin-1')
+            return text
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return text.encode('ascii', 'replace').decode('ascii')
+
     def tw(draw, text, font):
-        bb = draw.textbbox((0,0), text, font=font)
+        bb = draw.textbbox((0,0), _safe_text(text), font=font)
         return bb[2]-bb[0]
 
     def cx(draw, text, font, card_w, y, color):
-        draw.text(((card_w - tw(draw, text, font))//2, y), text, font=font, fill=color)
+        t = _safe_text(text)
+        draw.text(((card_w - tw(draw, t, font))//2, y), t, font=font, fill=color)
 
     # ── Vertical card size (portrait) ────────────────────
     CW, CH = 500, 820
@@ -2395,10 +2422,10 @@ def my_id_card():
 
     # -- Info rows (centered) --
     info_rows = [
-        ("Employee ID", row[0]  if row            else "—"),
-        ("Email",       row[3]  if row and row[3] else "—"),
-        ("Phone",       row[8]  if row and row[8] else "—"),
-        ("Blood Group", row[7]  if row and row[7] else "—"),
+        ("Employee ID", row[0]  if row            else "-"),
+        ("Email",       row[3]  if row and row[3] else "-"),
+        ("Phone",       row[8]  if row and row[8] else "-"),
+        ("Blood Group", row[7]  if row and row[7] else "-"),
     ]
     y = 390
     for i, (lbl, val) in enumerate(info_rows):
@@ -2420,7 +2447,7 @@ def my_id_card():
     # -- Footer --
     fd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
     fd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
-    cx(fd, "Confidential  •  Not Transferable", fnt(10), CW, CH-44, PALE)
+    cx(fd, "Confidential  |  Not Transferable", fnt(10), CW, CH-44, PALE)
     cx(fd, "Property of the Organization",       fnt(10), CW, CH-26, (160,185,240))
 
     # ════════════════════════════════════════════════════
@@ -2461,9 +2488,9 @@ def my_id_card():
 
     # Info below QR
     sub_info = [
-        ("Name",         (row[1] or "—")[:26] if row else "—"),
-        ("Designation",  (row[2] or "—")[:26] if row else "—"),
-        ("Blood Group",  (row[7] or "—")      if row else "—"),
+        ("Name",         (row[1] or "-")[:26] if row else "-"),
+        ("Designation",  (row[2] or "-")[:26] if row else "-"),
+        ("Blood Group",  (row[7] or "-")      if row else "-"),
     ]
     BP = 36
     sy = qr_y + QS + 94
@@ -2485,7 +2512,7 @@ def my_id_card():
     # Footer
     bd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
     bd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
-    cx(bd, "Authorized Personnel Only  •  Not Transferable", fnt(10), CW, CH-44, PALE)
+    cx(bd, "Authorized Personnel Only  |  Not Transferable", fnt(10), CW, CH-44, PALE)
     cx(bd, "Misuse is subject to disciplinary action",        fnt(10), CW, CH-26, (160,185,240))
 
     # ════════════════════════════════════════════════════
@@ -4306,4 +4333,4 @@ def api_shifts_assign():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
