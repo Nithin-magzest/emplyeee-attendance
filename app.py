@@ -3118,11 +3118,19 @@ def employee_portal():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE employee_id=%s AND status='Open'", (emp_id,))
     open_tickets_count = cursor.fetchone()[0] or 0
 
-    # Upcoming holidays (next 3 from today)
+    # Upcoming holidays (next 3 from today) for dashboard widget
     cursor.execute("""
         SELECT date, name FROM holidays WHERE date >= %s ORDER BY date LIMIT 3
     """, (today,))
     upcoming_holidays = cursor.fetchall()
+
+    # Upcoming holidays for leave planning panel (rest of year, up to 15)
+    cursor.execute("""
+        SELECT date, name FROM holidays
+        WHERE date >= %s AND YEAR(date) = %s
+        ORDER BY date LIMIT 15
+    """, (today, today.year))
+    leave_holidays = cursor.fetchall()
 
     # Holiday calendar data for employee view
     hol_year = int(request.args.get("hol_year", today.year))
@@ -3195,6 +3203,7 @@ def employee_portal():
         pending_leaves_count=pending_leaves_count,
         open_tickets_count=open_tickets_count,
         upcoming_holidays=upcoming_holidays,
+        leave_holidays=leave_holidays,
         hol_year=hol_year,
         emp_hol_cal=emp_hol_cal,
         all_holidays_list=hol_rows,

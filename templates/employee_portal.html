@@ -1042,6 +1042,42 @@
         </form>
       </div>
 
+      <!-- Upcoming Holidays for Leave Planning -->
+      <div class="section" style="margin-top:20px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;border-radius:14px;padding:18px 20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <span style="font-size:18px;">🎉</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#78350f;">Upcoming Holidays</div>
+            <div style="font-size:11px;color:#92400e;margin-top:1px;">No need to apply leave on these dates</div>
+          </div>
+        </div>
+        {% if leave_holidays %}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          {% for hdate, hname in leave_holidays %}
+          <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.7);border:1px solid #fde68a;border-radius:9px;padding:9px 13px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="background:#f59e0b;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;min-width:40px;text-align:center;">
+                {{ hdate.strftime('%d') }}
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1c1917;">{{ hname }}</div>
+                <div style="font-size:11px;color:#78350f;">{{ hdate.strftime('%A, %B %Y') }}</div>
+              </div>
+            </div>
+            {% set days_left = (hdate - today_date).days %}
+            <div style="font-size:11px;color:#92400e;font-weight:600;text-align:right;white-space:nowrap;">
+              {% if days_left == 0 %}Today{% elif days_left == 1 %}Tomorrow{% else %}in {{ days_left }} days{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;color:#92400e;font-size:13px;padding:12px 0;">
+          No upcoming holidays for the rest of this year.
+        </div>
+        {% endif %}
+      </div>
+
       <div class="section" style="margin-top:24px;">
         <h3 style="margin-bottom:14px;">📬 Leave History</h3>
         <div class="table-wrap">
