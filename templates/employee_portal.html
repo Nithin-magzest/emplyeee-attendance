@@ -587,61 +587,140 @@
         </div>
 
         <!-- TODAY'S ATTENDANCE -->
-        <div class="card">
-          <div class="card-title">📅 Today's Attendance &nbsp;<span class="att-date">{{ today }}</span></div>
+        <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
           {% if today_att %}
             {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
-            <div>
+          {% endif %}
+
+          <!-- title + status badge -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+            <div style="font-size:13px;font-weight:700;color:#1e293b;">📅 Today's Attendance</div>
+            {% if today_att %}
               {% if att_type == 'Full Day' %}
-                <span class="att-status s-green">✅ Full Day</span>
+                <span style="padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#dcfce7;color:#16a34a;white-space:nowrap;flex-shrink:0;">✅ Full Day</span>
               {% elif att_type == 'Late - Full Day' %}
-                <span class="att-status s-yellow">⚠️ Late — Full Day</span>
+                <span style="padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#fef9c3;color:#b45309;white-space:nowrap;flex-shrink:0;">⚠️ Late</span>
               {% elif att_type == 'Half Day' %}
-                <span class="att-status s-red">🔶 Half Day</span>
+                <span style="padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#ffedd5;color:#ea580c;white-space:nowrap;flex-shrink:0;">🔶 Half Day</span>
               {% elif login_t and not logout_t %}
-                <span class="att-status s-blue">🔵 Currently In</span>
+                <span style="padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#dbeafe;color:#2563eb;white-space:nowrap;flex-shrink:0;">🔵 Currently In</span>
               {% else %}
-                <span class="att-status s-gray">— Absent</span>
+                <span style="padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#f1f5f9;color:#64748b;white-space:nowrap;flex-shrink:0;">— Absent</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;">{{ today_long }}</div>
+          <div style="height:1px;background:#f1f5f9;"></div>
+
+          <!-- body grows to fill card height -->
+          <div style="flex:1;display:flex;align-items:stretch;gap:14px;padding-top:14px;">
+
+            <!-- left column: items space-between to fill height -->
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;">
+              {% if today_att %}
+
+                <!-- login row -->
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:10px;font-weight:700;color:#94a3b8;width:46px;text-transform:uppercase;letter-spacing:0.4px;flex-shrink:0;">Login</span>
+                  <span style="font-size:15px;font-weight:800;color:#1e293b;flex:1;min-width:0;">{{ (login_t | fmt_time)[:5] if login_t else '—' }}</span>
+                  {% if login_s == 'Full Day Login' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#dcfce7;color:#16a34a;white-space:nowrap;">✅ On Time</span>
+                  {% elif login_s == 'Late Login' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#fef9c3;color:#b45309;white-space:nowrap;">🟡 Late</span>
+                  {% elif login_s == 'Half Day Login' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#ffedd5;color:#ea580c;white-space:nowrap;">🔶 Half</span>
+                  {% else %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#f1f5f9;color:#94a3b8;">—</span>
+                  {% endif %}
+                </div>
+
+                <!-- logout row -->
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:10px;font-weight:700;color:#94a3b8;width:46px;text-transform:uppercase;letter-spacing:0.4px;flex-shrink:0;">Logout</span>
+                  <span style="font-size:15px;font-weight:800;color:#1e293b;flex:1;min-width:0;">{{ (logout_t | fmt_time)[:5] if logout_t else '—' }}</span>
+                  {% if logout_s == 'Completed' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#dcfce7;color:#16a34a;white-space:nowrap;">✅ Done</span>
+                  {% elif logout_s == 'Early Logout' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#fef9c3;color:#b45309;white-space:nowrap;">⚠️ Early</span>
+                  {% elif logout_s == 'Half Day Logout' %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#ffedd5;color:#ea580c;white-space:nowrap;">🔶 Half</span>
+                  {% elif login_t %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#dbeafe;color:#2563eb;white-space:nowrap;">🔵 Still In</span>
+                  {% else %}
+                    <span style="padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;background:#f1f5f9;color:#94a3b8;">—</span>
+                  {% endif %}
+                </div>
+
+                <!-- duration / elapsed -->
+                <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#f8fafc;border-radius:8px;">
+                  <span style="font-size:12px;">⏱</span>
+                  {% if login_t and logout_t %}
+                    {% set _s = ((logout_t - login_t).seconds) %}
+                    {% set _h = _s // 3600 %}{% set _m = (_s % 3600) // 60 %}
+                    <span style="font-size:12px;font-weight:700;color:#1e293b;">{{ _h }}h {{ _m }}m worked</span>
+                  {% elif login_t %}
+                    <span id="att-elapsed"
+                      data-lh="{{ (login_t.seconds // 3600) }}"
+                      data-lm="{{ ((login_t.seconds % 3600) // 60) }}"
+                      data-ls="{{ (login_t.seconds % 60) }}"
+                      style="font-size:12px;font-weight:700;color:#2563eb;">—</span>
+                  {% else %}
+                    <span style="font-size:12px;color:#94a3b8;">Not clocked in today</span>
+                  {% endif %}
+                </div>
+
+                <!-- shift info row -->
+                <div style="display:flex;align-items:center;gap:6px;padding-top:2px;">
+                  <span style="font-size:11px;">🕐</span>
+                  {% if emp[7] %}
+                    <span style="font-size:11px;font-weight:600;color:#475569;">{{ emp[7] }}</span>
+                    {% if emp[8] and emp[9] %}
+                      <span style="font-size:11px;color:#cbd5e1;">·</span>
+                      <span style="font-size:11px;color:#64748b;">{{ (emp[8] | fmt_time)[:5] }} – {{ (emp[9] | fmt_time)[:5] }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span style="font-size:11px;color:#94a3b8;">No shift assigned</span>
+                  {% endif %}
+                </div>
+
+              {% else %}
+                <div class="no-att" style="margin:0;">No attendance recorded today.</div>
               {% endif %}
             </div>
-            <div class="time-row">
-              <div class="time-item">
-                <div class="time-lbl">Login</div>
-                <div class="time-val">{{ login_t | fmt_time }}</div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Login Status</div>
-                <div class="time-val">
-                  {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
-                  {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
-                  {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Logout</div>
-                <div class="time-val">{{ logout_t | fmt_time }}</div>
-              </div>
-              <div class="time-item">
-                <div class="time-lbl">Logout Status</div>
-                <div class="time-val">
-                  {% if logout_s == 'Completed' %}<span class="badge b-green">Done</span>
-                  {% elif logout_s == 'Early Logout' %}<span class="badge b-yellow">Early</span>
-                  {% elif logout_s == 'Half Day Logout' %}<span class="badge b-red">Half</span>
-                  {% elif login_t %}<span class="badge b-blue">Still In</span>
-                  {% else %}<span class="badge b-gray">—</span>{% endif %}
-                </div>
-              </div>
+
+            <!-- QR code -->
+            {% if emp[27] %}
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;border-left:1px solid #f1f5f9;padding-left:14px;gap:6px;">
+              <img src="/{{ emp[27] }}" alt="My QR"
+                   style="width:116px;height:116px;border-radius:8px;border:1px solid #e2e8f0;display:block;" />
+              <div style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Your QR</div>
             </div>
-          {% else %}
-            <div class="no-att">No attendance recorded today.</div>
-          {% endif %}
+            {% endif %}
+
+          </div>
+
           {% if emp[28] == 'wfh' %}
-          <button onclick="openWfhScanner()" style="margin-top:16px;width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;">
+          <button onclick="openWfhScanner()" style="margin-top:12px;width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
             🏠 Mark WFH Attendance
           </button>
           {% endif %}
         </div>
+        <script>
+          (function(){
+            var el = document.getElementById('att-elapsed');
+            if (!el) return;
+            var lh = +el.dataset.lh, lm = +el.dataset.lm, ls = +el.dataset.ls;
+            var loginSec = lh * 3600 + lm * 60 + ls;
+            function tick() {
+              var now = new Date();
+              var diff = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds() - loginSec;
+              if (diff < 0) diff = 0;
+              var h = Math.floor(diff/3600), m = Math.floor((diff%3600)/60), s = diff%60;
+              el.textContent = (h>0 ? h+'h ' : '') + m+'m ' + s+'s elapsed';
+            }
+            tick(); setInterval(tick, 1000);
+          })();
+        </script>
 
       </div>
 

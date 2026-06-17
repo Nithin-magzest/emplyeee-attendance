@@ -3080,6 +3080,7 @@ def employee_portal():
     return render_template("employee_portal.html",
         emp=emp,
         today=today.strftime("%d %b %Y"),
+        today_long=today.strftime("%A, %d %B %Y"),
         today_att=today_att,
         monthly_att=monthly_att,
         full_days=full_days, late_days=late_days,
