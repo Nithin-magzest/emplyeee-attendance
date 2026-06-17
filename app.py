@@ -2841,11 +2841,6 @@ def attendance():
         )
         db.commit(); cursor.close(); db.close()
         time_str = current_time.strftime("%H:%M:%S")
-        if employee_email:
-            cfg = get_email_config()
-            if cfg:
-                html = build_attendance_email(employee_name, emp_id, "login", login_status, time_str, today.strftime("%d %b %Y"))
-                send_email_async(employee_email, f"Attendance Check-In — {today.strftime('%d %b %Y')}", html, cfg)
         return jsonify({"ok": True, "type": "login", "name": employee_name,
                         "status": login_status, "time": time_str, "shift": shift_name,
                         "work_mode": emp_work_mode})
@@ -2869,11 +2864,6 @@ def attendance():
         )
         db.commit(); cursor.close(); db.close()
         time_str = current_time.strftime("%H:%M:%S")
-        if employee_email:
-            cfg = get_email_config()
-            if cfg:
-                html = build_attendance_email(employee_name, emp_id, "logout", att_type or logout_status, time_str, today.strftime("%d %b %Y"))
-                send_email_async(employee_email, f"Attendance Check-Out — {today.strftime('%d %b %Y')}", html, cfg)
         resp = {"ok": True, "type": "logout", "name": employee_name,
                 "status": logout_status, "att_type": att_type,
                 "time": time_str, "shift": shift_name, "work_mode": emp_work_mode}
