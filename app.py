@@ -957,9 +957,13 @@ def admin_action():
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
             # Send welcome email with credentials
-            if email:
+            if not email:
+                flash("⚠️ No email address provided — credentials email not sent. Share them manually.", "error")
+            else:
                 _ecfg = get_email_config()
-                if _ecfg:
+                if not _ecfg:
+                    flash("⚠️ SMTP not configured — credentials email not sent. Go to Email Settings to set it up.", "error")
+                else:
                     _welcome_html = f"""
 <div style="font-family:'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:32px 24px;border-radius:16px;">
   <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:24px;">
@@ -985,7 +989,11 @@ def admin_action():
   </div>
   <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">This is an automated message — please do not reply.</p>
 </div>"""
-                    send_email_async(email, f"Welcome {name} — Your Login Credentials", _welcome_html, _ecfg)
+                    try:
+                        send_email_smtp(email, f"Welcome {name} — Your Login Credentials", _welcome_html, _ecfg)
+                        flash(f"📧 Credentials email sent to {email}", "success")
+                    except Exception as _mail_err:
+                        flash(f"⚠️ Email delivery failed: {_mail_err}. Share credentials manually.", "error")
         except mysql.connector.errors.IntegrityError:
             db.rollback()
             os.remove(filepath)
