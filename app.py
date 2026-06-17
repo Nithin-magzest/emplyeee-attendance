@@ -2019,6 +2019,88 @@ def monthly_report():
         total_working=len([d for d in working_days if d <= today and d not in holidays]),
     )
 
+# ---------------- EMPLOYEE ATTENDANCE DETAIL ----------------
+@app.route("/employee_attendance_detail/<emp_id>/<int:year>/<int:month>")
+@admin_required
+def employee_attendance_detail(emp_id, year, month):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute(
+        "SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,''), COALESCE(email,'') "
+        "FROM employees WHERE employee_id = %s", (emp_id,)
+    )
+    emp = cursor.fetchone()
+    if not emp:
+        cursor.close(); db.close()
+        return "Employee not found", 404
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance
+        WHERE employee_id = %s AND date BETWEEN %s AND %s
+        ORDER BY date
+    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    att_map = {row[0]: row for row in cursor.fetchall()}
+
+    holidays_set = fetch_holidays_set(year, month)
+    today = datetime.date.today()
+
+    days = []
+    full_days = half_days = late_days = absent = 0
+    for d in range(1, last_day + 1):
+        date = datetime.date(year, month, d)
+        is_sunday  = date.weekday() == 6
+        is_holiday = date in holidays_set
+        is_future  = date > today
+        row = att_map.get(date)
+
+        if row:
+            _, login_t, logout_t, status, logout_status, att_type = row
+            final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
+            login_str  = _td_to_time(login_t).strftime("%I:%M %p")  if login_t  else "—"
+            logout_str = _td_to_time(logout_t).strftime("%I:%M %p") if logout_t else "—"
+            if not is_future:
+                if final == "Full Day":   full_days += 1
+                elif final == "Late - Full Day": late_days += 1
+                elif final in ("Half Day", "Present"): half_days += 1
+                else: absent += 1
+        else:
+            final      = "—"
+            login_str  = "—"
+            logout_str = "—"
+            if not is_sunday and not is_holiday and not is_future:
+                absent += 1
+
+        days.append({
+            "date":       date,
+            "day_name":   date.strftime("%a"),
+            "login":      login_str,
+            "logout":     logout_str,
+            "status":     final,
+            "is_sunday":  is_sunday,
+            "is_holiday": is_holiday,
+            "is_future":  is_future,
+        })
+
+    cursor.close(); db.close()
+
+    months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
+    years  = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+
+    return render_template("employee_attendance_detail.html",
+        emp=emp,
+        days=days,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        year=year, month=month,
+        months=months, years=years,
+        full_days=full_days,
+        late_days=late_days,
+        half_days=half_days,
+        absent=absent,
+    )
+
 # ---------------- MONTHLY REPORT EXCEL EXPORT ----------------
 @app.route("/monthly_report_export")
 @admin_required

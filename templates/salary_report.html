@@ -239,7 +239,9 @@
               {% for e in salary_data %}
               <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }} {{ e.email }}">
                 <td>
-                  {{ e.name }}<br>
+                  <a href="/employee_attendance_detail/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                     style="color:#1d4ed8;font-weight:600;text-decoration:none;"
+                     title="View day-by-day attendance">{{ e.name }}</a><br>
                   <span class="emp-id">{{ e.emp_id }}</span><br>
                   {% if e.email %}
                   <span class="emp-email">✉ {{ e.email }}</span>

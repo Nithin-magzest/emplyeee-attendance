@@ -200,7 +200,12 @@
               <tr data-search="{{ emp_id }} {{ emp_name }} {{ emp_role }} {{ emp_phone }} {{ emp_email }}">
                 <td class="muted">{{ loop.index }}</td>
                 <td><strong>{{ emp_id }}</strong></td>
-                <td>{{ emp_name }}</td>
+                <td>
+                  <a href="/employee_attendance_detail/{{ emp_id }}/{{ slip_months[0][0] }}/{{ slip_months[0][1] }}"
+                     class="att-detail-link" data-emp="{{ emp_id }}"
+                     style="color:#1d4ed8;font-weight:600;text-decoration:none;"
+                     title="View day-by-day attendance">{{ emp_name }}</a>
+                </td>
                 <td>
                   {% if emp_role %}
                     <span class="badge badge-blue">{{ emp_role }}</span>
@@ -235,6 +240,9 @@
         const year  = document.getElementById("selYear").value;
         document.querySelectorAll(".slip-link").forEach(function(a) {
           a.href = "/view_payslip/" + a.dataset.emp + "/" + year + "/" + month;
+        });
+        document.querySelectorAll(".att-detail-link").forEach(function(a) {
+          a.href = "/employee_attendance_detail/" + a.dataset.emp + "/" + year + "/" + month;
         });
       }
     </script>
