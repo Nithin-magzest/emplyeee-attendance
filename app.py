@@ -523,14 +523,12 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 """
 
 def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None, attachment_filename=None):
-    display_from = config.get("from_email") or config["user"]
-    smtp_user    = config["user"]   # SMTP login used for envelope (SPF passes on smtp-brevo.com)
+    from_addr = config.get("from_email") or config["user"]
 
     msg = MIMEMultipart("mixed")
-    msg["Subject"]  = subject
-    msg["From"]     = f"{config['from_name']} <{display_from}>"
-    msg["To"]       = to_email
-    msg["Reply-To"] = display_from
+    msg["Subject"] = subject
+    msg["From"]    = f"{config['from_name']} <{from_addr}>"
+    msg["To"]      = to_email
     alt = MIMEMultipart("alternative")
     alt.attach(MIMEText(html_body, "html", "utf-8"))
     msg.attach(alt)
@@ -547,8 +545,8 @@ def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None,
         server.ehlo()
         server.starttls(context=context)
         server.ehlo()
-        server.login(smtp_user, config["password"])
-        server.sendmail(smtp_user, to_email, msg.as_string())
+        server.login(config["user"], config["password"])
+        server.sendmail(from_addr, to_email, msg.as_string())
 
 def send_email_async(to_email, subject, html_body, config, **kwargs):
     def _send():

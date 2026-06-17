@@ -58,18 +58,6 @@
       /* ── RIGHT COLUMN ── */
       .right-col { display: flex; flex-direction: column; gap: 22px; }
 
-      /* Provider hints */
-      .hint-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
-      .hint-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-      .provider-list { display: flex; flex-direction: column; gap: 10px; }
-      .provider-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
-      .provider-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
-      .provider-info { flex: 1; min-width: 0; }
-      .provider-name { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
-      .provider-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
-      .provider-detail code { background: #e2e8f0; padding: 1px 6px; border-radius: 4px; font-size: 11px; color: #1e293b; font-family: monospace; }
-      .provider-detail a { color: #2563eb; }
-      .note-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 11px 14px; font-size: 12px; color: #92400e; line-height: 1.6; margin-top: 4px; }
 
       /* Current config badge */
       .current-config { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #4c1d95; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
@@ -182,67 +170,6 @@
 
         <!-- RIGHT: HINTS + TEST -->
         <div class="right-col">
-
-          <!-- Provider hints -->
-          <div class="hint-card">
-            <div class="hint-title">📋 Common SMTP Providers</div>
-            <div class="provider-list">
-
-              <div class="provider-row">
-                <div class="provider-icon">📧</div>
-                <div class="provider-info">
-                  <div class="provider-name">Gmail</div>
-                  <div class="provider-detail">
-                    Host <code>smtp.gmail.com</code> &nbsp;·&nbsp; Port <code>587</code><br>
-                    Use your Gmail address + <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="provider-row">
-                <div class="provider-icon">🏢</div>
-                <div class="provider-info">
-                  <div class="provider-name">Outlook / Hotmail</div>
-                  <div class="provider-detail">
-                    Host <code>smtp.office365.com</code> &nbsp;·&nbsp; Port <code>587</code>
-                  </div>
-                </div>
-              </div>
-
-              <div class="provider-row">
-                <div class="provider-icon">🟣</div>
-                <div class="provider-info">
-                  <div class="provider-name">Yahoo Mail</div>
-                  <div class="provider-detail">
-                    Host <code>smtp.mail.yahoo.com</code> &nbsp;·&nbsp; Port <code>587</code>
-                  </div>
-                </div>
-              </div>
-
-              <div class="provider-row">
-                <div class="provider-icon">💙</div>
-                <div class="provider-info">
-                  <div class="provider-name">Brevo (Sendinblue)</div>
-                  <div class="provider-detail">
-                    Host <code>smtp-relay.brevo.com</code> &nbsp;·&nbsp; Port <code>587</code><br>
-                    Use the SMTP API key as password; set From Email to your verified sender.
-                  </div>
-                </div>
-              </div>
-
-              <div class="provider-row">
-                <div class="provider-icon">🌐</div>
-                <div class="provider-info">
-                  <div class="provider-name">Custom / Hosting SMTP</div>
-                  <div class="provider-detail">Use your hosting provider's SMTP details from your cPanel or dashboard.</div>
-                </div>
-              </div>
-
-            </div>
-            <div class="note-box" style="margin-top:14px;">
-              ⚠️ For Gmail, enable <strong>2-Step Verification</strong> first, then generate an <strong>App Password</strong> — do not use your regular Gmail password.
-            </div>
-          </div>
 
           <!-- Test email -->
           {% if config %}
