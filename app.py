@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import cv2
 import datetime
 import html as _html
@@ -8,6 +10,7 @@ from database import get_db_connection
 from qr_generator import generate_qr
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+from contextlib import contextmanager
 import os
 import math
 import re
@@ -30,8 +33,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Startup: warn if critical env vars are missing ──
+_missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
+if _missing_env:
+    import warnings
+    warnings.warn(
+        f"Missing required environment variables: {', '.join(_missing_env)}. "
+        "Copy .env.example to .env and fill in the values.",
+        stacklevel=2
+    )
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
+    default_limits=[],
+)
 
 @app.context_processor
 def inject_common_vars():
@@ -90,7 +110,45 @@ app.jinja_env.globals["csrf_token"] = _csrf_token
 
 @app.before_request
 def _enforce_csrf():
-    pass  # CSRF enforcement disabled — tokens not present in templates
+    if request.method != "POST":
+        return
+    if request.path.startswith("/api/"):
+        return  # API routes use Bearer-token auth, not session cookies
+    token = session.get("_csrf")
+    submitted = request.form.get("_csrf_token")
+    if not token or not submitted or not secrets.compare_digest(str(token), str(submitted)):
+        return "CSRF validation failed", 403
+
+_CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
+_CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
+_CSRF_SCRIPT  = (
+    b'<script>(function(){'
+    b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
+    b'if(!m)return;'
+    b'window._csrfToken=function(){return m.content;};'
+    b'document.addEventListener("DOMContentLoaded",function(){'
+    b'document.querySelectorAll("form").forEach(function(f){'
+    b'if(f.method.toLowerCase()==="post"&&!f.querySelector(\'[name="_csrf_token"]\')){'
+    b'var i=document.createElement("input");'
+    b'i.type="hidden";i.name="_csrf_token";i.value=m.content;'
+    b'f.prepend(i);}});});})();</script>'
+)
+
+@app.after_request
+def _inject_csrf_meta(response):
+    """Inject CSRF meta tag and auto-inject script into every HTML page."""
+    if response.status_code >= 300 or not response.content_type.startswith("text/html"):
+        return response
+    try:
+        token = _csrf_token()
+        meta  = f'<meta name="csrf-token" content="{token}" />'.encode()
+        data  = response.get_data()
+        data  = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+        data  = _CSRF_BODY_RE.sub(_CSRF_SCRIPT + b'</body>', data, count=1)
+        response.set_data(data)
+    except Exception:
+        pass
+    return response
 
 # ---------------- COMPANY SETTINGS ----------------
 def get_company_settings():
@@ -113,9 +171,9 @@ def get_company_settings():
 def inject_company():
     return {"co": get_company_settings()}
 
-# Office location (single source of truth)
-OFFICE_LAT = 17.494664737165042
-OFFICE_LON = 78.40496618113566
+# Office location — read from .env so no restart needed for coord changes
+OFFICE_LAT = float(os.environ.get("OFFICE_LAT", "17.494664737165042"))
+OFFICE_LON = float(os.environ.get("OFFICE_LON", "78.40496618113566"))
 OFFICE_RADIUS_M = 300   # metres — 300 m radius as per policy
 
 # Shift timings
@@ -126,6 +184,36 @@ SHIFT_END   = datetime.time(18, 0)   # Full Day Logout cutoff
 # Deduction rates
 LATE_DEDUCTION_RATE = 0.10   # 10% deduction for late login
 HALF_DAY_RATE       = 0.50   # 50% deduction for half day
+
+# ---------------- IMAGE UPLOAD VALIDATION ----------------
+_ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
+_ALLOWED_IMG_MIME = {'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/gif'}
+
+def _validate_image_file(file):
+    """Return (ok, error_msg). Checks extension and MIME type before saving."""
+    if not file or not file.filename:
+        return False, "No file selected."
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in _ALLOWED_IMG_EXT:
+        return False, f"Invalid file type '{ext}'. Only JPG, PNG, WEBP or BMP allowed."
+    ct = (file.content_type or "").lower().split(";")[0].strip()
+    if ct and ct not in _ALLOWED_IMG_MIME:
+        return False, f"Invalid content type '{ct}'. Only image files accepted."
+    return True, ""
+
+# ---------------- DB CONTEXT MANAGER ----------------
+@contextmanager
+def _db():
+    """Open a DB connection + buffered cursor; always close both on exit."""
+    conn   = get_db_connection()
+    cursor = conn.cursor(buffered=True)
+    try:
+        yield cursor, conn
+    finally:
+        try:  cursor.close()
+        except Exception: pass
+        try:  conn.close()
+        except Exception: pass
 
 # ---------------- DB MIGRATION ----------------
 def init_db():
@@ -831,6 +919,7 @@ def setup_wizard():
 
 
 @app.route("/admin_login", methods=["GET", "POST"])
+@limiter.limit("15 per minute")
 def admin_login():
     co = get_company_settings()
     if not co["setup_done"]:
@@ -840,12 +929,9 @@ def admin_login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        db = get_db_connection()
-        cursor = db.cursor(buffered=True)
-        cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
-        result = cursor.fetchone()
-        cursor.close()
-        db.close()
+        with _db() as (cursor, db):
+            cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
+            result = cursor.fetchone()
         if result and check_password_hash(result[0], password):
             session["admin_logged_in"] = True
             session.permanent = True
@@ -1112,7 +1198,12 @@ def admin_action():
         work_lon_raw    = request.form.get("work_lon", "").strip()
         work_lat        = float(work_lat_raw) if work_lat_raw else None
         work_lon        = float(work_lon_raw) if work_lon_raw else None
-        file            = request.files["face"]
+        file = request.files["face"]
+        _img_ok, _img_err = _validate_image_file(file)
+        if not _img_ok:
+            flash(_img_err, "error")
+            cursor.close(); db.close()
+            return redirect("/admin")
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
 
@@ -1194,7 +1285,12 @@ def admin_action():
             cursor.close()
             db.close()
             return redirect("/admin")
-        name     = row[0]
+        name = row[0]
+        _img_ok, _img_err = _validate_image_file(file)
+        if not _img_ok:
+            flash(_img_err, "error")
+            cursor.close(); db.close()
+            return redirect("/admin")
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
         test_img = face_recognition.load_image_file(filepath)
@@ -2724,20 +2820,19 @@ def attendance():
 # ================================================================
 
 @app.route("/employee_login", methods=["GET", "POST"])
+@limiter.limit("15 per minute")
 def employee_login():
     if session.get("employee_id"):
         return redirect("/employee_portal")
     if request.method == "POST":
         emp_id   = request.form["emp_id"].strip()
         password = request.form.get("password", "").strip()
-        db       = get_db_connection()
-        cursor   = db.cursor(buffered=True)
-        cursor.execute(
-            "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
-            (emp_id,)
-        )
-        row = cursor.fetchone()
-        cursor.close(); db.close()
+        with _db() as (cursor, db):
+            cursor.execute(
+                "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
+                (emp_id,)
+            )
+            row = cursor.fetchone()
         if not row:
             return render_template("employee_login.html", error="Employee ID not found.")
         stored_pwd = row[3]
@@ -3813,15 +3908,14 @@ def api_required(f):
 
 
 @app.route("/api/login", methods=["POST"])
+@limiter.limit("20 per minute")
 def api_login():
     data     = request.get_json() or {}
     username = data.get("username", "")
     password = data.get("password", "")
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
-    row = cursor.fetchone()
-    cursor.close(); db.close()
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
+        row = cursor.fetchone()
     if row and check_password_hash(row[0], password):
         token = secrets.token_hex(32)
         _api_tokens[token] = username
@@ -4520,8 +4614,6 @@ def api_employee_checkin():
     lat    = data.get("lat")
     lon    = data.get("lon")
 
-    OFFICE_LAT = 17.49375
-    OFFICE_LON = 78.40435
     if lat and lon:
         if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
             return jsonify({"ok": False, "msg": "You are outside the office premises."})

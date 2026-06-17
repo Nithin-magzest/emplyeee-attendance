@@ -964,6 +964,10 @@
         if (!confirm(`Delete ${name} (${empId})? This cannot be undone.`)) return;
         const f = document.createElement("form");
         f.method="POST"; f.action=`/delete_employee/${empId}`;
+        const ci = document.createElement("input");
+        ci.type="hidden"; ci.name="_csrf_token";
+        ci.value = (window._csrfToken && window._csrfToken()) || "";
+        f.appendChild(ci);
         document.body.appendChild(f); f.submit();
       }
       function updateLastUpdated() {
