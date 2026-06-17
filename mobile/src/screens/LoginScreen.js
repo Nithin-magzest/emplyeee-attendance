@@ -8,15 +8,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { adminLogin, employeeLogin } from '../api/client';
 import { useAuth } from '../store/AuthContext';
 import { COLORS } from '../config';
+import QRScannerModal from './QRScannerModal';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const [tab, setTab]         = useState('admin'); // 'admin' | 'employee'
+  const [tab, setTab]           = useState('admin'); // 'admin' | 'employee'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [empId, setEmpId]       = useState('');
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleAdminLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -62,6 +64,7 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient colors={['#0f2027', '#203a43', '#2c5364']} style={styles.bg}>
+      <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
@@ -161,6 +164,22 @@ export default function LoginScreen() {
                     ? <ActivityIndicator color="#fff" />
                     : <Text style={styles.btnTxt}>Sign In as Employee</Text>}
                 </TouchableOpacity>
+
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerTxt}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* QR Scan Button */}
+                <TouchableOpacity
+                  style={styles.scanBtn}
+                  onPress={() => setShowScanner(true)}
+                >
+                  <Ionicons name="qr-code-outline" size={20} color="#fff" />
+                  <Text style={styles.scanBtnTxt}>Scan QR Code to Check In</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -216,4 +235,18 @@ const styles = StyleSheet.create({
   btnAdmin:    { backgroundColor: '#ef4444' },
   btnEmployee: { backgroundColor: '#6366f1' },
   btnTxt:      { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  dividerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  dividerTxt:  { color: COLORS.textMuted, fontSize: 12 },
+
+  scanBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 10, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: 'rgba(99,102,241,0.25)',
+    borderWidth: 1, borderColor: 'rgba(99,102,241,0.5)',
+  },
+  scanBtnTxt: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

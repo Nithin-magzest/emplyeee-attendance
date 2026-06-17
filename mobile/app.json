@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.magzest.attendance"
+      "bundleIdentifier": "com.magzest.attendance",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan employee QR codes for attendance."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,10 +24,15 @@
         "backgroundColor": "#0f2027"
       },
       "package": "com.magzest.attendance",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ]
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-camera"
     ]
   }
 }
