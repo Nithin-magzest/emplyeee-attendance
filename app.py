@@ -221,7 +221,28 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS break_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            break_name VARCHAR(100) NOT NULL,
+            break_time TIME NOT NULL,
+            duration_minutes INT NOT NULL DEFAULT 10,
+            is_active TINYINT(1) DEFAULT 1
+        )
+    """)
     db.commit()
+    # Seed default breaks if table is empty
+    cursor.execute("SELECT COUNT(*) FROM break_config")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany(
+            "INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s, %s, %s)",
+            [
+                ("Coffee Break 1", "11:00:00", 10),
+                ("Lunch Break",    "13:00:00", 60),
+                ("Coffee Break 2", "16:00:00", 10),
+            ]
+        )
+        db.commit()
 
     # Migrations for existing installs
     for sql in [
@@ -1637,6 +1658,80 @@ def delete_holiday(hid):
     db.close()
     return redirect(f"/view_holidays?year={year}")
 
+# ---------------- BREAK CONFIG ----------------
+@app.route("/api/breaks")
+def api_breaks():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes FROM break_config WHERE is_active=1 ORDER BY break_time")
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    result = []
+    for row in rows:
+        bt = row[2]
+        if hasattr(bt, 'seconds'):
+            total = bt.seconds
+            h, m = divmod(total // 60, 60)
+        else:
+            h, m = bt.hour, bt.minute
+        result.append({"id": row[0], "name": row[1],
+                        "hour": h, "minute": m,
+                        "duration": row[3]})
+    return jsonify(result)
+
+@app.route("/break_config")
+@admin_required
+def view_break_config():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    breaks = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("break_config.html", breaks=breaks,
+                           shift_start=SHIFT_START.strftime("%I:%M %p"),
+                           shift_end=SHIFT_END.strftime("%I:%M %p"))
+
+@app.route("/add_break", methods=["POST"])
+@admin_required
+def add_break():
+    name     = request.form["break_name"].strip()
+    btime    = request.form["break_time"]
+    duration = int(request.form.get("duration_minutes", 10))
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
+                   (name, btime, duration))
+    db.commit(); cursor.close(); db.close()
+    flash("Break added successfully.", "success")
+    return redirect("/break_config")
+
+@app.route("/update_break/<int:bid>", methods=["POST"])
+@admin_required
+def update_break(bid):
+    name     = request.form["break_name"].strip()
+    btime    = request.form["break_time"]
+    duration = int(request.form.get("duration_minutes", 10))
+    active   = 1 if request.form.get("is_active") == "1" else 0
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s WHERE id=%s",
+        (name, btime, duration, active, bid)
+    )
+    db.commit(); cursor.close(); db.close()
+    flash("Break updated.", "success")
+    return redirect("/break_config")
+
+@app.route("/delete_break/<int:bid>", methods=["POST"])
+@admin_required
+def delete_break(bid):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM break_config WHERE id=%s", (bid,))
+    db.commit(); cursor.close(); db.close()
+    flash("Break deleted.", "success")
+    return redirect("/break_config")
+
 # ---------------- VIEW SALARY CONFIG ----------------
 @app.route("/view_salary")
 @admin_required
@@ -2324,7 +2419,8 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        if current_time <= s_start:
+        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=15)).time()
+        if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= s_half:
             login_status = "Late Login"
@@ -3880,7 +3976,8 @@ def api_checkin():
     logout_time        = record[1] if record else None
     login_status_stored= record[2] if record else None
     if not login_time:
-        if current_time <= SHIFT_START:
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
             login_status = "Late Login"
@@ -4147,7 +4244,8 @@ def api_employee_checkin():
     login_status = record[2] if record else None
 
     if not login_time:
-        if current_time <= SHIFT_START:
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
             status = "Late Login"
