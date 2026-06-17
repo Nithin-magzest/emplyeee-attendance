@@ -659,7 +659,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
 
         <!-- SVG Donut Chart -->
-        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;display:flex;align-items:center;gap:24px;">
+        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:52px 36px;display:flex;align-items:center;gap:24px;">
           {% set total_shown = full_days + late_days + half_days + absent_days %}
           {% if total_shown > 0 %}
             {% set full_pct  = (full_days  / total_shown * 100) | int %}
@@ -715,7 +715,7 @@
         </div>
 
         <!-- Upcoming Holidays -->
-        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;">
+        <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:52px 36px;">
           <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">🗓 Upcoming Holidays</div>
           {% if upcoming_holidays %}
             {% for hdate, hname in upcoming_holidays %}
@@ -1218,6 +1218,51 @@
         {% elif request.args.get('photo_error') %}
         <div class="toast toast-red">❌ Photo upload failed. Please try again.</div>
         {% endif %}
+
+        <!-- PROFILE COMPLETION -->
+        {% set _pf = [
+          ('Profile Photo',              emp[4]),
+          ('Phone Number',               emp[10]),
+          ('Gender',                     emp[11]),
+          ('Date of Birth',              emp[12]),
+          ('Blood Group',                emp[13]),
+          ('Street Address',             emp[14]),
+          ('City',                       emp[15]),
+          ('State',                      emp[16]),
+          ('Pincode',                    emp[17]),
+          ('Emergency Contact Name',     emp[18]),
+          ('Emergency Contact Phone',    emp[19]),
+          ('Emergency Relation',         emp[20]),
+          ('Aadhar Number',              emp[21]),
+          ('PAN Number',                 emp[22]),
+          ('Bank Name',                  emp[23]),
+          ('Account Number',             emp[24]),
+          ('IFSC Code',                  emp[25]),
+          ('UAN / PF Number',            emp[26]),
+        ] %}
+        {% set _done = namespace(n=0) %}
+        {% for lbl, val in _pf %}{% if val %}{% set _done.n = _done.n + 1 %}{% endif %}{% endfor %}
+        {% set _total = _pf | length %}
+        {% set _pct   = (_done.n / _total * 100) | round | int %}
+        {% set _missing = _pf | rejectattr(1) | map(attribute=0) | list %}
+        {% set _bar_color = '#16a34a' if _pct == 100 else ('#f59e0b' if _pct >= 60 else '#ef4444') %}
+
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:16px;">
+          <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+              <span style="font-size:13px;font-weight:600;color:#475569;">Profile Completion</span>
+              <span style="font-size:13px;font-weight:700;color:{{ _bar_color }};">{{ _pct }}%</span>
+            </div>
+            <div style="height:6px;background:#f1f5f9;border-radius:999px;overflow:hidden;">
+              <div style="height:100%;width:{{ _pct }}%;background:{{ _bar_color }};border-radius:999px;"></div>
+            </div>
+            {% if _pct < 100 %}
+            <div style="font-size:11px;color:#94a3b8;margin-top:6px;">{{ _total - _done.n }} field{{ 's' if (_total - _done.n) != 1 }} missing — fill them below to reach 100%</div>
+            {% else %}
+            <div style="font-size:11px;color:#16a34a;margin-top:6px;">✓ Profile complete</div>
+            {% endif %}
+          </div>
+        </div>
 
         <!-- PHOTO + DOWNLOAD ACTIONS -->
         <div class="section" style="margin-bottom:18px;">
