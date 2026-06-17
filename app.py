@@ -3046,8 +3046,7 @@ def employee_portal():
     present_equiv   = full_days + late_days + half_days * 0.5
     att_pct         = round(present_equiv / billable_count * 100, 1) if billable_count else 0
 
-    # Calendar data as JSON for JS rendering
-    import json as _json
+    # Calendar data for JS rendering
     cal_data = {}
     _, month_days = calendar.monthrange(year, month)
     for day in range(1, month_days + 1):
@@ -3069,7 +3068,6 @@ def employee_portal():
                 else:                                   cal_data[day] = "absent"
             else:
                 cal_data[day] = "absent"
-    cal_json      = _json.dumps(cal_data)
     cal_hol_names = {d.day: n for d, n in att_hol_name_map.items()}
     cal_year      = year
     cal_month     = month
@@ -3180,7 +3178,7 @@ def employee_portal():
         selected_month=f"{year}-{month:02d}",
         att_pct=att_pct,
         total_hours=total_hours_str,
-        cal_json=cal_json,
+        cal_data=cal_data,
         cal_hol_names=cal_hol_names,
         cal_year=cal_year,
         cal_month=cal_month,

@@ -2234,7 +2234,7 @@
 
       /* ── CALENDAR ── */
       (function() {
-        const data     = {{ cal_json | safe }};
+        const data     = {{ cal_data | tojson }};
         const holNames = {{ cal_hol_names | tojson }};
         const firstDow = {{ cal_first_dow }};
         const year     = {{ cal_year }};
