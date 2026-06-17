@@ -74,37 +74,45 @@
       .leg-today   { background: #dbeafe; border: 1.5px solid #3b82f6; }
       .leg-normal  { background: #fff; border: 1.5px solid #e2e8f0; }
 
-      /* ── CALENDAR GRID ── */
-      .cal-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-        gap: 16px; margin-bottom: 28px;
+      /* ── MONTH NAVIGATION ── */
+      .month-nav-bar {
+        display: flex; align-items: center; justify-content: center;
+        gap: 16px; margin-bottom: 16px;
       }
-      .cal-month {
+      .mnav-btn {
+        padding: 9px 22px; border: none; border-radius: 10px;
+        background: #dbeafe; color: #1e40af; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;
+      }
+      .mnav-btn:hover { background: #bfdbfe; transform: translateY(-1px); }
+      .mnav-label {
+        font-size: 20px; font-weight: 900; color: #1e3a8a;
+        min-width: 220px; text-align: center;
+      }
+
+      /* ── CALENDAR SINGLE MONTH ── */
+      .cal-single-wrap {
+        max-width: 660px; margin: 0 auto 28px;
         background: #fff; border: 1px solid #dbeafe; border-radius: 16px;
-        padding: 14px; box-shadow: 0 2px 8px rgba(30,58,138,0.06);
+        padding: 20px 20px 14px; box-shadow: 0 2px 8px rgba(30,58,138,0.06);
       }
-      .cal-month-title {
-        font-size: 14px; font-weight: 800; color: #1e3a8a;
-        text-align: center; margin-bottom: 10px; letter-spacing: 0.3px;
-      }
+      .cal-month-panel { display: none; }
       .cal-headers {
         display: grid; grid-template-columns: repeat(7, 1fr);
-        gap: 3px; margin-bottom: 4px;
+        gap: 4px; margin-bottom: 6px;
       }
       .cal-headers span {
-        text-align: center; font-size: 10px; font-weight: 700;
-        color: #94a3b8; padding: 2px 0; letter-spacing: 0.4px;
+        text-align: center; font-size: 12px; font-weight: 700;
+        color: #94a3b8; padding: 4px 0; letter-spacing: 0.5px;
       }
       .cal-headers span:first-child { color: #ef4444; }
-      .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 3px; }
+      .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
       .cal-day {
-        /* Fixed height — no aspect-ratio so cells never overflow */
-        height: 52px;
+        height: 74px;
         display: flex; flex-direction: column;
         align-items: center; justify-content: flex-start;
-        padding-top: 7px;
-        border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+        padding-top: 10px;
+        border-radius: 9px; font-size: 16px; font-weight: 700; cursor: pointer;
         transition: 0.15s; position: relative; color: #1e293b;
         border: 1.5px solid transparent; overflow: hidden;
       }
@@ -117,15 +125,14 @@
       .cal-day.day-normal  { background: #f8fafc; border-color: #e2e8f0; }
       .cal-day.day-sunday.day-holiday { background: #fee2e2; border-color: #f59e0b; color: #b45309; }
       .hol-name {
-        /* Holiday name sits inside the cell below the day number */
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         line-clamp: 2;
         overflow: hidden;
-        font-size: 7.5px; font-weight: 700; color: #92400e;
+        font-size: 9px; font-weight: 700; color: #92400e;
         line-height: 1.2; width: 100%;
-        text-align: center; padding: 0 2px; margin-top: 2px;
+        text-align: center; padding: 0 3px; margin-top: 3px;
       }
 
       /* ── ADD FORM MODAL ── */
@@ -167,11 +174,14 @@
       @media (max-width: 768px) {
         body { flex-direction: column; }
         .sidebar { width: 100%; height: auto; position: static; }
-        .cal-grid { grid-template-columns: 1fr 1fr; }
         .page-header { flex-direction: column; align-items: flex-start; }
+        .mnav-label { font-size: 16px; min-width: 160px; }
+        .cal-day { height: 58px; font-size: 14px; }
       }
       @media (max-width: 480px) {
-        .cal-grid { grid-template-columns: 1fr; }
+        .mnav-btn { padding: 8px 14px; font-size: 13px; }
+        .cal-day { height: 48px; font-size: 12px; padding-top: 7px; }
+        .hol-name { font-size: 7.5px; }
       }
     </style>
   </head>
@@ -251,13 +261,19 @@
         ℹ️ <span><strong>Saturday is a working day.</strong> Only Sunday is marked as weekly off. Holidays are paid days — they count toward salary calculation.</span>
       </div>
 
-      <!-- 12-Month Calendar Grid -->
-      <div class="cal-grid">
+      <!-- Month Navigation -->
+      <div class="month-nav-bar">
+        <button type="button" class="mnav-btn" onclick="changeMonth(-1)">&#8592; Prev</button>
+        <span class="mnav-label" id="mnav-label"></span>
+        <button type="button" class="mnav-btn" onclick="changeMonth(1)">Next &#8594;</button>
+      </div>
+
+      <!-- Single Month Calendar -->
+      <div class="cal-single-wrap" id="cal-wrap" data-year="{{ year }}">
         {% for m in cal_data %}
-        <div class="cal-month">
-          <div class="cal-month-title">{{ m.month_name }} {{ year }}</div>
+        <div class="cal-month-panel" id="mpanel-{{ m.month_num }}" data-name="{{ m.month_name }}">
           <div class="cal-headers">
-            <span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
+            <span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
           </div>
           {% for week in m.weeks %}
           <div class="cal-week">
@@ -281,9 +297,7 @@
                      data-year="{{ year }}"
                      onclick="dayClick(this)">
                   {{ day }}
-                  {% if is_holiday %}
-                  <span class="hol-name">{{ hol_name }}</span>
-                  {% endif %}
+                  {% if is_holiday %}<span class="hol-name">{{ hol_name }}</span>{% endif %}
                 </div>
               {% endif %}
             {% endfor %}
@@ -372,7 +386,25 @@
     </form>
 
     <script>
-      /* Jinja2 enumerate filter shim — not built-in, use loop.index0 below */
+      var calYear = parseInt(document.getElementById('cal-wrap').dataset.year, 10);
+      var _now = new Date();
+      var currentMonth = (_now.getFullYear() === calYear) ? _now.getMonth() + 1 : 1;
+
+      function showMonth(m) {
+        if (m < 1) m = 12;
+        if (m > 12) m = 1;
+        document.querySelectorAll('.cal-month-panel').forEach(function(el) {
+          el.style.display = 'none';
+        });
+        var panel = document.getElementById('mpanel-' + m);
+        if (panel) {
+          panel.style.display = 'block';
+          document.getElementById('mnav-label').textContent = panel.dataset.name + ' ' + calYear;
+        }
+        currentMonth = m;
+      }
+
+      function changeMonth(dir) { showMonth(currentMonth + dir); }
 
       function openAddModal(dateStr) {
         document.getElementById('modalDate').value  = dateStr || '';
@@ -401,6 +433,8 @@
           openAddModal(dateStr);
         }
       }
+
+      showMonth(currentMonth);
     </script>
 
   </body>
