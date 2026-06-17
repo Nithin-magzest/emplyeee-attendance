@@ -3070,7 +3070,7 @@ def employee_portal():
             else:
                 cal_data[day] = "absent"
     cal_json      = _json.dumps(cal_data)
-    cal_hol_names = _json.dumps({d.day: n for d, n in att_hol_name_map.items()})
+    cal_hol_names = {d.day: n for d, n in att_hol_name_map.items()}
     cal_year      = year
     cal_month     = month
     cal_first_dow = datetime.date(year, month, 1).weekday()  # 0=Mon
