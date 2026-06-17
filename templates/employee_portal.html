@@ -512,6 +512,9 @@
       <button type="button" class="sb-item" id="sbn-payslips" onclick="showView('payslips')">
         <span class="sb-icon">💳</span>Pay Slips
       </button>
+      <button type="button" class="sb-item" id="sbn-incentives" onclick="showView('incentives')">
+        <span class="sb-icon">🏆</span>My Incentives
+      </button>
       <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')">
         <span class="sb-icon">📅</span>Holidays
       </button>
@@ -1371,6 +1374,66 @@
       </div>
       </div><!-- /view-payslips -->
 
+      <!-- ═══ VIEW: MY INCENTIVES ═══ -->
+      <div id="view-incentives" class="view">
+        <h2 class="view-title">🏆 My Incentives</h2>
+        <p style="color:#64748b;font-size:14px;margin-bottom:22px;">Bonuses and rewards you have earned for completing tasks and reaching goals.</p>
+
+        {% if total_incentive_year > 0 %}
+        <div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border:1.5px solid #86efac;border-radius:16px;padding:20px 28px;display:flex;align-items:center;gap:20px;margin-bottom:28px;">
+          <div style="font-size:42px;line-height:1;">🏆</div>
+          <div>
+            <div style="font-size:13px;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Total Incentives Earned — {{ today_date.year }}</div>
+            <div style="font-size:32px;font-weight:800;color:#15803d;">₹{{ "%.2f" | format(total_incentive_year) }}</div>
+            <div style="font-size:12px;color:#4ade80;margin-top:2px;">Keep up the great work!</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if my_incentives %}
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#1e3a8a;color:#fff;">
+                <th style="padding:12px 16px;text-align:left;border-radius:8px 0 0 0;">Month</th>
+                <th style="padding:12px 16px;text-align:left;">Goal / Task Achieved</th>
+                <th style="padding:12px 16px;text-align:left;">Description</th>
+                <th style="padding:12px 16px;text-align:right;">Amount</th>
+                <th style="padding:12px 16px;text-align:left;">Notes</th>
+                <th style="padding:12px 16px;text-align:left;border-radius:0 8px 0 0;">Awarded On</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for title, desc, mn, yr, amount, notes, awarded_at in my_incentives %}
+              {% set mnames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+              <tr style="border-bottom:1px solid #e2e8f0;{% if loop.index is even %}background:#f8faff;{% endif %}">
+                <td style="padding:14px 16px;font-weight:700;color:#1e3a8a;white-space:nowrap;">{{ mnames[mn] }} {{ yr }}</td>
+                <td style="padding:14px 16px;font-weight:600;color:#1e293b;">{{ title }}</td>
+                <td style="padding:14px 16px;color:#64748b;font-size:13px;">{{ desc or '—' }}</td>
+                <td style="padding:14px 16px;text-align:right;font-weight:800;color:#16a34a;font-size:16px;">+₹{{ "%.2f" | format(amount) }}</td>
+                <td style="padding:14px 16px;color:#64748b;font-size:13px;">{{ notes or '—' }}</td>
+                <td style="padding:14px 16px;color:#94a3b8;font-size:12px;white-space:nowrap;">{{ awarded_at.strftime('%d %b %Y') if awarded_at else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr style="background:#f0fdf4;font-weight:700;">
+                <td colspan="3" style="padding:14px 16px;color:#15803d;">Total</td>
+                <td style="padding:14px 16px;text-align:right;color:#15803d;font-size:17px;">+₹{{ "%.2f" | format(my_incentives | map(attribute=4) | sum) }}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:60px 20px;color:#94a3b8;">
+          <div style="font-size:52px;margin-bottom:16px;">🏅</div>
+          <div style="font-size:16px;font-weight:600;color:#64748b;margin-bottom:8px;">No incentives yet</div>
+          <div style="font-size:13px;">Complete your assigned goals and tasks to earn incentive bonuses that will appear here and in your salary slip.</div>
+        </div>
+        {% endif %}
+      </div><!-- /view-incentives -->
+
       <!-- ═══ VIEW: HOLIDAYS ═══ -->
       <div id="view-holidays" class="view">
         <div class="mod-title">📅 Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
@@ -2217,6 +2280,15 @@
                   <span style="color:#dc2626;font-weight:600;">PF Deduction (12%)</span><span></span>
                   <span style="text-align:right;color:#dc2626;">−₹${d.pf.toFixed(2)}</span>
                 </div>
+                ${(d.incentive && d.incentive > 0) ? `
+                <div style="display:grid;grid-template-columns:1fr auto auto;padding:14px 18px;font-size:14px;border-top:1px solid #e2e8f0;background:#f0fdf4;align-items:center;">
+                  <div>
+                    <span style="color:#16a34a;font-weight:700;">🏆 Incentive Bonus</span>
+                    ${d.incentive_details && d.incentive_details.length ? '<div style="font-size:11px;color:#64748b;margin-top:4px;">' + d.incentive_details.map(function(i){return i.title + (i.notes?' — '+i.notes:'');}).join(' &nbsp;·&nbsp; ') + '</div>' : ''}
+                  </div>
+                  <span></span>
+                  <span style="text-align:right;color:#16a34a;font-weight:700;">+₹${d.incentive.toFixed(2)}</span>
+                </div>` : ''}
                 <div style="display:grid;grid-template-columns:1fr auto auto;padding:18px 18px;font-size:18px;font-weight:700;border-top:2px solid #16a34a;background:linear-gradient(90deg,#dcfce7,#f0fdf4);align-items:center;">
                   <span style="color:#15803d;">💰 Net Pay</span><span></span>
                   <span style="text-align:right;color:#15803d;">₹${d.net.toFixed(2)}</span>
@@ -2495,7 +2567,7 @@
 
       // On page load: restore last active view from hash → localStorage → dashboard
       (function() {
-        var validViews = ['dashboard','attendance','apply-leave','payslips','holidays','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
+        var validViews = ['dashboard','attendance','apply-leave','payslips','incentives','holidays','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
         var hash    = window.location.hash.replace('#', '');
         var stored  = '';
         try { stored = localStorage.getItem('portalView') || ''; } catch(e) {}

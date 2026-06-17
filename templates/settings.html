@@ -272,6 +272,7 @@
       <button class="tab-btn {% if tab=='breaks' %}active{% endif %}" onclick="showTab('breaks')">☕ Breaks</button>
       <button class="tab-btn {% if tab=='salary' %}active{% endif %}" onclick="showTab('salary')">💵 Salary</button>
       <button class="tab-btn {% if tab=='announcements' %}active{% endif %}" onclick="showTab('announcements')">📢 Announcements</button>
+      <button class="tab-btn {% if tab=='incentives' %}active{% endif %}" onclick="showTab('incentives')">🏆 Incentives</button>
     </div>
 
     <!-- ══════════════════════════════════════
@@ -733,6 +734,184 @@
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════
+         TAB: INCENTIVES
+    ══════════════════════════════════════ -->
+    <div id="tab-incentives" class="tab-panel {% if tab=='incentives' %}active{% endif %}">
+
+      <div class="two-col">
+
+        <!-- Define Goals -->
+        <div class="section">
+          <div class="section-title">➕ Define New Goal / Task</div>
+          <form method="POST" action="/add_incentive_goal">
+            <div class="field">
+              <label>Goal Title</label>
+              <input type="text" name="title" placeholder="e.g. Monthly Sales Target" required maxlength="150" />
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea name="description" rows="2" placeholder="Describe the task or goal…"></textarea>
+            </div>
+            <div class="field">
+              <label>Default Incentive Amount (₹)</label>
+              <input type="number" name="incentive_amount" placeholder="500" min="0" step="0.01" required />
+            </div>
+            <button type="submit" class="btn-add">🏆 Add Goal</button>
+          </form>
+        </div>
+
+        <!-- Goal List -->
+        <div class="section">
+          <div class="section-title">📋 Defined Goals ({{ incentive_goals | length }})</div>
+          {% if incentive_goals %}
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background:#dbeafe;">
+                  <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Goal</th>
+                  <th style="padding:9px 12px;text-align:right;color:#1e3a8a;">Default ₹</th>
+                  <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Status</th>
+                  <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for gid, gtitle, gdesc, gamount, gactive in incentive_goals %}
+              <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:10px 12px;">
+                  <div style="font-weight:700;color:#1e293b;">{{ gtitle }}</div>
+                  {% if gdesc %}<div style="font-size:11px;color:#94a3b8;margin-top:2px;">{{ gdesc }}</div>{% endif %}
+                </td>
+                <td style="padding:10px 12px;text-align:right;font-weight:700;color:#16a34a;">₹{{ "%.2f"|format(gamount) }}</td>
+                <td style="padding:10px 12px;text-align:center;">
+                  {% if gactive %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">Active</span>
+                  {% else %}<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">Inactive</span>{% endif %}
+                </td>
+                <td style="padding:10px 12px;text-align:center;">
+                  <div style="display:flex;gap:6px;justify-content:center;">
+                  <button type="button" onclick="openGoalEdit({{ gid }},'{{ gtitle|replace("'","\\'") }}','{{ (gdesc or '')|replace("'","\\'") }}',{{ gamount }},{{ gactive }})"
+                    style="padding:4px 10px;border:none;border-radius:6px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:600;cursor:pointer;">✏️ Edit</button>
+                  <form method="POST" action="/delete_incentive_goal" style="display:inline;">
+                    <input type="hidden" name="goal_id" value="{{ gid }}" />
+                    <button type="submit" onclick="return confirm('Delete this goal? All awards for this goal will also be deleted.')"
+                      style="padding:4px 10px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">🗑</button>
+                  </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div style="text-align:center;padding:30px;color:#94a3b8;">No goals defined yet.</div>
+          {% endif %}
+        </div>
+
+      </div><!-- /two-col -->
+
+      <!-- Award Incentive -->
+      <div class="section">
+        <div class="section-title">🎁 Award Incentive to Employee</div>
+        <form method="POST" action="/award_incentive" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;align-items:end;">
+          <div class="field" style="margin:0;">
+            <label>Employee</label>
+            <select name="employee_id" required>
+              <option value="">— Select Employee —</option>
+              {% for e in emp_list %}
+              <option value="{{ e.emp_id }}">{{ e.name }} ({{ e.emp_id }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Goal / Task Completed</label>
+            <select name="goal_id" required id="awardGoalSel" onchange="prefillAwardAmount(this)">
+              <option value="">— Select Goal —</option>
+              {% for gid, gtitle, gdesc, gamount, gactive in incentive_goals %}
+              {% if gactive %}
+              <option value="{{ gid }}" data-amount="{{ gamount }}">{{ gtitle }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Month</label>
+            <select name="month">
+              {% set cur_month = now_month|default(6) %}
+              {% for mn in range(1,13) %}
+              <option value="{{ mn }}" {% if mn == cur_month %}selected{% endif %}>
+                {{ ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mn] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Year</label>
+            <select name="year">
+              {% set cur_year = now_year|default(2026) %}
+              {% for y in range(cur_year - 1, cur_year + 2) %}
+              <option value="{{ y }}" {% if y == cur_year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Amount ₹ <span style="font-size:10px;color:#94a3b8;">(blank = goal default)</span></label>
+            <input type="number" name="amount" id="awardAmount" placeholder="Auto" min="0" step="0.01" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Notes (optional)</label>
+            <input type="text" name="notes" placeholder="e.g. Exceeded monthly target" maxlength="255" />
+          </div>
+          <div>
+            <button type="submit" class="btn-add" style="width:100%;margin-top:2px;">🎁 Award Incentive</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Recent Awards -->
+      <div class="section">
+        <div class="section-title">📊 Recent Incentive Awards ({{ recent_incentives | length }})</div>
+        {% if recent_incentives %}
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px;">
+            <thead>
+              <tr style="background:#dbeafe;">
+                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Employee</th>
+                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Goal / Task</th>
+                <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Period</th>
+                <th style="padding:9px 12px;text-align:right;color:#1e3a8a;">Amount</th>
+                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Notes</th>
+                <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% set mnames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+            {% for iid, iname, igoal, imon, iyr, iamt, inotes, idate in recent_incentives %}
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:10px 12px;font-weight:600;color:#1e293b;">{{ iname }}</td>
+              <td style="padding:10px 12px;color:#1e3a8a;">{{ igoal }}</td>
+              <td style="padding:10px 12px;text-align:center;color:#475569;">{{ mnames[imon] }} {{ iyr }}</td>
+              <td style="padding:10px 12px;text-align:right;font-weight:700;color:#16a34a;">₹{{ "%.2f"|format(iamt) }}</td>
+              <td style="padding:10px 12px;font-size:12px;color:#64748b;">{{ inotes or '—' }}</td>
+              <td style="padding:10px 12px;text-align:center;">
+                <form method="POST" action="/delete_incentive" style="display:inline;">
+                  <input type="hidden" name="incentive_id" value="{{ iid }}" />
+                  <button type="submit" onclick="return confirm('Remove this incentive award?')"
+                    style="padding:4px 10px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">🗑 Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:30px;color:#94a3b8;">No incentives awarded yet. Award incentives above after employees complete their goals.</div>
+        {% endif %}
+      </div>
+
+    </div><!-- /tab-incentives -->
+
   </div><!-- /main -->
 
   <!-- ══ SHIFT EDIT MODAL ══ -->
@@ -804,9 +983,9 @@
     }
     /* Fix tab button matching */
     (function() {
-      var tabMap = { email: 0, shifts: 1, breaks: 2, salary: 3, announcements: 4 };
       var btns = document.querySelectorAll('.tab-btn');
-      ['email','shifts','breaks','salary','announcements'].forEach(function(id, i) {
+      ['email','shifts','breaks','salary','announcements','incentives'].forEach(function(id, i) {
+        if (!btns[i]) return;
         btns[i].onclick = function() {
           document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
           btns.forEach(function(b) { b.classList.remove('active'); });
@@ -817,6 +996,25 @@
         };
       });
     })();
+
+    /* ── INCENTIVE GOAL EDIT ── */
+    function openGoalEdit(id, title, desc, amount, active) {
+      document.getElementById('ge_id').value     = id;
+      document.getElementById('ge_title').value  = title;
+      document.getElementById('ge_desc').value   = desc;
+      document.getElementById('ge_amount').value = amount;
+      document.getElementById('ge_active').checked = !!active;
+      document.getElementById('goalEditModal').style.display = 'flex';
+    }
+    function closeGoalEdit() { document.getElementById('goalEditModal').style.display = 'none'; }
+
+    /* ── AWARD AMOUNT PREFILL ── */
+    function prefillAwardAmount(sel) {
+      var opt = sel.options[sel.selectedIndex];
+      var amt = opt ? opt.getAttribute('data-amount') : '';
+      var inp = document.getElementById('awardAmount');
+      if (inp) inp.placeholder = amt ? '₹' + parseFloat(amt).toFixed(2) + ' (default)' : 'Auto';
+    }
 
     /* ── TEST EMAIL ── */
     function sendTestEmail() {
@@ -955,5 +1153,36 @@
       });
     }
   </script>
+
+  <!-- ══ GOAL EDIT MODAL ══ -->
+  <div class="modal-bg" id="goalEditModal" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">✏️ Edit Incentive Goal</div>
+      <form method="POST" action="/edit_incentive_goal">
+        <input type="hidden" name="goal_id" id="ge_id" />
+        <div class="field">
+          <label>Goal Title</label>
+          <input type="text" name="title" id="ge_title" required maxlength="150" />
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <textarea name="description" id="ge_desc" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label>Default Incentive Amount (₹)</label>
+          <input type="number" name="incentive_amount" id="ge_amount" min="0" step="0.01" required />
+        </div>
+        <div class="toggle-row">
+          <input type="checkbox" id="ge_active" name="is_active" value="1" />
+          <span>Active (available for awarding)</span>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeGoalEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-submit">💾 Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </body>
 </html>

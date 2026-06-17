@@ -183,9 +183,10 @@
       </form>
 
       <!-- SUMMARY TOTALS -->
-      {% set total_gross = salary_data | sum(attribute='gross') %}
-      {% set total_ded   = salary_data | sum(attribute='deduction') %}
-      {% set total_net   = salary_data | sum(attribute='net') %}
+      {% set total_gross     = salary_data | sum(attribute='gross') %}
+      {% set total_ded       = salary_data | sum(attribute='deduction') %}
+      {% set total_net       = salary_data | sum(attribute='net') %}
+      {% set total_incentive = salary_data | map(attribute='incentive', default=0) | sum %}
 
       <div class="summary">
         <div class="sum-card c-blue">
@@ -200,6 +201,12 @@
           <div class="num">₹{{ "%.0f" | format(total_ded) }}</div>
           <div class="lbl">📉 Total Deductions</div>
         </div>
+        {% if total_incentive > 0 %}
+        <div class="sum-card c-green">
+          <div class="num">₹{{ "%.0f" | format(total_incentive) }}</div>
+          <div class="lbl">🏆 Total Incentives</div>
+        </div>
+        {% endif %}
         <div class="sum-card c-green">
           <div class="num">₹{{ "%.0f" | format(total_net) }}</div>
           <div class="lbl">✅ Total Net Payable</div>
@@ -219,12 +226,12 @@
                 <th rowspan="2">Daily Rate</th>
                 <th rowspan="2">Work Days</th>
                 <th colspan="4" class="group-head">Attendance Days</th>
-                <th colspan="4" class="group-head">Earnings (₹)</th>
+                <th colspan="5" class="group-head">Earnings (₹)</th>
                 <th rowspan="2">Action</th>
               </tr>
               <tr>
                 <th>Full</th><th>Late</th><th>Half</th><th>Absent</th>
-                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th>Net Payable</th>
+                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th style="color:#16a34a;">🏆 Incentive</th><th>Net Payable</th>
               </tr>
             </thead>
             <tbody id="salaryTbody">
@@ -270,6 +277,11 @@
                   title="{{ e.half_days }} days × ₹{{ '%.2f'|format(e.spd) }} × 50%">
                   ₹{{ "%.2f" | format(e.half_earn) }}
                 </td>
+                {% if (e.incentive | default(0)) > 0 %}
+                <td style="color:#16a34a;font-weight:700;" title="Incentive bonus for tasks/goals completed">+₹{{ "%.2f" | format(e.incentive) }}</td>
+                {% else %}
+                <td style="color:#94a3b8;">—</td>
+                {% endif %}
                 <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
                 <td>
                   {% if email_configured and e.email %}
@@ -293,15 +305,17 @@
               {% endfor %}
             </tbody>
             {% if salary_data %}
-            {% set total_full_earn = salary_data | sum(attribute='full_earn') %}
-            {% set total_late_earn = salary_data | sum(attribute='late_earn') %}
-            {% set total_half_earn = salary_data | sum(attribute='half_earn') %}
+            {% set total_full_earn  = salary_data | sum(attribute='full_earn') %}
+            {% set total_late_earn  = salary_data | sum(attribute='late_earn') %}
+            {% set total_half_earn  = salary_data | sum(attribute='half_earn') %}
+            {% set total_incentive  = salary_data | map(attribute='incentive', default=0) | sum %}
             <tfoot>
               <tr class="total-row">
                 <td colspan="7">TOTAL</td>
                 <td class="amt-gross">₹{{ "%.2f" | format(total_full_earn) }}</td>
                 <td class="amt-late-total">₹{{ "%.2f" | format(total_late_earn) }}</td>
                 <td class="amt-late-total">₹{{ "%.2f" | format(total_half_earn) }}</td>
+                <td style="color:#16a34a;font-weight:700;">{% if total_incentive > 0 %}+₹{{ "%.2f" | format(total_incentive) }}{% else %}—{% endif %}</td>
                 <td class="amt-net">₹{{ "%.2f" | format(total_net) }}</td>
                 <td></td>
               </tr>

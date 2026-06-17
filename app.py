@@ -340,6 +340,28 @@ def init_db():
             is_active TINYINT(1) DEFAULT 1
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS incentive_goals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(150) NOT NULL,
+            description TEXT,
+            incentive_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+            is_active TINYINT(1) DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_incentives (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            goal_id INT NOT NULL,
+            month INT NOT NULL,
+            year INT NOT NULL,
+            amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+            notes TEXT,
+            awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
     # Seed default breaks if table is empty
     cursor.execute("SELECT COUNT(*) FROM break_config")
@@ -671,6 +693,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
       <tr><td>Late Days ({e['late_days']} days × Rs. {e['spd']:.2f} × 90%)</td><td class="yellow">Rs. {e['late_earn']:.2f}</td></tr>
       <tr><td>Half Days ({e['half_days']} days × Rs. {e['spd']:.2f} × 50%)</td><td class="yellow">Rs. {e['half_earn']:.2f}</td></tr>
       <tr><td>Absent ({e['absent']} days × Rs. 0.00)</td><td class="red">Rs. 0.00</td></tr>
+      {f'<tr><td>🏆 Incentive Bonus (Tasks &amp; Goals)</td><td class="green">+ Rs. {e["incentive"]:.2f}</td></tr>' if e.get('incentive', 0) > 0 else ''}
       <tr class="net-row"><td>Net Payable Amount</td><td>Rs. {e['net']:.2f}</td></tr>
     </table>
   </div>
@@ -741,6 +764,13 @@ def build_attendance_email(employee_name, emp_id, action, status, time_str, toda
     <p style="font-size:12px;color:#94a3b8;text-align:center;">This is an automated message. Please do not reply.</p>
   </div>
 </div>"""
+
+def get_employee_incentive_total(cursor, emp_id, year, month):
+    cursor.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s AND month=%s",
+        (emp_id, year, month)
+    )
+    return float(cursor.fetchone()[0])
 
 def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                          holidays_set=None, leave_dates=None):
@@ -1389,6 +1419,21 @@ def settings_page():
     cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
     ann_list = cursor.fetchall()
 
+    # Incentive goals
+    cursor.execute("SELECT id, title, description, incentive_amount, is_active FROM incentive_goals ORDER BY created_at DESC")
+    incentive_goals = cursor.fetchall()
+
+    # Recent incentive awards (last 100)
+    cursor.execute("""
+        SELECT ei.id, e.name, ig.title, ei.month, ei.year, ei.amount, ei.notes, ei.awarded_at
+        FROM employee_incentives ei
+        JOIN employees e ON ei.employee_id = e.employee_id
+        JOIN incentive_goals ig ON ei.goal_id = ig.id
+        ORDER BY ei.awarded_at DESC
+        LIMIT 100
+    """)
+    recent_incentives = cursor.fetchall()
+
     # Pending counts
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
@@ -1406,6 +1451,8 @@ def settings_page():
         breaks=breaks,
         salaries=salaries,
         ann_list=ann_list,
+        incentive_goals=incentive_goals,
+        recent_incentives=recent_incentives,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
@@ -1413,7 +1460,99 @@ def settings_page():
         default_start=SHIFT_START.strftime("%H:%M"),
         default_half=SHIFT_HALF.strftime("%H:%M"),
         default_end=SHIFT_END.strftime("%H:%M"),
+        now_month=datetime.date.today().month,
+        now_year=datetime.date.today().year,
     )
+
+# ---------------- INCENTIVES ----------------
+
+@app.route("/add_incentive_goal", methods=["POST"])
+@admin_required
+def add_incentive_goal():
+    title  = request.form.get("title", "").strip()
+    desc   = request.form.get("description", "").strip()
+    amount = request.form.get("incentive_amount", "0").strip()
+    if not title:
+        return redirect("/settings?tab=incentives")
+    try:
+        amount = float(amount)
+    except ValueError:
+        amount = 0.0
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO incentive_goals (title, description, incentive_amount) VALUES (%s,%s,%s)",
+        (title, desc, amount)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=incentives&saved=1")
+
+@app.route("/edit_incentive_goal", methods=["POST"])
+@admin_required
+def edit_incentive_goal():
+    gid    = request.form.get("goal_id")
+    title  = request.form.get("title", "").strip()
+    desc   = request.form.get("description", "").strip()
+    amount = request.form.get("incentive_amount", "0").strip()
+    active = 1 if request.form.get("is_active") else 0
+    try:
+        amount = float(amount)
+    except ValueError:
+        amount = 0.0
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE incentive_goals SET title=%s, description=%s, incentive_amount=%s, is_active=%s WHERE id=%s",
+        (title, desc, amount, active, gid)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=incentives&saved=1")
+
+@app.route("/delete_incentive_goal", methods=["POST"])
+@admin_required
+def delete_incentive_goal():
+    gid = request.form.get("goal_id")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM employee_incentives WHERE goal_id=%s", (gid,))
+    cursor.execute("DELETE FROM incentive_goals WHERE id=%s", (gid,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=incentives")
+
+@app.route("/award_incentive", methods=["POST"])
+@admin_required
+def award_incentive():
+    emp_id = request.form.get("employee_id", "").strip()
+    goal_id = request.form.get("goal_id", "").strip()
+    month  = int(request.form.get("month", datetime.date.today().month))
+    year   = int(request.form.get("year",  datetime.date.today().year))
+    amount = request.form.get("amount", "").strip()
+    notes  = request.form.get("notes", "").strip()
+    if not emp_id or not goal_id:
+        return redirect("/settings?tab=incentives")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    # If amount not given, use the goal's default amount
+    if not amount:
+        cursor.execute("SELECT incentive_amount FROM incentive_goals WHERE id=%s", (goal_id,))
+        row = cursor.fetchone()
+        amount = float(row[0]) if row else 0.0
+    else:
+        try:
+            amount = float(amount)
+        except ValueError:
+            amount = 0.0
+    cursor.execute(
+        "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",
+        (emp_id, goal_id, month, year, amount, notes)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=incentives&saved=1")
+
+@app.route("/delete_incentive", methods=["POST"])
+@admin_required
+def delete_incentive():
+    inc_id = request.form.get("incentive_id")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM employee_incentives WHERE id=%s", (inc_id,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=incentives")
 
 # ---------------- ANNOUNCEMENTS ----------------
 @app.route("/announcements", methods=["GET", "POST"])
@@ -2499,11 +2638,27 @@ def salary_report():
     holidays_set  = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
 
+    # Fetch all incentives for this month in one query
+    try:
+        db2     = get_db_connection()
+        cursor2 = db2.cursor(buffered=True)
+        cursor2.execute(
+            "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives WHERE year=%s AND month=%s GROUP BY employee_id",
+            (year, month)
+        )
+        incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
+        cursor2.close(); db2.close()
+    except Exception:
+        incentive_map = {}
+
     salary_data = []
     for emp_id, name, email, spd, role, phone in employees:
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                      holidays_set=holidays_set,
                                      leave_dates=leave_map.get(emp_id, set()))
+        inc = incentive_map.get(emp_id, 0.0)
+        entry["incentive"] = inc
+        entry["net"]       = round(entry["net"] + inc, 2)
         entry["email"] = email
         entry["role"]  = role
         entry["phone"] = phone
@@ -3482,6 +3637,25 @@ def employee_portal():
             'holidays':   m_hols,
         })
 
+    # Employee's own incentive history
+    try:
+        cursor.execute("""
+            SELECT ig.title, ig.description, ei.month, ei.year, ei.amount, ei.notes, ei.awarded_at
+            FROM employee_incentives ei
+            JOIN incentive_goals ig ON ei.goal_id = ig.id
+            WHERE ei.employee_id = %s
+            ORDER BY ei.year DESC, ei.month DESC, ei.awarded_at DESC
+        """, (emp_id,))
+        my_incentives = cursor.fetchall()
+        cursor.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s",
+            (emp_id, today.year)
+        )
+        total_incentive_year = float(cursor.fetchone()[0])
+    except Exception:
+        my_incentives = []
+        total_incentive_year = 0.0
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -3534,6 +3708,8 @@ def employee_portal():
         hol_year=hol_year,
         emp_hol_cal=emp_hol_cal,
         all_holidays_list=hol_rows,
+        my_incentives=my_incentives,
+        total_incentive_year=total_incentive_year,
     )
 
 
@@ -3554,6 +3730,25 @@ def my_payslip_summary(year, month):
         FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
     """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
     att_rows = cursor.fetchall()
+
+    # Incentive total for this employee/month
+    try:
+        cursor.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s AND month=%s",
+            (emp_id, year, month)
+        )
+        incentive = float(cursor.fetchone()[0])
+        cursor.execute("""
+            SELECT ig.title, ei.amount, ei.notes
+            FROM employee_incentives ei
+            JOIN incentive_goals ig ON ei.goal_id = ig.id
+            WHERE ei.employee_id=%s AND ei.year=%s AND ei.month=%s
+        """, (emp_id, year, month))
+        incentive_details = [{"title": r[0], "amount": float(r[1]), "notes": r[2] or ""} for r in cursor.fetchall()]
+    except Exception:
+        incentive = 0.0
+        incentive_details = []
+
     cursor.close(); db.close()
 
     att_map = {r[0]: r for r in att_rows}
@@ -3572,13 +3767,14 @@ def my_payslip_summary(year, month):
     half_earn = round(half * spd * 0.5, 2)
     gross = full_earn + late_earn + half_earn
     pf = round(gross * 0.12, 2)
-    net = round(gross - pf, 2)
+    net = round(gross - pf + incentive, 2)
 
     return _json.dumps({
         "salary_per_day": spd,
         "full_days": full, "late_days": late, "half_days": half,
         "full_earn": full_earn, "late_earn": late_earn, "half_earn": half_earn,
-        "gross": gross, "pf": pf, "net": net
+        "gross": gross, "pf": pf, "incentive": incentive,
+        "incentive_details": incentive_details, "net": net
     }), 200, {"Content-Type": "application/json"}
 
 
