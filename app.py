@@ -23,6 +23,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import threading
 import io as _io
+from werkzeug.exceptions import HTTPException
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
@@ -672,17 +673,69 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
 # ---------------- ERROR HANDLERS ----------------
 import traceback as _traceback
 
+def _error_page(code, icon, title, subtitle, hint):
+    back_admin = session.get("admin_logged_in")
+    back_emp   = session.get("employee_id")
+    back_link  = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")
+    back_label = "Go to Admin Dashboard" if back_admin else ("Go to My Portal" if back_emp else "Go to Home")
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{code} – {title}</title>
+<style>
+  *{{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}}
+  body{{min-height:100vh;background:#f1f5f9;display:flex;align-items:center;justify-content:center;}}
+  .box{{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:52px 44px;text-align:center;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.08);}}
+  .icon{{font-size:72px;margin-bottom:18px;}}
+  .code{{font-size:80px;font-weight:900;line-height:1;color:#1e3a8a;margin-bottom:6px;}}
+  .title{{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:8px;}}
+  .sub{{font-size:14px;color:#64748b;margin-bottom:6px;line-height:1.6;}}
+  .hint{{font-size:12px;color:#94a3b8;margin-bottom:28px;}}
+  a.btn{{display:inline-block;padding:12px 28px;background:#1e3a8a;color:#fff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;transition:0.2s;margin:4px;}}
+  a.btn:hover{{background:#1d4ed8;}}
+  a.sec{{display:inline-block;padding:12px 20px;background:#f1f5f9;color:#374151;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;transition:0.2s;margin:4px;border:1px solid #e2e8f0;}}
+  a.sec:hover{{background:#e2e8f0;}}
+</style></head><body>
+<div class="box">
+  <div class="icon">{icon}</div>
+  <div class="code">{code}</div>
+  <div class="title">{title}</div>
+  <div class="sub">{subtitle}</div>
+  <div class="hint">{hint}</div>
+  <a href="{back_link}" class="btn">{back_label}</a>
+  <a href="javascript:history.back()" class="sec">← Go Back</a>
+</div>
+</body></html>""", code
+
+@app.errorhandler(404)
+def not_found(e):
+    return _error_page(404, "🔍", "Page Not Found",
+        "The page you're looking for doesn't exist or has been moved.",
+        "Check the URL or use one of the links below to get back on track.")
+
+@app.errorhandler(403)
+def forbidden(e):
+    return _error_page(403, "🔒", "Access Denied",
+        "You don't have permission to access this page.",
+        "Please log in with the right account or contact your administrator.")
+
 @app.errorhandler(500)
 def internal_error(e):
     tb = _traceback.format_exc()
     print("[500 ERROR]", tb)
-    return f"<h2>500 – Internal Server Error</h2><pre style='color:red'>{tb}</pre>", 500
+    return _error_page(500, "⚙️", "Internal Server Error",
+        "Something went wrong on our end. The error has been logged.",
+        "Please try again in a moment or contact your administrator.")
 
 @app.errorhandler(Exception)
 def unhandled_exception(e):
+    if isinstance(e, HTTPException):
+        return _error_page(e.code, "⚠️", e.name, e.description,
+            "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
     print("[UNHANDLED]", tb)
-    return f"<h2>Error: {type(e).__name__}: {e}</h2><pre style='color:red'>{tb}</pre>", 500
+    return _error_page(500, "⚙️", "Unexpected Error",
+        f"{type(e).__name__}: {e}",
+        "The error has been logged. Please try again or contact your administrator.")
 
 # ---------------- HOME ----------------
 @app.route("/")
