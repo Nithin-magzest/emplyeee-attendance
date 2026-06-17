@@ -2374,8 +2374,10 @@
         const d = new Date();
         d.setDate(d.getDate() + 1);
         const iso = d.toISOString().split('T')[0];
-        document.getElementById('leave-date').value = iso;
-        document.getElementById('leave-date').min   = iso;
+        var _ldEl = document.getElementById('leave-date-start') || document.getElementById('leave-date');
+        if (_ldEl) { _ldEl.value = iso; _ldEl.min = iso; }
+        var _ldEl2 = document.getElementById('leave-date-end');
+        if (_ldEl2) { _ldEl2.min = iso; }
       })();
 
       // Reason chip selection
