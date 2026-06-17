@@ -645,16 +645,6 @@
 
       </div>
 
-      <!-- MONTHLY STATS -->
-      <div class="stats">
-        <div class="stat-card"><div class="stat-icon si-green">✅</div><div><div class="stat-num sn-green">{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
-        <div class="stat-card"><div class="stat-icon si-yellow">⚠️</div><div><div class="stat-num sn-yellow">{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
-        <div class="stat-card"><div class="stat-icon si-yellow">🔶</div><div><div class="stat-num sn-yellow">{{ half_days }}</div><div class="stat-lbl">Half Days</div></div></div>
-        <div class="stat-card"><div class="stat-icon si-red">❌</div><div><div class="stat-num sn-red">{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
-        <div class="stat-card"><div class="stat-icon si-blue">📈</div><div><div class="stat-num sn-blue">{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
-        <div class="stat-card"><div class="stat-icon si-blue">⏱</div><div><div class="stat-num stat-num-sm sn-blue">{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
-      </div>
-
       <!-- DONUT + HOLIDAYS ROW -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
 
@@ -732,6 +722,16 @@
           {% endif %}
         </div>
 
+      </div>
+
+      <!-- MONTHLY STATS -->
+      <div class="stats">
+        <div class="stat-card"><div class="stat-icon si-green">✅</div><div><div class="stat-num sn-green">{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-yellow">⚠️</div><div><div class="stat-num sn-yellow">{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-yellow">🔶</div><div><div class="stat-num sn-yellow">{{ half_days }}</div><div class="stat-lbl">Half Days</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-red">❌</div><div><div class="stat-num sn-red">{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-blue">📈</div><div><div class="stat-num sn-blue">{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-blue">⏱</div><div><div class="stat-num stat-num-sm sn-blue">{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
       </div>
 
       <!-- Announcements widget -->

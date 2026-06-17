@@ -764,7 +764,8 @@
       function showPreview(target, url) {
         document.getElementById(target+"PreviewImg").src = url;
         document.getElementById(target+"PreviewImg").style.display = "block";
-        document.getElementById(target+"PreviewText").style.display = "none";
+        const txt = document.getElementById(target+"PreviewText");
+        if (txt && txt.parentElement) txt.parentElement.style.display = "none";
       }
       async function openCameraModal(target) {
         _camTarget = target; _capturedBlob = null;
