@@ -3765,24 +3765,74 @@ def leave_requests_view():
 @admin_required
 def leave_action(lid):
     action = request.form.get("action", "")
-    if action in ("Approved", "Rejected"):
-        db     = get_db_connection()
-        cursor = db.cursor(buffered=True)
-        cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-        if action == "Approved":
-            cursor.execute(
-                "SELECT employee_id, leave_date FROM leave_requests WHERE id=%s", (lid,)
-            )
-            row = cursor.fetchone()
-            if row:
-                emp_id, leave_date = row
-                cursor.execute("""
-                    INSERT INTO attendance (employee_id, date, attendance_type)
-                    VALUES (%s, %s, 'Approved Leave')
-                    ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
-                """, (emp_id, leave_date))
-        db.commit()
-        cursor.close(); db.close()
+    if action not in ("Approved", "Rejected"):
+        return redirect("/leave_requests")
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Fetch leave + employee details before updating
+    cursor.execute("""
+        SELECT lr.employee_id, lr.leave_date, lr.reason,
+               e.name, e.email
+        FROM leave_requests lr
+        JOIN employees e ON e.employee_id = lr.employee_id
+        WHERE lr.id = %s
+    """, (lid,))
+    leave_row = cursor.fetchone()
+
+    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+
+    if action == "Approved" and leave_row:
+        emp_id, leave_date, _, _, _ = leave_row
+        cursor.execute("""
+            INSERT INTO attendance (employee_id, date, attendance_type)
+            VALUES (%s, %s, 'Approved Leave')
+            ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
+        """, (emp_id, leave_date))
+
+    db.commit()
+    cursor.close(); db.close()
+
+    # Send email notification to employee
+    if leave_row:
+        emp_id, leave_date, reason, emp_name, emp_email = leave_row
+        if emp_email:
+            cfg = get_email_config()
+            if cfg:
+                color   = "#16a34a" if action == "Approved" else "#dc2626"
+                icon    = "✅" if action == "Approved" else "❌"
+                heading = f"{icon} Leave {action}"
+                msg_line = (
+                    f"Your leave request for <strong>{leave_date.strftime('%d %b %Y')}</strong> has been <strong style='color:{color};'>{action.lower()}</strong>."
+                    if action == "Approved"
+                    else f"Your leave request for <strong>{leave_date.strftime('%d %b %Y')}</strong> has been <strong style='color:{color};'>rejected</strong>."
+                )
+                html_body = f"""
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
+  <div style="background:linear-gradient(135deg,{color},{color}cc);padding:24px;color:white;text-align:center;">
+    <h2 style="margin:0;font-size:22px;">{heading}</h2>
+    <p style="margin:4px 0 0;opacity:.85;font-size:13px;">Employee Attendance System</p>
+  </div>
+  <div style="padding:28px 32px;">
+    <p style="font-size:15px;color:#1e293b;">Hi <strong>{emp_name}</strong>,</p>
+    <p style="font-size:14px;color:#475569;margin-top:10px;">{msg_line}</p>
+    <div style="background:#f8fafc;border-left:4px solid {color};border-radius:8px;padding:14px 18px;margin:20px 0;">
+      <p style="margin:0;font-size:13px;color:#64748b;">📅 <strong>Date:</strong> {leave_date.strftime('%d %b %Y')}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📝 <strong>Reason:</strong> {reason or '—'}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📌 <strong>Status:</strong> <span style="color:{color};font-weight:700;">{action}</span></p>
+    </div>
+    <p style="font-size:13px;color:#94a3b8;margin-top:20px;">For queries, contact your HR administrator.</p>
+  </div>
+  <div style="background:#f1f5f9;padding:14px;text-align:center;font-size:11px;color:#94a3b8;">
+    Employee Attendance System &bull; Automated Notification
+  </div>
+</div>"""
+                try:
+                    send_email_async(emp_email, f"Leave {action} — {leave_date.strftime('%d %b %Y')}", html_body, cfg)
+                except Exception as _e:
+                    print(f"[EMAIL ERROR] Leave notification failed: {_e}")
+
     return redirect("/leave_requests")
 
 
