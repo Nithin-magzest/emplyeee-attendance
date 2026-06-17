@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Admin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+    body { background: #f1f5f9; min-height: 100vh; display: flex; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+      background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+      padding: 22px 14px; color: white;
+      display: flex; flex-direction: column; flex-shrink: 0;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
+    .brand-icon { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+    .brand     { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+    .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    .nav-group-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin: 14px 0 4px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s; position: relative; }
+    .nav-item:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
+    .nav-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); }
+    .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
+    .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
+    .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+    .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+    .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
+
+    /* ── MAIN ── */
+    .main { flex: 1; padding: 28px 30px; overflow-x: hidden; min-width: 0; }
+    .page-header { margin-bottom: 20px; }
+    .page-header h1 { font-size: 24px; font-weight: 800; color: #0f172a; }
+    .page-header p  { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      background: #fff; border: 1px solid #dbeafe; border-radius: 14px;
+      padding: 10px 12px; margin-bottom: 22px;
+    }
+    .tab-btn {
+      padding: 9px 18px; border: none; border-radius: 10px;
+      background: transparent; color: #64748b;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.18s;
+    }
+    .tab-btn:hover { background: #f1f5f9; color: #1e293b; }
+    .tab-btn.active { background: #1e3a8a; color: #fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── FLASH ── */
+    .flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; font-size: 14px; font-weight: 600; }
+    .flash-green { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .flash-red   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    /* ── SECTION CARD ── */
+    .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 20px; }
+    .section-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+    /* ── FORM FIELDS ── */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .field input[type="text"],
+    .field input[type="email"],
+    .field input[type="number"],
+    .field input[type="time"],
+    .field input[type="password"],
+    .field input[type="date"],
+    .field select,
+    .field textarea {
+      width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
+      background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #93c5fd; background: #fff; }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .time-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .field-note { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+
+    /* ── BUTTONS ── */
+    .btn-submit { padding: 10px 22px; border: none; border-radius: 10px; background: #1e3a8a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+    .btn-submit:hover { background: #1e40af; transform: translateY(-1px); }
+    .btn-save   { padding: 9px 18px; border: none; border-radius: 8px; background: #22c55e; color: white; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+    .btn-save:hover { background: #16a34a; }
+    .btn-edit   { padding: 5px 12px; border: 1px solid #93c5fd; border-radius: 7px; background: #dbeafe; color: #1d4ed8; font-size: 12px; cursor: pointer; transition: 0.2s; }
+    .btn-edit:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .btn-del    { padding: 5px 11px; border: 1px solid #fca5a5; border-radius: 7px; background: #fee2e2; color: #dc2626; font-size: 12px; cursor: pointer; transition: 0.2s; }
+    .btn-del:hover { background: #ef4444; color: #fff; }
+    .btn-add    { padding: 10px 22px; border: none; border-radius: 10px; background: #6366f1; color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+    .btn-add:hover { background: #4f46e5; transform: translateY(-1px); }
+    .btn-cancel-sm { padding: 5px 12px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f1f5f9; color: #64748b; font-size: 12px; cursor: pointer; }
+    .btn-test   { padding: 9px 18px; border: none; border-radius: 8px; background: #6366f1; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 700; white-space: nowrap; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #eff6ff; }
+    .empty-row { text-align: center; padding: 28px; color: #94a3b8; }
+
+    /* ── BADGES ── */
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .b-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+    .b-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .b-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+    .b-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+    .b-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .b-purple { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
+
+    /* ── SHIFT LIST ── */
+    .shift-list { display: flex; flex-direction: column; gap: 8px; }
+    .shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; }
+    .shift-item.default-shift { background: #f0fdf4; border-color: #86efac; }
+    .shift-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .shift-times { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #64748b; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; }
+    .dot-green { background: #22c55e; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-red { background: #ef4444; }
+    .shift-actions { display: flex; gap: 7px; flex-shrink: 0; margin-left: 10px; }
+    .emp-badge { display: inline-block; background: #dbeafe; color: #1e40af; border-radius: 20px; font-size: 10px; font-weight: 700; padding: 1px 7px; margin-left: 6px; }
+
+    /* ── BREAK LIST ── */
+    .break-list { display: flex; flex-direction: column; gap: 8px; }
+    .break-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; }
+    .break-item.inactive { opacity: 0.55; }
+    .break-icon { font-size: 20px; flex-shrink: 0; }
+    .break-info { flex: 1; min-width: 0; }
+    .break-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
+    .break-meta { font-size: 12px; color: #64748b; display: flex; gap: 12px; }
+    .break-badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 10px; font-weight: 700; background: #dbeafe; color: #1e40af; margin-left: 6px; }
+    .break-badge.lunch { background: #fef3c7; color: #92400e; }
+    .break-actions { display: flex; gap: 7px; flex-shrink: 0; }
+    .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; color: #1e293b; }
+    .toggle-row input { width: 16px; height: 16px; accent-color: #1e3a8a; }
+
+    /* ── SALARY ── */
+    .salary-stack { display: flex; flex-direction: column; gap: 2px; }
+    .s-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .s-row .lbl { font-size: 10px; color: #94a3b8; min-width: 50px; }
+    .s-day { font-weight: 800; color: #16a34a; font-size: 14px; }
+    .s-mon { font-weight: 700; color: #2563eb; }
+    .s-yr  { font-weight: 800; color: #7c3aed; }
+    .lpa-txt { font-size: 10px; color: #a78bfa; }
+    .rev-badge { font-size: 10px; color: #7c3aed; background: #f3e8ff; border: 1px solid #ddd6fe; border-radius: 20px; padding: 1px 7px; font-weight: 600; margin-top: 2px; display: inline-block; }
+    .rev-badge.muted { color: #94a3b8; background: #f8fafc; border-color: #e2e8f0; }
+    .edit-form { display: none; flex-direction: column; gap: 7px; margin-top: 6px; min-width: 240px; }
+    .edit-form.open { display: flex; }
+    .ef-row { display: flex; align-items: center; gap: 8px; }
+    .ef-lbl { font-size: 11px; color: #64748b; min-width: 80px; font-weight: 600; flex-shrink: 0; }
+    .ef-inp { flex: 1; padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; min-width: 0; }
+    .ef-inp:focus { border-color: #93c5fd; background: #fff; }
+    .ef-hint { font-size: 10px; color: #94a3b8; padding-left: 88px; }
+    .ef-btns { display: flex; gap: 7px; }
+
+    /* ── ANNOUNCEMENTS ── */
+    .ann-card { display: flex; gap: 12px; padding: 14px 16px; border-radius: 12px; margin-bottom: 10px; }
+    .ann-card.priority-urgent   { background: #fff5f5; border-left: 4px solid #ef4444; border: 1px solid #fca5a5; border-left: 4px solid #ef4444; }
+    .ann-card.priority-important { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; }
+    .ann-card.priority-normal   { background: #f0f7ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; }
+    .ann-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .ann-body { flex: 1; min-width: 0; }
+    .ann-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .ann-content { font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 8px; }
+    .ann-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #94a3b8; flex-wrap: wrap; }
+    .pri-normal    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .pri-important { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+    .pri-urgent    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    /* ── EMAIL TEST ── */
+    .test-card { background: #f8fafc; border: 1px solid #dbeafe; border-radius: 12px; padding: 16px; }
+    .test-row { display: flex; gap: 8px; margin-top: 10px; }
+    .test-row input { flex: 1; padding: 9px 12px; border: 1px solid #dbeafe; border-radius: 8px; background: #fff; font-size: 13px; outline: none; }
+    #testResult { margin-top: 8px; font-size: 13px; padding: 8px 12px; border-radius: 8px; display: none; }
+    #testResult.ok  { background: #dcfce7; color: #15803d; }
+    #testResult.err { background: #fee2e2; color: #dc2626; }
+
+    /* ── BULK ASSIGN BAR ── */
+    .bulk-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; margin-bottom: 14px; }
+    .bulk-bar label { font-size: 13px; color: #0369a1; font-weight: 600; }
+    .bulk-bar select { padding: 7px 10px; border: 1px solid #bae6fd; border-radius: 7px; background: #fff; font-size: 13px; }
+    .bulk-bar .btn-bulk { padding: 8px 18px; border: none; border-radius: 8px; background: #0369a1; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .saved-tick { font-size: 12px; color: #16a34a; font-weight: 700; display: none; }
+    .shift-select { padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; font-size: 12px; }
+
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; }
+    .search-wrap input { padding: 8px 12px 8px 32px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; font-size: 13px; outline: none; width: 200px; }
+    .search-wrap::before { content: '🔍'; position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+
+    /* ── MODAL ── */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 16px; padding: 24px; width: 440px; max-width: calc(100vw - 32px); box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+    .modal-title { font-size: 17px; font-weight: 700; color: #1e293b; margin-bottom: 18px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+      .time-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; }
+      .main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ SIDEBAR ══ -->
+  <div class="sidebar">
+    <div class="brand-wrap">
+      <div class="brand-icon">⚙️</div>
+      <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+    </div>
+    <div class="nav-group-label">Main</div>
+    <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+    <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+    <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+    <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+    <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
+    <div class="nav-group-label" style="margin-top:10px;">Settings</div>
+    <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
+    <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+    <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+    <div class="nav-group-label" style="margin-top:10px;">Requests</div>
+    <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
+      {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
+    </a>
+    <a class="nav-item" href="/resignation_requests"><span class="nav-icon">📤</span>Resignations
+      {% if (pending_resignations|default(0)) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
+    </a>
+    <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
+      {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
+    </a>
+    <hr class="nav-sep" style="margin-top:12px;" />
+    <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
+    <div class="sidebar-footer">⚙️ Admin Settings</div>
+  </div>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main">
+
+    <div class="page-header">
+      <h1>⚙️ Settings</h1>
+      <p>All system configuration in one place — Email, Shifts, Breaks, Salary &amp; Announcements.</p>
+    </div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in msgs %}
+        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% if saved %}
+      <div class="flash flash-green">✅ Settings saved successfully!</div>
+    {% endif %}
+
+    <!-- ── TAB BAR ── -->
+    <div class="tab-bar">
+      <button class="tab-btn {% if tab=='email' %}active{% endif %}" onclick="showTab('email')">✉️ Email</button>
+      <button class="tab-btn {% if tab=='shifts' %}active{% endif %}" onclick="showTab('shifts')">🕐 Shifts</button>
+      <button class="tab-btn {% if tab=='breaks' %}active{% endif %}" onclick="showTab('breaks')">☕ Breaks</button>
+      <button class="tab-btn {% if tab=='salary' %}active{% endif %}" onclick="showTab('salary')">💵 Salary</button>
+      <button class="tab-btn {% if tab=='announcements' %}active{% endif %}" onclick="showTab('announcements')">📢 Announcements</button>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: EMAIL
+    ══════════════════════════════════════ -->
+    <div id="tab-email" class="tab-panel {% if tab=='email' %}active{% endif %}">
+      <div class="two-col">
+
+        <!-- SMTP form -->
+        <div class="section">
+          <div class="section-title">📡 SMTP Configuration</div>
+          <form method="POST" action="/email_config">
+            <div class="field">
+              <label>SMTP Host</label>
+              <input type="text" name="smtp_host" placeholder="e.g. smtp.gmail.com" required
+                value="{{ email_config.host if email_config else '' }}" />
+            </div>
+            <div class="field">
+              <label>Port</label>
+              <input type="number" name="smtp_port" placeholder="587" required
+                value="{{ email_config.port if email_config else 587 }}" />
+            </div>
+            <div class="field">
+              <label>SMTP Username (Email)</label>
+              <input type="email" name="smtp_user" placeholder="you@gmail.com" required
+                value="{{ email_config.user if email_config else '' }}" />
+            </div>
+            <div class="field">
+              <label>SMTP Password / App Password</label>
+              <input type="password" name="smtp_pass" placeholder="••••••••••••" required
+                value="{{ email_config.password if email_config else '' }}" />
+            </div>
+            <div class="field">
+              <label>From Name <span style="font-weight:400;text-transform:none;color:#94a3b8;">(shown in email)</span></label>
+              <input type="text" name="from_name" placeholder="Attendance System"
+                value="{{ email_config.from_name if email_config else 'Attendance System' }}" />
+            </div>
+            <div class="field">
+              <label>From Email <span style="font-weight:400;text-transform:none;color:#94a3b8;">(sender address)</span></label>
+              <input type="email" name="from_email" placeholder="e.g. noreply@yourdomain.com"
+                value="{{ email_config.from_email if email_config else '' }}" />
+              <div class="field-note">For Brevo: use your verified sender email, not the SMTP login.</div>
+            </div>
+            <button type="submit" class="btn-submit">💾 Save Email Settings</button>
+          </form>
+        </div>
+
+        <!-- Test email -->
+        <div class="section">
+          <div class="section-title">🧪 Test Email</div>
+          {% if email_config %}
+          <div style="font-size:13px;color:#64748b;margin-bottom:14px;">
+            Current config: <strong>{{ email_config.user }}</strong> via <strong>{{ email_config.host }}:{{ email_config.port }}</strong>
+          </div>
+          <div class="test-row">
+            <input type="email" id="testEmail" placeholder="Recipient email to test…" />
+            <button type="button" class="btn-test" onclick="sendTestEmail()">📤 Send Test</button>
+          </div>
+          <div id="testResult"></div>
+          {% else %}
+          <div style="color:#94a3b8;font-size:13px;padding:20px 0;">Save SMTP settings first to enable test emails.</div>
+          {% endif %}
+
+          <div style="margin-top:20px;padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;font-size:12px;color:#0369a1;line-height:1.6;">
+            <strong>Gmail:</strong> Use smtp.gmail.com, port 587, and an App Password (not your regular password).<br>
+            <strong>Brevo:</strong> Use smtp-relay.brevo.com, port 587, Brevo SMTP key as password.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: SHIFTS
+    ══════════════════════════════════════ -->
+    <div id="tab-shifts" class="tab-panel {% if tab=='shifts' %}active{% endif %}">
+
+      {% if request.args.get('saved') and tab == 'shifts' %}
+        <div class="flash flash-green">✅ Shift created successfully.</div>
+      {% elif request.args.get('updated') and tab == 'shifts' %}
+        <div class="flash flash-green">✅ Shift updated successfully.</div>
+      {% elif request.args.get('deleted') and tab == 'shifts' %}
+        <div class="flash flash-green">✅ Shift deleted. Employees moved to default.</div>
+      {% elif request.args.get('bulk_saved') and tab == 'shifts' %}
+        <div class="flash flash-green">✅ Shift assigned to selected employees.</div>
+      {% elif request.args.get('error') and tab == 'shifts' %}
+        <div class="flash flash-red">❌ {{ request.args.get('error') }}</div>
+      {% endif %}
+
+      <div class="two-col">
+
+        <!-- Create shift -->
+        <div class="section">
+          <div class="section-title">➕ Create New Shift</div>
+          <form action="/add_shift" method="POST">
+            <div class="field">
+              <label>Shift Name</label>
+              <input type="text" name="name" placeholder="e.g. Morning, Night, Flexi" required />
+            </div>
+            <div class="time-row">
+              <div class="field" style="margin:0;">
+                <label>🟢 Start Time</label>
+                <input type="time" name="start_time" required />
+              </div>
+              <div class="field" style="margin:0;">
+                <label>🟡 Late / Half Mark</label>
+                <input type="time" name="half_time" required />
+              </div>
+              <div class="field" style="margin:0;">
+                <label>🔴 End Time</label>
+                <input type="time" name="end_time" required />
+              </div>
+            </div>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;padding:10px 13px;margin:10px 0 12px;font-size:12px;color:#0369a1;line-height:1.6;">
+              <strong>Start</strong> — on-time cutoff &nbsp;|&nbsp; <strong>Late/Half</strong> — late login cutoff &nbsp;|&nbsp; <strong>End</strong> — shift end
+            </div>
+            <button type="submit" class="btn-submit">➕ Create Shift</button>
+          </form>
+        </div>
+
+        <!-- Shift list -->
+        <div class="section">
+          <div class="section-title">📋 Existing Shifts <span style="font-size:12px;font-weight:400;color:#64748b;">({{ shifts|length + 1 }} total incl. default)</span></div>
+          <div class="shift-list">
+            <div class="shift-item default-shift">
+              <div>
+                <div class="shift-name">🟢 Default Shift <span style="font-size:11px;font-weight:400;color:#64748b;">(global fallback)</span></div>
+                <div class="shift-times">
+                  <span><span class="dot dot-green"></span>{{ default_start }}</span>
+                  <span><span class="dot dot-yellow"></span>{{ default_half }}</span>
+                  <span><span class="dot dot-red"></span>{{ default_end }}</span>
+                </div>
+              </div>
+            </div>
+            {% for s in shifts %}
+            <div class="shift-item">
+              <div>
+                <div class="shift-name">
+                  🔵 {{ s.name }}
+                  <span class="emp-badge">{{ emp_list | selectattr('shift', 'equalto', s.name) | list | length }} emp</span>
+                </div>
+                <div class="shift-times">
+                  <span><span class="dot dot-green"></span>{{ s.start }}</span>
+                  <span><span class="dot dot-yellow"></span>{{ s.half }}</span>
+                  <span><span class="dot dot-red"></span>{{ s.end }}</span>
+                </div>
+              </div>
+              <div class="shift-actions">
+                <button type="button" class="btn-edit"
+                  onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}')">
+                  ✏️ Edit
+                </button>
+                <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;"
+                  onsubmit="return confirm('Delete {{ s.name }}? Employees will fall back to Default.')">
+                  <button type="submit" class="btn-del">🗑</button>
+                </form>
+              </div>
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:28px;color:#94a3b8;font-size:13px;">No custom shifts yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Assign shifts to employees -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title" style="margin:0;">👥 Assign Shifts to Employees</div>
+          <div class="search-wrap">
+            <input type="text" id="shiftEmpSearch" placeholder="Search employee…" oninput="filterShiftRows(this.value)" autocomplete="off" />
+          </div>
+        </div>
+
+        <form action="/bulk_assign_shift" method="POST" id="bulkForm">
+          <div class="bulk-bar">
+            <button type="button" onclick="toggleSelectAll()" style="padding:7px 14px;border:1px solid #bae6fd;border-radius:7px;background:#fff;color:#0369a1;font-size:13px;font-weight:600;cursor:pointer;">☑ Select All</button>
+            <span id="selCount" style="font-size:13px;color:#0369a1;font-weight:600;display:none;"></span>
+            <label>Assign to:</label>
+            <select name="shift_id" style="padding:7px 10px;border:1px solid #bae6fd;border-radius:7px;background:#fff;font-size:13px;">
+              <option value="">Default Shift</option>
+              {% for s in shifts %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn-bulk" onclick="return confirmBulk()" style="padding:8px 18px;border:none;border-radius:8px;background:#0369a1;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">⚡ Bulk Assign</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px;"><input type="checkbox" id="masterCheck" onclick="toggleSelectAll()" /></th>
+                  <th>Employee</th><th>ID</th><th>Role</th><th>Current Shift</th><th>Change Shift</th>
+                </tr>
+              </thead>
+              <tbody id="shiftEmpTbody">
+                {% for e in emp_list %}
+                <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.shift }}">
+                  <td><input type="checkbox" name="emp_ids" value="{{ e.emp_id }}" class="emp-check" onchange="updateSelCount()" /></td>
+                  <td><strong>{{ e.name }}</strong></td>
+                  <td style="color:#64748b;font-size:12px;">{{ e.emp_id }}</td>
+                  <td>{% if e.role %}<span class="badge b-blue">{{ e.role }}</span>{% else %}<span class="badge b-gray">—</span>{% endif %}</td>
+                  <td id="cur-{{ e.emp_id }}">
+                    <span class="badge {% if e.shift == 'Default' %}b-gray{% else %}b-green{% endif %}">{{ e.shift }}</span>
+                  </td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <select class="shift-select" onchange="assignShift('{{ e.emp_id }}', this)">
+                        <option value="" {% if e.shift == 'Default' %}selected{% endif %}>Default</option>
+                        {% for s in shifts %}
+                        <option value="{{ s.id }}" {% if e.shift == s.name %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                      </select>
+                      <span class="saved-tick" id="tick-{{ e.emp_id }}">✓ Saved</span>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty-row">No employees found.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: BREAKS
+    ══════════════════════════════════════ -->
+    <div id="tab-breaks" class="tab-panel {% if tab=='breaks' %}active{% endif %}">
+      <div class="two-col">
+
+        <!-- Add break form -->
+        <div class="section">
+          <div class="section-title">➕ Add New Break</div>
+          <form action="/add_break" method="POST">
+            <div class="field">
+              <label>Break Name</label>
+              <input type="text" name="break_name" placeholder="e.g. Coffee Break 1" required />
+            </div>
+            <div class="field">
+              <label>Break Start Time</label>
+              <input type="time" name="break_time" required />
+            </div>
+            <div class="field">
+              <label>Duration (minutes)</label>
+              <input type="number" name="duration_minutes" min="1" max="120" value="10" placeholder="10" required />
+            </div>
+            <button type="submit" class="btn-submit">Add Break</button>
+          </form>
+        </div>
+
+        <!-- Break list -->
+        <div class="section">
+          <div class="section-title">📋 Configured Breaks <span style="font-size:12px;font-weight:400;color:#64748b;">{{ breaks|length }} break{{ 's' if breaks|length != 1 else '' }}</span></div>
+          {% if breaks %}
+          <div class="break-list">
+            {% for b in breaks %}
+            {% set is_lunch = b[3] >= 30 %}
+            <div class="break-item {{ '' if b[4] else 'inactive' }}">
+              <div class="break-icon">{{ '🍽️' if is_lunch else '☕' }}</div>
+              <div class="break-info">
+                <div class="break-name">
+                  {{ b[1] }}
+                  <span class="break-badge {{ 'lunch' if is_lunch else '' }}">{{ b[3] }} min</span>
+                  {% if not b[4] %}<span style="font-size:10px;color:#94a3b8;font-weight:400;"> disabled</span>{% endif %}
+                </div>
+                <div class="break-meta">
+                  <span>🕐 {{ '%02d:%02d' % (b[2].seconds // 3600, (b[2].seconds % 3600) // 60) }}</span>
+                  <span>⏱ {{ b[3] }} min</span>
+                </div>
+              </div>
+              <div class="break-actions">
+                <button type="button" class="btn-edit"
+                  onclick="openBreakEdit({{ b[0] }}, '{{ b[1]|e }}', '{{ '%02d:%02d' % (b[2].seconds // 3600, (b[2].seconds % 3600) // 60) }}', {{ b[3] }}, {{ b[4] }})">
+                  Edit
+                </button>
+                <form action="/delete_break/{{ b[0] }}" method="POST" style="display:inline;"
+                      onsubmit="return confirm('Delete this break?')">
+                  <button type="submit" class="btn-del">Delete</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div style="text-align:center;padding:40px 20px;color:#94a3b8;">
+            <div style="font-size:36px;margin-bottom:8px;">☕</div>
+            <div>No breaks configured yet.</div>
+          </div>
+          {% endif %}
+          <div style="margin-top:16px;padding:12px 14px;background:#f0f9ff;border-radius:10px;border:1px solid #bae6fd;font-size:12px;color:#0369a1;line-height:1.6;">
+            Active breaks send a popup notification to employees at the configured start time.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: SALARY
+    ══════════════════════════════════════ -->
+    <div id="tab-salary" class="tab-panel {% if tab=='salary' %}active{% endif %}">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title" style="margin:0;">💵 Employee Salary Configuration</div>
+          <div class="search-wrap">
+            <input type="text" id="salSearch" placeholder="Search employee…" oninput="filterSalTable(this.value)" autocomplete="off" />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Employee ID</th><th>Name</th><th>Role</th><th>CTC Breakdown</th><th>Action</th></tr>
+            </thead>
+            <tbody id="salTbody">
+              {% for s in salaries %}
+              {% set emp_id, name, spd, role, last_revised, phone, email = s %}
+              {% set mon = (spd * 26) if spd else 0 %}
+              {% set yr  = (spd * 312) if spd else 0 %}
+              <tr data-search="{{ emp_id }} {{ name }} {{ role }} {{ phone }} {{ email }}">
+                <td style="color:#94a3b8;font-size:12px;">{{ emp_id }}</td>
+                <td><strong>{{ name }}</strong></td>
+                <td>
+                  {% if role %}<span class="badge b-blue">{{ role }}</span>
+                  {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+                </td>
+                <td>
+                  <div id="sal-disp-{{ loop.index }}">
+                    {% if spd and spd > 0 %}
+                    <div class="salary-stack">
+                      <div class="s-row"><span class="lbl">Per Day</span><span class="s-day">₹{{ "%.2f"|format(spd) }}</span></div>
+                      <div class="s-row"><span class="lbl">Monthly</span><span class="s-mon">₹{{ "{:,.2f}".format(mon) }}</span></div>
+                      <div class="s-row">
+                        <span class="lbl">Yearly</span>
+                        <span class="s-yr">{{ "%.3g"|format(yr / 100000) }} LPA</span>
+                        <span class="lpa-txt">(₹{{ "{:,.0f}".format(yr) }})</span>
+                      </div>
+                      {% if last_revised %}
+                        <span class="rev-badge">🗓 {{ last_revised.strftime('%d %b %Y') }}</span>
+                      {% else %}
+                        <span class="rev-badge muted">🗓 Never revised</span>
+                      {% endif %}
+                    </div>
+                    {% else %}
+                    <span style="color:#94a3b8;font-style:italic;font-size:13px;">Not set</span>
+                    {% endif %}
+                  </div>
+                  <form action="/update_salary" method="POST" id="sal-form-{{ loop.index }}"
+                        class="edit-form" onsubmit="prepSalSubmit({{ loop.index }})">
+                    <input type="hidden" name="emp_id" value="{{ emp_id }}" />
+                    <input type="hidden" name="salary" id="sal-hidden-{{ loop.index }}" />
+                    <div class="ef-row">
+                      <span class="ef-lbl">Per Day (₹)</span>
+                      <input type="number" id="sal-day-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
+                        value="{{ '%.2f'|format(spd) if spd else '' }}" placeholder="0.00"
+                        oninput="salFromDay({{ loop.index }})" />
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Monthly (₹)</span>
+                      <input type="number" id="sal-mon-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
+                        value="{{ '%.2f'|format(mon) if spd else '' }}" placeholder="0.00"
+                        oninput="salFromMon({{ loop.index }})" />
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Yearly (₹)</span>
+                      <input type="number" id="sal-yr-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
+                        value="{{ '%.2f'|format(yr) if spd else '' }}" placeholder="0.00"
+                        oninput="salFromYr({{ loop.index }})" />
+                      <span id="sal-lpa-{{ loop.index }}" style="font-size:10px;color:#7c3aed;font-weight:700;white-space:nowrap;">
+                        {%- if yr > 0 -%}{{ "%.3g"|format(yr / 100000) }} LPA{%- endif -%}
+                      </span>
+                    </div>
+                    <div class="ef-row">
+                      <span class="ef-lbl">Revised On</span>
+                      <input type="date" name="hike_date" class="ef-inp"
+                        value="{{ last_revised.strftime('%Y-%m-%d') if last_revised else '' }}" />
+                    </div>
+                    <div class="ef-hint">Based on 26 working days/month · Leave date blank to use today</div>
+                    <div class="ef-btns">
+                      <button type="submit" class="btn-save">✅ Update</button>
+                      <button type="button" class="btn-cancel-sm" data-idx="{{ loop.index }}">Cancel</button>
+                    </div>
+                  </form>
+                </td>
+                <td>
+                  <button type="button" class="btn-edit" id="sal-editbtn-{{ loop.index }}"
+                          data-idx="{{ loop.index }}">✏️ Edit</button>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="empty-row">No employees found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: ANNOUNCEMENTS
+    ══════════════════════════════════════ -->
+    <div id="tab-announcements" class="tab-panel {% if tab=='announcements' %}active{% endif %}">
+
+      <!-- Post form -->
+      <div class="section">
+        <div class="section-title">➕ Post New Announcement</div>
+        <form action="/announcements" method="POST">
+          <input type="hidden" name="action" value="add" />
+          <div class="field">
+            <label>Title</label>
+            <input type="text" name="title" placeholder="Announcement title…" required maxlength="255" />
+          </div>
+          <div class="field">
+            <label>Content</label>
+            <textarea name="content" placeholder="Write the announcement details…" required></textarea>
+          </div>
+          <div class="field">
+            <label>Priority</label>
+            <select name="priority">
+              <option value="Normal">🔵 Normal</option>
+              <option value="Important">🟡 Important</option>
+              <option value="Urgent">🔴 Urgent</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-add">📢 Post Announcement</button>
+        </form>
+      </div>
+
+      <!-- Announcement list -->
+      <div class="section">
+        <div class="section-title">📋 All Announcements ({{ ann_list | length }})</div>
+        {% if ann_list %}
+          {% for aid, atitle, acontent, apri, adate in ann_list %}
+          <div class="ann-card priority-{{ apri | lower }}">
+            <div class="ann-icon">{% if apri == 'Urgent' %}🔴{% elif apri == 'Important' %}🟡{% else %}📢{% endif %}</div>
+            <div class="ann-body">
+              <div class="ann-title">{{ atitle }}</div>
+              <div class="ann-content">{{ acontent }}</div>
+              <div class="ann-meta">
+                <span class="badge pri-{{ apri | lower }}">{{ apri }}</span>
+                <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
+                <form action="/announcements" method="POST" style="display:inline;margin-left:auto;">
+                  <input type="hidden" name="action" value="delete" />
+                  <input type="hidden" name="ann_id" value="{{ aid }}" />
+                  <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">🗑 Delete</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center;padding:30px;color:#94a3b8;">No announcements posted yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- ══ SHIFT EDIT MODAL ══ -->
+  <div class="modal-bg" id="shiftEditModal">
+    <div class="modal">
+      <div class="modal-title">✏️ Edit Shift</div>
+      <form id="shiftEditForm" method="POST">
+        <div class="field">
+          <label>Shift Name</label>
+          <input type="text" name="name" id="se_name" required />
+        </div>
+        <div class="time-row">
+          <div class="field" style="margin:0;"><label>🟢 Start</label><input type="time" name="start_time" id="se_start" required /></div>
+          <div class="field" style="margin:0;"><label>🟡 Late/Half</label><input type="time" name="half_time" id="se_half" required /></div>
+          <div class="field" style="margin:0;"><label>🔴 End</label><input type="time" name="end_time" id="se_end" required /></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeShiftEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-submit">💾 Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══ BREAK EDIT MODAL ══ -->
+  <div class="modal-bg" id="breakEditModal">
+    <div class="modal">
+      <div class="modal-title">✏️ Edit Break</div>
+      <form id="breakEditForm" method="POST">
+        <input type="hidden" name="is_active" id="be_active_hidden" value="1" />
+        <div class="field">
+          <label>Break Name</label>
+          <input type="text" name="break_name" id="be_name" required />
+        </div>
+        <div class="field">
+          <label>Break Start Time</label>
+          <input type="time" name="break_time" id="be_time" required />
+        </div>
+        <div class="field">
+          <label>Duration (minutes)</label>
+          <input type="number" name="duration_minutes" id="be_duration" min="1" max="120" required />
+        </div>
+        <div class="toggle-row">
+          <input type="checkbox" id="be_active_cb"
+            onchange="document.getElementById('be_active_hidden').value=this.checked?'1':'0'" />
+          <span>Active (sends notification to employees)</span>
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="closeBreakEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ── TAB SWITCHING ── */
+    function showTab(id) {
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      var panel = document.getElementById('tab-' + id);
+      if (panel) panel.classList.add('active');
+      document.querySelectorAll('.tab-btn').forEach(function(b) {
+        if (b.textContent.toLowerCase().includes(id.replace('email','email').replace('shifts','shift').replace('breaks','break').replace('salary','salary').replace('announcements','announcement'))) {
+          b.classList.add('active');
+        }
+      });
+      history.replaceState(null, '', '?tab=' + id);
+    }
+    /* Fix tab button matching */
+    (function() {
+      var tabMap = { email: 0, shifts: 1, breaks: 2, salary: 3, announcements: 4 };
+      var btns = document.querySelectorAll('.tab-btn');
+      ['email','shifts','breaks','salary','announcements'].forEach(function(id, i) {
+        btns[i].onclick = function() {
+          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+          btns.forEach(function(b) { b.classList.remove('active'); });
+          var panel = document.getElementById('tab-' + id);
+          if (panel) panel.classList.add('active');
+          btns[i].classList.add('active');
+          history.replaceState(null, '', '?tab=' + id);
+        };
+      });
+    })();
+
+    /* ── TEST EMAIL ── */
+    function sendTestEmail() {
+      var email = document.getElementById('testEmail').value.trim();
+      var res   = document.getElementById('testResult');
+      if (!email) { res.textContent = 'Please enter a recipient email.'; res.className = 'err'; res.style.display = 'block'; return; }
+      res.textContent = '⏳ Sending…'; res.className = ''; res.style.display = 'block';
+      var fd = new FormData(); fd.append('test_to', email);
+      fetch('/test_email', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          res.textContent = d.ok ? '✅ Test email sent!' : '❌ ' + (d.error || 'Failed');
+          res.className   = d.ok ? 'ok' : 'err';
+        })
+        .catch(function() { res.textContent = '❌ Network error.'; res.className = 'err'; });
+    }
+
+    /* ── SHIFT EDIT MODAL ── */
+    function openShiftEdit(id, name, start, half, end) {
+      document.getElementById('shiftEditForm').action = '/edit_shift/' + id;
+      document.getElementById('se_name').value  = name;
+      document.getElementById('se_start').value = start;
+      document.getElementById('se_half').value  = half;
+      document.getElementById('se_end').value   = end;
+      document.getElementById('shiftEditModal').classList.add('open');
+    }
+    function closeShiftEdit() { document.getElementById('shiftEditModal').classList.remove('open'); }
+    document.getElementById('shiftEditModal').addEventListener('click', function(e) { if (e.target === this) closeShiftEdit(); });
+
+    /* ── BREAK EDIT MODAL ── */
+    function openBreakEdit(id, name, time, duration, active) {
+      document.getElementById('breakEditForm').action = '/update_break/' + id;
+      document.getElementById('be_name').value      = name;
+      document.getElementById('be_time').value      = time;
+      document.getElementById('be_duration').value  = duration;
+      var cb = document.getElementById('be_active_cb');
+      cb.checked = !!active;
+      document.getElementById('be_active_hidden').value = active ? '1' : '0';
+      document.getElementById('breakEditModal').classList.add('open');
+    }
+    function closeBreakEdit() { document.getElementById('breakEditModal').classList.remove('open'); }
+    document.getElementById('breakEditModal').addEventListener('click', function(e) { if (e.target === this) closeBreakEdit(); });
+
+    /* ── SHIFT ASSIGN ── */
+    async function assignShift(empId, sel) {
+      var shiftId   = sel.value;
+      var shiftName = sel.options[sel.selectedIndex].text;
+      try {
+        var res  = await fetch('/assign_shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'emp_id=' + encodeURIComponent(empId) + '&shift_id=' + encodeURIComponent(shiftId)
+        });
+        var data = await res.json();
+        if (data.ok) {
+          var tick = document.getElementById('tick-' + empId);
+          tick.style.display = 'inline';
+          setTimeout(function() { tick.style.display = 'none'; }, 2000);
+          var cur = document.getElementById('cur-' + empId);
+          cur.innerHTML = '<span class="badge ' + (shiftId ? 'b-green' : 'b-gray') + '">' + shiftName + '</span>';
+        }
+      } catch(e) {}
+    }
+
+    /* ── BULK SELECT ── */
+    function toggleSelectAll() {
+      var master = document.getElementById('masterCheck');
+      var checks = document.querySelectorAll('.emp-check');
+      checks.forEach(function(c) { c.checked = master.checked; });
+      updateSelCount();
+    }
+    function updateSelCount() {
+      var n = document.querySelectorAll('.emp-check:checked').length;
+      var el = document.getElementById('selCount');
+      el.textContent = n + ' selected';
+      el.style.display = n > 0 ? 'inline' : 'none';
+    }
+    function confirmBulk() {
+      var n = document.querySelectorAll('.emp-check:checked').length;
+      if (!n) { alert('Select at least one employee.'); return false; }
+      return confirm('Assign shift to ' + n + ' employee(s)?');
+    }
+    function filterShiftRows(q) {
+      q = q.toLowerCase();
+      document.querySelectorAll('#shiftEmpTbody tr').forEach(function(r) {
+        r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    /* ── SALARY CALC ── */
+    var WD = 26;
+    function r2(v) { return Math.round(v * 100) / 100; }
+    function setEl(id, val) { var el = document.getElementById(id); if (el) el.value = val > 0 ? val.toFixed(2) : ''; }
+    function updLPA(i) {
+      var y = parseFloat(document.getElementById('sal-yr-' + i).value) || 0;
+      var el = document.getElementById('sal-lpa-' + i);
+      if (el) el.textContent = y > 0 ? (parseFloat((y/100000).toFixed(2))) + ' LPA' : '';
+    }
+    function salFromDay(i) {
+      var d = parseFloat(document.getElementById('sal-day-' + i).value) || 0;
+      setEl('sal-mon-' + i, r2(d * WD)); setEl('sal-yr-' + i, r2(d * WD * 12)); updLPA(i);
+    }
+    function salFromMon(i) {
+      var m = parseFloat(document.getElementById('sal-mon-' + i).value) || 0;
+      setEl('sal-day-' + i, r2(m / WD)); setEl('sal-yr-' + i, r2(m * 12)); updLPA(i);
+    }
+    function salFromYr(i) {
+      var y = parseFloat(document.getElementById('sal-yr-' + i).value) || 0;
+      setEl('sal-mon-' + i, r2(y / 12)); setEl('sal-day-' + i, r2(y / (WD * 12))); updLPA(i);
+    }
+    function prepSalSubmit(i) {
+      var d = parseFloat(document.getElementById('sal-day-' + i).value) || 0;
+      document.getElementById('sal-hidden-' + i).value = d.toFixed(2);
+    }
+    function startSalEdit(i) {
+      document.getElementById('sal-disp-' + i).style.display = 'none';
+      document.getElementById('sal-form-' + i).classList.add('open');
+      document.getElementById('sal-editbtn-' + i).style.display = 'none';
+      document.getElementById('sal-day-' + i).focus();
+    }
+    function cancelSalEdit(i) {
+      document.getElementById('sal-disp-' + i).style.display = '';
+      document.getElementById('sal-form-' + i).classList.remove('open');
+      document.getElementById('sal-editbtn-' + i).style.display = '';
+    }
+    document.querySelectorAll('[id^="sal-editbtn-"]').forEach(function(btn) {
+      btn.addEventListener('click', function() { startSalEdit(btn.dataset.idx); });
+    });
+    document.querySelectorAll('#salTbody .btn-cancel-sm').forEach(function(btn) {
+      btn.addEventListener('click', function() { cancelSalEdit(btn.dataset.idx); });
+    });
+    function filterSalTable(q) {
+      q = q.toLowerCase();
+      document.querySelectorAll('#salTbody tr').forEach(function(r) {
+        r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

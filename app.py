@@ -1345,6 +1345,76 @@ def admin_action():
     db.close()
     return redirect("/admin")
 
+# ---------------- SETTINGS (unified) ----------------
+@app.route("/settings")
+@admin_required
+def settings_page():
+    tab    = request.args.get("tab", "email")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Email config
+    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    email_config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4], "from_email": row[5] or row[2]} if row else None
+
+    # Shifts
+    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
+    shift_rows = []
+    for sid, sname, st, ht, et in cursor.fetchall():
+        shift_rows.append({
+            "id": sid, "name": sname,
+            "start": _td_to_time(st).strftime("%H:%M") if st else "--",
+            "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
+            "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
+        })
+    cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
+    emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
+
+    # Breaks
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    breaks = cursor.fetchall()
+
+    # Salary
+    cursor.execute("""
+        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+               COALESCE(e.phone,''), COALESCE(e.email,'')
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        ORDER BY e.name
+    """)
+    salaries = cursor.fetchall()
+
+    # Announcements
+    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
+    ann_list = cursor.fetchall()
+
+    # Pending counts
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
+    pending_tickets = cursor.fetchone()[0]
+
+    cursor.close(); db.close()
+    return render_template("settings.html",
+        tab=tab,
+        email_config=email_config,
+        shifts=shift_rows,
+        emp_list=emp_list,
+        breaks=breaks,
+        salaries=salaries,
+        ann_list=ann_list,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        saved=request.args.get("saved") == "1",
+        default_start=SHIFT_START.strftime("%H:%M"),
+        default_half=SHIFT_HALF.strftime("%H:%M"),
+        default_end=SHIFT_END.strftime("%H:%M"),
+    )
+
 # ---------------- ANNOUNCEMENTS ----------------
 @app.route("/announcements", methods=["GET", "POST"])
 @admin_required
@@ -1365,7 +1435,7 @@ def announcements_admin():
             db.commit()
             flash("Announcement deleted.", "success")
         cursor.close(); db.close()
-        return redirect("/announcements")
+        return redirect("/settings?tab=announcements")
 
     cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
     ann_list = cursor.fetchall()
@@ -1806,7 +1876,7 @@ def add_shift():
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
     if not all([name, start, half, end]):
-        return redirect("/shifts?error=All+fields+required")
+        return redirect("/settings?tab=shifts&error=All+fields+required")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
@@ -1818,7 +1888,7 @@ def add_shift():
     except mysql.connector.errors.IntegrityError:
         pass
     cursor.close(); db.close()
-    return redirect("/shifts?saved=1")
+    return redirect("/settings?tab=shifts&saved=1")
 
 @app.route("/delete_shift/<int:sid>", methods=["POST"])
 @admin_required
@@ -1829,7 +1899,7 @@ def delete_shift(sid):
     cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?deleted=1")
+    return redirect("/settings?tab=shifts&deleted=1")
 
 @app.route("/edit_shift/<int:sid>", methods=["POST"])
 @admin_required
@@ -1839,7 +1909,7 @@ def edit_shift(sid):
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
     if not all([name, start, half, end]):
-        return redirect("/shifts?error=All+fields+required")
+        return redirect("/settings?tab=shifts&error=All+fields+required")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -1848,7 +1918,7 @@ def edit_shift(sid):
     )
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?updated=1")
+    return redirect("/settings?tab=shifts&updated=1")
 
 @app.route("/bulk_assign_shift", methods=["POST"])
 @admin_required
@@ -1856,7 +1926,7 @@ def bulk_assign_shift():
     shift_id  = request.form.get("shift_id", "").strip()
     emp_ids   = request.form.getlist("emp_ids")
     if not emp_ids:
-        return redirect("/shifts?error=No+employees+selected")
+        return redirect("/settings?tab=shifts&error=No+employees+selected")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     for emp_id in emp_ids:
@@ -1866,7 +1936,7 @@ def bulk_assign_shift():
         )
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?bulk_saved=1")
+    return redirect("/settings?tab=shifts&bulk_saved=1")
 
 @app.route("/assign_shift", methods=["POST"])
 @admin_required
@@ -1960,7 +2030,7 @@ def add_break():
                    (name, btime, duration))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
-    return redirect("/break_config")
+    return redirect("/settings?tab=breaks")
 
 @app.route("/update_break/<int:bid>", methods=["POST"])
 @admin_required
@@ -1977,7 +2047,7 @@ def update_break(bid):
     )
     db.commit(); cursor.close(); db.close()
     flash("Break updated.", "success")
-    return redirect("/break_config")
+    return redirect("/settings?tab=breaks")
 
 @app.route("/delete_break/<int:bid>", methods=["POST"])
 @admin_required
@@ -1987,7 +2057,7 @@ def delete_break(bid):
     cursor.execute("DELETE FROM break_config WHERE id=%s", (bid,))
     db.commit(); cursor.close(); db.close()
     flash("Break deleted.", "success")
-    return redirect("/break_config")
+    return redirect("/settings?tab=breaks")
 
 # ---------------- VIEW SALARY CONFIG ----------------
 @app.route("/view_salary")
@@ -2029,7 +2099,7 @@ def update_salary():
     db.commit()
     cursor.close()
     db.close()
-    return redirect("/view_salary")
+    return redirect("/settings?tab=salary")
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
 @app.route("/monthly_report")
@@ -2477,7 +2547,7 @@ def email_config():
         db.commit()
         cursor.close()
         db.close()
-        return redirect("/email_config?saved=1")
+        return redirect("/settings?tab=email&saved=1")
 
     cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
     row    = cursor.fetchone()

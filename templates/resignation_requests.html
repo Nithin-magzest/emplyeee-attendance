@@ -111,17 +111,9 @@
       <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
       </a>
       <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays
-      </a>
-      <a class="nav-item" href="/view_salary"><span class="nav-icon">💵</span>Salary Config
-      </a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon">🕐</span>Shift Management
-      </a>
-      </a>
-      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes
-      </a>
-      <a class="nav-item" href="/email_config"><span class="nav-icon">✉️</span>Email Settings
-      </a>
+      <a class="nav-item" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
       <div class="nav-group-label" style="margin-top:10px;">Requests</div>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
