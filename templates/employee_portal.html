@@ -734,6 +734,12 @@
         <div class="stat-card"><div class="stat-icon si-blue">⏱</div><div><div class="stat-num stat-num-sm sn-blue">{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
       </div>
 
+      <!-- BREAK SCHEDULE WIDGET -->
+      <div id="breakScheduleWidget" style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;margin-bottom:20px;display:none;">
+        <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px;">☕ Today's Break Schedule</div>
+        <div id="breakScheduleList" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+
       <!-- Announcements widget -->
       {% if announcements %}
       <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px;margin-bottom:20px;">
@@ -2526,12 +2532,33 @@
         });
       }
 
+      function renderBreakSchedule(breaks) {
+        var widget = document.getElementById('breakScheduleWidget');
+        var list   = document.getElementById('breakScheduleList');
+        if (!widget || !list || !breaks.length) return;
+        list.innerHTML = '';
+        breaks.forEach(function(b) {
+          var ampm = b.hour < 12 ? 'AM' : 'PM';
+          var h12  = b.hour % 12 || 12;
+          var tstr = (h12 < 10 ? '0' : '') + h12 + ':' + (b.minute < 10 ? '0' : '') + b.minute + ' ' + ampm;
+          var icon = b.duration >= 30 ? '🍽️' : '☕';
+          var el   = document.createElement('div');
+          el.style.cssText = 'display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:10px 16px;min-width:180px;';
+          el.innerHTML = '<span style="font-size:22px;">' + icon + '</span>'
+            + '<div><div style="font-size:13px;font-weight:700;color:#1e293b;">' + b.name + '</div>'
+            + '<div style="font-size:12px;color:#64748b;margin-top:2px;">' + tstr + ' &nbsp;·&nbsp; ' + b.duration + ' min</div></div>';
+          list.appendChild(el);
+        });
+        widget.style.display = 'block';
+      }
+
       var cachedBreaks = null;
       function startBreakWatcher() {
         fetch('/api/breaks')
           .then(function(r){ return r.json(); })
           .then(function(breaks){
             cachedBreaks = breaks;
+            renderBreakSchedule(breaks);
             setInterval(function(){ if(cachedBreaks) checkBreaks(cachedBreaks); }, 15000);
             checkBreaks(breaks); // immediate check on load
           })

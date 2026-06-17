@@ -342,6 +342,32 @@
         </a>
       </div>
 
+      <!-- BREAK SCHEDULE -->
+      <div class="section" style="margin-bottom:20px;">
+        <div class="section-title" style="margin-bottom:14px;">
+          ☕ Today's Break Schedule
+          <a href="/break_config" class="hbtn hbtn-blue" style="margin-left:auto;padding:6px 14px;font-size:12px;text-decoration:none;">✏️ Edit Break Times</a>
+        </div>
+        {% if breaks_display %}
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+          {% for b in breaks_display %}
+          <div style="display:flex;align-items:center;gap:12px;background:{% if b.is_active %}#f0fdf4{% else %}#f8fafc{% endif %};border:1px solid {% if b.is_active %}#86efac{% else %}#e2e8f0{% endif %};border-radius:12px;padding:12px 18px;min-width:200px;">
+            <span style="font-size:26px;">{% if b.duration >= 30 %}🍽️{% else %}☕{% endif %}</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#1e293b;">{{ b.name }}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">{{ b.time_str }} &nbsp;·&nbsp; {{ b.duration }} min</div>
+            </div>
+            {% if not b.is_active %}
+            <span style="margin-left:auto;font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:20px;">OFF</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="font-size:13px;color:#94a3b8;padding:8px 0;">No break times configured. <a href="/break_config" style="color:#2563eb;font-weight:600;">Add some →</a></div>
+        {% endif %}
+      </div>
+
       <!-- TODAY'S ATTENDANCE -->
       <div class="section">
         <div class="section-title">

@@ -762,6 +762,23 @@ def admin():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
 
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    break_rows = cursor.fetchall()
+    breaks_display = []
+    for b in break_rows:
+        bt = b[2]
+        if hasattr(bt, 'seconds'):
+            h, m = divmod(bt.seconds // 60, 60)
+        else:
+            h, m = bt.hour, bt.minute
+        ampm = "AM" if h < 12 else "PM"
+        h12 = h % 12 or 12
+        breaks_display.append({
+            "id": b[0], "name": b[1],
+            "time_str": "%02d:%02d %s" % (h12, m, ampm),
+            "duration": b[3], "is_active": b[4]
+        })
+
     cursor.close()
     db.close()
 
@@ -780,6 +797,7 @@ def admin():
         pending_tickets=pending_tickets,
         now_month=today.month,
         now_year=today.year,
+        breaks_display=breaks_display,
     )
 
 # ---------------- LIVE DASHBOARD API ----------------
