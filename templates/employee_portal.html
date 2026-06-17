@@ -404,6 +404,7 @@
       /* MODULE VIEWS */
       .view { display: none; }
       .view.active { display: block; }
+      #view-dashboard { display: block; } /* visible by default so page never shows blank */
       .mod-title {
         font-size: 20px; font-weight: 700; color: #1e293b;
         margin-bottom: 20px; padding-bottom: 14px;
@@ -959,11 +960,19 @@
       <div class="section" id="apply-leave">
         <form action="/request_leave" method="POST" id="leave-form">
 
-          <div class="form-group">
-            <label>Leave Date</label>
-            <input type="date" name="leave_date" id="leave-date"
-                   required title="Select date for leave" />
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+              <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">From Date</label>
+              <input type="date" name="leave_date_start" id="leave-date-start" required
+                     style="width:100%;padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;" />
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+              <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">To Date</label>
+              <input type="date" name="leave_date_end" id="leave-date-end" required
+                     style="width:100%;padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;" />
+            </div>
           </div>
+          <div id="leave-days-badge" style="display:none;margin:-6px 0 14px;padding:6px 12px;background:#eff6ff;border-radius:8px;font-size:12px;font-weight:700;color:#2563eb;width:fit-content;">1 day selected</div>
 
           <div class="reasons-label">Select Reason</div>
           <div class="reason-chips">
@@ -2076,9 +2085,12 @@
 
       /* ── VIEW SWITCHER ── */
       function showView(viewId) {
-        document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+        document.querySelectorAll('.view').forEach(function(v) {
+          v.classList.remove('active');
+          v.style.display = 'none';
+        });
         var target = document.getElementById('view-' + viewId);
-        if (target) target.classList.add('active');
+        if (target) { target.classList.add('active'); target.style.display = 'block'; }
 
         document.querySelectorAll('.sb-item').forEach(function(b) { b.classList.remove('active'); });
         var sbnEl = document.getElementById('sbn-' + viewId);
@@ -2087,6 +2099,7 @@
         var ac = document.getElementById('appContent');
         if (ac) ac.scrollTo({ top: 0, behavior: 'smooth' });
         history.replaceState(null, '', '#' + viewId);
+        try { localStorage.setItem('portalView', viewId); } catch(e) {}
         closeSidebar();
       }
 
@@ -2176,7 +2189,34 @@
         document.getElementById('reason-input').value = this.value;
       });
 
-      document.getElementById('leave-form').addEventListener('submit', function(e) {
+      // Leave date range counter
+      function updateLeaveDays() {
+        var s = document.getElementById('leave-date-start').value;
+        var e = document.getElementById('leave-date-end').value;
+        var badge = document.getElementById('leave-days-badge');
+        if (!s) { badge.style.display = 'none'; return; }
+        if (!e || e < s) {
+          document.getElementById('leave-date-end').value = s;
+          e = s;
+        }
+        var days = Math.round((new Date(e) - new Date(s)) / 86400000) + 1;
+        badge.textContent = days + ' day' + (days > 1 ? 's' : '') + ' selected';
+        badge.style.display = 'block';
+      }
+      var _ldsEl = document.getElementById('leave-date-start');
+      var _ldeEl = document.getElementById('leave-date-end');
+      if (_ldsEl) _ldsEl.addEventListener('change', function() {
+        if (_ldeEl && (!_ldeEl.value || _ldeEl.value < this.value)) _ldeEl.value = this.value;
+        updateLeaveDays();
+      });
+      if (_ldeEl) _ldeEl.addEventListener('change', updateLeaveDays);
+
+      var _lfEl = document.getElementById('leave-form');
+      if (_lfEl) _lfEl.addEventListener('submit', function(e) {
+        var s  = _ldsEl ? _ldsEl.value : '';
+        var en = _ldeEl ? _ldeEl.value : '';
+        if (!s || !en) { e.preventDefault(); alert('Please select both From and To dates.'); return; }
+        if (en < s)    { e.preventDefault(); alert('To Date cannot be before From Date.'); return; }
         if (!document.getElementById('reason-input').value.trim()) {
           e.preventDefault();
           alert('Please select a reason or click "Other..." to type your reason.');
@@ -2239,15 +2279,16 @@
       initResignForm('');    // main form (no active resignation)
       initResignForm('-d');  // re-submit form (after Declined)
 
-      // On page load: check URL hash to show the right view
+      // On page load: restore last active view from hash → localStorage → dashboard
       (function() {
-        var hash = window.location.hash.replace('#', '');
         var validViews = ['dashboard','attendance','apply-leave','payslips','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
-        if (hash && validViews.indexOf(hash) !== -1) {
-          showView(hash);
-        } else {
-          showView('dashboard');
-        }
+        var hash    = window.location.hash.replace('#', '');
+        var stored  = '';
+        try { stored = localStorage.getItem('portalView') || ''; } catch(e) {}
+        var view = (hash && validViews.indexOf(hash) !== -1)   ? hash
+                 : (stored && validViews.indexOf(stored) !== -1) ? stored
+                 : 'dashboard';
+        showView(view);
       })();
 
       /* ── PHOTO PREVIEW ── */

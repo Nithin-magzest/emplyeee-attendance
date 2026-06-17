@@ -3317,17 +3317,30 @@ def my_attendance_pdf():
 def request_leave():
     emp_id     = session["employee_id"]
     emp_name   = session["employee_name"]
-    leave_date = request.form.get("leave_date", "").strip()
-    reason     = request.form.get("reason", "").strip()
-    if not reason or not leave_date:
+    leave_start = request.form.get("leave_date_start", "").strip()
+    leave_end   = request.form.get("leave_date_end", "").strip() or leave_start
+    reason      = request.form.get("reason", "").strip()
+    if not reason or not leave_start:
         return redirect("/employee_portal")
+
+    start_dt = datetime.date.fromisoformat(leave_start)
+    end_dt   = datetime.date.fromisoformat(leave_end)
+    if end_dt < start_dt:
+        end_dt = start_dt
+
+    num_days = (end_dt - start_dt).days + 1
+    date_label = (leave_start if num_days == 1
+                  else f"{leave_start} – {leave_end} ({num_days} days)")
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
-        (emp_id, leave_date, reason)
-    )
+    cur = start_dt
+    while cur <= end_dt:
+        cursor.execute(
+            "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
+            (emp_id, cur, reason)
+        )
+        cur += datetime.timedelta(days=1)
     db.commit()
     cursor.close(); db.close()
 
@@ -3343,7 +3356,7 @@ def request_leave():
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
       <tr style="background:#f8f9fc;"><td style="padding:10px 14px;color:#555;font-weight:600;width:130px;">Employee</td><td style="padding:10px 14px;">{emp_name}</td></tr>
       <tr><td style="padding:10px 14px;color:#555;font-weight:600;">Employee ID</td><td style="padding:10px 14px;">{emp_id}</td></tr>
-      <tr style="background:#f8f9fc;"><td style="padding:10px 14px;color:#555;font-weight:600;">Leave Date</td><td style="padding:10px 14px;">{leave_date}</td></tr>
+      <tr style="background:#f8f9fc;"><td style="padding:10px 14px;color:#555;font-weight:600;">Leave Period</td><td style="padding:10px 14px;">{date_label}</td></tr>
       <tr><td style="padding:10px 14px;color:#555;font-weight:600;">Reason</td><td style="padding:10px 14px;">{reason}</td></tr>
     </table>
     <p style="margin-top:20px;padding:12px 16px;background:#fef9c3;border-radius:8px;color:#854d0e;font-size:13px;">
@@ -3354,7 +3367,7 @@ def request_leave():
         try:
             send_email_smtp(
                 config.get("from_email", config["user"]),
-                f"Leave Request — {emp_name} ({leave_date})",
+                f"Leave Request — {emp_name} ({date_label})",
                 html_body, config
             )
         except Exception as e:
