@@ -3119,6 +3119,29 @@ def employee_portal():
     """, (today,))
     upcoming_holidays = cursor.fetchall()
 
+    # Holiday calendar data for employee view
+    hol_year = int(request.args.get("hol_year", today.year))
+    cursor.execute("SELECT id, date, name FROM holidays WHERE YEAR(date)=%s ORDER BY date", (hol_year,))
+    hol_rows = cursor.fetchall()
+    hol_map = {}
+    for row in hol_rows:
+        date_val = row[1]
+        if isinstance(date_val, datetime.date):
+            hol_map[date_val] = (row[0], row[2])
+    sun_cal_obj = calendar.Calendar(firstweekday=6)
+    emp_hol_cal = []
+    for _m in range(1, 13):
+        m_hols = {}
+        for _d, (_hid, _hname) in hol_map.items():
+            if _d.month == _m:
+                m_hols[_d.day] = (_hid, _hname)
+        emp_hol_cal.append({
+            'month_num':  _m,
+            'month_name': calendar.month_name[_m],
+            'weeks':      sun_cal_obj.monthdayscalendar(hol_year, _m),
+            'holidays':   m_hols,
+        })
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -3132,6 +3155,7 @@ def employee_portal():
 
     return render_template("employee_portal.html",
         emp=emp,
+        today_date=today,
         today=today.strftime("%d %b %Y"),
         today_long=today.strftime("%A, %d %B %Y"),
         today_att=today_att,
@@ -3165,6 +3189,9 @@ def employee_portal():
         pending_leaves_count=pending_leaves_count,
         open_tickets_count=open_tickets_count,
         upcoming_holidays=upcoming_holidays,
+        hol_year=hol_year,
+        emp_hol_cal=emp_hol_cal,
+        all_holidays_list=hol_rows,
     )
 
 

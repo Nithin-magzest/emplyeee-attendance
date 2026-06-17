@@ -416,6 +416,49 @@
       .page-header { margin-bottom: 20px; }
       .page-header h1 { font-size: 22px; color: #0f172a; font-weight: 800; }
       .page-header p  { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+      /* ── EMPLOYEE HOLIDAY CALENDAR ── */
+      .hol-year-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+      .hol-year-nav a { padding: 7px 14px; border-radius: 9px; text-decoration: none; background: #dbeafe; color: #1e40af; font-weight: 700; font-size: 13px; transition: 0.2s; }
+      .hol-year-nav a:hover { background: #bfdbfe; }
+      .hol-year-nav .hol-cur-yr { font-size: 20px; font-weight: 900; color: #1e3a8a; min-width: 60px; text-align: center; }
+      .hol-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; font-size: 12px; color: #475569; }
+      .hol-leg { display: flex; align-items: center; gap: 5px; }
+      .hol-leg-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+      .hol-cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px; }
+      .hol-cal-month { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px rgba(30,58,138,0.05); }
+      .hol-cal-month-title { font-size: 13px; font-weight: 800; color: #1e3a8a; text-align: center; margin-bottom: 8px; }
+      .hol-cal-hdrs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 3px; }
+      .hol-cal-hdrs span { text-align: center; font-size: 9px; font-weight: 700; color: #94a3b8; padding: 2px 0; }
+      .hol-cal-hdrs span:first-child { color: #ef4444; }
+      .hol-cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+      .hol-cal-day {
+        height: 50px; display: flex; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        padding-top: 6px; border-radius: 6px;
+        font-size: 11px; font-weight: 600; color: #1e293b;
+        border: 1.5px solid transparent; overflow: hidden;
+      }
+      .hol-cal-day.hd-empty   { background: transparent; border-color: transparent; }
+      .hol-cal-day.hd-sunday  { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+      .hol-cal-day.hd-holiday { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+      .hol-cal-day.hd-today   { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+      .hol-cal-day.hd-normal  { background: #f8fafc; border-color: #e2e8f0; }
+      .hol-cal-day.hd-sunday.hd-holiday { background: #fee2e2; border-color: #f59e0b; color: #b45309; }
+      .hol-name-lbl {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        line-clamp: 2; overflow: hidden;
+        font-size: 7px; font-weight: 700; color: #92400e;
+        line-height: 1.2; width: 100%; text-align: center; padding: 0 2px; margin-top: 1px;
+      }
+      .hol-list-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .hol-list-table th { background: #dbeafe; color: #1e3a8a; padding: 9px 13px; text-align: left; font-weight: 700; }
+      .hol-list-table td { padding: 8px 13px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+      .hol-list-table tr:last-child td { border-bottom: none; }
+      .hol-list-table tr:hover td { background: #f0f9ff; }
+      .hol-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+      .hol-badge-pub  { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+      .hol-badge-comp { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
     </style>
   </head>
   <body>
@@ -453,6 +496,9 @@
       </button>
       <button type="button" class="sb-item" id="sbn-payslips" onclick="showView('payslips')">
         <span class="sb-icon">💳</span>Pay Slips
+      </button>
+      <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')">
+        <span class="sb-icon">📅</span>Holidays
       </button>
 
       <div class="sb-nav-label">Account</div>
@@ -1273,6 +1319,88 @@
         {% endfor %}
       </div>
       </div><!-- /view-payslips -->
+
+      <!-- ═══ VIEW: HOLIDAYS ═══ -->
+      <div id="view-holidays" class="view">
+        <div class="mod-title">📅 Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
+
+        <!-- Year navigation -->
+        <div class="hol-year-nav">
+          <a href="/employee_portal?hol_year={{ hol_year - 1 }}#holidays">&#8592; {{ hol_year - 1 }}</a>
+          <span class="hol-cur-yr">{{ hol_year }}</span>
+          <a href="/employee_portal?hol_year={{ hol_year + 1 }}#holidays">{{ hol_year + 1 }} &#8594;</a>
+        </div>
+
+        <!-- Legend -->
+        <div class="hol-legend">
+          <div class="hol-leg"><div class="hol-leg-dot" style="background:#fef3c7;border:1.5px solid #f59e0b;"></div>Public Holiday</div>
+          <div class="hol-leg"><div class="hol-leg-dot" style="background:#fee2e2;border:1.5px solid #fca5a5;"></div>Sunday (Weekly Off)</div>
+          <div class="hol-leg"><div class="hol-leg-dot" style="background:#dbeafe;border:1.5px solid #3b82f6;"></div>Today</div>
+          <div class="hol-leg"><div class="hol-leg-dot" style="background:#f8fafc;border:1.5px solid #e2e8f0;"></div>Working Day</div>
+        </div>
+
+        <!-- 12-month calendar grid -->
+        <div class="hol-cal-grid">
+          {% for m in emp_hol_cal %}
+          <div class="hol-cal-month">
+            <div class="hol-cal-month-title">{{ m.month_name }} {{ hol_year }}</div>
+            <div class="hol-cal-hdrs">
+              <span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
+            </div>
+            {% for week in m.weeks %}
+            <div class="hol-cal-week">
+              {% for day in week %}
+                {% set col = loop.index0 %}
+                {% if day == 0 %}
+                  <div class="hol-cal-day hd-empty"></div>
+                {% else %}
+                  {% set is_sun     = (col == 0) %}
+                  {% set is_holiday = (day in m.holidays) %}
+                  {% set is_today   = (today_date.year == hol_year and today_date.month == m.month_num and today_date.day == day) %}
+                  {% set hname      = m.holidays[day][1] if is_holiday else '' %}
+                  <div class="hol-cal-day {% if is_holiday %}hd-holiday{% elif is_sun %}hd-sunday{% elif is_today %}hd-today{% else %}hd-normal{% endif %}"
+                       title="{{ hname if is_holiday else ('Sunday' if is_sun else (m.month_name + ' ' + day|string + ', ' + hol_year|string)) }}">
+                    {{ day }}
+                    {% if is_holiday %}<span class="hol-name-lbl">{{ hname }}</span>{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Holidays list -->
+        <div class="section">
+          <h3>📋 All Holidays &amp; Leaves ({{ hol_year }})</h3>
+          <div style="overflow-x:auto;border-radius:10px;">
+            <table class="hol-list-table">
+              <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th></tr></thead>
+              <tbody>
+                {% set ns2 = namespace(cnt=0) %}
+                {% for row in all_holidays_list %}
+                {% set ns2.cnt = ns2.cnt + 1 %}
+                <tr>
+                  <td style="color:#94a3b8;">{{ ns2.cnt }}</td>
+                  <td>{{ row[1].strftime('%d %b %Y') }}</td>
+                  <td style="color:#64748b;font-size:12px;">{{ row[1].strftime('%A') }}</td>
+                  <td>
+                    {% if row[2].startswith('Leave:') %}
+                      <span class="hol-badge hol-badge-comp">🌿 {{ row[2][6:] }}</span>
+                    {% else %}
+                      <span class="hol-badge hol-badge-pub">🎉 {{ row[2] }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align:center;padding:28px;color:#94a3b8;">No holidays recorded for {{ hol_year }}.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /view-holidays -->
 
       <!-- ═══ PAYSLIP FULL-SCREEN MODAL ═══ -->
       <div id="payslip-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.7);backdrop-filter:blur(6px);overflow-y:auto;">
@@ -2281,7 +2409,7 @@
 
       // On page load: restore last active view from hash → localStorage → dashboard
       (function() {
-        var validViews = ['dashboard','attendance','apply-leave','payslips','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
+        var validViews = ['dashboard','attendance','apply-leave','payslips','holidays','tickets','my-profile','resign','terms','rules','limitations','instructions','posh'];
         var hash    = window.location.hash.replace('#', '');
         var stored  = '';
         try { stored = localStorage.getItem('portalView') || ''; } catch(e) {}
