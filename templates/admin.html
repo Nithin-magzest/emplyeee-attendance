@@ -292,7 +292,7 @@
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
           <div class="flash flash-{{ 'success' if category == 'success' else 'error' }}">
-            {{ '✅' if category == 'success' else '❌' }} {{ message }}
+            {{ message }}
           </div>
         {% endfor %}
       {% endwith %}

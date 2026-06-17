@@ -958,6 +958,36 @@ def admin_action():
             )
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+            # Send welcome email with credentials
+            if email:
+                _ecfg = get_email_config()
+                if _ecfg:
+                    _welcome_html = f"""
+<div style="font-family:'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:32px 24px;border-radius:16px;">
+  <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:24px;">
+    <div style="font-size:36px;margin-bottom:8px;">👋</div>
+    <h1 style="color:#fff;font-size:22px;margin:0;">Welcome to the Team!</h1>
+    <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:6px 0 0;">Your employee account has been created</p>
+  </div>
+  <p style="color:#1e293b;font-size:15px;margin-bottom:20px;">Hi <strong>{name}</strong>, here are your login credentials for the Attendance Portal:</p>
+  <div style="background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;">
+      <tr>
+        <td style="color:#64748b;padding:8px 0;border-bottom:1px solid #f1f5f9;font-weight:600;width:40%;">Employee ID</td>
+        <td style="color:#1e293b;padding:8px 0;border-bottom:1px solid #f1f5f9;font-weight:700;">{emp_id}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:8px 0;font-weight:600;">Password</td>
+        <td style="color:#1e293b;padding:8px 0;font-weight:700;font-family:monospace;font-size:15px;">{auto_pass}</td>
+      </tr>
+    </table>
+  </div>
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:20px;">
+    🔒 Please change your password after your first login for security.
+  </div>
+  <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">This is an automated message — please do not reply.</p>
+</div>"""
+                    send_email_async(email, f"Welcome {name} — Your Login Credentials", _welcome_html, _ecfg)
         except mysql.connector.errors.IntegrityError:
             db.rollback()
             os.remove(filepath)
