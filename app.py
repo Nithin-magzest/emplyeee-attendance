@@ -3014,6 +3014,12 @@ def employee_portal():
     monthly_att = cursor.fetchall()
 
     holidays_set  = fetch_holidays_set(year, month)
+    # Fetch holiday names for attendance calendar tooltips
+    cursor.execute(
+        "SELECT date, name FROM holidays WHERE date BETWEEN %s AND %s",
+        (datetime.date(year, month, 1), datetime.date(year, month, calendar.monthrange(year, month)[1]))
+    )
+    att_hol_name_map = {row[0]: row[1] for row in cursor.fetchall()}
     billable_past = get_billable_past_days(year, month)
     att_by_date   = {r[0]: r for r in monthly_att}
     full_days = half_days = late_days = absent_days = 0
@@ -3048,7 +3054,7 @@ def employee_portal():
         d = datetime.date(year, month, day)
         if d in holidays_set:
             cal_data[day] = "holiday"
-        elif d.weekday() >= 5:
+        elif d.weekday() == 6:
             cal_data[day] = "weekend"
         elif d > today:
             cal_data[day] = "future"
@@ -3064,6 +3070,7 @@ def employee_portal():
             else:
                 cal_data[day] = "absent"
     cal_json      = _json.dumps(cal_data)
+    cal_hol_names = _json.dumps({d.day: n for d, n in att_hol_name_map.items()})
     cal_year      = year
     cal_month     = month
     cal_first_dow = datetime.date(year, month, 1).weekday()  # 0=Mon
@@ -3174,6 +3181,7 @@ def employee_portal():
         att_pct=att_pct,
         total_hours=total_hours_str,
         cal_json=cal_json,
+        cal_hol_names=cal_hol_names,
         cal_year=cal_year,
         cal_month=cal_month,
         cal_first_dow=cal_first_dow,

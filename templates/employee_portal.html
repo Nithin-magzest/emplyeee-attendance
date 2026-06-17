@@ -919,7 +919,7 @@
           </div>
           <div class="cal-header">
             <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
-            <span style="color:#dc2626;">Sat</span><span style="color:#dc2626;">Sun</span>
+            <span>Sat</span><span style="color:#dc2626;">Sun</span>
           </div>
           <div class="cal-grid" id="calGrid"></div>
           <div class="cal-legend">
@@ -928,7 +928,7 @@
             <div class="leg-item"><div class="leg-dot" style="background:#fff7ed;border:1px solid #fdba74;"></div> Half Day</div>
             <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;border:1px solid #fca5a5;"></div> Absent</div>
             <div class="leg-item"><div class="leg-dot" style="background:#ede9fe;border:1px solid #c4b5fd;"></div> Holiday</div>
-            <div class="leg-item"><div class="leg-dot" style="background:#f1f5f9;border:1px solid #e2e8f0;"></div> Weekend</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#f1f5f9;border:1px solid #e2e8f0;"></div> Sunday</div>
           </div>
         </div>
 
@@ -2235,6 +2235,7 @@
       /* ── CALENDAR ── */
       (function() {
         const data     = {{ cal_json | safe }};
+        const holNames = {{ cal_hol_names | safe }};
         const firstDow = {{ cal_first_dow }};
         const year     = {{ cal_year }};
         const month    = {{ cal_month }};
@@ -2248,7 +2249,7 @@
           half:    "Half Day",
           absent:  "Absent",
           holiday: "Holiday",
-          weekend: "Weekend",
+          weekend: "Sunday",
           future:  ""
         };
 
@@ -2264,7 +2265,8 @@
           const el   = document.createElement("div");
           el.className = `cal-day cal-${type}`;
           if (d === todayDay) el.classList.add("cal-today");
-          if (tipMap[type]) el.setAttribute("data-tip", tipMap[type]);
+          const tip = type === "holiday" && holNames[d] ? holNames[d] : tipMap[type];
+          if (tip) el.setAttribute("data-tip", tip);
           el.innerHTML = `<span class="day-num">${d}</span>`;
           grid.appendChild(el);
         }
