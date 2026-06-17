@@ -69,7 +69,7 @@ else:
     with open(_key_file, "w") as _f:
         _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800
 
 UPLOAD_FOLDER = "dataset"
@@ -91,6 +91,27 @@ app.jinja_env.globals["csrf_token"] = _csrf_token
 @app.before_request
 def _enforce_csrf():
     pass  # CSRF enforcement disabled — tokens not present in templates
+
+# ---------------- COMPANY SETTINGS ----------------
+def get_company_settings():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("SELECT company_name, company_tagline, company_logo, currency_symbol, timezone, setup_done FROM company_settings LIMIT 1")
+        row = cursor.fetchone()
+        cursor.close(); db.close()
+        if row:
+            return {"company_name": row[0], "company_tagline": row[1],
+                    "company_logo": row[2], "currency_symbol": row[3],
+                    "timezone": row[4], "setup_done": bool(row[5])}
+    except Exception:
+        pass
+    return {"company_name": "My Company", "company_tagline": "Employee Attendance System",
+            "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata", "setup_done": False}
+
+@app.context_processor
+def inject_company():
+    return {"co": get_company_settings()}
 
 # Office location (single source of truth)
 OFFICE_LAT = 17.494664737165042
@@ -296,15 +317,45 @@ def init_db():
         )
     db.commit()
 
-    # Force-set admin credentials
-    hashed = generate_password_hash("admin@123")
-    cursor.execute("DELETE FROM admin_users WHERE username = 'admin'")
-    cursor.execute(
-        "INSERT INTO admin_users (username, password) VALUES (%s, %s)",
-        ("admin", hashed)
-    )
+    # Create company_settings table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS company_settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_name VARCHAR(200) DEFAULT 'My Company',
+            company_tagline VARCHAR(300) DEFAULT 'Employee Attendance System',
+            company_logo VARCHAR(255) DEFAULT NULL,
+            currency_symbol VARCHAR(10) DEFAULT '₹',
+            timezone VARCHAR(60) DEFAULT 'Asia/Kolkata',
+            setup_done TINYINT(1) DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
-    print("Database ready. Admin -> username: admin  password: admin@123")
+    cursor.execute("SELECT COUNT(*) FROM company_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")
+        db.commit()
+
+    # Seed admin from env — only if no admin exists yet
+    _admin_user = os.environ.get("ADMIN_USERNAME", "admin").strip()
+    _admin_pass = os.environ.get("ADMIN_PASSWORD", "").strip()
+    cursor.execute("SELECT COUNT(*) FROM admin_users")
+    admin_count = cursor.fetchone()[0]
+    if admin_count == 0 and _admin_pass:
+        cursor.execute(
+            "INSERT INTO admin_users (username, password) VALUES (%s, %s)",
+            (_admin_user, generate_password_hash(_admin_pass))
+        )
+        db.commit()
+        print(f"Admin created -> username: {_admin_user}")
+        admin_count = 1
+    elif admin_count == 0 and not _admin_pass:
+        print("WARNING: ADMIN_PASSWORD not set in .env — complete setup via /setup")
+
+    # Auto-mark setup done for existing installs that already have an admin
+    if admin_count > 0:
+        cursor.execute("UPDATE company_settings SET setup_done=1 WHERE setup_done=0")
+        db.commit()
 
     cursor.close()
     db.close()
@@ -743,8 +794,47 @@ def home():
     return render_template("index.html")
 
 # ---------------- ADMIN LOGIN ----------------
+@app.route("/setup", methods=["GET", "POST"])
+def setup_wizard():
+    co = get_company_settings()
+    if co["setup_done"]:
+        return redirect("/admin_login")
+
+    error = None
+    if request.method == "POST":
+        company_name  = request.form.get("company_name", "").strip()
+        company_tag   = request.form.get("company_tagline", "").strip()
+        currency      = request.form.get("currency_symbol", "₹").strip()
+        admin_user    = request.form.get("admin_username", "").strip()
+        admin_pass    = request.form.get("admin_password", "").strip()
+        admin_pass2   = request.form.get("admin_password2", "").strip()
+
+        if not company_name:
+            error = "Company name is required."
+        elif not admin_user:
+            error = "Admin username is required."
+        elif len(admin_pass) < 6:
+            error = "Password must be at least 6 characters."
+        elif admin_pass != admin_pass2:
+            error = "Passwords do not match."
+        else:
+            db = get_db_connection(); cursor = db.cursor(buffered=True)
+            cursor.execute("UPDATE company_settings SET company_name=%s, company_tagline=%s, currency_symbol=%s, setup_done=1",
+                           (company_name, company_tag or "Employee Attendance System", currency))
+            cursor.execute("DELETE FROM admin_users")
+            cursor.execute("INSERT INTO admin_users (username, password) VALUES (%s, %s)",
+                           (admin_user, generate_password_hash(admin_pass)))
+            db.commit(); cursor.close(); db.close()
+            return redirect("/admin_login?setup=done")
+
+    return render_template("setup.html", error=error)
+
+
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
+    co = get_company_settings()
+    if not co["setup_done"]:
+        return redirect("/setup")
     if session.get("admin_logged_in"):
         return redirect("/admin")
     if request.method == "POST":
@@ -3819,9 +3909,12 @@ def api_delete_employee(emp_id):
         if path and os.path.exists(path):
             try: os.remove(path)
             except: pass
-    for tbl in ("attendance", "salary_config", "leave_requests",
-                "resignation_requests", "tickets", "employees"):
-        cursor.execute(f"DELETE FROM {tbl} WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM attendance WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM leave_requests WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM tickets WHERE employee_id=%s", (emp_id,))
+    cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
     db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True, "msg": f"Employee '{emp_id}' deleted."})
 
