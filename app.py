@@ -3993,28 +3993,30 @@ def leave_action(lid):
     # Send email notification to employee
     if leave_row:
         emp_id, leave_date, reason, emp_name, emp_email = leave_row
-        if emp_email:
+        if not emp_email:
+            flash(f"Leave {action} but no email on record for {emp_name} — notification not sent.", "warning")
+        else:
             cfg = get_email_config()
-            if cfg:
-                color   = "#16a34a" if action == "Approved" else "#dc2626"
-                icon    = "✅" if action == "Approved" else "❌"
-                heading = f"{icon} Leave {action}"
-                msg_line = (
-                    f"Your leave request for <strong>{leave_date.strftime('%d %b %Y')}</strong> has been <strong style='color:{color};'>{action.lower()}</strong>."
-                    if action == "Approved"
-                    else f"Your leave request for <strong>{leave_date.strftime('%d %b %Y')}</strong> has been <strong style='color:{color};'>rejected</strong>."
-                )
+            if not cfg:
+                flash("Leave updated but SMTP not configured — email not sent.", "warning")
+            else:
+                color    = "#16a34a" if action == "Approved" else "#dc2626"
+                icon     = "✅" if action == "Approved" else "❌"
+                date_str = leave_date.strftime('%d %b %Y') if hasattr(leave_date, 'strftime') else str(leave_date)
                 html_body = f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
   <div style="background:linear-gradient(135deg,{color},{color}cc);padding:24px;color:white;text-align:center;">
-    <h2 style="margin:0;font-size:22px;">{heading}</h2>
+    <h2 style="margin:0;font-size:22px;">{icon} Leave {action}</h2>
     <p style="margin:4px 0 0;opacity:.85;font-size:13px;">Employee Attendance System</p>
   </div>
   <div style="padding:28px 32px;">
     <p style="font-size:15px;color:#1e293b;">Hi <strong>{emp_name}</strong>,</p>
-    <p style="font-size:14px;color:#475569;margin-top:10px;">{msg_line}</p>
+    <p style="font-size:14px;color:#475569;margin-top:10px;">
+      Your leave request for <strong>{date_str}</strong> has been
+      <strong style="color:{color};">{action.lower()}</strong>.
+    </p>
     <div style="background:#f8fafc;border-left:4px solid {color};border-radius:8px;padding:14px 18px;margin:20px 0;">
-      <p style="margin:0;font-size:13px;color:#64748b;">📅 <strong>Date:</strong> {leave_date.strftime('%d %b %Y')}</p>
+      <p style="margin:0;font-size:13px;color:#64748b;">📅 <strong>Date:</strong> {date_str}</p>
       <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📝 <strong>Reason:</strong> {reason or '—'}</p>
       <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📌 <strong>Status:</strong> <span style="color:{color};font-weight:700;">{action}</span></p>
     </div>
@@ -4025,9 +4027,10 @@ def leave_action(lid):
   </div>
 </div>"""
                 try:
-                    send_email_async(emp_email, f"Leave {action} — {leave_date.strftime('%d %b %Y')}", html_body, cfg)
+                    send_email_smtp(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
+                    flash(f"{icon} Leave {action} — email sent to {emp_email}", "success")
                 except Exception as _e:
-                    print(f"[EMAIL ERROR] Leave notification failed: {_e}")
+                    flash(f"Leave {action} but email failed: {_e}", "error")
 
     return redirect("/leave_requests")
 
