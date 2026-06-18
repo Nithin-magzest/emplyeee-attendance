@@ -991,26 +991,47 @@
       <!-- ═══ VIEW: APPLY LEAVE ═══ -->
       <div id="view-apply-leave" class="view">
       <div class="mod-title">📝 Apply for Leave <span>Submit a leave request and view your history</span></div>
-      <!-- Leave balance bar -->
+      <!-- Leave balance per type -->
       <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:18px 20px;margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <div style="font-size:14px;font-weight:700;color:#1e293b;">📊 Leave Balance — {{ today.split(' ')[2] if today else '' }}</div>
-          <div style="display:flex;gap:18px;font-size:12px;">
-            <span style="color:#16a34a;font-weight:700;">✅ Available: {{ leave_balance }}</span>
-            <span style="color:#f59e0b;font-weight:700;">⏳ Used/Pending: {{ leaves_used }}</span>
-            <span style="color:#64748b;font-weight:600;">📅 Quota: {{ annual_leave_quota }}</span>
+        <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;">📊 Leave Balance — {{ today.split(' ')[2] if today else '' }}</div>
+        {% if leave_type_balances %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+          {% for ltb in leave_type_balances %}
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">{{ ltb.name }}</div>
+            <div style="font-size:24px;font-weight:800;color:{% if ltb.balance == 0 %}#ef4444{% elif ltb.balance <= 3 %}#f59e0b{% else %}#16a34a{% endif %};">{{ ltb.balance }}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">of {{ ltb.quota }} days left</div>
+            {% set pct = (((ltb.quota - ltb.balance) / ltb.quota) * 100) | int if ltb.quota > 0 else 0 %}
+            <div style="background:#e2e8f0;border-radius:20px;height:5px;overflow:hidden;margin-top:8px;">
+              <div style="height:100%;border-radius:20px;width:{{ [pct,100]|min }}%;background:{% if pct >= 80 %}#ef4444{% elif pct >= 50 %}#f59e0b{% else %}#16a34a{% endif %};"></div>
+            </div>
           </div>
+          {% endfor %}
         </div>
-        {% set used_pct = ((leaves_used / annual_leave_quota) * 100) | int %}
-        <div style="background:#e2e8f0;border-radius:20px;height:10px;overflow:hidden;">
-          <div style="height:100%;border-radius:20px;width:{{ [used_pct,100]|min }}%;
-            background:{% if used_pct >= 80 %}#ef4444{% elif used_pct >= 50 %}#f59e0b{% else %}#16a34a{% endif %};
-            transition:width 0.4s;"></div>
+        {% else %}
+        <div style="display:flex;gap:18px;font-size:12px;">
+          <span style="color:#16a34a;font-weight:700;">✅ Available: {{ leave_balance }}</span>
+          <span style="color:#f59e0b;font-weight:700;">⏳ Used/Pending: {{ leaves_used }}</span>
+          <span style="color:#64748b;font-weight:600;">📅 Quota: {{ annual_leave_quota }}</span>
         </div>
+        {% endif %}
       </div>
 
       <div class="section" id="apply-leave">
         <form action="/request_leave" method="POST" id="leave-form">
+
+          {% if leave_types_for_form %}
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:6px;">Leave Type</label>
+            <select name="leave_type_id" required
+                    style="width:100%;padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;appearance:auto;">
+              <option value="">— Select leave type —</option>
+              {% for lt in leave_types_for_form %}
+              <option value="{{ lt.id }}">{{ lt.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
 
           <div style="display:flex;gap:10px;margin-bottom:14px;">
             <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
@@ -1092,6 +1113,7 @@
               <tr>
                 <th>#</th>
                 <th>Leave Date</th>
+                <th>Type</th>
                 <th>Reason</th>
                 <th>Status</th>
                 <th>Submitted On</th>
@@ -1099,10 +1121,12 @@
             </thead>
             <tbody>
               {% for lv in my_leaves %}
-              {% set lv_date, lv_reason, lv_status, lv_created = lv %}
+              {% set lv_date, lv_reason, lv_status, lv_created = lv[:4] %}
+              {% set lv_type_name = lv[4] if lv|length > 4 else '' %}
               <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ lv_date }}</td>
+                <td>{% if lv_type_name %}<span class="badge badge-blue" style="font-size:11px;">{{ lv_type_name }}</span>{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
                 <td>{{ lv_reason }}</td>
                 <td>
                   {% if lv_status == 'Approved' %}
@@ -1119,7 +1143,7 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="5" class="empty-cell">No leave requests submitted yet.</td>
+                <td colspan="6" class="empty-cell">No leave requests submitted yet.</td>
               </tr>
               {% endfor %}
             </tbody>

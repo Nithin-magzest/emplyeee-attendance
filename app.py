@@ -403,7 +403,31 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS leave_types (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            annual_quota INT NOT NULL DEFAULT 12,
+            is_paid TINYINT(1) DEFAULT 1,
+            is_active TINYINT(1) DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
+    # Seed default leave types if empty
+    cursor.execute("SELECT COUNT(*) FROM leave_types")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany(
+            "INSERT INTO leave_types (name, annual_quota, is_paid) VALUES (%s,%s,%s)",
+            [
+                ("Casual Leave",    12,  1),
+                ("Sick Leave",      12,  1),
+                ("Earned Leave",    15,  1),
+                ("Maternity Leave", 90,  1),
+                ("Paternity Leave",  5,  1),
+            ]
+        )
+        db.commit()
     # Seed default breaks if table is empty
     cursor.execute("SELECT COUNT(*) FROM break_config")
     if cursor.fetchone()[0] == 0:
@@ -455,6 +479,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN about_me TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1179,6 +1204,58 @@ def dashboard_live():
         "pending_tickets":      pending_tickets,
     })
 
+# ---------------- CHART DATA API ----------------
+@app.route("/api/attendance_chart_data")
+@admin_required
+def attendance_chart_data():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    today  = datetime.date.today()
+
+    # Last 30 days: present count per day
+    cursor.execute("""
+        SELECT a.date, COUNT(DISTINCT a.employee_id)
+        FROM attendance a
+        WHERE a.date >= %s AND a.date <= %s AND a.login_time IS NOT NULL
+        GROUP BY a.date ORDER BY a.date
+    """, (today - datetime.timedelta(days=29), today))
+    present_by_day = {str(r[0]): r[1] for r in cursor.fetchall()}
+
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total = cursor.fetchone()[0]
+
+    trend_labels, trend_present, trend_absent = [], [], []
+    for i in range(29, -1, -1):
+        d   = today - datetime.timedelta(days=i)
+        key = str(d)
+        p   = present_by_day.get(key, 0)
+        trend_labels.append(d.strftime("%d %b"))
+        trend_present.append(p)
+        trend_absent.append(max(total - p, 0))
+
+    # Today by department
+    cursor.execute("""
+        SELECT COALESCE(e.department, 'Unassigned'),
+               COUNT(DISTINCT CASE WHEN a.login_time IS NOT NULL THEN e.employee_id END),
+               COUNT(DISTINCT e.employee_id)
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s
+        GROUP BY COALESCE(e.department, 'Unassigned')
+        ORDER BY COALESCE(e.department, 'Unassigned')
+    """, (today,))
+    dept_labels, dept_present, dept_absent = [], [], []
+    for dept, p, tot in cursor.fetchall():
+        dept_labels.append(dept)
+        dept_present.append(p or 0)
+        dept_absent.append(max((tot or 0) - (p or 0), 0))
+
+    cursor.close(); db.close()
+    return jsonify({
+        "trend":  {"labels": trend_labels, "present": trend_present, "absent": trend_absent},
+        "dept":   {"labels": dept_labels,  "present": dept_present,  "absent": dept_absent},
+    })
+
+
 # ---------------- TODAY FILTERED VIEWS ----------------
 def _today_pending_counts(cursor):
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
@@ -1792,6 +1869,8 @@ def edit_employee():
     email           = request.form.get("email", "").strip() or None
     role            = request.form.get("role", "").strip() or None
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
+    department      = request.form.get("department",   "").strip() or None
+    manager_name    = request.form.get("manager_name", "").strip() or None
     db       = get_db_connection()
     cursor   = db.cursor(buffered=True)
     if request.form.get("update_work_mode"):
@@ -1802,18 +1881,49 @@ def edit_employee():
         work_lon     = float(work_lon_raw) if work_lon_raw else None
         cursor.execute(
             "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-            "work_mode=%s, work_lat=%s, work_lon=%s WHERE employee_id=%s",
-            (name, email, role, date_of_joining, work_mode, work_lat, work_lon, emp_id)
+            "work_mode=%s, work_lat=%s, work_lon=%s, department=%s, manager_name=%s "
+            "WHERE employee_id=%s",
+            (name, email, role, date_of_joining, work_mode, work_lat, work_lon,
+             department, manager_name, emp_id)
         )
     else:
         cursor.execute(
-            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s "
-            "WHERE employee_id=%s",
-            (name, email, role, date_of_joining, emp_id)
+            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
+            "department=%s, manager_name=%s WHERE employee_id=%s",
+            (name, email, role, date_of_joining, department, manager_name, emp_id)
         )
     db.commit(); cursor.close(); db.close()
     flash(f"Employee '{emp_id}' updated successfully.", "success")
     return redirect("/employees")
+
+
+@app.route("/api/employee_info/<emp_id>")
+@admin_required
+def api_employee_info(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT employee_id, name, role, email, date_of_joining, "
+        "work_mode, work_lat, work_lon, department, manager_name "
+        "FROM employees WHERE employee_id=%s", (emp_id,)
+    )
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    eid, name, role, email, doj, wm, wlat, wlon, dept, mgr = row
+    return jsonify({
+        "emp_id":       eid,
+        "name":         name or "",
+        "role":         role or "",
+        "email":        email or "",
+        "doj":          doj.strftime("%Y-%m-%d") if doj else "",
+        "work_mode":    wm or "office",
+        "work_lat":     str(wlat) if wlat else "",
+        "work_lon":     str(wlon) if wlon else "",
+        "department":   dept or "",
+        "manager_name": mgr or "",
+    })
 
 
 @app.route("/employees")
@@ -1847,6 +1957,53 @@ def view_employees():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
     )
+
+
+# ---------------- LEAVE TYPES ADMIN ----------------
+@app.route("/admin_leave_types", methods=["GET", "POST"])
+@admin_required
+def admin_leave_types():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    if request.method == "POST":
+        action = request.form.get("action", "")
+        if action == "add":
+            name    = request.form.get("name", "").strip()
+            quota   = int(request.form.get("annual_quota", 12) or 12)
+            is_paid = 1 if request.form.get("is_paid") else 0
+            if name:
+                cursor.execute(
+                    "INSERT INTO leave_types (name, annual_quota, is_paid) VALUES (%s,%s,%s)",
+                    (name, quota, is_paid)
+                )
+        elif action == "edit":
+            lt_id   = int(request.form.get("lt_id", 0))
+            name    = request.form.get("name", "").strip()
+            quota   = int(request.form.get("annual_quota", 12) or 12)
+            is_paid = 1 if request.form.get("is_paid") else 0
+            if lt_id and name:
+                cursor.execute(
+                    "UPDATE leave_types SET name=%s, annual_quota=%s, is_paid=%s WHERE id=%s",
+                    (name, quota, is_paid, lt_id)
+                )
+        elif action == "toggle":
+            lt_id = int(request.form.get("lt_id", 0))
+            if lt_id:
+                cursor.execute(
+                    "UPDATE leave_types SET is_active = 1 - is_active WHERE id=%s", (lt_id,)
+                )
+        elif action == "delete":
+            lt_id = int(request.form.get("lt_id", 0))
+            if lt_id:
+                cursor.execute("DELETE FROM leave_types WHERE id=%s", (lt_id,))
+        db.commit()
+        cursor.close(); db.close()
+        return redirect("/admin_leave_types")
+
+    cursor.execute("SELECT id, name, annual_quota, is_paid, is_active FROM leave_types ORDER BY id")
+    leave_types = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("leave_types_admin.html", leave_types=leave_types)
 
 
 @app.route("/change_admin_password", methods=["POST"])
@@ -3668,9 +3825,12 @@ def employee_portal():
     cal_first_dow = datetime.date(year, month, 1).weekday()  # 0=Mon
 
     cursor.execute("""
-        SELECT leave_date, reason, status, created_at
-        FROM leave_requests WHERE employee_id=%s
-        ORDER BY created_at DESC LIMIT 10
+        SELECT lr.leave_date, lr.reason, lr.status, lr.created_at,
+               COALESCE(lt.name, '') AS leave_type_name
+        FROM leave_requests lr
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        WHERE lr.employee_id=%s
+        ORDER BY lr.created_at DESC LIMIT 20
     """, (emp_id,))
     my_leaves = cursor.fetchall()
 
@@ -3688,14 +3848,37 @@ def employee_portal():
     """, (emp_id,))
     my_tickets = cursor.fetchall()
 
-    # Leave balance
-    annual_leave_quota = 12
-    cursor.execute("""
-        SELECT COUNT(*) FROM leave_requests
-        WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
-    """, (emp_id, today.year))
-    leaves_used = cursor.fetchone()[0] or 0
-    leave_balance = max(0, annual_leave_quota - leaves_used)
+    # Leave types & per-type balances
+    try:
+        cursor.execute(
+            "SELECT id, name, annual_quota, is_paid FROM leave_types WHERE is_active=1 ORDER BY id"
+        )
+        leave_types_list = cursor.fetchall()
+        cursor.execute("""
+            SELECT leave_type_id, COUNT(*) FROM leave_requests
+            WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
+            GROUP BY leave_type_id
+        """, (emp_id, today.year))
+        used_by_type = {r[0]: r[1] for r in cursor.fetchall()}
+        leave_type_balances = []
+        for lt_id, lt_name, lt_quota, lt_paid in leave_types_list:
+            used = used_by_type.get(lt_id, 0)
+            leave_type_balances.append({
+                "id": lt_id, "name": lt_name, "quota": lt_quota,
+                "used": used, "balance": max(0, lt_quota - used), "is_paid": lt_paid
+            })
+        annual_leave_quota = sum(lt[2] for lt in leave_types_list) or 12
+        leaves_used   = sum(used_by_type.values())
+        leave_balance = max(0, annual_leave_quota - leaves_used)
+    except Exception:
+        leave_type_balances = []
+        annual_leave_quota  = 12
+        cursor.execute("""
+            SELECT COUNT(*) FROM leave_requests
+            WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
+        """, (emp_id, today.year))
+        leaves_used   = cursor.fetchone()[0] or 0
+        leave_balance = max(0, annual_leave_quota - leaves_used)
 
     # Announcements for dashboard
     cursor.execute("""
@@ -3840,6 +4023,8 @@ def employee_portal():
         leave_balance=leave_balance,
         leaves_used=leaves_used,
         annual_leave_quota=annual_leave_quota,
+        leave_type_balances=leave_type_balances,
+        leave_types_for_form=[{"id": lt[0], "name": lt[1]} for lt in (leave_types_list if leave_types_list else [])],
         announcements=announcements,
         pending_leaves_count=pending_leaves_count,
         open_tickets_count=open_tickets_count,
@@ -4024,9 +4209,11 @@ def my_attendance_pdf():
 def request_leave():
     emp_id     = session["employee_id"]
     emp_name   = session["employee_name"]
-    leave_start = request.form.get("leave_date_start", "").strip()
-    leave_end   = request.form.get("leave_date_end", "").strip() or leave_start
-    reason      = request.form.get("reason", "").strip()
+    leave_start  = request.form.get("leave_date_start", "").strip()
+    leave_end    = request.form.get("leave_date_end", "").strip() or leave_start
+    reason       = request.form.get("reason", "").strip()
+    leave_type_id_raw = request.form.get("leave_type_id", "").strip()
+    leave_type_id = int(leave_type_id_raw) if leave_type_id_raw.isdigit() else None
     if not reason or not leave_start:
         return redirect("/employee_portal")
 
@@ -4044,8 +4231,9 @@ def request_leave():
     cur = start_dt
     while cur <= end_dt:
         cursor.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
-            (emp_id, cur, reason)
+            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id) "
+            "VALUES (%s,%s,%s,%s)",
+            (emp_id, cur, reason, leave_type_id)
         )
         cur += datetime.timedelta(days=1)
     db.commit()

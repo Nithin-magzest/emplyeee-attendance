@@ -248,16 +248,7 @@
                 </td>
                 <td>
                   <button class="btn-edit"
-                    onclick="openEdit(
-                      '{{ emp_id }}',
-                      '{{ name | replace("'", "\\'") }}',
-                      '{{ role or "" }}',
-                      '{{ email or "" }}',
-                      '{{ doj.strftime("%Y-%m-%d") if doj else "" }}',
-                      '{{ work_mode or "office" }}',
-                      '{{ work_lat or "" }}',
-                      '{{ work_lon or "" }}'
-                    )">✏️ Edit</button>
+                    onclick="openEdit('{{ emp_id }}')">✏️ Edit</button>
                   <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                         onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
                     <button type="submit" class="btn-del">🗑 Delete</button>
@@ -338,6 +329,15 @@
             </button>
           </div>
 
+          <div class="field-group">
+            <label>Department</label>
+            <input name="department" id="edit_department" type="text" placeholder="e.g. Engineering" />
+          </div>
+          <div class="field-group">
+            <label>Reporting Manager</label>
+            <input name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
+          </div>
+
           <div class="modal-actions">
             <button type="submit" class="btn-save">Save Changes</button>
             <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
@@ -390,20 +390,26 @@
         }, function() { alert("Could not get location. Please enter coordinates manually."); });
       }
 
-      function openEdit(empId, name, role, email, doj, workMode, workLat, workLon) {
+      async function openEdit(empId) {
+        document.getElementById("editModal").style.display = "flex";
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
-        document.getElementById("edit_name").value           = name;
-        document.getElementById("edit_role").value           = role;
-        document.getElementById("edit_email").value          = email;
-        document.getElementById("edit_doj").value            = doj;
-        var wm = workMode || "office";
-        document.getElementById("emp_edit_wm_office").checked = wm === "office";
-        document.getElementById("emp_edit_wm_wfh").checked    = wm === "wfh";
-        document.getElementById("emp_edit_work_lat").value    = workLat || "";
-        document.getElementById("emp_edit_work_lon").value    = workLon || "";
-        empEditToggleLocation(wm);
-        document.getElementById("editModal").style.display   = "flex";
+        try {
+          const res  = await fetch("/api/employee_info/" + empId);
+          const data = await res.json();
+          document.getElementById("edit_name").value         = data.name         || "";
+          document.getElementById("edit_role").value         = data.role         || "";
+          document.getElementById("edit_email").value        = data.email        || "";
+          document.getElementById("edit_doj").value          = data.doj          || "";
+          document.getElementById("edit_department").value   = data.department   || "";
+          document.getElementById("edit_manager_name").value = data.manager_name || "";
+          var wm = data.work_mode || "office";
+          document.getElementById("emp_edit_wm_office").checked = wm === "office";
+          document.getElementById("emp_edit_wm_wfh").checked    = wm === "wfh";
+          document.getElementById("emp_edit_work_lat").value    = data.work_lat || "";
+          document.getElementById("emp_edit_work_lon").value    = data.work_lon || "";
+          empEditToggleLocation(wm);
+        } catch(e) { alert("Could not load employee data."); closeEdit(); }
       }
       function closeEdit() {
         document.getElementById("editModal").style.display = "none";
