@@ -480,6 +480,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
+        "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
     ]:
         try:
             cursor.execute(sql)
@@ -4385,14 +4386,16 @@ def employee_portal():
         )
         leave_types_list = cursor.fetchall()
         cursor.execute("""
-            SELECT leave_type_id, COUNT(*) FROM leave_requests
+            SELECT leave_type_id,
+                   SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
+            FROM leave_requests
             WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
             GROUP BY leave_type_id
         """, (emp_id, today.year))
-        used_by_type = {r[0]: r[1] for r in cursor.fetchall()}
+        used_by_type = {r[0]: float(r[1]) for r in cursor.fetchall()}
         leave_type_balances = []
         for lt_id, lt_name, lt_quota, lt_paid in leave_types_list:
-            used = used_by_type.get(lt_id, 0)
+            used = used_by_type.get(lt_id, 0.0)
             leave_type_balances.append({
                 "id": lt_id, "name": lt_name, "quota": lt_quota,
                 "used": used, "balance": max(0, lt_quota - used), "is_paid": lt_paid
@@ -4744,26 +4747,34 @@ def request_leave():
     reason       = request.form.get("reason", "").strip()
     leave_type_id_raw = request.form.get("leave_type_id", "").strip()
     leave_type_id = int(leave_type_id_raw) if leave_type_id_raw.isdigit() else None
+    is_half_day   = 1 if request.form.get("is_half_day") else 0
     if not reason or not leave_start:
         return redirect("/employee_portal")
 
     start_dt = datetime.date.fromisoformat(leave_start)
-    end_dt   = datetime.date.fromisoformat(leave_end)
-    if end_dt < start_dt:
+    # Half-day is always a single date; ignore end date
+    if is_half_day:
         end_dt = start_dt
+    else:
+        end_dt = datetime.date.fromisoformat(leave_end) if leave_end else start_dt
+        if end_dt < start_dt:
+            end_dt = start_dt
 
     num_days = (end_dt - start_dt).days + 1
-    date_label = (leave_start if num_days == 1
-                  else f"{leave_start} – {leave_end} ({num_days} days)")
+    if is_half_day:
+        date_label = f"{leave_start} (Half Day)"
+    else:
+        date_label = (leave_start if num_days == 1
+                      else f"{leave_start} – {leave_end} ({num_days} days)")
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cur = start_dt
     while cur <= end_dt:
         cursor.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id) "
-            "VALUES (%s,%s,%s,%s)",
-            (emp_id, cur, reason, leave_type_id)
+            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day) "
+            "VALUES (%s,%s,%s,%s,%s)",
+            (emp_id, cur, reason, leave_type_id, is_half_day)
         )
         cur += datetime.timedelta(days=1)
     db.commit()
@@ -4808,10 +4819,11 @@ def leave_requests_view():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    # Leave requests with leave type name
+    # Leave requests with leave type name + half_day flag
     cursor.execute("""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
-               COALESCE(lt.name, 'Leave Request') AS leave_type_name
+               COALESCE(lt.name, 'Leave Request') AS leave_type_name,
+               COALESCE(lr.is_half_day, 0) AS is_half_day
         FROM leave_requests lr
         JOIN employees e ON lr.employee_id = e.employee_id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
@@ -4819,14 +4831,19 @@ def leave_requests_view():
     """)
     leaves = cursor.fetchall()
 
-    # Approved leave days used per employee this year
+    # Approved leave days used per employee this year (half-day = 0.5)
     cursor.execute("""
-        SELECT employee_id, COUNT(*)
+        SELECT employee_id,
+               SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
         FROM leave_requests
         WHERE YEAR(leave_date) = YEAR(CURDATE()) AND status = 'Approved'
         GROUP BY employee_id
     """)
-    leave_used = {row[0]: row[1] for row in cursor.fetchall()}
+    leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+    # Leave types for balance display
+    cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
+    leave_types_list = cursor.fetchall()
 
     # All tickets
     cursor.execute("""
@@ -4859,6 +4876,7 @@ def leave_requests_view():
     return render_template("leave_requests.html",
         leaves=leaves,
         leave_used=leave_used,
+        leave_types_list=leave_types_list,
         all_tickets=all_tickets,
         resignations=resignations,
         pending_leaves=pending_leaves,
@@ -4881,7 +4899,7 @@ def leave_action(lid):
     # Fetch leave + employee details before updating
     cursor.execute("""
         SELECT lr.employee_id, lr.leave_date, lr.reason,
-               e.name, e.email
+               e.name, e.email, COALESCE(lr.is_half_day, 0)
         FROM leave_requests lr
         JOIN employees e ON e.employee_id = lr.employee_id
         WHERE lr.id = %s
@@ -4891,12 +4909,13 @@ def leave_action(lid):
     cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
 
     if action == "Approved" and leave_row:
-        emp_id, leave_date, _, _, _ = leave_row
+        emp_id, leave_date, _, _, _, is_half = leave_row
+        att_type = 'Half Day' if is_half else 'Approved Leave'
         cursor.execute("""
             INSERT INTO attendance (employee_id, date, attendance_type)
-            VALUES (%s, %s, 'Approved Leave')
-            ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
-        """, (emp_id, leave_date))
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE attendance_type=%s
+        """, (emp_id, leave_date, att_type, att_type))
 
     db.commit()
     cursor.close(); db.close()
@@ -4944,6 +4963,67 @@ def leave_action(lid):
                     flash(f"Leave {action} but email failed: {_e}", "error")
 
     return redirect("/leave_requests")
+
+
+@app.route("/leave_calendar")
+@admin_required
+def leave_calendar():
+    import calendar as cal_mod
+    from collections import defaultdict
+    today = datetime.date.today()
+    year  = int(request.args.get("year",  today.year))
+    month = int(request.args.get("month", today.month))
+    if month < 1:  month = 12; year -= 1
+    if month > 12: month = 1;  year += 1
+
+    _, last_day = cal_mod.monthrange(year, month)
+    start_date  = datetime.date(year, month, 1)
+    end_date    = datetime.date(year, month, last_day)
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT lr.leave_date, e.name, lr.employee_id,
+               COALESCE(lr.is_half_day,0),
+               COALESCE(lt.name,'Leave') AS leave_type
+        FROM leave_requests lr
+        JOIN employees e ON lr.employee_id = e.employee_id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        WHERE lr.status = 'Approved'
+          AND lr.leave_date BETWEEN %s AND %s
+        ORDER BY lr.leave_date, e.name
+    """, (start_date, end_date))
+    cal_data = defaultdict(list)
+    for ld, name, eid, half, ltype in cursor.fetchall():
+        day = ld.day if hasattr(ld, 'day') else int(str(ld)[8:10])
+        cal_data[day].append({"name": name, "emp_id": eid,
+                               "is_half": bool(half), "leave_type": ltype})
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.close(); db.close()
+
+    prev_m = month - 1 if month > 1 else 12
+    prev_y = year if month > 1 else year - 1
+    next_m = month + 1 if month < 12 else 1
+    next_y = year if month < 12 else year + 1
+
+    return render_template("leave_calendar.html",
+        cal_weeks=cal_mod.monthcalendar(year, month),
+        cal_data=dict(cal_data),
+        year=year, month=month,
+        month_name=cal_mod.month_name[month],
+        today=today,
+        prev_m=prev_m, prev_y=prev_y,
+        next_m=next_m, next_y=next_y,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
 
 
 @app.route("/request_resignation", methods=["POST"])

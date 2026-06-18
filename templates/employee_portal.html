@@ -1036,15 +1036,26 @@
           </div>
           {% endif %}
 
+          <!-- Half day toggle -->
+          <div style="margin-bottom:14px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:#f8fafc;border:1px solid #dbeafe;border-radius:9px;">
+              <input type="checkbox" name="is_half_day" id="half-day-chk" value="1"
+                     style="width:16px;height:16px;accent-color:#1e3a8a;cursor:pointer;"
+                     onchange="toggleHalfDay(this.checked)">
+              <span style="font-size:14px;font-weight:600;color:#1e293b;">Half Day Leave</span>
+              <span style="font-size:12px;color:#64748b;">(counts as 0.5 days)</span>
+            </label>
+          </div>
+
           <div style="display:flex;gap:10px;margin-bottom:14px;">
             <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
               <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">From Date</label>
               <input type="date" name="leave_date_start" id="leave-date-start" required
                      style="width:100%;padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;" />
             </div>
-            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+            <div id="to-date-wrap" style="flex:1;display:flex;flex-direction:column;gap:6px;">
               <label style="font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">To Date</label>
-              <input type="date" name="leave_date_end" id="leave-date-end" required
+              <input type="date" name="leave_date_end" id="leave-date-end"
                      style="width:100%;padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;" />
             </div>
           </div>
@@ -2626,7 +2637,21 @@
       });
 
       // Leave date range counter
+      function toggleHalfDay(checked) {
+        var wrap = document.getElementById('to-date-wrap');
+        var badge = document.getElementById('leave-days-badge');
+        if (checked) {
+          wrap.style.display = 'none';
+          badge.textContent = '½ Half Day selected';
+          badge.style.display = 'block';
+        } else {
+          wrap.style.display = 'flex';
+          updateLeaveDays();
+        }
+      }
       function updateLeaveDays() {
+        var isHalf = document.getElementById('half-day-chk') && document.getElementById('half-day-chk').checked;
+        if (isHalf) return;
         var s = document.getElementById('leave-date-start').value;
         var e = document.getElementById('leave-date-end').value;
         var badge = document.getElementById('leave-days-badge');

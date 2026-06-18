@@ -258,7 +258,24 @@
         {% endfor %}
       {% endwith %}
 
-      <div class="page-title">Tickets, leaves &amp; resignations</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+        <div class="page-title" style="margin-bottom:0;">Tickets, leaves &amp; resignations</div>
+        <a href="/leave_calendar" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:#1e3a8a;color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700;">
+          <i class="ti ti-calendar-month"></i> Leave Calendar
+        </a>
+      </div>
+
+      <!-- LEAVE BALANCE SUMMARY -->
+      {% if leave_types_list %}
+      <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:13px;font-weight:700;color:#1e3a8a;margin-right:4px;">Leave Quota (Annual):</span>
+        {% for lt_id, lt_name, lt_quota in leave_types_list %}
+        <span style="background:#eff6ff;border:1px solid #dbeafe;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#1e3a8a;">
+          {{ lt_name }}: <strong>{{ lt_quota }} days</strong>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       <!-- TAB NAV -->
       <div class="tab-nav">
@@ -302,7 +319,7 @@
         {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
         {% if leaves %}
           {% for row in leaves %}
-            {% set lid, emp_name, emp_id, leave_date, reason, status, created_at, leave_type_name = row %}
+            {% set lid, emp_name, emp_id, leave_date, reason, status, created_at, leave_type_name, is_half_day = row %}
             {% set _parts = emp_name.split() %}
             {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
             {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
@@ -319,7 +336,12 @@
                     {{ leave_type_name }}
                     &nbsp;·&nbsp;
                     {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }}
-                    &nbsp;·&nbsp; 1 day
+                    &nbsp;·&nbsp;
+                    {% if is_half_day %}
+                      <span style="background:#fef9c3;color:#92400e;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">½ Half Day</span>
+                    {% else %}
+                      1 day
+                    {% endif %}
                   </div>
                 </div>
                 {% if status == 'Approved' %}
@@ -334,8 +356,8 @@
               <div class="reason-quote">"{{ reason }}"</div>
 
               <div class="balance-row">
-                <strong>Leave balance:</strong>
-                {{ _used }} day{{ 's' if _used != 1 else '' }} used this year
+                <strong>Used this year:</strong>
+                {{ _used }} day{{ 's' if _used != 1 else '' }}
                 <span class="dot-sep">·</span>
                 Applied on {{ created_at.strftime('%d %b') if created_at else '—' }}
               </div>
