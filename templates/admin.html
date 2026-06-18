@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #f1f5f9; min-height: 100vh; display: flex; }
@@ -396,6 +397,21 @@
         </div>
       </div>
 
+      <!-- ATTENDANCE CHARTS -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;">
+
+        <div class="section" style="margin-bottom:0;">
+          <div class="section-title">📈 Attendance Trend — Last 30 Days</div>
+          <canvas id="trendChart" height="90"></canvas>
+        </div>
+
+        <div class="section" style="margin-bottom:0;">
+          <div class="section-title">🏢 Today by Department</div>
+          <canvas id="deptChart" height="90"></canvas>
+        </div>
+
+      </div>
+
       <!-- TODAY'S ATTENDANCE -->
       <div class="section">
         <div class="section-title">
@@ -449,7 +465,7 @@
                   </td>
                   <td>
                     <button class="tbl-btn tbl-btn-edit"
-                      onclick="openEdit('{{ emp_id }}','{{ name }}','{{ role or '' }}','','')">✏️ Edit</button>
+                      onclick="openEdit('{{ emp_id }}')">✏️ Edit</button>
                     <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                       onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
                       <button type="submit" class="tbl-btn tbl-btn-delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
@@ -781,6 +797,14 @@
               📡 Use My Location
             </button>
           </div>
+          <div class="field">
+            <label>Department</label>
+            <input name="department" id="edit_department" type="text" placeholder="e.g. Engineering" />
+          </div>
+          <div class="field">
+            <label>Reporting Manager</label>
+            <input name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
+          </div>
           <div style="display:flex;gap:10px;">
             <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
             <button type="button" onclick="closeEdit()" style="padding:11px 18px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;cursor:pointer;">Cancel</button>
@@ -909,20 +933,26 @@
       }
 
       /* ── EDIT MODAL ── */
-      function openEdit(empId, name, role, email, doj, workMode, workLat, workLon) {
+      async function openEdit(empId) {
+        document.getElementById("editModal").style.display = "flex";
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
-        document.getElementById("edit_name").value           = name;
-        document.getElementById("edit_email").value          = email || "";
-        document.getElementById("edit_role").value           = role  || "";
-        document.getElementById("edit_doj").value            = doj   || "";
-        var wm = workMode || "office";
-        document.getElementById("edit_wm_office").checked = wm === "office";
-        document.getElementById("edit_wm_wfh").checked    = wm === "wfh";
-        document.getElementById("edit_work_lat").value    = workLat || "";
-        document.getElementById("edit_work_lon").value    = workLon || "";
-        editToggleLocation(wm);
-        document.getElementById("editModal").style.display   = "flex";
+        try {
+          const res  = await fetch("/api/employee_info/" + empId);
+          const data = await res.json();
+          document.getElementById("edit_name").value         = data.name         || "";
+          document.getElementById("edit_email").value        = data.email        || "";
+          document.getElementById("edit_role").value         = data.role         || "";
+          document.getElementById("edit_doj").value          = data.doj          || "";
+          document.getElementById("edit_department").value   = data.department   || "";
+          document.getElementById("edit_manager_name").value = data.manager_name || "";
+          var wm = data.work_mode || "office";
+          document.getElementById("edit_wm_office").checked = wm === "office";
+          document.getElementById("edit_wm_wfh").checked    = wm === "wfh";
+          document.getElementById("edit_work_lat").value    = data.work_lat || "";
+          document.getElementById("edit_work_lon").value    = data.work_lon || "";
+          editToggleLocation(wm);
+        } catch(e) { alert("Could not load employee data."); closeEdit(); }
       }
       function closeEdit() { document.getElementById("editModal").style.display = "none"; }
       document.getElementById("editModal").addEventListener("click", e => { if (e.target===e.currentTarget) closeEdit(); });
@@ -977,7 +1007,7 @@
               <td>${buildLogoutBadge(r)}</td>
               <td>${buildAttTypeBadge(r)}</td>
               <td>
-                <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${r.emp_id}','${r.name.replace(/'/g,"\\'")}','${(r.role||"").replace(/'/g,"\\'")}','','')">✏️ Edit</button>
+                <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${r.emp_id}')">✏️ Edit</button>
                 <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
               </td>
             </tr>`;
@@ -1018,6 +1048,74 @@
       setInterval(refreshDashboard, REFRESH_INTERVAL);
       setInterval(updateLastUpdated, 5000);
       setTimeout(refreshDashboard, 5000);
+
+      /* ── ATTENDANCE CHARTS ── */
+      let _trendChart = null, _deptChart = null;
+
+      async function loadCharts() {
+        try {
+          const res  = await fetch("/api/attendance_chart_data");
+          if (!res.ok) return;
+          const data = await res.json();
+
+          if (_trendChart) _trendChart.destroy();
+          _trendChart = new Chart(document.getElementById("trendChart"), {
+            type: "line",
+            data: {
+              labels: data.trend.labels,
+              datasets: [
+                {
+                  label: "Present", data: data.trend.present,
+                  borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,0.1)",
+                  tension: 0.3, fill: true, pointRadius: 2, borderWidth: 2,
+                },
+                {
+                  label: "Absent", data: data.trend.absent,
+                  borderColor: "#ef4444", backgroundColor: "rgba(239,68,68,0.07)",
+                  tension: 0.3, fill: true, pointRadius: 2, borderWidth: 2,
+                }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: true,
+              plugins: { legend: { position: "top", labels: { font: { size: 11 }, boxWidth: 12 } } },
+              scales: {
+                x: { ticks: { font: { size: 10 }, maxTicksLimit: 10 }, grid: { display: false } },
+                y: { ticks: { font: { size: 10 }, stepSize: 1 }, beginAtZero: true }
+              }
+            }
+          });
+
+          if (_deptChart) _deptChart.destroy();
+          _deptChart = new Chart(document.getElementById("deptChart"), {
+            type: "bar",
+            data: {
+              labels: data.dept.labels,
+              datasets: [
+                {
+                  label: "Present", data: data.dept.present,
+                  backgroundColor: "rgba(22,163,74,0.75)", borderRadius: 5,
+                },
+                {
+                  label: "Absent", data: data.dept.absent,
+                  backgroundColor: "rgba(239,68,68,0.65)", borderRadius: 5,
+                }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: true,
+              plugins: { legend: { position: "top", labels: { font: { size: 11 }, boxWidth: 12 } } },
+              scales: {
+                x: { stacked: true, ticks: { font: { size: 10 } }, grid: { display: false } },
+                y: { stacked: true, ticks: { font: { size: 10 }, stepSize: 1 }, beginAtZero: true }
+              }
+            }
+          });
+        } catch(e) {}
+      }
+
+      loadCharts();
+      setInterval(loadCharts, 120000);
     </script>
   </body>
 </html>
