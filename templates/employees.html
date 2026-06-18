@@ -194,7 +194,24 @@
         .form-grid .full, .sec-title, .location-box { grid-column: 1; }
         .stat-row { grid-template-columns: repeat(2, 1fr); }
       }
+
+      /* ── PAGINATION ── */
+      .pagination-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 10px; padding: 12px 4px 0;
+      }
+      .page-info { font-size: 13px; color: #64748b; }
+      .page-btns { display: flex; gap: 6px; align-items: center; }
+      .btn-page {
+        padding: 5px 14px; border-radius: 7px; border: 1px solid #dbeafe;
+        background: #fff; color: #1e3a8a; font-size: 13px; font-weight: 600; cursor: pointer;
+        transition: 0.15s;
+      }
+      .btn-page:hover:not(:disabled) { background: #dbeafe; }
+      .btn-page:disabled { opacity: 0.4; cursor: default; }
+      .btn-page.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
     </style>
+  <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
 
@@ -218,6 +235,7 @@
       <hr class="nav-sep" style="margin-top:12px;" />
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+      <button class="dm-toggle"><i class="ti ti-moon" style="font-size:15px;"></i> Dark mode</button>
       <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -413,6 +431,15 @@
               {% endfor %}
             </tbody>
           </table>
+        </div>
+        <!-- PAGINATION BAR -->
+        <div id="paginationBar" class="pagination-bar">
+          <span id="pageInfo" class="page-info"></span>
+          <div class="page-btns">
+            <button type="button" id="btnPrev" class="btn-page" onclick="changePage(-1)">&#8249; Prev</button>
+            <span id="pageButtons" class="page-btns"></span>
+            <button type="button" id="btnNext" class="btn-page" onclick="changePage(1)">Next &#8250;</button>
+          </div>
         </div>
       </div>
     </div><!-- /main -->
@@ -796,6 +823,11 @@
         if (map[status]) document.getElementById(map[status]).classList.add('active-filter');
       }
 
+      // ── PAGINATION STATE ──
+      const PAGE_SIZE = 20;
+      let currentPage = 1;
+      let filteredRows = [];
+
       function applyFilters() {
         const q       = document.getElementById('searchInput').value.toLowerCase();
         const dept    = document.getElementById('filterDept').value.toLowerCase();
@@ -804,30 +836,71 @@
         const gender  = document.getElementById('filterGender').value.toLowerCase();
         activeStatusFilter = document.getElementById('filterStatus').value;
 
-        const rows = document.querySelectorAll('#empTable tbody tr');
-        let visible = 0;
-        rows.forEach(row => {
+        const rows = Array.from(document.querySelectorAll('#empTable tbody tr'));
+        filteredRows = rows.filter(row => {
           const text      = row.textContent.toLowerCase();
           const rowDept   = (row.dataset.dept   || '').toLowerCase();
           const rowShift  = (row.dataset.shift  || '').toLowerCase();
           const rowStatus = (row.dataset.status || '').toLowerCase();
           const rowGender = (row.dataset.gender || '').toLowerCase();
-
-          const ok = (!q      || text.includes(q))
-                  && (!dept   || rowDept.includes(dept))
-                  && (!shift  || rowShift.includes(shift))
-                  && (!status || rowStatus === status)
-                  && (!gender || rowGender === gender);
-          row.style.display = ok ? '' : 'none';
-          if (ok) visible++;
+          return (!q      || text.includes(q))
+              && (!dept   || rowDept.includes(dept))
+              && (!shift  || rowShift.includes(shift))
+              && (!status || rowStatus === status)
+              && (!gender || rowGender === gender);
         });
+
+        // Hide all rows first
+        rows.forEach(r => r.style.display = 'none');
+
+        currentPage = 1;
+        renderPage();
+
         document.getElementById('empCount').textContent =
-          visible + ' employee' + (visible !== 1 ? 's' : '');
+          filteredRows.length + ' employee' + (filteredRows.length !== 1 ? 's' : '');
 
         const anyFilter = q || dept || shift || status || gender;
-        const clearBtn = document.getElementById('btnClearFilter');
-        clearBtn.style.display = anyFilter ? 'flex' : 'none';
+        document.getElementById('btnClearFilter').style.display = anyFilter ? 'flex' : 'none';
       }
+
+      function renderPage() {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const end   = start + PAGE_SIZE;
+
+        // Hide all filtered rows then show current page slice
+        filteredRows.forEach((r, i) => r.style.display = (i >= start && i < end) ? '' : 'none');
+
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+        document.getElementById('pageInfo').textContent =
+          'Showing ' + (Math.min(start + 1, filteredRows.length)) + '–' +
+          Math.min(end, filteredRows.length) + ' of ' + filteredRows.length;
+
+        document.getElementById('btnPrev').disabled = currentPage <= 1;
+        document.getElementById('btnNext').disabled = currentPage >= totalPages;
+
+        // Page number buttons (show up to 5)
+        const btns = document.getElementById('pageButtons');
+        btns.innerHTML = '';
+        const rangeStart = Math.max(1, currentPage - 2);
+        const rangeEnd   = Math.min(totalPages, rangeStart + 4);
+        for (let p = rangeStart; p <= rangeEnd; p++) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = p;
+          b.className = 'btn-page' + (p === currentPage ? ' active' : '');
+          b.onclick = (function(pg){ return function(){ currentPage = pg; renderPage(); }; })(p);
+          btns.appendChild(b);
+        }
+      }
+
+      function changePage(delta) {
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+        currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+        renderPage();
+      }
+
+      // Initialise on load
+      document.addEventListener('DOMContentLoaded', function() { applyFilters(); });
 
       function clearFilters() {
         document.getElementById('searchInput').value = '';
@@ -1021,5 +1094,6 @@
       });
     </script>
 
-  </body>
+  <script src="/static/darkmode.js"></script>
+</body>
 </html>

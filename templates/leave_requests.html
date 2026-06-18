@@ -190,12 +190,42 @@
       .empty-state i { font-size: 48px; margin-bottom: 16px; display: block; }
       .empty-state p { font-size: 15px; }
 
+      /* ── BULK ACTION BAR ── */
+      .bulk-bar {
+        display: none; background: #1e3a8a; color: #fff;
+        padding: 10px 16px; border-radius: 10px; margin-bottom: 14px;
+        align-items: center; gap: 12px; flex-wrap: wrap;
+      }
+      .bulk-bar.visible { display: flex; }
+      .bulk-count { font-size: 13px; font-weight: 600; }
+      .bulk-form  { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .btn-bulk-approve {
+        background: #16a34a; color: #fff; border: none;
+        padding: 6px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+      }
+      .btn-bulk-reject {
+        background: #dc2626; color: #fff; border: none;
+        padding: 6px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+      }
+      .btn-bulk-cancel {
+        background: rgba(255,255,255,0.15); color: #fff; border: none;
+        padding: 6px 14px; border-radius: 7px; font-size: 13px; cursor: pointer;
+      }
+      .bulk-select-all {
+        margin-left: auto; font-size: 12px;
+        display: flex; align-items: center; gap: 6px; cursor: pointer;
+      }
+      .bulk-chk {
+        width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; margin-right: 6px;
+      }
+
       @media (max-width: 768px) {
         body { flex-direction: column; }
         .sidebar { width: 100%; height: auto; }
         .card-top { flex-wrap: wrap; }
       }
     </style>
+  <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
 
@@ -215,6 +245,7 @@
       <hr class="nav-sep" style="margin-top:12px;" />
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+      <button class="dm-toggle"><i class="ti ti-moon" style="font-size:15px;"></i> Dark mode</button>
       <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -253,6 +284,21 @@
 
       <!-- ═══════════════════ LEAVE REQUESTS TAB ═══════════════════ -->
       <div id="tab-leaves" class="tab-pane active">
+
+        <!-- Bulk action bar (shows when checkboxes are ticked) -->
+        <div id="bulkBar" class="bulk-bar">
+          <span id="bulkCount" class="bulk-count">0 selected</span>
+          <form id="bulkForm" action="/bulk_leave_action" method="POST" class="bulk-form">
+            <div id="bulkIdInputs"></div>
+            <button type="submit" name="action" value="Approved" class="btn-bulk-approve">✓ Approve selected</button>
+            <button type="submit" name="action" value="Rejected" class="btn-bulk-reject">✗ Reject selected</button>
+            <button type="button" onclick="clearBulk()" class="btn-bulk-cancel">Cancel</button>
+          </form>
+          <label class="bulk-select-all">
+            <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" class="bulk-chk"> Select all pending
+          </label>
+        </div>
+
         {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
         {% if leaves %}
           {% for row in leaves %}
@@ -261,7 +307,7 @@
             {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
             {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
             {% set _used = leave_used.get(emp_id, 0) %}
-            <div class="req-card card-{{ status | lower }}">
+            <div class="req-card card-{{ status | lower }}" {% if status == 'Pending' %}data-lid="{{ lid }}"{% endif %}>
               <div class="card-top">
                 <div class="avatar" style="background:{{ _color }};">{{ _initials }}</div>
                 <div class="card-info">
@@ -296,6 +342,7 @@
 
               <div class="card-actions">
                 {% if status == 'Pending' %}
+                  <input type="checkbox" class="bulk-chk leave-chk" data-lid="{{ lid }}" onchange="updateBulk()" title="Select for bulk action">
                   <form action="/leave_action/{{ lid }}" method="POST" class="form-inline">
                     <input type="hidden" name="action" value="Approved" />
                     <button type="submit" class="btn-approve">&#10003; Approve</button>
@@ -497,7 +544,39 @@
           if (btn) showTab(hash, btn);
         }
       })();
+
+      // ── BULK ACTION ──
+      function updateBulk() {
+        var checked = document.querySelectorAll('.leave-chk:checked');
+        var bar = document.getElementById('bulkBar');
+        var inputs = document.getElementById('bulkIdInputs');
+        inputs.innerHTML = '';
+        checked.forEach(function(chk) {
+          var inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = 'leave_ids'; inp.value = chk.dataset.lid;
+          inputs.appendChild(inp);
+        });
+        if (checked.length > 0) {
+          bar.classList.add('visible');
+          document.getElementById('bulkCount').textContent = checked.length + ' selected';
+        } else {
+          bar.classList.remove('visible');
+          document.getElementById('selectAllChk').checked = false;
+        }
+      }
+
+      function toggleSelectAll(chk) {
+        document.querySelectorAll('.leave-chk').forEach(function(c) { c.checked = chk.checked; });
+        updateBulk();
+      }
+
+      function clearBulk() {
+        document.querySelectorAll('.leave-chk').forEach(function(c) { c.checked = false; });
+        document.getElementById('selectAllChk').checked = false;
+        document.getElementById('bulkBar').classList.remove('visible');
+      }
     </script>
 
-  </body>
+  <script src="/static/darkmode.js"></script>
+</body>
 </html>

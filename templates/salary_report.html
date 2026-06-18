@@ -46,6 +46,8 @@
       .btn-action { padding: 9px 18px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: 600; }
       .btn-print { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
       .btn-print:hover { background: #e2e8f0; }
+      .btn-export { background: #16a34a; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+      .btn-export:hover { background: #15803d; }
       .btn-email-all { background: #6366f1; color: white; }
       .btn-email-all:hover { background: #4f46e5; }
       .btn-email-all:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -113,6 +115,7 @@
         .amt-net { color: #15803d; } .amt-ded { color: #dc2626; } .amt-gross { color: #1d4ed8; }
       }
     </style>
+  <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
     <!-- SIDEBAR -->
@@ -132,6 +135,7 @@
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
+      <button class="dm-toggle"><i class="ti ti-moon" style="font-size:15px;"></i> Dark mode</button>
       <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -165,6 +169,9 @@
         </select>
         <button type="submit">Generate Report</button>
         <button type="button" class="btn-action btn-print" onclick="window.print()">🖨️ Print</button>
+        <a href="/salary_report_export?year={{ year }}&month={{ month }}" class="btn-action btn-export">
+          📥 Export Excel
+        </a>
         {% if email_configured %}
         <button type="button" class="btn-action btn-email-all" id="sendAllBtn" onclick="sendAllEmails()">
           📧 Send All Salary Slips
@@ -429,5 +436,6 @@
     if (c) c.textContent = q ? visible + ' result' + (visible !== 1 ? 's' : '') : '';
   }
   </script>
-  </body>
+  <script src="/static/darkmode.js"></script>
+</body>
 </html>

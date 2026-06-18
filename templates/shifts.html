@@ -119,6 +119,7 @@
       @media (max-width: 1100px) { .top-grid { grid-template-columns: 1fr; } }
       @media (max-width: 768px)  { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } }
     </style>
+  <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
 
@@ -139,6 +140,7 @@
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
+      <button class="dm-toggle"><i class="ti ti-moon" style="font-size:15px;"></i> Dark mode</button>
       <div class="sidebar-footer">🕐 Default: {{ default_start }} – {{ default_end }}</div>
     </div>
 
@@ -430,5 +432,6 @@
       }
     </script>
 
-  </body>
+  <script src="/static/darkmode.js"></script>
+</body>
 </html>

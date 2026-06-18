@@ -3311,6 +3311,105 @@ def salary_report():
         email_configured=email_cfg is not None,
     )
 
+
+@app.route("/salary_report_export")
+@admin_required
+def salary_report_export():
+    from flask import send_file
+    year  = int(request.args.get("year",  datetime.date.today().year))
+    month = int(request.args.get("month", datetime.date.today().month))
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+               COALESCE(e.role,''), COALESCE(e.department,'')
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        ORDER BY e.name
+    """)
+    employees = cursor.fetchall()
+
+    _, last_day = calendar.monthrange(year, month)
+    cursor.execute("""
+        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
+        FROM attendance WHERE date BETWEEN %s AND %s
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    att_map = {}
+    for row in cursor.fetchall():
+        att_map.setdefault(row[0], {})[row[1]] = row
+
+    cursor.execute("""
+        SELECT employee_id, leave_date FROM leave_requests
+        WHERE status='Approved' AND leave_date BETWEEN %s AND %s
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+    leave_map = {}
+    for eid, ld in cursor.fetchall():
+        leave_map.setdefault(eid, set()).add(ld)
+
+    cursor2 = db.cursor(buffered=True)
+    cursor2.execute(
+        "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives WHERE year=%s AND month=%s GROUP BY employee_id",
+        (year, month)
+    )
+    incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
+    cursor.close(); cursor2.close(); db.close()
+
+    holidays_set  = fetch_holidays_set(year, month)
+    billable_past = get_billable_past_days(year, month)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+    ws.title = f"Salary {month_name}"
+
+    hdr_fill   = PatternFill("solid", fgColor="1E3A8A")
+    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
+    alt_fill   = PatternFill("solid", fgColor="EFF6FF")
+    center     = Alignment(horizontal="center", vertical="center")
+    thin_side  = Side(style="thin", color="CCCCCC")
+    thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+
+    headers = ["#", "Employee ID", "Name", "Role", "Department",
+               "Salary/Day", "Billable Days", "Present", "Absent",
+               "Deduction", "Incentive", "Net Salary"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = hdr_fill; cell.font = hdr_font
+        cell.alignment = center; cell.border = thin_border
+
+    col_widths = [5, 16, 22, 16, 16, 12, 14, 10, 10, 12, 12, 14]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    for idx, (emp_id, name, email, spd, role, dept) in enumerate(employees, 1):
+        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                     holidays_set=holidays_set,
+                                     leave_dates=leave_map.get(emp_id, set()))
+        inc = incentive_map.get(emp_id, 0.0)
+        net = round(entry["net"] + inc, 2)
+        row_data = [
+            idx, emp_id, name, role, dept,
+            float(spd), entry["billable"], entry["present"],
+            entry["absent"], entry["deduction"], inc, net
+        ]
+        fill = alt_fill if idx % 2 == 0 else None
+        for col, val in enumerate(row_data, 1):
+            cell = ws.cell(row=idx + 1, column=col, value=val)
+            cell.border = thin_border
+            cell.alignment = center
+            if fill:
+                cell.fill = fill
+
+    buf = _io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"Salary_Report_{month_name.replace(' ', '_')}.xlsx"
+    return send_file(buf, as_attachment=True,
+                     download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 # ---------------- EMAIL CONFIG ----------------
 @app.route("/email_config", methods=["GET", "POST"])
 @admin_required
@@ -4927,13 +5026,115 @@ def resignation_requests_view():
 @admin_required
 def resignation_action(rid):
     action = request.form.get("action", "")
-    if action in ("Accepted", "Declined"):
-        db     = get_db_connection()
-        cursor = db.cursor(buffered=True)
-        cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
-        db.commit()
-        cursor.close(); db.close()
+    if action not in ("Accepted", "Declined"):
+        return redirect("/resignation_requests")
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT rr.employee_id, rr.last_working_day, rr.reason,
+               e.name, e.email
+        FROM resignation_requests rr
+        JOIN employees e ON e.employee_id = rr.employee_id
+        WHERE rr.id = %s
+    """, (rid,))
+    resign_row = cursor.fetchone()
+    cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
+    db.commit()
+    cursor.close(); db.close()
+
+    if resign_row:
+        emp_id, lwd, reason, emp_name, emp_email = resign_row
+        if emp_email:
+            cfg = get_email_config()
+            if cfg:
+                color   = "#16a34a" if action == "Accepted" else "#dc2626"
+                icon    = "✅" if action == "Accepted" else "❌"
+                lwd_str = lwd.strftime('%d %b %Y') if hasattr(lwd, 'strftime') else str(lwd)
+                html_body = f"""
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
+  <div style="background:linear-gradient(135deg,{color},{color}cc);padding:24px;color:white;text-align:center;">
+    <h2 style="margin:0;font-size:22px;">{icon} Resignation {action}</h2>
+    <p style="margin:4px 0 0;opacity:.85;font-size:13px;">Employee Attendance System</p>
+  </div>
+  <div style="padding:28px 32px;">
+    <p style="font-size:15px;color:#1e293b;">Hi <strong>{emp_name}</strong>,</p>
+    <p style="font-size:14px;color:#475569;margin-top:10px;">
+      Your resignation request has been <strong style="color:{color};">{action.lower()}</strong>.
+    </p>
+    <div style="background:#f8fafc;border-left:4px solid {color};border-radius:8px;padding:14px 18px;margin:20px 0;">
+      <p style="margin:0;font-size:13px;color:#64748b;">📅 <strong>Last Working Day:</strong> {lwd_str}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📝 <strong>Reason:</strong> {reason or '—'}</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#64748b;">📌 <strong>Status:</strong> <span style="color:{color};font-weight:700;">{action}</span></p>
+    </div>
+    <p style="font-size:13px;color:#94a3b8;margin-top:20px;">For queries, contact your HR administrator.</p>
+  </div>
+  <div style="background:#f1f5f9;padding:14px;text-align:center;font-size:11px;color:#94a3b8;">
+    Employee Attendance System &bull; Automated Notification
+  </div>
+</div>"""
+                send_email_async(emp_email, f"Resignation {action} — {emp_name}", html_body, cfg)
+
     return redirect("/resignation_requests")
+
+
+@app.route("/bulk_leave_action", methods=["POST"])
+@admin_required
+def bulk_leave_action():
+    action   = request.form.get("action", "")
+    raw_ids  = request.form.getlist("leave_ids")
+    if action not in ("Approved", "Rejected") or not raw_ids:
+        return redirect("/leave_requests")
+    try:
+        ids = [int(i) for i in raw_ids]
+    except ValueError:
+        return redirect("/leave_requests")
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    done   = 0
+    cfg    = get_email_config()
+
+    for lid in ids:
+        cursor.execute("""
+            SELECT lr.employee_id, lr.leave_date, lr.reason, e.name, e.email
+            FROM leave_requests lr
+            JOIN employees e ON e.employee_id = lr.employee_id
+            WHERE lr.id = %s AND lr.status = 'Pending'
+        """, (lid,))
+        row = cursor.fetchone()
+        if not row:
+            continue
+        emp_id, leave_date, reason, emp_name, emp_email = row
+        cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+        if action == "Approved":
+            cursor.execute("""
+                INSERT INTO attendance (employee_id, date, attendance_type)
+                VALUES (%s, %s, 'Approved Leave')
+                ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
+            """, (emp_id, leave_date))
+        done += 1
+        if emp_email and cfg:
+            color    = "#16a34a" if action == "Approved" else "#dc2626"
+            icon     = "✅" if action == "Approved" else "❌"
+            date_str = leave_date.strftime('%d %b %Y') if hasattr(leave_date, 'strftime') else str(leave_date)
+            html_body = f"""
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
+  <div style="background:{color};padding:20px;color:white;text-align:center;">
+    <h2 style="margin:0;">{icon} Leave {action}</h2>
+  </div>
+  <div style="padding:24px;">
+    <p>Hi <strong>{emp_name}</strong>, your leave request for <strong>{date_str}</strong> has been
+    <strong style="color:{color};">{action.lower()}</strong>.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:16px;">Employee Attendance System &bull; Automated Notification</p>
+  </div>
+</div>"""
+            send_email_async(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
+
+    db.commit()
+    cursor.close(); db.close()
+    flash(f"Bulk action: {action} applied to {done} leave request(s).", "success")
+    return redirect("/leave_requests")
 
 
 # ================================================================
