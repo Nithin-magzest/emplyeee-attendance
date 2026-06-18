@@ -117,9 +117,11 @@ def _enforce_csrf():
     if request.is_json:
         return  # JSON fetch requests can't be forged cross-site (CORS blocks custom headers)
     token = session.get("_csrf")
-    submitted = request.form.get("_csrf_token")
+    submitted = (request.form.get("_csrf_token")
+                 or request.headers.get("X-CSRF-Token")
+                 or request.headers.get("X-CSRFToken"))
     if not token or not submitted or not secrets.compare_digest(str(token), str(submitted)):
-        return "CSRF validation failed", 403
+        return jsonify({"ok": False, "msg": "Session expired. Please refresh and try again."}), 403
 
 _CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
 _CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)

@@ -502,9 +502,10 @@
           stopCamera();
           setStatus("Verifying identity…");
 
+          const csrfToken = (window._csrfToken ? window._csrfToken() : document.querySelector('meta[name="csrf-token"]')?.content) || "";
           const resp = await fetch("/attendance", {
             method:  "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
             body:    JSON.stringify({ employee_id: employeeId, face_image: faceImage, lat, lon }),
           });
           const result = await resp.json();
