@@ -51,6 +51,27 @@ body.dark-mode .reason-quote {
   border-color: #334155 !important;
 }
 
+/* ── DARK MODE: BROAD TEXT VISIBILITY ── */
+/* Make ALL text inside the main content area light so nothing stays black */
+body.dark-mode .main *,
+body.dark-mode .main-area * {
+  color: var(--text) !important;
+}
+
+/* Badges — re-apply distinct colors after the broad override */
+body.dark-mode .badge-green  { background: #14532d !important; color: #86efac !important; }
+body.dark-mode .badge-red    { background: #7f1d1d !important; color: #fca5a5 !important; }
+body.dark-mode .badge-orange { background: #7c2d12 !important; color: #fdba74 !important; }
+body.dark-mode .badge-yellow { background: #713f12 !important; color: #fde047 !important; }
+body.dark-mode .badge-blue   { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .badge-gray,
+body.dark-mode .b-gray       { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
+
+/* Flash / alert messages */
+body.dark-mode .flash        { background: #1e293b !important; border-color: #334155 !important; }
+body.dark-mode .flash-success { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .flash-error   { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+
 /* ── DARK MODE TOGGLE BUTTON ── */
 .dm-toggle {
   margin-top: auto;
