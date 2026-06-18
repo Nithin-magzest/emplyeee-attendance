@@ -173,8 +173,8 @@
             {% set visible = day_leaves[:3] %}
             {% for emp in visible %}
             <div class="leave-chip {% if emp.is_half %}half{% endif %}"
-                 title="{{ emp.name }} — {{ emp.leave_type }}{% if emp.is_half %} (Half Day){% endif %}">
-              {% if emp.is_half %}½ {% endif %}{{ emp.name.split()[0] }}
+                 title="{{ emp.name }} — {{ emp.leave_type }}{% if emp.is_half %} (½ {{ emp.session }}){% endif %}">
+              {% if emp.is_half %}{{ '🌅' if emp.session == 'Morning' else '🌆' }} {% endif %}{{ emp.name.split()[0] }}
             </div>
             {% endfor %}
             {% if day_leaves|length > 3 %}
@@ -209,7 +209,7 @@
             <a href="/employee_detail/{{ emp.emp_id }}" style="color:inherit;text-decoration:none;">
               {{ emp.name }}
             </a>
-            {% if emp.is_half %}<em style="font-weight:400;"> (½)</em>{% endif %}
+            {% if emp.is_half %}<em style="font-weight:400;"> (½ {{ emp.session }})</em>{% endif %}
             <span style="opacity:.6;font-size:10px;"> · {{ emp.leave_type }}</span>
           </span>
           {% endfor %}

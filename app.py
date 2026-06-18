@@ -481,6 +481,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
+        "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -4747,7 +4748,8 @@ def request_leave():
     reason       = request.form.get("reason", "").strip()
     leave_type_id_raw = request.form.get("leave_type_id", "").strip()
     leave_type_id = int(leave_type_id_raw) if leave_type_id_raw.isdigit() else None
-    is_half_day   = 1 if request.form.get("is_half_day") else 0
+    is_half_day      = 1 if request.form.get("is_half_day") else 0
+    half_day_session = request.form.get("half_day_session", "Morning") if is_half_day else None
     if not reason or not leave_start:
         return redirect("/employee_portal")
 
@@ -4762,7 +4764,7 @@ def request_leave():
 
     num_days = (end_dt - start_dt).days + 1
     if is_half_day:
-        date_label = f"{leave_start} (Half Day)"
+        date_label = f"{leave_start} (Half Day – {half_day_session})"
     else:
         date_label = (leave_start if num_days == 1
                       else f"{leave_start} – {leave_end} ({num_days} days)")
@@ -4772,9 +4774,9 @@ def request_leave():
     cur = start_dt
     while cur <= end_dt:
         cursor.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day) "
-            "VALUES (%s,%s,%s,%s,%s)",
-            (emp_id, cur, reason, leave_type_id, is_half_day)
+            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (emp_id, cur, reason, leave_type_id, is_half_day, half_day_session)
         )
         cur += datetime.timedelta(days=1)
     db.commit()
@@ -4823,7 +4825,8 @@ def leave_requests_view():
     cursor.execute("""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
                COALESCE(lt.name, 'Leave Request') AS leave_type_name,
-               COALESCE(lr.is_half_day, 0) AS is_half_day
+               COALESCE(lr.is_half_day, 0) AS is_half_day,
+               lr.half_day_session
         FROM leave_requests lr
         JOIN employees e ON lr.employee_id = e.employee_id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
@@ -4985,7 +4988,8 @@ def leave_calendar():
     cursor.execute("""
         SELECT lr.leave_date, e.name, lr.employee_id,
                COALESCE(lr.is_half_day,0),
-               COALESCE(lt.name,'Leave') AS leave_type
+               COALESCE(lt.name,'Leave') AS leave_type,
+               lr.half_day_session
         FROM leave_requests lr
         JOIN employees e ON lr.employee_id = e.employee_id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
@@ -4994,10 +4998,11 @@ def leave_calendar():
         ORDER BY lr.leave_date, e.name
     """, (start_date, end_date))
     cal_data = defaultdict(list)
-    for ld, name, eid, half, ltype in cursor.fetchall():
+    for ld, name, eid, half, ltype, session in cursor.fetchall():
         day = ld.day if hasattr(ld, 'day') else int(str(ld)[8:10])
         cal_data[day].append({"name": name, "emp_id": eid,
-                               "is_half": bool(half), "leave_type": ltype})
+                               "is_half": bool(half), "leave_type": ltype,
+                               "session": session or "Morning"})
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]

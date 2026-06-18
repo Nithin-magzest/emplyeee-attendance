@@ -1045,6 +1045,26 @@
               <span style="font-size:14px;font-weight:600;color:#1e293b;">Half Day Leave</span>
               <span style="font-size:12px;color:#64748b;">(counts as 0.5 days)</span>
             </label>
+            <!-- Morning / Afternoon selector — shown only when half-day is checked -->
+            <div id="session-picker" style="display:none;margin-top:10px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;">
+              <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px;">Which session?</div>
+              <div style="display:flex;gap:10px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border:2px solid #dbeafe;border-radius:8px;background:#fff;flex:1;transition:.18s;" id="lbl-morning">
+                  <input type="radio" name="half_day_session" value="Morning" checked
+                         style="accent-color:#1e3a8a;width:15px;height:15px;"
+                         onchange="highlightSession()">
+                  <span style="font-size:13px;font-weight:600;color:#1e293b;">🌅 Morning</span>
+                  <span style="font-size:11px;color:#64748b;margin-left:auto;">1st half</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border:2px solid #dbeafe;border-radius:8px;background:#fff;flex:1;transition:.18s;" id="lbl-afternoon">
+                  <input type="radio" name="half_day_session" value="Afternoon"
+                         style="accent-color:#1e3a8a;width:15px;height:15px;"
+                         onchange="highlightSession()">
+                  <span style="font-size:13px;font-weight:600;color:#1e293b;">🌆 Afternoon</span>
+                  <span style="font-size:11px;color:#64748b;margin-left:auto;">2nd half</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div style="display:flex;gap:10px;margin-bottom:14px;">
@@ -2638,16 +2658,34 @@
 
       // Leave date range counter
       function toggleHalfDay(checked) {
-        var wrap = document.getElementById('to-date-wrap');
-        var badge = document.getElementById('leave-days-badge');
+        var wrap    = document.getElementById('to-date-wrap');
+        var badge   = document.getElementById('leave-days-badge');
+        var picker  = document.getElementById('session-picker');
         if (checked) {
-          wrap.style.display = 'none';
-          badge.textContent = '½ Half Day selected';
+          wrap.style.display   = 'none';
+          picker.style.display = 'block';
+          highlightSession();
+          var sel = document.querySelector('input[name="half_day_session"]:checked');
+          badge.textContent = '½ Half Day – ' + (sel ? sel.value : 'Morning') + ' selected';
           badge.style.display = 'block';
         } else {
-          wrap.style.display = 'flex';
+          wrap.style.display   = 'flex';
+          picker.style.display = 'none';
           updateLeaveDays();
         }
+      }
+      function highlightSession() {
+        var sel = document.querySelector('input[name="half_day_session"]:checked');
+        var lm  = document.getElementById('lbl-morning');
+        var la  = document.getElementById('lbl-afternoon');
+        if (!lm || !la) return;
+        lm.style.borderColor = (sel && sel.value === 'Morning')   ? '#1e3a8a' : '#dbeafe';
+        la.style.borderColor = (sel && sel.value === 'Afternoon') ? '#1e3a8a' : '#dbeafe';
+        lm.style.background  = (sel && sel.value === 'Morning')   ? '#eff6ff' : '#fff';
+        la.style.background  = (sel && sel.value === 'Afternoon') ? '#eff6ff' : '#fff';
+        var badge = document.getElementById('leave-days-badge');
+        if (badge && badge.style.display !== 'none')
+          badge.textContent = '½ Half Day – ' + (sel ? sel.value : 'Morning') + ' selected';
       }
       function updateLeaveDays() {
         var isHalf = document.getElementById('half-day-chk') && document.getElementById('half-day-chk').checked;

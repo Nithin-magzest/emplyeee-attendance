@@ -319,7 +319,7 @@
         {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
         {% if leaves %}
           {% for row in leaves %}
-            {% set lid, emp_name, emp_id, leave_date, reason, status, created_at, leave_type_name, is_half_day = row %}
+            {% set lid, emp_name, emp_id, leave_date, reason, status, created_at, leave_type_name, is_half_day, half_day_session = row %}
             {% set _parts = emp_name.split() %}
             {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
             {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
@@ -338,7 +338,10 @@
                     {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }}
                     &nbsp;·&nbsp;
                     {% if is_half_day %}
-                      <span style="background:#fef9c3;color:#92400e;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">½ Half Day</span>
+                      <span style="background:#fef9c3;color:#92400e;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">
+                        {% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %}
+                        ½ {{ half_day_session or 'Morning' }}
+                      </span>
                     {% else %}
                       1 day
                     {% endif %}
