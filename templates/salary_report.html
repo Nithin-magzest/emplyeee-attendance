@@ -85,14 +85,18 @@
 
       .rules-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; font-size: 12px; line-height: 2; color: #64748b; margin-top: 6px; }
 
-      /* Email send button in table */
-      .btn-send-email { padding: 4px 10px; border: none; border-radius: 6px; background: #6366f1; color: white; font-size: 11px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-      .btn-send-email:hover { background: #4f46e5; }
-      .btn-send-email:disabled { opacity: 0.4; cursor: not-allowed; }
+      /* Action icon buttons */
+      .action-col { display: flex; flex-direction: row; gap: 6px; align-items: center; }
+      .btn-icon { width: 32px; height: 32px; border: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.18s; font-size: 15px; text-decoration: none; flex-shrink: 0; }
+      .btn-icon-view  { background: #1e3a8a; color: #fff; }
+      .btn-icon-view:hover  { background: #1e40af; }
+      .btn-icon-dl    { background: #0f766e; color: #fff; }
+      .btn-icon-dl:hover    { background: #0d9488; }
+      .btn-icon-email { background: #6366f1; color: #fff; }
+      .btn-icon-email:hover { background: #4f46e5; }
+      .btn-icon:disabled    { opacity: 0.4; cursor: not-allowed; }
+      .btn-icon-email:disabled { opacity: 0.4; cursor: not-allowed; }
       .no-email { font-size: 11px; color: #94a3b8; }
-      .btn-view-slip { padding: 4px 10px; border: none; border-radius: 6px; background: #1e3a8a; color: white; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-block; transition: 0.2s; white-space: nowrap; }
-      .btn-view-slip:hover { background: #1e40af; }
-      .action-col { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 
       /* Toast notification */
       #toast { position: fixed; bottom: 28px; right: 28px; padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; display: none; z-index: 9999; max-width: 360px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); }
@@ -273,19 +277,29 @@
                 <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
                 <td>
                   <div class="action-col">
-                    <a class="btn-view-slip"
+                    <a class="btn-icon btn-icon-view"
                        href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
-                       target="_blank">
-                      👁 View Payslip
+                       target="_blank" title="View Payslip">
+                      <i class="ti ti-eye"></i>
+                    </a>
+                    <a class="btn-icon btn-icon-dl"
+                       href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                       target="_blank" title="Download Payslip">
+                      <i class="ti ti-download"></i>
                     </a>
                     {% if email_configured and e.email %}
-                    <button class="btn-send-email"
+                    <button class="btn-icon btn-icon-email" title="Send Payslip Email"
                       onclick="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
-                      📧 Send Slip
+                      <i class="ti ti-mail"></i>
                     </button>
                     {% elif not email_configured %}
+                    <button class="btn-icon btn-icon-email" title="Email not configured" disabled>
+                      <i class="ti ti-mail"></i>
+                    </button>
                     {% else %}
-                    <span class="no-email" style="font-size:10px;">no email set</span>
+                    <button class="btn-icon btn-icon-email" title="No email set for employee" disabled>
+                      <i class="ti ti-mail-off"></i>
+                    </button>
                     {% endif %}
                   </div>
                 </td>
@@ -349,7 +363,7 @@
 
       function sendEmail(empId, empName, btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Sending…';
+        btn.innerHTML = '<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i>';
 
         const fd = new FormData();
         fd.append('emp_id', empId);
@@ -362,17 +376,17 @@
             if (!data) return;
             if (data.ok) {
               showToast('✅ ' + data.msg, 'success');
-              btn.textContent = '✅ Sent';
+              btn.innerHTML = '<i class="ti ti-check"></i>';
             } else {
               showToast('❌ ' + data.msg, 'error');
               btn.disabled = false;
-              btn.textContent = '📧 Send Slip';
+              btn.innerHTML = '<i class="ti ti-mail"></i>';
             }
           })
           .catch(() => {
             showToast('❌ Failed to reach server. Check your connection.', 'error');
             btn.disabled = false;
-            btn.textContent = '📧 Send Slip';
+            btn.innerHTML = '<i class="ti ti-mail"></i>';
           });
       }
 
