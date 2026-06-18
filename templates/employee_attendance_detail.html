@@ -235,24 +235,24 @@
                 <th>Edit</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="att-tbody">
               {% for d in days %}
               {% if d.is_holiday %}
-                <tr class="row-holiday">
+                <tr class="row-holiday att-row">
               {% elif d.is_sunday %}
-                <tr class="row-sunday">
+                <tr class="row-sunday att-row">
               {% elif d.is_future %}
-                <tr class="row-future">
+                <tr class="row-future att-row">
               {% elif d.status in ("Full Day",) %}
-                <tr class="row-full">
+                <tr class="row-full att-row">
               {% elif d.status == "Late - Full Day" %}
-                <tr class="row-late">
+                <tr class="row-late att-row">
               {% elif d.status in ("Half Day", "Present") %}
-                <tr class="row-half">
+                <tr class="row-half att-row">
               {% elif d.status == "Absent" or (d.status == "—" and not d.is_sunday and not d.is_holiday and not d.is_future) %}
-                <tr class="row-absent">
+                <tr class="row-absent att-row">
               {% else %}
-                <tr>
+                <tr class="att-row">
               {% endif %}
                 <td>{{ loop.index }}</td>
                 <td><strong>{{ d.date.strftime("%d %b %Y") }}</strong></td>
@@ -310,7 +310,48 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Show more / collapse toggle -->
+        <div id="att-toggle-wrap" style="text-align:center;margin-top:14px;display:none;">
+          <button id="att-toggle-btn" onclick="toggleAttRows()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:9px 22px;
+                   border:1px solid #dbeafe;border-radius:10px;background:#fff;
+                   color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;
+                   box-shadow:0 1px 4px rgba(0,0,0,0.06);transition:.18s;">
+            <i id="att-toggle-icon" class="ti ti-chevron-down"></i>
+            <span id="att-toggle-text">Show all days</span>
+          </button>
+        </div>
       </div>
+
+      <script>
+        (function() {
+          var rows = document.querySelectorAll('#att-tbody .att-row');
+          var total = rows.length;
+          if (total <= 5) return;
+
+          // hide all rows before the last 5
+          for (var i = 0; i < total - 5; i++) {
+            rows[i].style.display = 'none';
+          }
+
+          var expanded = false;
+          var wrap = document.getElementById('att-toggle-wrap');
+          wrap.style.display = 'block';
+
+          window.toggleAttRows = function() {
+            expanded = !expanded;
+            for (var i = 0; i < total - 5; i++) {
+              rows[i].style.display = expanded ? '' : 'none';
+            }
+            document.getElementById('att-toggle-text').textContent = expanded ? 'Show less' : 'Show all ' + total + ' days';
+            document.getElementById('att-toggle-icon').className = expanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down';
+          };
+
+          // update initial button label with count
+          document.getElementById('att-toggle-text').textContent = 'Show all ' + total + ' days';
+        })();
+      </script>
 
     </div><!-- /main -->
 
