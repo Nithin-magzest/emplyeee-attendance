@@ -4,8 +4,8 @@
     document.body.classList.toggle('dark-mode', on);
     document.querySelectorAll('.dm-toggle').forEach(function (btn) {
       btn.innerHTML = on
-        ? '<i class="ti ti-sun" style="font-size:15px;"></i> Light mode'
-        : '<i class="ti ti-moon" style="font-size:15px;"></i> Dark mode';
+        ? '<i class="ti ti-sun dm-icon"></i> Light mode'
+        : '<i class="ti ti-moon dm-icon"></i> Dark mode';
     });
   }
   var saved = localStorage.getItem(KEY);

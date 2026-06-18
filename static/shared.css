@@ -53,7 +53,7 @@ body.dark-mode .reason-quote {
 
 /* ── DARK MODE TOGGLE BUTTON ── */
 .dm-toggle {
-  margin-top: 8px;
+  margin-top: auto;
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border-radius: 10px;
   cursor: pointer; border: none;
@@ -64,6 +64,11 @@ body.dark-mode .reason-quote {
   transition: 0.18s;
 }
 .dm-toggle:hover { background: rgba(255,255,255,0.13); color: #fff; }
+.dm-toggle .dm-icon { font-size: 15px; }
+
+/* Override per-template margin-top:auto so footer sits just below toggle */
+.sidebar-footer { margin-top: 8px; }
+.sb-footer       { margin-top: 8px; }
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 900px) {
