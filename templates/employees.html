@@ -87,6 +87,28 @@
       /* AVATAR */
       .avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid #dbeafe; }
       .avatar-ph { width: 34px; height: 34px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; border: 2px solid #dbeafe; }
+      .avatar-btn { background: none; border: none; padding: 0; cursor: pointer; position: relative; display: inline-flex; border-radius: 50%; }
+      .avatar-btn:hover .avatar { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+      .avatar-eye { position: absolute; inset: 0; border-radius: 50%; background: rgba(30,58,138,0.55); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.18s; font-size: 13px; color: #fff; pointer-events: none; }
+      .avatar-btn:hover .avatar-eye { opacity: 1; }
+
+      /* PHOTO LIGHTBOX */
+      .lb-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+      .lb-backdrop.open { display: flex; }
+      .lb-box { background: #1e293b; border-radius: 20px; overflow: hidden; width: 100%; max-width: 400px; box-shadow: 0 24px 80px rgba(0,0,0,0.6); position: relative; }
+      .lb-img-wrap { width: 100%; aspect-ratio: 1/1; background: #0f172a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+      .lb-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .lb-placeholder { font-size: 72px; }
+      .lb-info { padding: 16px 20px 18px; }
+      .lb-name { font-size: 17px; font-weight: 800; color: #fff; }
+      .lb-id   { font-size: 12px; color: rgba(255,255,255,0.45); margin-bottom: 14px; }
+      .lb-actions { display: flex; gap: 8px; }
+      .lb-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; transition: 0.18s; }
+      .lb-btn-dl   { background: #22c55e; color: #fff; flex: 1; justify-content: center; }
+      .lb-btn-dl:hover { background: #16a34a; }
+      .lb-btn-edit { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
+      .lb-btn-edit:hover { background: rgba(255,255,255,0.22); }
+      .lb-close { position: absolute; top: 10px; right: 12px; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; cursor: pointer; z-index: 1; }
 
       /* BADGES */
       .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
@@ -324,11 +346,17 @@
                 <td class="muted">{{ loop.index }}</td>
                 <td>
                   {% if face_image %}
-                    <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                    <div class="avatar-ph" style="display:none;"><i class="ti ti-user"></i></div>
+                    <button class="avatar-btn" onclick="openLightbox('{{ emp_id }}','{{ name | e }}',true)" title="View photo">
+                      <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                      <div class="avatar-ph" style="display:none;"><i class="ti ti-user"></i></div>
+                      <div class="avatar-eye"><i class="ti ti-eye"></i></div>
+                    </button>
                   {% else %}
-                    <div class="avatar-ph"><i class="ti ti-user"></i></div>
+                    <button class="avatar-btn" onclick="openPhotoModal('{{ emp_id }}','{{ name | e }}')" title="Upload photo">
+                      <div class="avatar-ph"><i class="ti ti-user"></i></div>
+                      <div class="avatar-eye"><i class="ti ti-camera-plus"></i></div>
+                    </button>
                   {% endif %}
                 </td>
                 <td><strong>{{ emp_id }}</strong></td>
@@ -387,6 +415,30 @@
         </div>
       </div>
     </div><!-- /main -->
+
+    <!-- ================================================================
+         PHOTO LIGHTBOX
+    ================================================================ -->
+    <div class="lb-backdrop" id="lbModal">
+      <div class="lb-box">
+        <button class="lb-close" onclick="closeLightbox()">&times;</button>
+        <div class="lb-img-wrap" id="lbImgWrap">
+          <img id="lbImg" src="" alt="" />
+        </div>
+        <div class="lb-info">
+          <div class="lb-name" id="lbName"></div>
+          <div class="lb-id"   id="lbId"></div>
+          <div class="lb-actions">
+            <a id="lbDlBtn" class="lb-btn lb-btn-dl" href="#" download="">
+              <i class="ti ti-download"></i> Download Photo
+            </a>
+            <button id="lbEditBtn" class="lb-btn lb-btn-edit" onclick="lbSwitchToEdit()">
+              <i class="ti ti-camera"></i> Change
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ================================================================
          ADD EMPLOYEE MODAL
@@ -847,6 +899,43 @@
         );
       }
 
+      // ========== PHOTO LIGHTBOX ==========
+      var _lbEmpId = null;
+      function openLightbox(empId, empName, hasPhoto) {
+        _lbEmpId = empId;
+        document.getElementById('lbName').textContent = empName;
+        document.getElementById('lbId').textContent   = 'ID: ' + empId;
+        var img   = document.getElementById('lbImg');
+        var dlBtn = document.getElementById('lbDlBtn');
+        if (hasPhoto) {
+          img.src              = '/dataset/' + empId + '.jpg?t=' + Date.now();
+          img.alt              = empName;
+          img.style.display    = 'block';
+          dlBtn.href           = '/dataset/' + empId + '.jpg';
+          dlBtn.download       = empId + '_photo.jpg';
+          dlBtn.style.display  = 'inline-flex';
+        } else {
+          img.style.display    = 'none';
+          document.getElementById('lbImgWrap').innerHTML = '<span class="lb-placeholder">👤</span>';
+          dlBtn.style.display  = 'none';
+        }
+        document.getElementById('lbModal').classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeLightbox() {
+        document.getElementById('lbModal').classList.remove('open');
+        document.body.style.overflow = '';
+        _lbEmpId = null;
+      }
+      function lbSwitchToEdit() {
+        var id = _lbEmpId;
+        closeLightbox();
+        if (id) openPhotoModal(id, document.getElementById('lbName').textContent);
+      }
+      document.getElementById('lbModal').addEventListener('click', function(e) {
+        if (e.target === this) closeLightbox();
+      });
+
       // ========== ADD MODAL ==========
       function toggleAddLocation(mode) {
         document.getElementById('addLocationBox').style.display = mode === 'wfh' ? 'block' : 'none';
@@ -924,6 +1013,11 @@
         }
         openModal('qrModal');
       }
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        closeLightbox();
+        ['addModal','editModal','photoModal','qrModal'].forEach(closeModal);
+      });
     </script>
 
   </body>
