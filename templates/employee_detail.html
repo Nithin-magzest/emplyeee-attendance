@@ -560,8 +560,8 @@
             {% for date, login_t, logout_t, att_type, status in recent_attendance %}
             <tr>
               <td>{{ date.strftime('%d %b %Y') if date else '—' }}</td>
-              <td>{{ login_t.strftime('%I:%M %p') if login_t else '—' }}</td>
-              <td>{{ logout_t.strftime('%I:%M %p') if logout_t else '—' }}</td>
+              <td>{{ login_t or '—' }}</td>
+              <td>{{ logout_t or '—' }}</td>
               <td>
                 {% set t = att_type or status or '' %}
                 {% if 'Full Day' in t or 'Approved' in t %}<span class="att-badge ab-present">Full Day</span>

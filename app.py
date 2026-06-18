@@ -2195,7 +2195,26 @@ def employee_detail(emp_id):
         FROM attendance WHERE employee_id=%s
         ORDER BY date DESC LIMIT 30
     """, (emp_id,))
-    recent_attendance = cursor.fetchall()
+    raw_att = cursor.fetchall()
+
+    def _fmt_time(t):
+        if t is None:
+            return None
+        if isinstance(t, datetime.timedelta):
+            total = int(t.total_seconds())
+            h, rem = divmod(total, 3600)
+            m = rem // 60
+            suffix = "AM" if h < 12 else "PM"
+            h12 = h % 12 or 12
+            return f"{h12:02d}:{m:02d} {suffix}"
+        if hasattr(t, 'strftime'):
+            return t.strftime('%I:%M %p')
+        return str(t)
+
+    recent_attendance = [
+        (date, _fmt_time(lt), _fmt_time(lot), att_type, status)
+        for date, lt, lot, att_type, status in raw_att
+    ]
 
     # Work experience
     cursor.execute("""
