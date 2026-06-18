@@ -1560,6 +1560,18 @@
         {% elif request.args.get('photo_error') %}
         <div class="toast toast-red">❌ Photo upload failed. Please try again.</div>
         {% endif %}
+        {% if request.args.get('exp_saved') %}
+        <div class="toast toast-green">✅ Work experience entry added.</div>
+        {% endif %}
+        {% if request.args.get('edu_saved') %}
+        <div class="toast toast-green">✅ Education entry added.</div>
+        {% endif %}
+        {% if request.args.get('exp_error') %}
+        <div class="toast toast-red">❌ Please fill Company, Designation and From Year.</div>
+        {% endif %}
+        {% if request.args.get('edu_error') %}
+        <div class="toast toast-red">❌ Please fill Degree and Institution.</div>
+        {% endif %}
 
         <!-- PROFILE COMPLETION -->
         {% set _pf = [
@@ -1581,6 +1593,7 @@
           ('Account Number',             emp[24]),
           ('IFSC Code',                  emp[25]),
           ('UAN / PF Number',            emp[26]),
+          ('About Me',                   emp[29]),
         ] %}
         {% set _done = namespace(n=0) %}
         {% for lbl, val in _pf %}{% if val %}{% set _done.n = _done.n + 1 %}{% endif %}{% endfor %}
@@ -1704,7 +1717,7 @@
 
               <!-- Address -->
               <div class="section">
-                <h3>🏠 Address</h3>
+                <h3>🏠 Contact Details &amp; Address</h3>
                 <div class="form-group">
                   <label>Street Address</label>
                   <textarea name="address" rows="2" placeholder="House no., Street, Area…"
@@ -1729,6 +1742,16 @@
                 </div>
               </div>
 
+              <!-- About Me -->
+              <div class="section">
+                <h3>📝 About Me</h3>
+                <div class="form-group">
+                  <label>Brief Bio / Introduction</label>
+                  <textarea name="about_me" rows="4" placeholder="Tell us a little about yourself — your strengths, interests, or anything you'd like the team to know…"
+                            style="padding:10px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;width:100%;outline:none;resize:vertical;font-family:inherit;">{{ emp[29] or '' }}</textarea>
+                </div>
+              </div>
+
             </div><!-- /LEFT -->
 
             <!-- RIGHT COLUMN -->
@@ -1736,10 +1759,11 @@
 
               <!-- Work Info (read-only) -->
               <div class="section">
-                <h3>💼 Work Information</h3>
+                <h3>💼 Role &amp; Work Information</h3>
                 <div style="display:flex; flex-direction:column; gap:0;">
                   {% set work_rows = [
-                    ('Role / Department', emp[2] or '—'),
+                    ('Role / Designation', emp[2] or '—'),
+                    ('Department', emp[31] or '—'),
                     ('Email', emp[3] or '—'),
                     ('Date of Joining', emp[5].strftime('%d %b %Y') if emp[5] else '—'),
                     ('Shift', (emp[7] ~ ' (' ~ emp[8].strftime('%I:%M %p') ~ ' – ' ~ emp[9].strftime('%I:%M %p') ~ ')') if emp[7] else '—'),
@@ -1753,6 +1777,25 @@
                   {% endfor %}
                 </div>
                 <p style="font-size:11px;color:#94a3b8;margin-top:10px;">Work details are managed by admin and cannot be edited here.</p>
+              </div>
+
+              <!-- Hierarchy Information (read-only) -->
+              <div class="section">
+                <h3>🏢 Hierarchy Information</h3>
+                <div style="display:flex; flex-direction:column; gap:0;">
+                  {% set hier_rows = [
+                    ('Reporting Manager', emp[30] or '—'),
+                    ('Department', emp[31] or '—'),
+                    ('Employee ID', emp[0]),
+                  ] %}
+                  {% for lbl, val in hier_rows %}
+                  <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+                    <span style="color:#94a3b8;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;width:140px;flex-shrink:0;">{{ lbl }}</span>
+                    <span style="color:#1e293b;">{{ val }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+                <p style="font-size:11px;color:#94a3b8;margin-top:10px;">Hierarchy details are assigned by admin.</p>
               </div>
 
               <!-- Emergency Contact -->
@@ -1790,10 +1833,132 @@
           </div>
         </form>
 
+        <!-- WORK EXPERIENCE -->
+        <div class="section" style="margin-top:22px;">
+          <h3>💼 Work Experience</h3>
+          {% if my_experience %}
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+            {% for exp in my_experience %}
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:start;gap:12px;">
+              <div style="flex:1;">
+                <div style="font-size:15px;font-weight:700;color:#1e293b;">{{ exp.designation }}</div>
+                <div style="font-size:13px;color:#3b82f6;font-weight:600;margin-top:2px;">{{ exp.company }}</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">
+                  {{ exp.from_year }} – {% if exp.is_current %}<span style="color:#16a34a;font-weight:600;">Present</span>{% else %}{{ exp.to_year or '—' }}{% endif %}
+                </div>
+                {% if exp.description %}
+                <div style="font-size:12px;color:#64748b;margin-top:6px;">{{ exp.description }}</div>
+                {% endif %}
+              </div>
+              <form action="/delete_experience/{{ exp.id }}" method="POST" onsubmit="return confirm('Delete this experience entry?')">
+                <button type="submit" style="padding:6px 12px;border:1px solid #fecaca;border-radius:7px;background:#fef2f2;color:#dc2626;font-size:12px;cursor:pointer;font-weight:600;">Delete</button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p style="font-size:13px;color:#94a3b8;margin-bottom:14px;">No work experience added yet.</p>
+          {% endif %}
+          <details style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px 16px;">
+            <summary style="font-size:13px;font-weight:600;color:#0369a1;cursor:pointer;">+ Add Work Experience</summary>
+            <form action="/add_experience" method="POST" style="margin-top:14px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Company / Organisation</label>
+                  <input type="text" name="company" required placeholder="Infosys Ltd."
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Designation / Role</label>
+                  <input type="text" name="designation" required placeholder="Software Engineer"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>From Year</label>
+                  <input type="text" name="from_year" required placeholder="2020" maxlength="4"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>To Year <span style="font-size:11px;color:#94a3b8;">(leave blank if current)</span></label>
+                  <input type="text" name="to_year" placeholder="2023" maxlength="4" id="toYearInputExp"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px;padding-top:20px;">
+                  <input type="checkbox" name="is_current" id="isCurrentChk"
+                         onchange="document.getElementById('toYearInputExp').disabled=this.checked;if(this.checked)document.getElementById('toYearInputExp').value='';"
+                         style="width:16px;height:16px;" />
+                  <label for="isCurrentChk" style="font-size:13px;font-weight:400;margin:0;">Currently working here</label>
+                </div>
+                <div class="form-group" style="margin:0;grid-column:1/-1;">
+                  <label>Description <span style="font-size:11px;color:#94a3b8;">(optional)</span></label>
+                  <textarea name="description" rows="2" placeholder="Brief description of your role…"
+                            style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;resize:vertical;font-family:inherit;"></textarea>
+                </div>
+              </div>
+              <button type="submit" style="margin-top:12px;padding:9px 22px;border:none;border-radius:8px;background:#1e3a8a;color:white;font-size:13px;font-weight:700;cursor:pointer;">+ Add Entry</button>
+            </form>
+          </details>
+        </div>
+
+        <!-- EDUCATION -->
+        <div class="section" style="margin-top:22px;">
+          <h3>🎓 Education</h3>
+          {% if my_education %}
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+            {% for edu in my_education %}
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:start;gap:12px;">
+              <div style="flex:1;">
+                <div style="font-size:15px;font-weight:700;color:#1e293b;">{{ edu.degree }}</div>
+                <div style="font-size:13px;color:#8b5cf6;font-weight:600;margin-top:2px;">{{ edu.institution }}</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">
+                  {% if edu.year_of_passing %}Year: {{ edu.year_of_passing }}{% endif %}
+                  {% if edu.percentage %} &bull; {{ edu.percentage }}{% endif %}
+                </div>
+              </div>
+              <form action="/delete_education_entry/{{ edu.id }}" method="POST" onsubmit="return confirm('Delete this education entry?')">
+                <button type="submit" style="padding:6px 12px;border:1px solid #fecaca;border-radius:7px;background:#fef2f2;color:#dc2626;font-size:12px;cursor:pointer;font-weight:600;">Delete</button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p style="font-size:13px;color:#94a3b8;margin-bottom:14px;">No education details added yet.</p>
+          {% endif %}
+          <details style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;">
+            <summary style="font-size:13px;font-weight:600;color:#7c3aed;cursor:pointer;">+ Add Education</summary>
+            <form action="/add_education_entry" method="POST" style="margin-top:14px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Degree / Qualification</label>
+                  <input type="text" name="degree" required placeholder="B.Tech, MBA, 12th Grade…"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Institution / School</label>
+                  <input type="text" name="institution" required placeholder="IIT Hyderabad"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Year of Passing <span style="font-size:11px;color:#94a3b8;">(optional)</span></label>
+                  <input type="text" name="year_of_passing" placeholder="2022" maxlength="4"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Grade / Percentage <span style="font-size:11px;color:#94a3b8;">(optional)</span></label>
+                  <input type="text" name="percentage" placeholder="8.5 CGPA or 85%"
+                         style="padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;background:#fff;font-size:13px;width:100%;outline:none;" />
+                </div>
+              </div>
+              <button type="submit" style="margin-top:12px;padding:9px 22px;border:none;border-radius:8px;background:#7c3aed;color:white;font-size:13px;font-weight:700;cursor:pointer;">+ Add Entry</button>
+            </form>
+          </details>
+        </div>
+
+        <!-- IDENTITY INFORMATION -->
         <!-- BANK & ID DETAILS (separate form) -->
         <form action="/update_my_bank_details" method="POST" style="margin-top:22px;">
           <div class="section">
-            <h3>🏦 Bank &amp; ID Details
+            <h3>🪪 Identity Information &amp; Bank Details
               <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">Stored securely · Used for salary processing</span>
             </h3>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">

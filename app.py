@@ -376,6 +376,30 @@ def init_db():
             awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_experience (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            company VARCHAR(150) NOT NULL,
+            designation VARCHAR(100) NOT NULL,
+            from_year VARCHAR(10) NOT NULL,
+            to_year VARCHAR(10) DEFAULT NULL,
+            is_current TINYINT(1) DEFAULT 0,
+            description TEXT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_education (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            degree VARCHAR(150) NOT NULL,
+            institution VARCHAR(200) NOT NULL,
+            year_of_passing VARCHAR(10) DEFAULT NULL,
+            percentage VARCHAR(20) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     db.commit()
     # Seed default breaks if table is empty
     cursor.execute("SELECT COUNT(*) FROM break_config")
@@ -425,6 +449,9 @@ def init_db():
         "ALTER TABLE admin_users ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
         "ALTER TABLE email_config ADD COLUMN from_email VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN about_me TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -3127,6 +3154,7 @@ def update_my_profile():
         "emergency_contact_name":     request.form.get("emergency_contact_name", "").strip() or None,
         "emergency_contact_phone":    request.form.get("emergency_contact_phone", "").strip() or None,
         "emergency_contact_relation": request.form.get("emergency_contact_relation", "").strip() or None,
+        "about_me":                   request.form.get("about_me", "").strip() or None,
     }
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -3134,7 +3162,8 @@ def update_my_profile():
         UPDATE employees SET
             phone=%s, gender=%s, dob=%s, blood_group=%s,
             address=%s, city=%s, state=%s, pincode=%s,
-            emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s
+            emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s,
+            about_me=%s
         WHERE employee_id=%s
     """, (*fields.values(), emp_id))
     db.commit(); cursor.close(); db.close()
@@ -3163,6 +3192,72 @@ def update_my_bank_details():
     """, (*fields.values(), emp_id))
     db.commit(); cursor.close(); db.close()
     return redirect("/employee_portal?bank_saved=1#my-profile")
+
+
+@app.route("/add_experience", methods=["POST"])
+@employee_required
+def add_experience():
+    emp_id = session["employee_id"]
+    company     = request.form.get("company", "").strip()
+    designation = request.form.get("designation", "").strip()
+    from_year   = request.form.get("from_year", "").strip()
+    to_year     = request.form.get("to_year", "").strip() or None
+    is_current  = 1 if request.form.get("is_current") else 0
+    description = request.form.get("description", "").strip() or None
+    if not company or not designation or not from_year:
+        return redirect("/employee_portal?exp_error=1#my-profile")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO employee_experience (employee_id, company, designation, from_year, to_year, is_current, description) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (emp_id, company, designation, from_year, to_year, is_current, description)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?exp_saved=1#my-profile")
+
+
+@app.route("/delete_experience/<int:entry_id>", methods=["POST"])
+@employee_required
+def delete_experience(entry_id):
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM employee_experience WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal#my-profile")
+
+
+@app.route("/add_education_entry", methods=["POST"])
+@employee_required
+def add_education_entry():
+    emp_id = session["employee_id"]
+    degree          = request.form.get("degree", "").strip()
+    institution     = request.form.get("institution", "").strip()
+    year_of_passing = request.form.get("year_of_passing", "").strip() or None
+    percentage      = request.form.get("percentage", "").strip() or None
+    if not degree or not institution:
+        return redirect("/employee_portal?edu_error=1#my-profile")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO employee_education (employee_id, degree, institution, year_of_passing, percentage) "
+        "VALUES (%s,%s,%s,%s,%s)",
+        (emp_id, degree, institution, year_of_passing, percentage)
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal?edu_saved=1#my-profile")
+
+
+@app.route("/delete_education_entry/<int:entry_id>", methods=["POST"])
+@employee_required
+def delete_education_entry(entry_id):
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM employee_education WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/employee_portal#my-profile")
 
 
 @app.route("/update_my_photo", methods=["POST"])
@@ -3474,7 +3569,7 @@ def employee_portal():
                e.address, e.city, e.state, e.pincode,
                e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
                e.aadhar_number, e.pan_number, e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
-               e.qr_code, e.work_mode
+               e.qr_code, e.work_mode, e.about_me, e.manager_name, e.department
         FROM employees e
         LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         LEFT JOIN shifts sh ON e.shift_id = sh.id
@@ -3488,7 +3583,7 @@ def employee_portal():
     # [14]=address [15]=city [16]=state [17]=pincode
     # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
     # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
-    # [27]=qr_code [28]=work_mode
+    # [27]=qr_code [28]=work_mode [29]=about_me [30]=manager_name [31]=department
 
     today = datetime.date.today()
     cursor.execute(
@@ -3670,6 +3765,34 @@ def employee_portal():
         my_incentives = []
         total_incentive_year = 0.0
 
+    # Employee work experience & education
+    try:
+        cursor.execute(
+            "SELECT id, company, designation, from_year, to_year, is_current, description "
+            "FROM employee_experience WHERE employee_id=%s ORDER BY is_current DESC, from_year DESC",
+            (emp_id,)
+        )
+        my_experience = [
+            {"id": r[0], "company": r[1], "designation": r[2], "from_year": r[3],
+             "to_year": r[4], "is_current": r[5], "description": r[6]}
+            for r in cursor.fetchall()
+        ]
+    except Exception:
+        my_experience = []
+
+    try:
+        cursor.execute(
+            "SELECT id, degree, institution, year_of_passing, percentage "
+            "FROM employee_education WHERE employee_id=%s ORDER BY year_of_passing DESC",
+            (emp_id,)
+        )
+        my_education = [
+            {"id": r[0], "degree": r[1], "institution": r[2], "year_of_passing": r[3], "percentage": r[4]}
+            for r in cursor.fetchall()
+        ]
+    except Exception:
+        my_education = []
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -3724,6 +3847,8 @@ def employee_portal():
         all_holidays_list=hol_rows,
         my_incentives=my_incentives,
         total_incentive_year=total_incentive_year,
+        my_experience=my_experience,
+        my_education=my_education,
     )
 
 
