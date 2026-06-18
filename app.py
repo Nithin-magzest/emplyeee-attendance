@@ -2140,6 +2140,78 @@ def view_employees():
     )
 
 
+# ---------------- EMPLOYEE DETAIL PAGE ----------------
+@app.route("/employee_detail/<emp_id>")
+@admin_required
+def employee_detail(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+               e.work_mode, e.work_lat, e.work_lon,
+               e.face_image, e.qr_code,
+               e.department, e.phone, e.gender, e.dob, e.blood_group,
+               e.shift_id, e.manager_name,
+               e.address, e.city, e.state, e.pincode,
+               e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+               e.aadhar_number, e.pan_number,
+               e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
+               s.name AS shift_name,
+               COUNT(a.date)  AS total_days,
+               MAX(a.date)    AS last_seen,
+               SUM(CASE WHEN a.attendance_type='Present' OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
+               SUM(CASE WHEN a.attendance_type='Half Day' THEN 1 ELSE 0 END) AS half_days,
+               SUM(CASE WHEN a.attendance_type='Late' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days
+        FROM employees e
+        LEFT JOIN shifts s ON e.shift_id = s.id
+        LEFT JOIN attendance a ON e.employee_id = a.employee_id
+        WHERE e.employee_id = %s
+        GROUP BY e.employee_id
+    """, (emp_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        flash("Employee not found.", "error")
+        return redirect("/employees")
+
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
+    is_resigned = cursor.fetchone()[0] > 0
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND leave_date=CURDATE()", (emp_id,))
+    is_on_leave = cursor.fetchone()[0] > 0
+
+    if is_resigned:
+        emp_status = "Resigned"
+    elif is_on_leave:
+        emp_status = "On Leave"
+    else:
+        emp_status = "Active"
+
+    # Recent attendance (last 10 records)
+    cursor.execute("""
+        SELECT date, login_time, logout_time, attendance_type, status
+        FROM attendance WHERE employee_id=%s
+        ORDER BY date DESC LIMIT 10
+    """, (emp_id,))
+    recent_attendance = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    cursor.close(); db.close()
+    return render_template("employee_detail.html",
+        emp=row,
+        emp_status=emp_status,
+        recent_attendance=recent_attendance,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
+
+
 # ---------------- ADD EMPLOYEE (from employees page) ----------------
 @app.route("/add_employee_page", methods=["POST"])
 @admin_required
