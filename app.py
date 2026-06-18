@@ -2159,12 +2159,15 @@ def employee_detail(emp_id):
                s.name AS shift_name,
                COUNT(a.date)  AS total_days,
                MAX(a.date)    AS last_seen,
-               SUM(CASE WHEN a.attendance_type='Present' OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
+               SUM(CASE WHEN a.attendance_type IN ('Present','Full Day','Approved Leave') OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
                SUM(CASE WHEN a.attendance_type='Half Day' THEN 1 ELSE 0 END) AS half_days,
-               SUM(CASE WHEN a.attendance_type='Late' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days
+               SUM(CASE WHEN a.attendance_type LIKE 'Late%' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days,
+               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               e.about_me
         FROM employees e
         LEFT JOIN shifts s ON e.shift_id = s.id
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
+        LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         WHERE e.employee_id = %s
         GROUP BY e.employee_id
     """, (emp_id,))
@@ -2186,13 +2189,27 @@ def employee_detail(emp_id):
     else:
         emp_status = "Active"
 
-    # Recent attendance (last 10 records)
+    # Recent attendance (last 30 records)
     cursor.execute("""
         SELECT date, login_time, logout_time, attendance_type, status
         FROM attendance WHERE employee_id=%s
-        ORDER BY date DESC LIMIT 10
+        ORDER BY date DESC LIMIT 30
     """, (emp_id,))
     recent_attendance = cursor.fetchall()
+
+    # Work experience
+    cursor.execute("""
+        SELECT company, designation, from_year, to_year, is_current, description
+        FROM employee_experience WHERE employee_id=%s ORDER BY from_year DESC
+    """, (emp_id,))
+    experience = cursor.fetchall()
+
+    # Education
+    cursor.execute("""
+        SELECT degree, institution, year_of_passing, percentage
+        FROM employee_education WHERE employee_id=%s ORDER BY year_of_passing DESC
+    """, (emp_id,))
+    education = cursor.fetchall()
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
@@ -2206,6 +2223,8 @@ def employee_detail(emp_id):
         emp=row,
         emp_status=emp_status,
         recent_attendance=recent_attendance,
+        experience=experience,
+        education=education,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
