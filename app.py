@@ -92,7 +92,7 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800
 
-UPLOAD_FOLDER = "dataset"
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
@@ -1939,7 +1939,7 @@ def view_qrcodes():
 @admin_required
 def serve_dataset(filename):
     from flask import send_from_directory
-    return send_from_directory(os.path.abspath("dataset"), filename)
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 @app.route("/my_photo")
@@ -1948,10 +1948,10 @@ def my_photo():
     emp_id = session.get("employee_id")
     if not emp_id:
         return "", 403
-    photo_path = os.path.join("dataset", emp_id + ".jpg")
+    photo_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
     if not os.path.exists(photo_path):
         return "", 404
-    return send_from_directory(os.path.abspath("dataset"), emp_id + ".jpg")
+    return send_from_directory(UPLOAD_FOLDER, emp_id + ".jpg")
 
 
 @app.route("/view_photos")
