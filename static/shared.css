@@ -1,8 +1,8 @@
 /* ── DARK MODE VARIABLES ── */
 body.dark-mode {
-  --bg:       #0f172a;
-  --surface:  #1e293b;
-  --border:   #334155;
+  --bg:       #000000;
+  --surface:  #111111;
+  --border:   #2a2a2a;
   --text:     #e2e8f0;
   --muted:    #94a3b8;
   --accent:   #3b82f6;
@@ -26,15 +26,17 @@ body.dark-mode .detail-card {
 
 body.dark-mode { background: var(--bg) !important; }
 
-body.dark-mode table thead tr { background: #1e3a8a !important; }
+body.dark-mode table thead tr,
+body.dark-mode table thead tr th,
+body.dark-mode table th { background: #1e3a8a !important; color: #ffffff !important; }
 body.dark-mode table tbody tr { background: var(--surface) !important; color: var(--text) !important; }
-body.dark-mode table tbody tr:nth-child(even) { background: #0f172a !important; }
+body.dark-mode table tbody tr:nth-child(even) { background: #000000 !important; }
 body.dark-mode table td, body.dark-mode table th { border-color: var(--border) !important; color: var(--text) !important; }
 
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
-  background: #0f172a !important;
+  background: #000000 !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
@@ -46,9 +48,9 @@ body.dark-mode label, body.dark-mode .info-label {
 }
 
 body.dark-mode .reason-quote {
-  background: #1e293b !important;
+  background: #111111 !important;
   color: #cbd5e1 !important;
-  border-color: #334155 !important;
+  border-color: #2a2a2a !important;
 }
 
 /* ── DARK MODE: BROAD TEXT VISIBILITY ── */
@@ -69,10 +71,10 @@ body.dark-mode .badge-orange { background: #7c2d12 !important; color: #fdba74 !i
 body.dark-mode .badge-yellow { background: #713f12 !important; color: #fde047 !important; }
 body.dark-mode .badge-blue   { background: #1e3a8a !important; color: #93c5fd !important; }
 body.dark-mode .badge-gray,
-body.dark-mode .b-gray       { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
+body.dark-mode .b-gray       { background: #111111 !important; color: #94a3b8 !important; border-color: #2a2a2a !important; }
 
 /* Flash / alert messages */
-body.dark-mode .flash         { background: #1e293b !important; border-color: #334155 !important; }
+body.dark-mode .flash         { background: #111111 !important; border-color: #2a2a2a !important; }
 body.dark-mode .flash-success { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
 body.dark-mode .flash-error   { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
 
@@ -96,8 +98,178 @@ body.dark-mode .sn-orange     { color: #fb923c !important; }
 
 /* Modal backgrounds */
 body.dark-mode .modal-box,
-body.dark-mode .modal-body    { background: #1e293b !important; border-color: #334155 !important; }
-body.dark-mode .modal-backdrop { background: rgba(0,0,0,0.7) !important; }
+body.dark-mode .modal-body    { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .modal-backdrop { background: rgba(0,0,0,0.8) !important; }
+
+/* ── ATTENDANCE CALENDAR CELLS ── */
+body.dark-mode .cal-full    { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .cal-late    { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .cal-half    { background: #7c2d12 !important; color: #fdba74 !important; border-color: #9a3412 !important; }
+body.dark-mode .cal-absent  { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .cal-holiday { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
+body.dark-mode .cal-weekend { background: #111111 !important; color: #64748b !important; border-color: #2a2a2a !important; }
+body.dark-mode .cal-future  { background: #000000 !important; color: #2a2a2a !important; border-color: #111111 !important; }
+body.dark-mode .cal-today   { box-shadow: 0 0 0 2px #60a5fa !important; }
+body.dark-mode .cal-legend  { color: #94a3b8 !important; }
+
+/* ── HOLIDAY CALENDAR CELLS ── */
+body.dark-mode .hol-cal-day.hd-sunday  { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+body.dark-mode .hol-cal-day.hd-holiday { background: #713f12 !important; border-color: #854d0e !important; color: #fde047 !important; }
+body.dark-mode .hol-cal-day.hd-today   { background: #1e3a8a !important; border-color: #3b82f6 !important; color: #93c5fd !important; }
+body.dark-mode .hol-cal-day.hd-normal  { background: #111111 !important; border-color: #2a2a2a !important; color: #e2e8f0 !important; }
+body.dark-mode .hol-name-lbl           { color: #fbbf24 !important; }
+body.dark-mode .hol-badge-pub          { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .hol-badge-comp         { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
+
+/* ── TABLE / INLINE BADGE CLASSES ── */
+body.dark-mode .b-green,
+body.dark-mode .badge-green  { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .b-yellow     { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .b-red        { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .b-blue       { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .b-purple     { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
+body.dark-mode .b-indigo     { background: #312e81 !important; color: #a5b4fc !important; border-color: #4338ca !important; }
+body.dark-mode .b-orange     { background: #7c2d12 !important; color: #fdba74 !important; border-color: #9a3412 !important; }
+
+/* ── ATTENDANCE STATUS PILL BADGES (.s-*) ── */
+body.dark-mode .s-green  { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .s-yellow { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .s-red    { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .s-blue   { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .s-gray   { background: #111111 !important; color: #94a3b8 !important; border-color: #2a2a2a !important; }
+
+/* ── LEAVE STATUS BADGES (.ls-*) ── */
+body.dark-mode .ls-pending  { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .ls-approved { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .ls-rejected { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+
+/* ── TOAST MESSAGES ── */
+body.dark-mode .toast-green { background: #14532d !important; border-color: #166534 !important; color: #86efac !important; }
+body.dark-mode .toast-red   { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+body.dark-mode .toast-blue  { background: #1e3a8a !important; border-color: #1d4ed8 !important; color: #93c5fd !important; }
+
+/* ── STAT ICON CONTAINERS ── */
+body.dark-mode .si-blue   { background: #1e3a8a !important; }
+body.dark-mode .si-green  { background: #14532d !important; }
+body.dark-mode .si-red    { background: #7f1d1d !important; }
+body.dark-mode .si-yellow { background: #713f12 !important; }
+
+/* ── TICKET / RESIGN / MISC CARDS ── */
+body.dark-mode .ticket-response { background: #312e81 !important; border-color: #4338ca !important; color: #a5b4fc !important; }
+body.dark-mode .ticket-response strong { color: #818cf8 !important; }
+body.dark-mode .resign-warning  { background: #431407 !important; border-color: #9a3412 !important; color: #fdba74 !important; }
+body.dark-mode .resign-warning strong { color: #fb923c !important; }
+body.dark-mode .resign-status-card { background: #431407 !important; border-color: #9a3412 !important; }
+
+/* ── PRIORITY BADGES (.pri-*) ── */
+body.dark-mode .pri-urgent,
+body.dark-mode .pri-high   { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .pri-important,
+body.dark-mode .pri-medium { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
+body.dark-mode .pri-normal,
+body.dark-mode .pri-low    { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+
+/* ── WORK MODE BADGES (.wm-*) ── */
+body.dark-mode .wm-office  { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .wm-wfh     { background: #14532d !important; color: #86efac !important; }
+body.dark-mode .wm-hybrid  { background: #713f12 !important; color: #fde047 !important; }
+
+/* ── TEXT SELECTION HIGHLIGHT ── */
+body.dark-mode ::selection {
+  background: #fbbf24;
+  color: #1e293b;
+}
+
+/* ── ALL-PAGE: MISSING CONTAINER / WRAPPER BACKGROUNDS ── */
+
+/* Filter/search/toolbar bars (employees, attendance detail, salary report, shifts, settings) */
+body.dark-mode .toolbar,
+body.dark-mode .filter-bar,
+body.dark-mode .bulk-bar { background: #111111 !important; border-color: #2a2a2a !important; }
+
+/* Summary cards (attendance detail, salary report) */
+body.dark-mode .emp-card,
+body.dark-mode .sum-card { background: #111111 !important; border-color: #2a2a2a !important; }
+
+/* Email / settings test cards */
+body.dark-mode .test-card { background: #111111 !important; border-color: #2a2a2a !important; }
+
+/* List item rows (break_config, shifts, settings) */
+body.dark-mode .break-item,
+body.dark-mode .shift-item { background: #0a0a0a !important; border-color: #2a2a2a !important; color: var(--text) !important; }
+
+/* Rules / info boxes */
+body.dark-mode .rules-box { background: #0a0a0a !important; border-color: #2a2a2a !important; color: #94a3b8 !important; }
+
+/* Gray/cancel buttons that have a light background */
+body.dark-mode .btn-gray,
+body.dark-mode .btn-cancel,
+body.dark-mode .btn-cancel-sm,
+body.dark-mode .btn-clear-filter { background: #1a1a1a !important; border-color: #2a2a2a !important; color: #94a3b8 !important; }
+
+/* Photo upload drag-zone */
+body.dark-mode .photo-upload-box { background: #0a0a0a !important; border-color: #3b82f6 !important; color: var(--text) !important; }
+
+/* Ticket done-section header */
+body.dark-mode .sec-head.done { background: #111111 !important; color: #64748b !important; }
+
+/* Admin holidays calendar: normal day cells and legend dot */
+body.dark-mode .cal-day.day-normal { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .leg-normal { background: #111111 !important; border-color: #2a2a2a !important; }
+
+/* ── EMPLOYEE PORTAL: MISSING CONTAINER BACKGROUNDS ── */
+/* .calendar and .cal-filter are not .section/.card, so they need their own override */
+body.dark-mode .calendar,
+body.dark-mode .cal-filter {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Holiday calendar wrapper */
+body.dark-mode .hol-cal-single-wrap {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Ticket rows */
+body.dark-mode .ticket-row {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Payslip cards */
+body.dark-mode .payslip-card {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+  color: var(--text) !important;
+}
+body.dark-mode .payslip-card .ps-month { color: #93c5fd !important; }
+body.dark-mode .payslip-card:hover { background: #1e3a8a !important; border-color: #3b82f6 !important; }
+
+/* Leave reason chips */
+body.dark-mode .reason-chip {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+  color: var(--text) !important;
+}
+body.dark-mode .reason-chip:hover,
+body.dark-mode .reason-chip.active { background: #1e3a8a !important; border-color: #3b82f6 !important; color: #93c5fd !important; }
+
+/* Module title border and profile row separators */
+body.dark-mode .mod-title { color: var(--text) !important; border-bottom-color: #2a2a2a !important; }
+body.dark-mode .profile-row { border-bottom-color: #2a2a2a !important; }
+
+/* Table row hover (template defines tr:hover td { background: #eff6ff } which beats our tr rule) */
+body.dark-mode table tbody tr:hover td { background: #0f1f3d !important; }
+
+/* Holiday calendar navigation buttons */
+body.dark-mode .hol-mnav-btn { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .hol-mnav-btn:hover { background: #1e40af !important; }
+body.dark-mode .hol-mnav-label,
+body.dark-mode .hol-cur-yr { color: #93c5fd !important; }
+body.dark-mode .hol-year-nav a { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .hol-year-nav a:hover { background: #1e40af !important; }
+body.dark-mode .hol-legend { color: var(--text) !important; }
 
 /* ── DARK MODE TOGGLE BUTTON ── */
 .dm-toggle {
