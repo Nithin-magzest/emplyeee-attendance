@@ -1865,33 +1865,46 @@ def delete_employee(emp_id):
 @admin_required
 def edit_employee():
     emp_id          = request.form["emp_id"].strip()
-    name            = request.form.get("name", "").strip()
-    email           = request.form.get("email", "").strip() or None
-    role            = request.form.get("role", "").strip() or None
+    name            = request.form.get("name",            "").strip()
+    email           = request.form.get("email",           "").strip() or None
+    role            = request.form.get("role",            "").strip() or None
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
-    department      = request.form.get("department",   "").strip() or None
-    manager_name    = request.form.get("manager_name", "").strip() or None
-    db       = get_db_connection()
-    cursor   = db.cursor(buffered=True)
-    if request.form.get("update_work_mode"):
-        work_mode    = request.form.get("work_mode", "office").strip() or "office"
-        work_lat_raw = request.form.get("work_lat", "").strip()
-        work_lon_raw = request.form.get("work_lon", "").strip()
-        work_lat     = float(work_lat_raw) if work_lat_raw else None
-        work_lon     = float(work_lon_raw) if work_lon_raw else None
-        cursor.execute(
-            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-            "work_mode=%s, work_lat=%s, work_lon=%s, department=%s, manager_name=%s "
-            "WHERE employee_id=%s",
-            (name, email, role, date_of_joining, work_mode, work_lat, work_lon,
-             department, manager_name, emp_id)
-        )
-    else:
-        cursor.execute(
-            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-            "department=%s, manager_name=%s WHERE employee_id=%s",
-            (name, email, role, date_of_joining, department, manager_name, emp_id)
-        )
+    department      = request.form.get("department",      "").strip() or None
+    manager_name    = request.form.get("manager_name",    "").strip() or None
+    phone           = request.form.get("phone",           "").strip() or None
+    gender          = request.form.get("gender",          "").strip() or None
+    dob             = request.form.get("dob",             "").strip() or None
+    blood_group     = request.form.get("blood_group",     "").strip() or None
+    shift_id_raw    = request.form.get("shift_id",        "").strip()
+    shift_id        = int(shift_id_raw) if shift_id_raw else None
+    address         = request.form.get("address",         "").strip() or None
+    city            = request.form.get("city",            "").strip() or None
+    state           = request.form.get("state",           "").strip() or None
+    pincode         = request.form.get("pincode",         "").strip() or None
+    ec_name         = request.form.get("ec_name",         "").strip() or None
+    ec_phone        = request.form.get("ec_phone",        "").strip() or None
+    ec_rel          = request.form.get("ec_rel",          "").strip() or None
+    work_mode       = request.form.get("work_mode",       "office").strip() or "office"
+    work_lat_raw    = request.form.get("work_lat",        "").strip()
+    work_lon_raw    = request.form.get("work_lon",        "").strip()
+    work_lat        = float(work_lat_raw) if work_lat_raw else None
+    work_lon        = float(work_lon_raw) if work_lon_raw else None
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
+        "department=%s, manager_name=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
+        "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
+        "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
+        "work_mode=%s, work_lat=%s, work_lon=%s "
+        "WHERE employee_id=%s",
+        (name, email, role, date_of_joining, department, manager_name,
+         phone, gender, dob, blood_group, shift_id,
+         address, city, state, pincode,
+         ec_name, ec_phone, ec_rel,
+         work_mode, work_lat, work_lon, emp_id)
+    )
     db.commit(); cursor.close(); db.close()
     flash(f"Employee '{emp_id}' updated successfully.", "success")
     return redirect("/employees")
@@ -1904,27 +1917,45 @@ def api_employee_info(emp_id):
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT employee_id, name, role, email, date_of_joining, "
-        "work_mode, work_lat, work_lon, department, manager_name, face_image, qr_code "
+        "work_mode, work_lat, work_lon, department, manager_name, face_image, qr_code, "
+        "phone, gender, dob, blood_group, shift_id, "
+        "address, city, state, pincode, "
+        "emergency_contact_name, emergency_contact_phone, emergency_contact_relation "
         "FROM employees WHERE employee_id=%s", (emp_id,)
     )
     row = cursor.fetchone()
     cursor.close(); db.close()
     if not row:
         return jsonify({"error": "not found"}), 404
-    eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code = row
+    (eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code,
+     phone, gender, dob, blood_group, shift_id,
+     address, city, state, pincode,
+     ec_name, ec_phone, ec_rel) = row
     return jsonify({
-        "emp_id":       eid,
-        "name":         name or "",
-        "role":         role or "",
-        "email":        email or "",
-        "doj":          doj.strftime("%Y-%m-%d") if doj else "",
-        "work_mode":    wm or "office",
-        "work_lat":     str(wlat) if wlat else "",
-        "work_lon":     str(wlon) if wlon else "",
-        "department":   dept or "",
-        "manager_name": mgr or "",
-        "has_photo":    bool(face_image and os.path.exists(face_image)),
-        "has_qr":       bool(qr_code and os.path.exists(qr_code)),
+        "emp_id":          eid,
+        "name":            name         or "",
+        "role":            role         or "",
+        "email":           email        or "",
+        "doj":             doj.strftime("%Y-%m-%d") if doj else "",
+        "work_mode":       wm           or "office",
+        "work_lat":        str(wlat)    if wlat else "",
+        "work_lon":        str(wlon)    if wlon else "",
+        "department":      dept         or "",
+        "manager_name":    mgr          or "",
+        "has_photo":       bool(face_image and os.path.exists(face_image)),
+        "has_qr":          bool(qr_code  and os.path.exists(qr_code)),
+        "phone":           phone        or "",
+        "gender":          gender       or "",
+        "dob":             dob.strftime("%Y-%m-%d") if dob else "",
+        "blood_group":     blood_group  or "",
+        "shift_id":        shift_id     or "",
+        "address":         address      or "",
+        "city":            city         or "",
+        "state":           state        or "",
+        "pincode":         pincode      or "",
+        "ec_name":         ec_name      or "",
+        "ec_phone":        ec_phone     or "",
+        "ec_rel":          ec_rel       or "",
     })
 
 
@@ -1938,14 +1969,51 @@ def view_employees():
                COUNT(a.date)  AS total_days,
                MAX(a.date)    AS last_seen,
                e.work_mode, e.work_lat, e.work_lon,
-               e.face_image, e.qr_code
+               e.face_image, e.qr_code,
+               e.department, e.phone, e.gender,
+               s.name AS shift_name, e.shift_id
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
+        LEFT JOIN shifts     s ON e.shift_id = s.id
         GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
-                 e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code
+                 e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code,
+                 e.department, e.phone, e.gender, s.name, e.shift_id
         ORDER BY e.name
     """)
-    employees = cursor.fetchall()
+    employees_raw = cursor.fetchall()
+
+    cursor.execute("SELECT DISTINCT employee_id FROM resignation_requests WHERE status='Accepted'")
+    resigned_set  = {r[0] for r in cursor.fetchall()}
+    cursor.execute(
+        "SELECT DISTINCT employee_id FROM leave_requests "
+        "WHERE status='Approved' AND leave_date=CURDATE()"
+    )
+    on_leave_set  = {r[0] for r in cursor.fetchall()}
+
+    employees = []
+    for row in employees_raw:
+        eid = row[0]
+        if eid in resigned_set:
+            emp_status = "Resigned"
+        elif eid in on_leave_set:
+            emp_status = "On Leave"
+        else:
+            emp_status = "Active"
+        employees.append(row + (emp_status,))
+
+    total          = len(employees)
+    active_count   = sum(1 for e in employees if e[-1] == "Active")
+    on_leave_count = sum(1 for e in employees if e[-1] == "On Leave")
+    resigned_count = sum(1 for e in employees if e[-1] == "Resigned")
+
+    cursor.execute("SELECT id, name FROM shifts ORDER BY name")
+    shifts = cursor.fetchall()
+    cursor.execute(
+        "SELECT DISTINCT department FROM employees "
+        "WHERE department IS NOT NULL AND department != '' ORDER BY department"
+    )
+    departments = [r[0] for r in cursor.fetchall()]
+
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
@@ -1956,6 +2024,12 @@ def view_employees():
     db.close()
     return render_template("employees.html",
         employees=employees,
+        shifts=shifts,
+        departments=departments,
+        total=total,
+        active_count=active_count,
+        on_leave_count=on_leave_count,
+        resigned_count=resigned_count,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
