@@ -6,7 +6,7 @@
     <title>Email Settings</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #eff6ff; min-height: 100vh; display: flex; }
+      body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
       /* ── SIDEBAR ── */
       .sidebar { width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%); padding: 22px 14px; color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.18); }
@@ -29,7 +29,7 @@
       /* ── MAIN ── */
       .main { flex: 1; padding: 28px; overflow-x: hidden; }
       .page-header { margin-bottom: 24px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; font-weight: 800; }
+      .page-header h1 { font-size: 24px; color: #0f172a; font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 5px; }
 
       /* ── FLASH ── */
@@ -40,13 +40,13 @@
       .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
 
       /* ── CARDS ── */
-      .card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 28px; }
+      .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; }
       .card-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 22px; display: flex; align-items: center; gap: 9px; }
 
       /* ── FORM ── */
       .form-group { margin-bottom: 16px; }
       .form-group label { display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-      .form-group input { width: 100%; padding: 11px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
+      .form-group input { width: 100%; padding: 11px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
       .form-group input:focus { background: #fff; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,0.2); }
       .form-group input::placeholder { color: #94a3b8; }
       .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
@@ -63,12 +63,12 @@
       .current-config { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #4c1d95; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
 
       /* Test email */
-      .test-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; }
+      .test-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
       .test-row { display: flex; gap: 10px; align-items: center; }
-      .test-row input { flex: 1; padding: 11px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
+      .test-row input { flex: 1; padding: 11px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s; }
       .test-row input:focus { border-color: #93c5fd; background: #fff; }
       .test-row input::placeholder { color: #94a3b8; }
-      .btn-test { padding: 11px 20px; border: 1px solid #dbeafe; border-radius: 10px; background: #f0f9ff; color: #0369a1; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+      .btn-test { padding: 11px 20px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f0f9ff; color: #0369a1; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: 0.2s; }
       .btn-test:hover { background: #dbeafe; }
       #testResult { font-size: 13px; margin-top: 12px; padding: 11px 14px; border-radius: 9px; display: none; font-weight: 500; }
       #testResult.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
@@ -80,23 +80,34 @@
   </head>
   <body>
 
-    <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+        <div>
+          <div class="brand">Admin Panel</div>
+          <div class="brand-sub">{{ co.company_name }}</div>
+        </div>
       </div>
-      <div class="nav-group-label">Main</div>
+
+      <div class="nav-group-label">Overview</div>
       <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Employee Management</div>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>All Employees</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Attendance Tracking</div>
       <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Shifts &amp; Breaks</div>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">⏱️</span>Shifts &amp; Break Config</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Salary &amp; Payslips</div>
       <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
       <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
-      <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
-      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
-      <div class="nav-group-label" style="margin-top:10px;">Requests</div>
+
+      <div class="nav-group-label" style="margin-top:10px;">Tickets, Leaves &amp; Resign.</div>
+      <a class="nav-item" href="/admin_leave_types"><span class="nav-icon">🗂️</span>Leave Types</a>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
       </a>
@@ -106,10 +117,18 @@
       <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Announcements &amp; Holidays</div>
+      <a class="nav-item" href="/announcements"><span class="nav-icon">📢</span>Announcements</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+
       <hr class="nav-sep" style="margin-top:12px;" />
+      <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
+
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
+
 
     <!-- MAIN -->
     <div class="main">

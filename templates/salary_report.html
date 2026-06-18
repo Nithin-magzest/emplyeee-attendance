@@ -6,7 +6,7 @@
     <title>Salary Report</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #eff6ff; min-height: 100vh; display: flex; }
+      body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
       .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
@@ -33,12 +33,12 @@
 
       .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header h1 { font-size: 24px; color: #0f172a;  font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
-      .filter-bar { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px 22px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+      .filter-bar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 22px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
       .filter-bar label { font-size: 14px; color: #475569; }
-      .filter-bar select { padding: 8px 12px; border-radius: 8px; border: 1px solid #dbeafe; background: #f8fafc; color: #1e293b; font-size: 14px; cursor: pointer; outline: none; }
+      .filter-bar select { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #1e293b; font-size: 14px; cursor: pointer; outline: none; }
       .filter-bar select:focus { border-color: #93c5fd; }
       .filter-bar button { padding: 9px 22px; border: none; border-radius: 8px; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
       .filter-bar button:hover { background: #16a34a; }
@@ -51,23 +51,23 @@
       .btn-setup-email { background: #f59e0b; color: white; text-decoration: none; padding: 9px 18px; border-radius: 8px; font-size: 14px; }
 
       .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
-      .sum-card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px; text-align: center; }
+      .sum-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; text-align: center; }
       .sum-card .num { font-size: 26px; font-weight: 700; }
       .sum-card .lbl { font-size: 12px; color: #64748b; margin-top: 5px; }
       .c-green .num { color: #16a34a; } .c-red .num { color: #dc2626; }
       .c-yellow .num { color: #d97706; } .c-blue .num { color: #2563eb; }
 
-      .section { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
+      .section { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
       .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; color: #1e293b; }
       .table-wrap { overflow-x: auto; border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 960px; }
-      th { background: #dbeafe; color: #1e3a8a; padding: 11px 14px; font-weight: 600; white-space: nowrap; text-align: right; }
+      th { background: #f8fafc; color: #475569; padding: 11px 14px; font-weight: 600; white-space: nowrap; text-align: right; }
       th:first-child, th:nth-child(2) { text-align: left; }
       th.group-head { text-align: center; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: #1e3a8a; border-bottom: 2px solid #dbeafe; }
       td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; color: #1e293b; }
       td:first-child, td:nth-child(2) { text-align: left; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
+      tr:hover td { background: #f1f5f9; }
       .total-row td { background: #dbeafe; font-weight: 700; border-top: 2px solid #93c5fd; color: #1e3a8a; }
 
       .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
@@ -107,27 +107,34 @@
     </style>
   </head>
   <body>
-    <!-- SIDEBAR -->
-            <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
-      <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item active" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
-      <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+        <div>
+          <div class="brand">Admin Panel</div>
+          <div class="brand-sub">{{ co.company_name }}</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Overview</div>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Employee Management</div>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>All Employees</a>
       <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
-      <div class="nav-group-label" style="margin-top:10px;">Requests</div>
+
+      <div class="nav-group-label" style="margin-top:10px;">Attendance Tracking</div>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Shifts &amp; Breaks</div>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">⏱️</span>Shifts &amp; Break Config</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Salary &amp; Payslips</div>
+      <a class="nav-item active" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Tickets, Leaves &amp; Resign.</div>
+      <a class="nav-item" href="/admin_leave_types"><span class="nav-icon">🗂️</span>Leave Types</a>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
       </a>
@@ -137,11 +144,18 @@
       <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Announcements &amp; Holidays</div>
+      <a class="nav-item" href="/announcements"><span class="nav-icon">📢</span>Announcements</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
+
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
+
 
     <!-- MAIN -->
     <div class="main">
@@ -156,7 +170,7 @@
           <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
           <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
             oninput="filterEmpTable(this.value)"
-            style="padding:8px 12px 8px 34px;border:1.5px solid #dbeafe;border-radius:9px;background:#f8fafc;
+            style="padding:8px 12px 8px 34px;border: 1.5px solid #e2e8f0;border-radius:9px;background:#f8fafc;
                    color:#1e293b;font-size:13px;outline:none;width:200px;" />
         </div>
         <label>Month</label>

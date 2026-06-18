@@ -41,7 +41,7 @@
     /* ── TABS ── */
     .tab-bar {
       display: flex; gap: 6px; flex-wrap: wrap;
-      background: #fff; border: 1px solid #dbeafe; border-radius: 14px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
       padding: 10px 12px; margin-bottom: 22px;
     }
     .tab-btn {
@@ -60,7 +60,7 @@
     .flash-red   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
     /* ── SECTION CARD ── */
-    .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 20px; }
+    .section { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px; margin-bottom: 20px; }
     .section-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 
@@ -75,7 +75,7 @@
     .field input[type="date"],
     .field select,
     .field textarea {
-      width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px;
+      width: 100%; padding: 10px 13px; border: 1px solid #e2e8f0; border-radius: 9px;
       background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; transition: 0.2s;
     }
     .field input:focus, .field select:focus, .field textarea:focus { border-color: #93c5fd; background: #fff; }
@@ -100,10 +100,10 @@
     /* ── TABLE ── */
     .table-wrap { overflow-x: auto; border-radius: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 700; white-space: nowrap; }
+    th { background: #f8fafc; color: #475569; padding: 10px 14px; text-align: left; font-weight: 700; white-space: nowrap; }
     td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #eff6ff; }
+    tr:hover td { background: #f1f5f9; }
     .empty-row { text-align: center; padding: 28px; color: #94a3b8; }
 
     /* ── BADGES ── */
@@ -117,7 +117,7 @@
 
     /* ── SHIFT LIST ── */
     .shift-list { display: flex; flex-direction: column; gap: 8px; }
-    .shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; }
+    .shift-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
     .shift-item.default-shift { background: #f0fdf4; border-color: #86efac; }
     .shift-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
     .shift-times { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #64748b; }
@@ -130,7 +130,7 @@
 
     /* ── BREAK LIST ── */
     .break-list { display: flex; flex-direction: column; gap: 8px; }
-    .break-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; }
+    .break-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
     .break-item.inactive { opacity: 0.55; }
     .break-icon { font-size: 20px; flex-shrink: 0; }
     .break-info { flex: 1; min-width: 0; }
@@ -156,7 +156,7 @@
     .edit-form.open { display: flex; }
     .ef-row { display: flex; align-items: center; gap: 8px; }
     .ef-lbl { font-size: 11px; color: #64748b; min-width: 80px; font-weight: 600; flex-shrink: 0; }
-    .ef-inp { flex: 1; padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; min-width: 0; }
+    .ef-inp { flex: 1; padding: 6px 9px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; min-width: 0; }
     .ef-inp:focus { border-color: #93c5fd; background: #fff; }
     .ef-hint { font-size: 10px; color: #94a3b8; padding-left: 88px; }
     .ef-btns { display: flex; gap: 7px; }
@@ -176,9 +176,9 @@
     .pri-urgent    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
     /* ── EMAIL TEST ── */
-    .test-card { background: #f8fafc; border: 1px solid #dbeafe; border-radius: 12px; padding: 16px; }
+    .test-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
     .test-row { display: flex; gap: 8px; margin-top: 10px; }
-    .test-row input { flex: 1; padding: 9px 12px; border: 1px solid #dbeafe; border-radius: 8px; background: #fff; font-size: 13px; outline: none; }
+    .test-row input { flex: 1; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 13px; outline: none; }
     #testResult { margin-top: 8px; font-size: 13px; padding: 8px 12px; border-radius: 8px; display: none; }
     #testResult.ok  { background: #dcfce7; color: #15803d; }
     #testResult.err { background: #fee2e2; color: #dc2626; }
@@ -189,11 +189,11 @@
     .bulk-bar select { padding: 7px 10px; border: 1px solid #bae6fd; border-radius: 7px; background: #fff; font-size: 13px; }
     .bulk-bar .btn-bulk { padding: 8px 18px; border: none; border-radius: 8px; background: #0369a1; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
     .saved-tick { font-size: 12px; color: #16a34a; font-weight: 700; display: none; }
-    .shift-select { padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; font-size: 12px; }
+    .shift-select { padding: 6px 9px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; font-size: 12px; }
 
     /* ── SEARCH ── */
     .search-wrap { position: relative; }
-    .search-wrap input { padding: 8px 12px 8px 32px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; font-size: 13px; outline: none; width: 200px; }
+    .search-wrap input { padding: 8px 12px 8px 32px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; font-size: 13px; outline: none; width: 200px; }
     .search-wrap::before { content: '🔍'; position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
     .section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 
@@ -217,36 +217,55 @@
 </head>
 <body>
 
-  <!-- ══ SIDEBAR ══ -->
-  <div class="sidebar">
-    <div class="brand-wrap">
-      <div class="brand-icon">⚙️</div>
-      <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+    <div class="sidebar">
+      <div class="brand-wrap">
+        <div class="brand-icon">⚙️</div>
+        <div>
+          <div class="brand">Admin Panel</div>
+          <div class="brand-sub">{{ co.company_name }}</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Overview</div>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Employee Management</div>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>All Employees</a>
+      <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Attendance Tracking</div>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Shifts &amp; Breaks</div>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">⏱️</span>Shifts &amp; Break Config</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Salary &amp; Payslips</div>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Tickets, Leaves &amp; Resign.</div>
+      <a class="nav-item" href="/admin_leave_types"><span class="nav-icon">🗂️</span>Leave Types</a>
+      <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
+        {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
+      </a>
+      <a class="nav-item" href="/resignation_requests"><span class="nav-icon">📤</span>Resignations
+        {% if (pending_resignations|default(0)) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
+      </a>
+      <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
+        {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
+      </a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Announcements &amp; Holidays</div>
+      <a class="nav-item" href="/announcements"><span class="nav-icon">📢</span>Announcements</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+
+      <hr class="nav-sep" style="margin-top:12px;" />
+      <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
+
+      <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
-    <div class="nav-group-label">Main</div>
-    <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
-    <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
-    <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
-    <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
-    <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
-    <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-    <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-    <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
-    <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
-    <div class="nav-group-label" style="margin-top:10px;">Requests</div>
-    <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
-      {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
-    </a>
-    <a class="nav-item" href="/resignation_requests"><span class="nav-icon">📤</span>Resignations
-      {% if (pending_resignations|default(0)) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
-    </a>
-    <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
-      {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
-    </a>
-    <hr class="nav-sep" style="margin-top:12px;" />
-    <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
-    <div class="sidebar-footer">⚙️ Admin Settings</div>
-  </div>
+
 
   <!-- ══ MAIN ══ -->
   <div class="main">

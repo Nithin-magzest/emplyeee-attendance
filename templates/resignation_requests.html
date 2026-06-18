@@ -6,7 +6,7 @@
     <title>Resignation Requests</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #eff6ff; min-height: 100vh; display: flex; }
+      body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
       /* SIDEBAR */
       .sidebar {
@@ -35,12 +35,12 @@
       /* MAIN */
       .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header h1 { font-size: 24px; color: #0f172a;  font-weight: 800; }
       .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
 
       .section {
         background: #ffffff;
-        border: 1px solid #dbeafe;
+        border: 1px solid #e2e8f0;
         border-radius: 16px; padding: 22px; margin-bottom: 22px;
       }
       .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #1e293b; }
@@ -49,13 +49,13 @@
       .table-wrap { overflow-x: auto; border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       th {
-        background: #dbeafe; color: #1e3a8a;
+        background: #f8fafc; color: #475569;
         padding: 11px 16px; text-align: left;
         font-weight: 600; white-space: nowrap;
       }
       td { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; color: #1e293b; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
+      tr:hover td { background: #f1f5f9; }
       .empty-cell { text-align: center; padding: 32px; color: #94a3b8; }
       .row-pending { background: #fff7ed; }
 
@@ -95,26 +95,34 @@
   </head>
   <body>
 
-        <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon">⚙️</div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
-      <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard
-      </a>
-      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees
-      </a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report
-      </a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report
-      </a>
-      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips
-      </a>
-      <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-      <a class="nav-item" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+        <div>
+          <div class="brand">Admin Panel</div>
+          <div class="brand-sub">{{ co.company_name }}</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Overview</div>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Employee Management</div>
+      <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>All Employees</a>
       <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
-      <div class="nav-group-label" style="margin-top:10px;">Requests</div>
+
+      <div class="nav-group-label" style="margin-top:10px;">Attendance Tracking</div>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Shifts &amp; Breaks</div>
+      <a class="nav-item" href="/shifts"><span class="nav-icon">⏱️</span>Shifts &amp; Break Config</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Salary &amp; Payslips</div>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
+      <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Tickets, Leaves &amp; Resign.</div>
+      <a class="nav-item" href="/admin_leave_types"><span class="nav-icon">🗂️</span>Leave Types</a>
       <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests
         {% if (pending_leaves|default(0)) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
       </a>
@@ -124,11 +132,18 @@
       <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets
         {% if (pending_tickets|default(0)) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
       </a>
+
+      <div class="nav-group-label" style="margin-top:10px;">Announcements &amp; Holidays</div>
+      <a class="nav-item" href="/announcements"><span class="nav-icon">📢</span>Announcements</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
+
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout
-      </a>
+      <a class="nav-item" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
+
       <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
+
 
     <div class="main">
       <div class="page-header">
