@@ -4274,17 +4274,68 @@ def request_leave():
 @app.route("/leave_requests")
 @admin_required
 def leave_requests_view():
+    today  = datetime.date.today()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+
+    # Leave requests with leave type name
     cursor.execute("""
-        SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at
+        SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
+               COALESCE(lt.name, 'Leave Request') AS leave_type_name
         FROM leave_requests lr
         JOIN employees e ON lr.employee_id = e.employee_id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         ORDER BY FIELD(lr.status, 'Pending', 'Approved', 'Rejected'), lr.created_at DESC
     """)
     leaves = cursor.fetchall()
+
+    # Approved leave days used per employee this year
+    cursor.execute("""
+        SELECT employee_id, COUNT(*)
+        FROM leave_requests
+        WHERE YEAR(leave_date) = YEAR(CURDATE()) AND status = 'Approved'
+        GROUP BY employee_id
+    """)
+    leave_used = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # All tickets
+    cursor.execute("""
+        SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
+               t.priority, t.status, t.admin_response, t.created_at, t.updated_at
+        FROM tickets t
+        JOIN employees e ON t.employee_id = e.employee_id
+        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'), t.created_at DESC
+    """)
+    all_tickets = cursor.fetchall()
+
+    # Resignations
+    cursor.execute("""
+        SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
+        FROM resignation_requests rr
+        JOIN employees e ON rr.employee_id = e.employee_id
+        ORDER BY FIELD(rr.status, 'Pending', 'Accepted', 'Declined'), rr.created_at DESC
+    """)
+    resignations = cursor.fetchall()
+
+    # Pending / open counts
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+
     cursor.close(); db.close()
-    return render_template("leave_requests.html", leaves=leaves)
+    return render_template("leave_requests.html",
+        leaves=leaves,
+        leave_used=leave_used,
+        all_tickets=all_tickets,
+        resignations=resignations,
+        pending_leaves=pending_leaves,
+        pending_tickets=pending_tickets,
+        pending_resignations=pending_resignations,
+        today=today,
+    )
 
 
 @app.route("/leave_action/<int:lid>", methods=["POST"])
