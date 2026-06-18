@@ -8,7 +8,10 @@ import html as _html
 import face_recognition
 from database import get_db_connection
 from qr_generator import generate_qr
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash as _gen_pw_hash
+def generate_password_hash(pw, **kw):
+    return _gen_pw_hash(pw, method='pbkdf2:sha256')
 from functools import wraps
 from contextlib import contextmanager
 import os
