@@ -1,9 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Break Time Settings</title>
+    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI",sans-serif; }
     body { background:#eff6ff; min-height:100vh; display:flex; }
@@ -109,26 +110,21 @@
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon">⚙️</div>
-    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
-  </div>
-  <div class="nav-group-label">Main</div>
-  <a class="nav-item" href="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
-  <a class="nav-item" href="/employees"><span class="nav-icon">👥</span>Employees</a>
-  <a class="nav-item" href="/monthly_report"><span class="nav-icon">📊</span>Monthly Report</a>
-  <a class="nav-item" href="/salary_report"><span class="nav-icon">💰</span>Salary Report</a>
-  <a class="nav-item" href="/admin_payslips"><span class="nav-icon">💳</span>Pay Slips</a>
-  <div class="nav-group-label" style="margin-top:10px;">Settings</div>
-  <a class="nav-item active" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-  <a class="nav-item" href="/view_holidays"><span class="nav-icon">📅</span>Holidays</a>
-  <a class="nav-item" href="/view_photos"><span class="nav-icon">📷</span>Photos &amp; QR Codes</a>
-  <div class="nav-group-label" style="margin-top:10px;">Requests</div>
-  <a class="nav-item" href="/leave_requests"><span class="nav-icon">📋</span>Leave Requests</a>
-  <a class="nav-item" href="/resignation_requests"><span class="nav-icon">📤</span>Resignations</a>
-  <a class="nav-item" href="/tickets"><span class="nav-icon">🎫</span>Tickets</a>
-  <hr class="nav-sep" style="margin-top:12px;" />
-  <a class="nav-item" href="/logout"><span class="nav-icon">🚪</span>Logout</a>
-  <div class="sidebar-footer">🕐 Shift: {{ shift_start }} – {{ shift_end }}</div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
+      <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+      <a class="nav-item active" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; breaks</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; payslips</a>
+      <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Tickets &amp; leaves{% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}{% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+      <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
+      <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+      <hr class="nav-sep" style="margin-top:12px;" />
+      <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+      
+      <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
 </div>
 
 <!-- MAIN -->
