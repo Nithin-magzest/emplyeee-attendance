@@ -189,7 +189,7 @@
   </div>
 
   <!-- SUMMARY BELOW CALENDAR -->
-  {% set total_on_leave = cal_data.values() | sum(attribute='__len__') %}
+  {% set total_on_leave = cal_data.values() | list | map('length') | sum %}
   {% if cal_data %}
   <div style="margin-top:18px;background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:18px 22px;">
     <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:14px;">
