@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -9,7 +9,8 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
-      /* SIDEBAR */      .sidebar {
+      /* SIDEBAR */
+      .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
         background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
         padding: 22px 14px; color: white;
@@ -26,135 +27,137 @@
       .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
       .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
       .nav-icon { width: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; opacity: 0.7; }
-      .nav-item.active .nav-icon { opacity: 1; }
-      .nav-item:hover .nav-icon  { opacity: 1; }
+      .nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity: 1; }
       .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
-      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
+      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
       .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
 
       /* MAIN */
-      .main { flex: 1; padding: 28px; }
-      .page-header { margin-bottom: 22px; }
-      .page-header h1 { font-size: 26px; color: #1e293b; }
-      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+      .main { flex: 1; padding: 28px; min-width: 0; }
+      .page-header { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+      .page-header-left h1 { font-size: 24px; color: #1e293b; }
+      .page-header-left p  { font-size: 13px; color: #64748b; margin-top: 3px; }
 
-      /* SEARCH + COUNT BAR */
-      .toolbar {
-        display: flex; align-items: center; gap: 14px;
-        margin-bottom: 18px; flex-wrap: wrap;
-      }
-      .search-box {
-        flex: 1; min-width: 220px;
-        padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px;
-        background: #ffffff; color: #1e293b; font-size: 14px; outline: none;
-      }
+      /* FLASH */
+      .flash-list { list-style: none; margin-bottom: 16px; }
+      .flash-msg  { padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+      .flash-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+      .flash-error   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+      /* TOOLBAR */
+      .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+      .search-box { flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid #dbeafe; border-radius: 10px; background: #fff; color: #1e293b; font-size: 14px; outline: none; }
       .search-box:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
       .emp-count { font-size: 13px; color: #64748b; white-space: nowrap; }
+      .btn-add { display: flex; align-items: center; gap: 7px; padding: 10px 18px; border: none; border-radius: 10px; background: #1e3a8a; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+      .btn-add:hover { background: #1e40af; }
 
-      /* TABLE SECTION */
-      .section {
-        background: #ffffff; border: 1px solid #dbeafe;
-        border-radius: 16px; padding: 22px;
-      }
+      /* TABLE */
+      .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; }
       .table-wrap { overflow-x: auto; border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; }
       th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
-      td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; }
+      td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #1e293b; vertical-align: middle; }
       tr:last-child td { border-bottom: none; }
       tr:hover td { background: #eff6ff; }
       .empty-cell { text-align: center; padding: 40px; color: #94a3b8; }
+      .muted { color: #94a3b8; }
+
+      /* AVATAR */
+      .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #dbeafe; background: #e2e8f0; }
+      .avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 16px; border: 2px solid #dbeafe; }
 
       /* BADGES */
       .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-      .badge-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-      .badge-gray   { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
-      .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-
-      /* MUTED TEXT */
-      .muted { color: #94a3b8; }
+      .badge-blue  { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+      .badge-green { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
 
       /* ACTION BUTTONS */
-      .btn-edit {
-        padding: 5px 12px; border: none; border-radius: 7px;
-        background: #dbeafe; color: #1d4ed8;
-        font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
-        margin-right: 6px;
-      }
+      .actions-cell { display: flex; align-items: center; gap: 5px; }
+      .btn-icon { padding: 5px 9px; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
+      .btn-edit   { background: #dbeafe; color: #1d4ed8; }
       .btn-edit:hover { background: #bfdbfe; }
-      .btn-del {
-        padding: 5px 12px; border: none; border-radius: 7px;
-        background: #fee2e2; color: #dc2626;
-        font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
-      }
+      .btn-del    { background: #fee2e2; color: #dc2626; }
       .btn-del:hover { background: #fecaca; }
+      .btn-qr     { background: #f3e8ff; color: #7c3aed; }
+      .btn-qr:hover { background: #ede9fe; }
+      .btn-photo  { background: #fef9c3; color: #92400e; }
+      .btn-photo:hover { background: #fef08a; }
 
-      /* EDIT MODAL */
-      .modal-backdrop {
-        display: none; position: fixed; inset: 0;
-        background: rgba(15,23,42,0.45); z-index: 1000;
-        align-items: center; justify-content: center;
-      }
-      .modal-box {
-        background: #ffffff; border: 1px solid #dbeafe;
-        border-radius: 20px; padding: 32px; width: 100%; max-width: 460px;
-        box-shadow: 0 20px 60px rgba(30,58,138,0.15);
-      }
-      .modal-box h3 { font-size: 18px; color: #1e293b; margin-bottom: 22px; }
-      .field-group { margin-bottom: 14px; }
-      .field-group label {
-        display: block; font-size: 11px; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        color: #64748b; margin-bottom: 5px;
-      }
-      .field-group input {
-        width: 100%; padding: 10px 13px;
-        border: 1px solid #dbeafe; border-radius: 9px;
-        background: #f8fafc; color: #1e293b; font-size: 14px; outline: none;
-        transition: 0.2s;
-      }
+      /* MODALS */
+      .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+      .modal-backdrop.open { display: flex; }
+      .modal-box { background: #fff; border: 1px solid #dbeafe; border-radius: 20px; padding: 28px 28px 24px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(30,58,138,0.15); max-height: 90vh; overflow-y: auto; position: relative; }
+      .modal-box h3 { font-size: 18px; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+      .modal-close { position: absolute; top: 16px; right: 18px; background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; line-height: 1; }
+      .modal-close:hover { color: #1e293b; }
+
+      /* FORM FIELDS */
+      .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .form-grid .full { grid-column: 1 / -1; }
+      .field-group { margin-bottom: 0; }
+      .field-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; }
+      .field-group input, .field-group select { width: 100%; padding: 9px 12px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; transition: 0.2s; }
       .field-group input:disabled { background: #f1f5f9; color: #94a3b8; }
-      .field-group input:focus { border-color: #93c5fd; background: #fff; }
-      .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
-      .btn-save {
-        flex: 1; padding: 11px; border: none; border-radius: 10px;
-        background: #1e3a8a; color: white; font-size: 14px; font-weight: 700;
-        cursor: pointer; transition: 0.2s;
-      }
+      .field-group input:focus, .field-group select:focus { border-color: #93c5fd; background: #fff; }
+      .photo-upload-box { border: 2px dashed #bfdbfe; border-radius: 12px; padding: 18px; text-align: center; cursor: pointer; transition: 0.2s; background: #f8fafc; }
+      .photo-upload-box:hover { border-color: #60a5fa; background: #eff6ff; }
+      .photo-upload-box input[type=file] { display: none; }
+      .photo-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 8px auto 0; display: block; border: 3px solid #dbeafe; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+      .btn-save { flex: 1; padding: 11px; border: none; border-radius: 10px; background: #1e3a8a; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; }
       .btn-save:hover { background: #1e40af; }
-      .btn-cancel {
-        flex: 1; padding: 11px; border: 1px solid #dbeafe; border-radius: 10px;
-        background: #f8fafc; color: #475569; font-size: 14px; font-weight: 600;
-        cursor: pointer; transition: 0.2s;
-      }
+      .btn-cancel { flex: 1; padding: 11px; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
       .btn-cancel:hover { background: #e2e8f0; }
+      .radio-group { display: flex; gap: 14px; margin-top: 4px; }
+      .radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: #334155; }
+      .section-divider { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b; border-bottom: 1px solid #dbeafe; padding-bottom: 6px; margin: 6px 0 10px; grid-column: 1 / -1; }
+      .location-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 12px; grid-column: 1 / -1; }
+      .location-box-title { font-size: 11px; font-weight: 700; color: #0369a1; margin-bottom: 8px; }
+
+      /* QR MODAL */
+      .qr-modal-box { text-align: center; max-width: 320px; }
+      .qr-modal-box img { width: 200px; height: 200px; border-radius: 12px; background: #fff; padding: 8px; border: 1px solid #dbeafe; margin: 0 auto 16px; display: block; }
+      .qr-modal-box .emp-name { font-size: 16px; font-weight: 700; color: #1e293b; }
+      .qr-modal-box .emp-id   { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+      .btn-download { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; background: #1e3a8a; color: #fff; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 700; transition: 0.2s; }
+      .btn-download:hover { background: #1e40af; }
+      .btn-regen { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #f3e8ff; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+      .btn-regen:hover { background: #ede9fe; }
 
       @media (max-width: 768px) {
         body { flex-direction: column; }
-        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+        .sidebar { width: 100%; min-height: auto; flex-direction: row; flex-wrap: wrap; padding: 12px; height: auto; position: static; }
         .sidebar .brand, .sidebar .brand-sub, .sidebar-footer { display: none; }
         .nav-sep { display: none; }
+        .form-grid { grid-template-columns: 1fr; }
+        .form-grid .full { grid-column: 1; }
+        .section-divider, .location-box { grid-column: 1; }
       }
     </style>
   </head>
   <body>
 
     <!-- SIDEBAR -->
-            <div class="sidebar">
+    <div class="sidebar">
       <div class="brand-wrap">
         <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+      </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item active" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; breaks</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; payslips</a>
-      <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Tickets &amp; leaves{% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}{% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+      <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Tickets &amp; leaves
+        {% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
+        {% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}
+      </a>
       <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
       <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
       <hr class="nav-sep" style="margin-top:12px;" />
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-      
       <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
@@ -162,88 +165,106 @@
     <div class="main">
 
       <div class="page-header">
-        <h1>👥 All Employees</h1>
-        <p>View and manage employee records, roles, and joining details.</p>
+        <div class="page-header-left">
+          <h1><i class="ti ti-users" style="font-size:22px;vertical-align:-3px;color:#1e3a8a;"></i> All Employees</h1>
+          <p>Manage employee records — add, edit, delete, update photos and QR codes.</p>
+        </div>
       </div>
 
+      <!-- FLASH MESSAGES -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list">
+            {% for cat, msg in messages %}
+              <li class="flash-msg flash-{{ cat }}">
+                <i class="ti ti-{% if cat == 'success' %}circle-check{% else %}alert-circle{% endif %}"></i>
+                {{ msg }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <!-- TOOLBAR -->
       <div class="toolbar">
         <input class="search-box" type="text" id="searchInput"
-               placeholder="🔍 Search by name, ID, role or email..."
+               placeholder="Search by name, ID, role or email…"
                oninput="filterTable()" />
         <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
+        <button class="btn-add" onclick="openModal('addModal')">
+          <i class="ti ti-plus"></i> Add Employee
+        </button>
       </div>
 
+      <!-- TABLE -->
       <div class="section">
         <div class="table-wrap">
           <table id="empTable">
             <thead>
               <tr>
                 <th>#</th>
+                <th>Photo</th>
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Role</th>
                 <th>Email</th>
                 <th>Date of Joining</th>
-                <th>Total Days Present</th>
+                <th>Days Present</th>
                 <th>Last Seen</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for e in employees %}
-              {% set emp_id, name, role, email, doj, total_days, last_seen, work_mode, work_lat, work_lon = e %}
+              {% set emp_id, name, role, email, doj, total_days, last_seen, work_mode, work_lat, work_lon, face_image, qr_code = e %}
               <tr>
                 <td class="muted">{{ loop.index }}</td>
+                <td>
+                  {% if face_image %}
+                    <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                    <div class="avatar-placeholder" style="display:none;"><i class="ti ti-user"></i></div>
+                  {% else %}
+                    <div class="avatar-placeholder"><i class="ti ti-user"></i></div>
+                  {% endif %}
+                </td>
                 <td><strong>{{ emp_id }}</strong></td>
                 <td>{{ name }}</td>
                 <td>
-                  {% if role %}
-                    <span class="badge badge-blue">{{ role }}</span>
-                  {% else %}
-                    <span class="muted">—</span>
-                  {% endif %}
+                  {% if role %}<span class="badge badge-blue">{{ role }}</span>
+                  {% else %}<span class="muted">—</span>{% endif %}
                 </td>
+                <td>{{ email or '<span class="muted">—</span>'|safe }}</td>
+                <td>{{ doj.strftime('%d %b %Y') if doj else '<span class="muted">Not set</span>'|safe }}</td>
                 <td>
-                  {% if email %}
-                    {{ email }}
-                  {% else %}
-                    <span class="muted">—</span>
-                  {% endif %}
+                  {% if total_days %}<span class="badge badge-green">{{ total_days }} days</span>
+                  {% else %}<span class="muted">0 days</span>{% endif %}
                 </td>
+                <td>{{ last_seen.strftime('%d %b %Y') if last_seen else '<span class="muted">Never</span>'|safe }}</td>
                 <td>
-                  {% if doj %}
-                    {{ doj.strftime('%d %b %Y') }}
-                  {% else %}
-                    <span class="muted">Not set</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if total_days %}
-                    <span class="badge badge-green">{{ total_days }} days</span>
-                  {% else %}
-                    <span class="muted">0 days</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if last_seen %}
-                    {{ last_seen.strftime('%d %b %Y') }}
-                  {% else %}
-                    <span class="muted">Never</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <button class="btn-edit"
-                    onclick="openEdit('{{ emp_id }}')">✏️ Edit</button>
-                  <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
-                        onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
-                    <button type="submit" class="btn-del">🗑 Delete</button>
-                  </form>
+                  <div class="actions-cell">
+                    <button class="btn-icon btn-edit" title="Edit"
+                      onclick="openEdit('{{ emp_id }}')">
+                      <i class="ti ti-pencil"></i> Edit
+                    </button>
+                    <button class="btn-icon btn-photo" title="Update Photo"
+                      onclick="openPhotoModal('{{ emp_id }}', '{{ name }}')">
+                      <i class="ti ti-camera"></i>
+                    </button>
+                    <button class="btn-icon btn-qr" title="View QR Code"
+                      onclick="openQR('{{ emp_id }}', '{{ name }}', '{{ qr_code }}')">
+                      <i class="ti ti-qrcode"></i>
+                    </button>
+                    <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
+                          onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
+                      <button type="submit" class="btn-icon btn-del" title="Delete">
+                        <i class="ti ti-trash"></i>
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% else %}
-              <tr>
-                <td colspan="9" class="empty-cell">No employees registered yet.</td>
-              </tr>
+              <tr><td colspan="10" class="empty-cell">No employees registered yet. Click <strong>Add Employee</strong> to get started.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -251,89 +272,243 @@
       </div>
     </div>
 
-    <!-- EDIT MODAL -->
-    <div class="modal-backdrop" id="editModal">
-      <div class="modal-box">
-        <h3>✏️ Edit Employee</h3>
-        <form action="/edit_employee" method="POST">
-          <input type="hidden" name="emp_id" id="edit_emp_id" />
-          <input type="hidden" name="update_work_mode" value="1" />
+    <!-- ============================================================
+         ADD EMPLOYEE MODAL
+    ============================================================ -->
+    <div class="modal-backdrop" id="addModal">
+      <div class="modal-box" style="max-width:580px;">
+        <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
+        <h3><i class="ti ti-user-plus" style="color:#1e3a8a;"></i> Add New Employee</h3>
+        <form action="/add_employee_page" method="POST" enctype="multipart/form-data">
 
-          <div class="field-group">
-            <label>Employee ID</label>
-            <input id="edit_emp_id_display" type="text" disabled />
-          </div>
-          <div class="field-group">
-            <label>Full Name</label>
-            <input name="name" id="edit_name" type="text" required />
-          </div>
-          <div class="field-group">
-            <label>Role / Designation</label>
-            <input name="role" id="edit_role" type="text" placeholder="e.g. Developer" />
-          </div>
-          <div class="field-group">
-            <label>Email</label>
-            <input name="email" id="edit_email" type="email" placeholder="employee@company.com" />
-          </div>
-          <div class="field-group">
-            <label>Date of Joining</label>
-            <input name="date_of_joining" id="edit_doj" type="date" />
-          </div>
+          <div class="form-grid">
+            <div class="section-divider">Basic Info</div>
 
-          <div class="field-group">
-            <label>Work Mode</label>
-            <div style="display:flex;gap:14px;margin-top:4px;">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
-                <input type="radio" name="work_mode" id="emp_edit_wm_office" value="office" onchange="empEditToggleLocation(this.value)" style="accent-color:#1e3a8a;" />
-                🏢 Work from Office
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
-                <input type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh" onchange="empEditToggleLocation(this.value)" style="accent-color:#059669;" />
-                🏠 Work from Home
-              </label>
+            <div class="field-group">
+              <label>Full Name *</label>
+              <input type="text" name="name" required placeholder="e.g. Ravi Kumar" />
             </div>
-          </div>
+            <div class="field-group">
+              <label>Employee ID *</label>
+              <input type="text" name="emp_id" required placeholder="e.g. EMP001" />
+            </div>
+            <div class="field-group">
+              <label>Email</label>
+              <input type="email" name="email" placeholder="employee@company.com" />
+            </div>
+            <div class="field-group">
+              <label>Role / Designation</label>
+              <input type="text" name="role" placeholder="e.g. Developer" />
+            </div>
+            <div class="field-group">
+              <label>Date of Joining</label>
+              <input type="date" name="date_of_joining" />
+            </div>
+            <div class="field-group">
+              <label>Department</label>
+              <input type="text" name="department" placeholder="e.g. Engineering" />
+            </div>
+            <div class="field-group full">
+              <label>Reporting Manager</label>
+              <input type="text" name="manager_name" placeholder="e.g. Srilatha" />
+            </div>
 
-          <div id="emp_edit_locationSection" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-bottom:12px;">
-            <div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:8px;">🏠 Home Location <span style="font-weight:400;color:#64748b;">(employee must be within 300 m to mark attendance)</span></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
-                <input type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001" min="-90" max="90"
-                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
-              </div>
-              <div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
-                <input type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" min="-180" max="180"
-                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+            <div class="section-divider">Work Mode</div>
+            <div class="field-group full">
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="work_mode" value="office" checked
+                         onchange="toggleAddLocation(this.value)" style="accent-color:#1e3a8a;" />
+                  🏢 Work from Office
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="work_mode" value="wfh"
+                         onchange="toggleAddLocation(this.value)" style="accent-color:#059669;" />
+                  🏠 Work from Home
+                </label>
               </div>
             </div>
-            <button type="button" onclick="useMyLocationForEmpEdit()"
-              style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
-              📡 Use My Location
-            </button>
-          </div>
+            <div class="location-box" id="addLocationBox" style="display:none;">
+              <div class="location-box-title">Home Location (employee must be within 300m to mark attendance)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
+                  <input type="number" name="work_lat" id="add_work_lat" step="0.000001" min="-90" max="90"
+                         style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                </div>
+                <div>
+                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
+                  <input type="number" name="work_lon" id="add_work_lon" step="0.000001" min="-180" max="180"
+                         style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                </div>
+              </div>
+              <button type="button" onclick="useMyLocation('add_work_lat','add_work_lon')"
+                style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+                📡 Use My Location
+              </button>
+            </div>
 
-          <div class="field-group">
-            <label>Department</label>
-            <input name="department" id="edit_department" type="text" placeholder="e.g. Engineering" />
-          </div>
-          <div class="field-group">
-            <label>Reporting Manager</label>
-            <input name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
+            <div class="section-divider">Face Photo *</div>
+            <div class="field-group full">
+              <div class="photo-upload-box" onclick="document.getElementById('addFaceInput').click()">
+                <i class="ti ti-camera-plus" style="font-size:28px;color:#93c5fd;"></i>
+                <div style="font-size:13px;color:#64748b;margin-top:6px;">Click to upload face photo</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Clear front-facing photo required for face recognition</div>
+                <input type="file" id="addFaceInput" name="face" accept="image/*" required
+                       onchange="previewPhoto(this,'addPhotoPreview')" />
+                <img id="addPhotoPreview" class="photo-preview" style="display:none;" alt="Preview" />
+              </div>
+            </div>
           </div>
 
           <div class="modal-actions">
-            <button type="submit" class="btn-save">Save Changes</button>
-            <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+            <button type="submit" class="btn-save"><i class="ti ti-user-check"></i> Register Employee</button>
+            <button type="button" class="btn-cancel" onclick="closeModal('addModal')">Cancel</button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- ============================================================
+         EDIT EMPLOYEE MODAL
+    ============================================================ -->
+    <div class="modal-backdrop" id="editModal">
+      <div class="modal-box" style="max-width:540px;">
+        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+        <h3><i class="ti ti-pencil" style="color:#1e3a8a;"></i> Edit Employee</h3>
+        <form action="/edit_employee" method="POST">
+          <input type="hidden" name="emp_id" id="edit_emp_id" />
+          <input type="hidden" name="update_work_mode" value="1" />
+
+          <div class="form-grid">
+            <div class="field-group">
+              <label>Employee ID</label>
+              <input id="edit_emp_id_display" type="text" disabled />
+            </div>
+            <div class="field-group">
+              <label>Full Name *</label>
+              <input name="name" id="edit_name" type="text" required />
+            </div>
+            <div class="field-group">
+              <label>Role / Designation</label>
+              <input name="role" id="edit_role" type="text" placeholder="e.g. Developer" />
+            </div>
+            <div class="field-group">
+              <label>Email</label>
+              <input name="email" id="edit_email" type="email" />
+            </div>
+            <div class="field-group">
+              <label>Date of Joining</label>
+              <input name="date_of_joining" id="edit_doj" type="date" />
+            </div>
+            <div class="field-group">
+              <label>Department</label>
+              <input name="department" id="edit_department" type="text" />
+            </div>
+            <div class="field-group full">
+              <label>Reporting Manager</label>
+              <input name="manager_name" id="edit_manager_name" type="text" />
+            </div>
+
+            <div class="section-divider">Work Mode</div>
+            <div class="field-group full">
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
+                         onchange="toggleEditLocation(this.value)" style="accent-color:#1e3a8a;" />
+                  🏢 Work from Office
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
+                         onchange="toggleEditLocation(this.value)" style="accent-color:#059669;" />
+                  🏠 Work from Home
+                </label>
+              </div>
+            </div>
+            <div class="location-box" id="editLocationBox" style="display:none;">
+              <div class="location-box-title">Home Location</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
+                  <input type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001" min="-90" max="90"
+                         style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                </div>
+                <div>
+                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
+                  <input type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" min="-180" max="180"
+                         style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                </div>
+              </div>
+              <button type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')"
+                style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+                📡 Use My Location
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn-save">Save Changes</button>
+            <button type="button" class="btn-cancel" onclick="closeModal('editModal')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         UPDATE PHOTO MODAL
+    ============================================================ -->
+    <div class="modal-backdrop" id="photoModal">
+      <div class="modal-box" style="max-width:380px;">
+        <button class="modal-close" onclick="closeModal('photoModal')">&times;</button>
+        <h3><i class="ti ti-camera" style="color:#92400e;"></i> Update Photo</h3>
+        <p id="photoModalSubtitle" style="font-size:13px;color:#64748b;margin-bottom:18px;"></p>
+        <form id="photoForm" action="" method="POST" enctype="multipart/form-data">
+          <div class="photo-upload-box" onclick="document.getElementById('photoFileInput').click()">
+            <i class="ti ti-camera-plus" style="font-size:28px;color:#f59e0b;"></i>
+            <div style="font-size:13px;color:#64748b;margin-top:6px;">Click to choose new photo</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Face must be clearly visible</div>
+            <input type="file" id="photoFileInput" name="face" accept="image/*" required
+                   onchange="previewPhoto(this,'photoPreviewImg')" />
+            <img id="photoPreviewImg" class="photo-preview" style="display:none;" alt="Preview" />
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn-save" style="background:#92400e;"><i class="ti ti-upload"></i> Upload Photo</button>
+            <button type="button" class="btn-cancel" onclick="closeModal('photoModal')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         QR CODE MODAL
+    ============================================================ -->
+    <div class="modal-backdrop" id="qrModal">
+      <div class="modal-box qr-modal-box">
+        <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
+        <h3 style="justify-content:center;"><i class="ti ti-qrcode" style="color:#7c3aed;"></i> QR Code</h3>
+        <div id="qrImgWrap">
+          <img id="qrImg" src="" alt="QR Code" />
+        </div>
+        <div class="emp-name" id="qrEmpName"></div>
+        <div class="emp-id"   id="qrEmpId"></div>
+        <a  id="qrDownload" class="btn-download" href="#" download="">
+          <i class="ti ti-download"></i> Download QR
+        </a>
+        <div>
+          <form id="qrRegenForm" action="" method="POST" style="display:inline;"
+                onsubmit="return confirm('Regenerate QR code? The old QR will stop working.')">
+            <button type="submit" class="btn-regen">
+              <i class="ti ti-refresh"></i> Regenerate QR
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <script>
+      // ---- Search / filter ----
       function filterTable() {
-        const q    = document.getElementById("searchInput").value.toLowerCase();
+        const q = document.getElementById("searchInput").value.toLowerCase();
         const rows = document.querySelectorAll("#empTable tbody tr");
         let visible = 0;
         rows.forEach(row => {
@@ -345,38 +520,71 @@
           visible + " employee" + (visible !== 1 ? "s" : "");
       }
 
-      // Highlight employee from sidebar search (?hl=EMP001)
+      // Highlight from URL param ?hl=EMP001
       (function(){
         const hl = new URLSearchParams(window.location.search).get('hl');
         if (!hl) return;
         const inp = document.getElementById('searchInput');
         if (inp) { inp.value = hl; filterTable(); }
-        const rows = document.querySelectorAll('#empTable tbody tr');
-        rows.forEach(function(row){
+        document.querySelectorAll('#empTable tbody tr').forEach(function(row){
           if (row.textContent.includes(hl)) {
             row.style.background = '#fefce8';
             row.style.outline = '2px solid #fbbf24';
-            row.style.borderRadius = '8px';
             setTimeout(function(){ row.style.transition='background 1.5s,outline 1.5s'; row.style.background=''; row.style.outline=''; }, 2500);
             row.scrollIntoView({ behavior:'smooth', block:'center' });
           }
         });
       })();
 
-      function empEditToggleLocation(mode) {
-        document.getElementById("emp_edit_locationSection").style.display = mode === "wfh" ? "block" : "none";
+      // ---- Modal helpers ----
+      function openModal(id) {
+        document.getElementById(id).classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+        document.body.style.overflow = '';
+      }
+      document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          if (e.target === el) closeModal(el.id);
+        });
+      });
+
+      // ---- Photo preview ----
+      function previewPhoto(input, previewId) {
+        const preview = document.getElementById(previewId);
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
       }
 
-      function useMyLocationForEmpEdit() {
-        if (!navigator.geolocation) { alert("Geolocation not supported by your browser."); return; }
+      // ---- Geolocation helper ----
+      function useMyLocation(latId, lonId) {
+        if (!navigator.geolocation) { alert("Geolocation not supported."); return; }
         navigator.geolocation.getCurrentPosition(function(pos) {
-          document.getElementById("emp_edit_work_lat").value = pos.coords.latitude.toFixed(6);
-          document.getElementById("emp_edit_work_lon").value = pos.coords.longitude.toFixed(6);
-        }, function() { alert("Could not get location. Please enter coordinates manually."); });
+          document.getElementById(latId).value = pos.coords.latitude.toFixed(6);
+          document.getElementById(lonId).value = pos.coords.longitude.toFixed(6);
+        }, function() { alert("Could not get location. Please enter manually."); });
+      }
+
+      // ---- Add modal work mode ----
+      function toggleAddLocation(mode) {
+        document.getElementById("addLocationBox").style.display = mode === "wfh" ? "block" : "none";
+      }
+
+      // ---- Edit modal ----
+      function toggleEditLocation(mode) {
+        document.getElementById("editLocationBox").style.display = mode === "wfh" ? "block" : "none";
       }
 
       async function openEdit(empId) {
-        document.getElementById("editModal").style.display = "flex";
+        openModal('editModal');
         document.getElementById("edit_emp_id").value         = empId;
         document.getElementById("edit_emp_id_display").value = empId;
         try {
@@ -388,20 +596,45 @@
           document.getElementById("edit_doj").value          = data.doj          || "";
           document.getElementById("edit_department").value   = data.department   || "";
           document.getElementById("edit_manager_name").value = data.manager_name || "";
-          var wm = data.work_mode || "office";
+          const wm = data.work_mode || "office";
           document.getElementById("emp_edit_wm_office").checked = wm === "office";
           document.getElementById("emp_edit_wm_wfh").checked    = wm === "wfh";
           document.getElementById("emp_edit_work_lat").value    = data.work_lat || "";
           document.getElementById("emp_edit_work_lon").value    = data.work_lon || "";
-          empEditToggleLocation(wm);
-        } catch(e) { alert("Could not load employee data."); closeEdit(); }
+          toggleEditLocation(wm);
+        } catch(e) { alert("Could not load employee data."); closeModal('editModal'); }
       }
-      function closeEdit() {
-        document.getElementById("editModal").style.display = "none";
+
+      // ---- Photo modal ----
+      function openPhotoModal(empId, name) {
+        document.getElementById("photoModalSubtitle").textContent = "Updating photo for: " + name + " (" + empId + ")";
+        document.getElementById("photoForm").action = "/update_employee_photo/" + empId;
+        document.getElementById("photoFileInput").value = "";
+        document.getElementById("photoPreviewImg").style.display = "none";
+        openModal('photoModal');
       }
-      document.getElementById("editModal").addEventListener("click", function(e) {
-        if (e.target === this) closeEdit();
-      });
+
+      // ---- QR modal ----
+      function openQR(empId, name, qrPath) {
+        document.getElementById("qrEmpName").textContent = name;
+        document.getElementById("qrEmpId").textContent   = "ID: " + empId;
+        const imgEl      = document.getElementById("qrImg");
+        const dlBtn      = document.getElementById("qrDownload");
+        const regenForm  = document.getElementById("qrRegenForm");
+        regenForm.action = "/regenerate_qr/" + empId;
+        if (qrPath && qrPath !== 'None' && qrPath !== '') {
+          imgEl.src        = "/" + qrPath;
+          imgEl.style.display = "block";
+          dlBtn.href       = "/" + qrPath;
+          dlBtn.download   = empId + "_qr.png";
+          dlBtn.style.display = "inline-flex";
+        } else {
+          imgEl.src        = "";
+          imgEl.style.display = "none";
+          dlBtn.style.display = "none";
+        }
+        openModal('qrModal');
+      }
     </script>
 
   </body>

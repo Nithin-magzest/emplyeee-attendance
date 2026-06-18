@@ -1904,14 +1904,14 @@ def api_employee_info(emp_id):
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT employee_id, name, role, email, date_of_joining, "
-        "work_mode, work_lat, work_lon, department, manager_name "
+        "work_mode, work_lat, work_lon, department, manager_name, face_image, qr_code "
         "FROM employees WHERE employee_id=%s", (emp_id,)
     )
     row = cursor.fetchone()
     cursor.close(); db.close()
     if not row:
         return jsonify({"error": "not found"}), 404
-    eid, name, role, email, doj, wm, wlat, wlon, dept, mgr = row
+    eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code = row
     return jsonify({
         "emp_id":       eid,
         "name":         name or "",
@@ -1923,6 +1923,8 @@ def api_employee_info(emp_id):
         "work_lon":     str(wlon) if wlon else "",
         "department":   dept or "",
         "manager_name": mgr or "",
+        "has_photo":    bool(face_image and os.path.exists(face_image)),
+        "has_qr":       bool(qr_code and os.path.exists(qr_code)),
     })
 
 
@@ -1935,11 +1937,12 @@ def view_employees():
         SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
                COUNT(a.date)  AS total_days,
                MAX(a.date)    AS last_seen,
-               e.work_mode, e.work_lat, e.work_lon
+               e.work_mode, e.work_lat, e.work_lon,
+               e.face_image, e.qr_code
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
         GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
-                 e.work_mode, e.work_lat, e.work_lon
+                 e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code
         ORDER BY e.name
     """)
     employees = cursor.fetchall()
@@ -1957,6 +1960,146 @@ def view_employees():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
     )
+
+
+# ---------------- ADD EMPLOYEE (from employees page) ----------------
+@app.route("/add_employee_page", methods=["POST"])
+@admin_required
+def add_employee_page():
+    name            = request.form.get("name", "").strip()
+    emp_id          = request.form.get("emp_id", "").strip()
+    email           = request.form.get("email", "").strip() or None
+    role            = request.form.get("role", "").strip() or None
+    date_of_joining = request.form.get("date_of_joining", "").strip() or None
+    work_mode       = request.form.get("work_mode", "office").strip() or "office"
+    work_lat_raw    = request.form.get("work_lat", "").strip()
+    work_lon_raw    = request.form.get("work_lon", "").strip()
+    work_lat        = float(work_lat_raw) if work_lat_raw else None
+    work_lon        = float(work_lon_raw) if work_lon_raw else None
+
+    if not name or not emp_id:
+        flash("Name and Employee ID are required.", "error")
+        return redirect("/employees")
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if cursor.fetchone():
+        flash(f"Employee ID '{emp_id}' already exists.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    file = request.files.get("face")
+    if not file or not file.filename:
+        flash("A face photo is required.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    _img_ok, _img_err = _validate_image_file(file)
+    if not _img_ok:
+        flash(_img_err, "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    file.save(filepath)
+
+    test_img = face_recognition.load_image_file(filepath)
+    if not face_recognition.face_encodings(test_img):
+        os.remove(filepath)
+        flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    qr_path   = generate_qr(emp_id)
+    auto_pass = secrets.token_urlsafe(8)
+    hashed_pwd = generate_password_hash(auto_pass)
+    try:
+        cursor.execute(
+            "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
+            "date_of_joining, work_mode, work_lat, work_lon) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
+             date_of_joining, work_mode, work_lat, work_lon)
+        )
+        db.commit()
+        flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        if email:
+            _ecfg = get_email_config()
+            if _ecfg:
+                _html = (f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
+                         f"<p>Employee ID: <strong>{emp_id}</strong><br>"
+                         f"Password: <strong>{auto_pass}</strong></p>")
+                try:
+                    send_email_smtp(email, f"Welcome {name} — Your Login Credentials", _html, _ecfg)
+                    flash(f"Credentials email sent to {email}", "success")
+                except Exception:
+                    pass
+    except Exception as ex:
+        db.rollback()
+        flash(f"Registration failed: {ex}", "error")
+    cursor.close(); db.close()
+    return redirect("/employees")
+
+
+# ---------------- UPDATE EMPLOYEE PHOTO ----------------
+@app.route("/update_employee_photo/<emp_id>", methods=["POST"])
+@admin_required
+def update_employee_photo(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if not cursor.fetchone():
+        flash("Employee not found.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    file = request.files.get("face")
+    if not file or not file.filename:
+        flash("No photo file provided.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    _img_ok, _img_err = _validate_image_file(file)
+    if not _img_ok:
+        flash(_img_err, "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    file.save(filepath)
+
+    test_img = face_recognition.load_image_file(filepath)
+    if not face_recognition.face_encodings(test_img):
+        os.remove(filepath)
+        flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
+    db.commit()
+    flash(f"Photo updated for employee '{emp_id}'.", "success")
+    cursor.close(); db.close()
+    return redirect("/employees")
+
+
+# ---------------- REGENERATE QR ----------------
+@app.route("/regenerate_qr/<emp_id>", methods=["POST"])
+@admin_required
+def regenerate_qr(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if not cursor.fetchone():
+        flash("Employee not found.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+    qr_path = generate_qr(emp_id)
+    cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (qr_path, emp_id))
+    db.commit()
+    flash(f"QR code regenerated for '{emp_id}'.", "success")
+    cursor.close(); db.close()
+    return redirect("/employees")
 
 
 # ---------------- LEAVE TYPES ADMIN ----------------
