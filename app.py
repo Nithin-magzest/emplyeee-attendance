@@ -1861,6 +1861,110 @@ def delete_employee(emp_id):
     return redirect("/employees")
 
 
+@app.route("/edit_employee/<emp_id>", methods=["GET"])
+@admin_required
+def edit_employee_page(emp_id):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT employee_id, name, email, role FROM employees WHERE employee_id=%s", (emp_id,)
+    )
+    emp = cursor.fetchone()
+    cursor.close(); db.close()
+    if not emp:
+        return "Employee not found", 404
+    return render_template("edit_employee.html", emp=emp)
+
+
+@app.route("/employee_profile/<emp_id>")
+@admin_required
+def employee_profile(emp_id):
+    today = datetime.date.today()
+    with _db() as (cursor, db):
+        cursor.execute("""
+            SELECT employee_id, name, email, role, phone, gender, dob, blood_group,
+                   date_of_joining, department, manager_name, work_mode,
+                   address, city, state, pincode,
+                   emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+                   aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number,
+                   about_me, face_image, shift_id
+            FROM employees WHERE employee_id=%s
+        """, (emp_id,))
+        emp = cursor.fetchone()
+        if not emp:
+            return "Employee not found", 404
+
+        # Attendance this month
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('Present','Late Login') THEN 1 ELSE 0 END) AS present,
+                SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) AS absent,
+                SUM(CASE WHEN status='Late Login' THEN 1 ELSE 0 END) AS late,
+                SUM(CASE WHEN attendance_type='Half Day' THEN 1 ELSE 0 END) AS halfday
+            FROM attendance
+            WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        """, (emp_id, today.month, today.year))
+        att = cursor.fetchone()
+
+        # Last 5 attendance records
+        cursor.execute("""
+            SELECT date, login_time, logout_time, status, attendance_type
+            FROM attendance WHERE employee_id=%s
+            ORDER BY date DESC LIMIT 5
+        """, (emp_id,))
+        recent_att = cursor.fetchall()
+
+        # Leave summary this year
+        cursor.execute("""
+            SELECT lt.name, COUNT(*) as cnt
+            FROM leave_requests lr
+            LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+            WHERE lr.employee_id=%s AND lr.status='Approved'
+              AND YEAR(lr.leave_date)=%s
+            GROUP BY lt.name
+        """, (emp_id, today.year))
+        leave_used = cursor.fetchall()
+
+        # Pending leaves
+        cursor.execute("""
+            SELECT COUNT(*) FROM leave_requests
+            WHERE employee_id=%s AND status='Pending'
+        """, (emp_id,))
+        pending_leaves = cursor.fetchone()[0]
+
+        # Salary config
+        cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
+        sal_row = cursor.fetchone()
+        salary_per_day = sal_row[0] if sal_row else None
+
+        # Open tickets
+        cursor.execute("""
+            SELECT COUNT(*) FROM tickets WHERE employee_id=%s AND status IN ('Open','In Progress')
+        """, (emp_id,))
+        open_tickets = cursor.fetchone()[0]
+
+        # Shift info
+        shift_name = None
+        if emp[27]:
+            cursor.execute("SELECT name, start_time, end_time FROM shifts WHERE id=%s", (emp[27],))
+            sh = cursor.fetchone()
+            if sh:
+                shift_name = f"{sh[0]} ({sh[1]} – {sh[2]})"
+
+    return render_template("employee_profile.html",
+        emp=emp,
+        att=att,
+        recent_att=recent_att,
+        leave_used=leave_used,
+        pending_leaves=pending_leaves,
+        salary_per_day=salary_per_day,
+        open_tickets=open_tickets,
+        shift_name=shift_name,
+        today=today,
+    )
+
+
 @app.route("/edit_employee", methods=["POST"])
 @admin_required
 def edit_employee():
@@ -4785,8 +4889,9 @@ def ticket_action(tid):
     new_status     = request.form.get("status", "").strip()
     admin_response = request.form.get("admin_response", "").strip()
     allowed = ("Open", "In Progress", "Resolved", "Closed")
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if new_status not in allowed:
-        return redirect("/tickets")
+        return (jsonify({"ok": False, "msg": "Invalid status."}), 400) if is_ajax else redirect("/tickets")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -4805,6 +4910,8 @@ def ticket_action(tid):
     )
     db.commit(); cursor.close(); db.close()
 
+    msg = ""
+    msg_type = "success"
     if row and admin_response:
         subject_text, category, priority, description, emp_name, emp_email = row
         if emp_email:
@@ -4838,16 +4945,22 @@ def ticket_action(tid):
 </div>"""
                 try:
                     send_email_smtp(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
-                    flash(f"✅ Reply sent — ticket updated and email sent to {emp_email}", "success")
+                    msg = f"✅ Ticket updated — email sent to {emp_email}"
                 except Exception as _e:
-                    flash(f"⚠️ Ticket updated but email failed: {_e}", "error")
+                    msg = f"⚠️ Ticket updated but email failed: {_e}"
+                    msg_type = "warning"
             else:
-                flash("Ticket updated. SMTP not configured — email not sent.", "warning")
+                msg = "Ticket updated. SMTP not configured — email not sent."
+                msg_type = "warning"
         else:
-            flash("Ticket updated. Employee has no email on record.", "warning")
+            msg = "Ticket updated. Employee has no email on record."
+            msg_type = "warning"
     else:
-        flash("Ticket status updated.", "success")
+        msg = "✅ Ticket status updated."
 
+    if is_ajax:
+        return jsonify({"ok": True, "msg": msg, "type": msg_type, "new_status": new_status})
+    flash(msg, msg_type)
     return redirect("/tickets")
 
 
