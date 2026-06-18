@@ -84,6 +84,35 @@
       .b-red    { background: #fee2e2; color: #dc2626; }
       .b-gray   { background: #f1f5f9; color: #64748b; }
       .b-blue   { background: #dbeafe; color: #1d4ed8; }
+      .b-purple { background: #f3e8ff; color: #7c3aed; }
+
+      /* EDIT BUTTON */
+      .btn-edit { background: none; border: 1px solid #dbeafe; border-radius: 7px; padding: 4px 8px; cursor: pointer; color: #3b82f6; font-size: 13px; transition: .18s; }
+      .btn-edit:hover { background: #dbeafe; color: #1e3a8a; }
+
+      /* MODAL */
+      .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,36,96,.45); z-index: 999; align-items: center; justify-content: center; }
+      .modal-backdrop.open { display: flex; }
+      .modal { background: #fff; border-radius: 18px; padding: 30px 28px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,.2); position: relative; }
+      .modal h3 { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+      .modal .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+      .modal label { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .4px; display: block; margin-bottom: 5px; margin-top: 14px; }
+      .modal input, .modal select { width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; }
+      .modal input:focus, .modal select:focus { border-color: #93c5fd; }
+      .modal-row { display: flex; gap: 12px; }
+      .modal-row > div { flex: 1; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+      .btn-save { flex: 1; padding: 11px; background: #1e3a8a; color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; transition: .18s; }
+      .btn-save:hover { background: #1e40af; }
+      .btn-cancel { padding: 11px 18px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .18s; }
+      .btn-cancel:hover { background: #e2e8f0; }
+      .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; line-height: 1; }
+      .modal-close:hover { color: #1e293b; }
+
+      /* FLASH */
+      .flash { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+      .flash.success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+      .flash.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 
       @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } }
       @media print { .sidebar, .filter-bar, .back-link { display: none !important; } }
@@ -117,6 +146,12 @@
     <div class="main">
 
       <a class="back-link" href="/monthly_report?year={{ year }}&month={{ month }}">← Back to Monthly Report</a>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}"><i class="ti ti-{{ 'circle-check' if category == 'success' else 'alert-circle' }}"></i> {{ message }}</div>
+        {% endfor %}
+      {% endwith %}
 
       <!-- EMPLOYEE CARD -->
       <div class="emp-card">
@@ -197,6 +232,7 @@
                 <th>Login Time</th>
                 <th>Logout Time</th>
                 <th>Status</th>
+                <th>Edit</th>
               </tr>
             </thead>
             <tbody>
@@ -252,10 +288,21 @@
                     <span class="badge b-yellow">Late</span>
                   {% elif d.status in ("Half Day", "Present") %}
                     <span class="badge b-orange">Half Day</span>
+                  {% elif d.status == "Manual" %}
+                    <span class="badge b-purple">Manual</span>
                   {% elif d.status == "Absent" or d.status == "—" %}
                     <span class="badge b-red">Absent</span>
                   {% else %}
                     <span class="badge b-gray">{{ d.status }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not d.is_future %}
+                  <button class="btn-edit"
+                    onclick="openEdit('{{ d.date.isoformat() }}','{{ d.login if d.login != '—' else '' }}','{{ d.logout if d.logout != '—' else '' }}','{{ d.status if d.status not in ('—','') else '' }}')"
+                    title="Correct attendance">
+                    <i class="ti ti-edit"></i>
+                  </button>
                   {% endif %}
                 </td>
               </tr>
@@ -266,6 +313,85 @@
       </div>
 
     </div><!-- /main -->
+
+  <!-- ATTENDANCE CORRECTION MODAL -->
+  <div class="modal-backdrop" id="editModal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+      <h3><i class="ti ti-edit" style="color:#3b82f6;"></i> Correct Attendance</h3>
+      <div class="modal-sub" id="editModalSub">Editing record for <strong id="editDateLabel"></strong></div>
+
+      <form method="POST" action="/correct_attendance">
+        <input type="hidden" name="emp_id"  value="{{ emp[0] }}">
+        <input type="hidden" name="year"    value="{{ year }}">
+        <input type="hidden" name="month"   value="{{ month }}">
+        <input type="hidden" name="date"    id="editDate">
+
+        <div class="modal-row">
+          <div>
+            <label>Login Time</label>
+            <input type="time" name="login_time" id="editLogin">
+          </div>
+          <div>
+            <label>Logout Time</label>
+            <input type="time" name="logout_time" id="editLogout">
+          </div>
+        </div>
+
+        <label>Attendance Type</label>
+        <select name="attendance_type" id="editType" required>
+          <option value="">— Select type —</option>
+          <option value="Full Day">Full Day</option>
+          <option value="Late - Full Day">Late - Full Day</option>
+          <option value="Half Day">Half Day</option>
+          <option value="Absent">Absent</option>
+          <option value="Approved Leave">Approved Leave</option>
+          <option value="Work From Home">Work From Home</option>
+        </select>
+
+        <div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+          <i class="ti ti-info-circle"></i>
+          Leave login/logout blank if the employee didn't punch in (e.g. Absent or Approved Leave).
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+          <button type="submit" class="btn-save"><i class="ti ti-device-floppy"></i> Save Correction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEdit(dateIso, login, logout, attType) {
+      var d = new Date(dateIso);
+      var label = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+      document.getElementById('editDateLabel').textContent = label;
+      document.getElementById('editDate').value   = dateIso;
+      document.getElementById('editLogin').value  = toTimeInput(login);
+      document.getElementById('editLogout').value = toTimeInput(logout);
+      var sel = document.getElementById('editType');
+      sel.value = (attType && attType !== '—') ? attType : '';
+      document.getElementById('editModal').classList.add('open');
+    }
+    function closeEdit() {
+      document.getElementById('editModal').classList.remove('open');
+    }
+    function toTimeInput(str) {
+      if (!str) return '';
+      // str may be "09:30 AM" format — convert to HH:MM (24h) for <input type="time">
+      var m = str.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!m) return '';
+      var h = parseInt(m[1]), min = m[2], period = m[3] ? m[3].toUpperCase() : null;
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return String(h).padStart(2,'0') + ':' + min;
+    }
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) closeEdit();
+    });
+  </script>
+
   <script src="/static/darkmode.js"></script>
 </body>
 </html>

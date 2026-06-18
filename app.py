@@ -3040,6 +3040,59 @@ def employee_attendance_detail(emp_id, year, month):
         absent=absent,
     )
 
+# ---------------- MANUAL ATTENDANCE CORRECTION ----------------
+@app.route("/correct_attendance", methods=["POST"])
+@admin_required
+def correct_attendance():
+    emp_id       = request.form.get("emp_id", "").strip()
+    date_str     = request.form.get("date", "").strip()
+    login_str    = request.form.get("login_time", "").strip()
+    logout_str   = request.form.get("logout_time", "").strip()
+    att_type     = request.form.get("attendance_type", "").strip()
+    year         = request.form.get("year", "")
+    month        = request.form.get("month", "")
+
+    if not emp_id or not date_str or not att_type:
+        flash("Missing required fields.", "error")
+        return redirect(request.referrer or "/monthly_report")
+
+    try:
+        date_obj = datetime.date.fromisoformat(date_str)
+    except ValueError:
+        flash("Invalid date.", "error")
+        return redirect(request.referrer or "/monthly_report")
+
+    login_time  = login_str  if login_str  else None
+    logout_time = logout_str if logout_str else None
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id FROM attendance WHERE employee_id=%s AND date=%s",
+        (emp_id, date_obj)
+    )
+    existing = cursor.fetchone()
+
+    if existing:
+        cursor.execute(
+            "UPDATE attendance SET login_time=%s, logout_time=%s, attendance_type=%s, "
+            "status='Manual', logout_status='Manual' WHERE employee_id=%s AND date=%s",
+            (login_time, logout_time, att_type, emp_id, date_obj)
+        )
+    else:
+        cursor.execute(
+            "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+            "attendance_type, status, logout_status) VALUES (%s,%s,%s,%s,%s,'Manual','Manual')",
+            (emp_id, date_obj, login_time, logout_time, att_type)
+        )
+    db.commit()
+    cursor.close()
+    db.close()
+
+    flash(f"Attendance updated for {date_obj.strftime('%d %b %Y')}.", "success")
+    return redirect(f"/employee_attendance_detail/{emp_id}/{year}/{month}")
+
+
 # ---------------- MONTHLY REPORT EXCEL EXPORT ----------------
 @app.route("/monthly_report_export")
 @admin_required
