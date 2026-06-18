@@ -63,70 +63,247 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={['#0f2027', '#203a43', '#2c5364']} style={styles.bg}>
+    <View
+  style={[
+    styles.bg,
+    {
+      backgroundColor:
+        tab === "admin"
+          ? "#173B8C"
+          : "#F3F6FC",
+    },
+  ]}
+>
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.logo}>⚙️</Text>
-            <Text style={styles.title}>Employee Attendance</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
-          </View>
+       <View style={styles.header}>
+
+    <View style={styles.logoWrapper}>
+
+        <View style={styles.logoCircle}>
+
+            <Ionicons
+                name={tab === "admin" ? "shield-checkmark" : "people"}
+                size={34}
+                color="#FFFFFF"
+            />
+
+        </View>
+
+    </View>
+
+    <Text
+        style={[
+            styles.title,
+            {
+                color: tab === "admin" ? "#FFFFFF" : "#173B8C",
+            },
+        ]}
+    >
+        Employee Attendance
+    </Text>
+
+    <Text
+        style={[
+            styles.companyText,
+            {
+                color:
+                    tab === "admin"
+                        ? "rgba(255,255,255,.82)"
+                        : "#64748B",
+            },
+        ]}
+    >
+        Enterprise Workforce Management
+    </Text>
+
+    <View
+    style={[
+        styles.headerBadge,
+        {
+            backgroundColor:
+                tab === "admin"
+                    ? "rgba(255,255,255,.10)"
+                    : "#EAF1FF",
+        },
+    ]}
+>
+    <Text
+        style={[
+            styles.badgeText,
+            {
+                color:
+                    tab === "admin"
+                        ? "#FFFFFF"
+                        : "#173B8C",
+            },
+        ]}
+    >
+        Secure • Fast • Reliable
+    </Text>
+</View>
+
+</View>
 
           {/* Tab switcher */}
           <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tab, tab === 'admin' && styles.tabActive]}
-              onPress={() => setTab('admin')}
-            >
-              <Ionicons name="shield-outline" size={16} color={tab === 'admin' ? '#fff' : COLORS.textMuted} />
-              <Text style={[styles.tabTxt, tab === 'admin' && styles.tabTxtActive]}>Admin</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, tab === 'employee' && styles.tabActiveEmp]}
-              onPress={() => setTab('employee')}
-            >
-              <Ionicons name="person-outline" size={16} color={tab === 'employee' ? '#fff' : COLORS.textMuted} />
-              <Text style={[styles.tabTxt, tab === 'employee' && styles.tabTxtActive]}>Employee</Text>
-            </TouchableOpacity>
-          </View>
+
+<TouchableOpacity
+  style={[
+    styles.tab,
+    {
+      backgroundColor:
+        tab === "admin"
+          ? "#173B8C"
+          : "transparent",
+    },
+  ]}
+  onPress={() => setTab("admin")}
+>
+  <Ionicons
+    name="shield-outline"
+    size={16}
+    color={
+      tab === "admin"
+        ? "#FFFFFF"
+        : "#64748B"
+    }
+  />
+
+  <Text
+    style={{
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: "600",
+      color:
+        tab === "admin"
+          ? "#FFFFFF"
+          : "#64748B",
+    }}
+  >
+    Admin
+  </Text>
+</TouchableOpacity>
+
+<TouchableOpacity
+  style={[
+    styles.tab,
+    {
+      backgroundColor:
+        tab === "employee"
+          ? "#173B8C"
+          : "transparent",
+    },
+  ]}
+  onPress={() => setTab("employee")}
+>
+  <Ionicons
+    name="person-outline"
+    size={16}
+    color={
+      tab === "employee"
+        ? "#FFFFFF"
+        : "#64748B"
+    }
+  />
+
+  <Text
+    style={{
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: "600",
+      color:
+        tab === "employee"
+          ? "#FFFFFF"
+          : "#64748B",
+    }}
+  >
+    Employee
+  </Text>
+</TouchableOpacity>
+
+</View>
 
           {/* Card */}
           <View style={styles.card}>
             {tab === 'admin' ? (
               <>
-                <Text style={styles.cardTitle}>🔐 Admin Login</Text>
+                <View
+style={{
+flexDirection:"row",
+alignItems:"center",
+marginBottom:25,
+}}
+>
 
+<Ionicons
+name="lock-closed"
+size={24}
+color="#173B8C"
+/>
+
+<Text
+style={{
+fontSize:27,
+fontWeight:"700",
+marginLeft:10,
+color:"#173B8C",
+}}
+>
+Admin Login
+</Text>
+
+</View>
                 <Text style={styles.label}>Username</Text>
                 <View style={styles.inputRow}>
-                  <Ionicons name="person-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="admin"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
-                  />
-                </View>
+    <Ionicons
+        name="person-outline"
+        size={18}
+        color="#64748B"
+        style={{ marginRight: 12 }}
+    />
+
+    <TextInput
+        style={styles.input}
+        placeholder="Username"
+        placeholderTextColor="#94A3B8"
+        value={username}
+        onChangeText={setUsername}
+    />
+</View>
 
                 <Text style={styles.label}>Password</Text>
                 <View style={styles.inputRow}>
-                  <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="••••••••"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                  />
-                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                    <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
-                  </TouchableOpacity>
-                </View>
+    <Ionicons
+        name="lock-closed-outline"
+        size={18}
+        color="#64748B"
+        style={{ marginRight: 12 }}
+    />
+
+    <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#94A3B8"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={!showPass}
+        autoCapitalize="none"
+    />
+
+    <TouchableOpacity
+        onPress={() => setShowPass(!showPass)}
+        style={styles.eyeBtn}
+    >
+        <Ionicons
+            name={showPass ? "eye-off-outline" : "eye-outline"}
+            size={20}
+            color="#64748B"
+        />
+    </TouchableOpacity>
+</View>
 
                 <TouchableOpacity
                   style={[styles.btn, styles.btnAdmin]}
@@ -135,25 +312,58 @@ export default function LoginScreen() {
                 >
                   {loading
                     ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.btnTxt}>Sign In as Admin</Text>}
+                    : <Text style={styles.btnTxt}>Sign In</Text>}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text style={styles.cardTitle}>👤 Employee Login</Text>
+                <View
+style={{
+flexDirection:"row",
+alignItems:"center",
+marginBottom:25,
+}}
+>
+
+<Ionicons
+name="person"
+size={24}
+color="#173B8C"
+/>
+
+<Text
+style={{
+fontSize:27,
+fontWeight:"700",
+marginLeft:10,
+color:"#173B8C",
+}}
+>
+Employee Login
+</Text>
+
+</View>
 
                 <Text style={styles.label}>Employee ID</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="id-card-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. 22HU1A0559"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={empId}
-                    onChangeText={setEmpId}
-                    autoCapitalize="characters"
-                  />
-                </View>
+
+<View style={styles.inputRow}>
+    <Ionicons
+        name="id-card-outline"
+        size={18}
+        color="#64748B"
+        style={{ marginRight: 12 }}
+    />
+
+    <TextInput
+        style={styles.input}
+        placeholder="Employee ID"
+        placeholderTextColor="#94A3B8"
+        value={empId}
+        onChangeText={setEmpId}
+        autoCapitalize="characters"
+        autoCorrect={false}
+    />
+</View>
 
                 <TouchableOpacity
                   style={[styles.btn, styles.btnEmployee]}
@@ -162,13 +372,13 @@ export default function LoginScreen() {
                 >
                   {loading
                     ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.btnTxt}>Sign In as Employee</Text>}
+                    : <Text style={styles.btnTxt}>Sign In</Text>}
                 </TouchableOpacity>
 
                 {/* Divider */}
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
-                  <Text style={styles.dividerTxt}>or</Text>
+                  <Text style={styles.dividerTxt}>OR</Text>
                   <View style={styles.dividerLine} />
                 </View>
 
@@ -177,8 +387,8 @@ export default function LoginScreen() {
                   style={styles.scanBtn}
                   onPress={() => setShowScanner(true)}
                 >
-                  <Ionicons name="qr-code-outline" size={20} color="#fff" />
-                  <Text style={styles.scanBtnTxt}>Scan QR Code to Check In</Text>
+                  <Ionicons name="qr-code-outline" size={18} color="#173B8C" />
+                  <Text style={styles.scanBtnTxt}>Scan Attendance QR</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -186,67 +396,272 @@ export default function LoginScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   bg:       { flex: 1 },
-  scroll:   { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  header:   { alignItems: 'center', marginBottom: 32 },
-  logo:     { fontSize: 48, marginBottom: 10 },
-  title:    { fontSize: 24, fontWeight: '700', color: '#fff' },
-  subtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  scroll:{
+    flexGrow:1,
+    justifyContent:"center",
+    paddingHorizontal:20,
+    paddingVertical:24,
+},
+  header: {
+  alignItems: "center",
+  marginBottom: 26,
+  paddingTop:20,
+  paddingHorizontal: 10,
+},
+logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
 
-  tabs: {
-    flexDirection: 'row', marginBottom: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 14,
-    padding: 4,
-  },
+    backgroundColor: "#173B8C",
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    shadowColor: "#173B8C",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: {
+        width: 0,
+        height: 6,
+    },
+
+    elevation: 8,
+
+    marginBottom: 20,
+},
+  logo:     { fontSize: 48, marginBottom: 10 },
+  title:{
+    fontSize:28,
+    fontWeight:"700",
+
+    letterSpacing:-0.6,
+
+    color:"#fff",
+
+    marginTop:2,
+},
+  companyText:{
+    fontSize:13,
+    fontWeight:"500",
+    color:"rgba(255,255,255,0.82)",
+    marginTop:6,
+    opacity:.85,
+},
+headerBadge: {
+  marginTop: 14,
+
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+
+  borderRadius: 30,
+
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.12)",
+
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+badgeText: {
+  fontSize: 12,
+  fontWeight: "600",
+  letterSpacing: 0.3,
+},
+  subtitle:{
+    fontSize:12,
+
+    lineHeight:20,
+
+    marginTop:8,
+
+    opacity:.75,
+
+    textAlign:"center",
+
+    paddingHorizontal:20,
+},
+
+  tabs:{
+    flexDirection:"row",
+
+    backgroundColor:"#EDF2F7",
+
+    borderRadius:10,
+
+    padding:3,
+
+    marginTop:12,
+
+    marginBottom:22,
+},
   tab: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 10,
-  },
+  flex: 1,
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  paddingVertical: 10,
+  borderRadius: 10,
+},
   tabActive:    { backgroundColor: 'rgba(239,68,68,0.35)' },
   tabActiveEmp: { backgroundColor: 'rgba(99,102,241,0.35)' },
   tabTxt:       { color: COLORS.textMuted, fontSize: 14 },
   tabTxtActive: { color: '#fff', fontWeight: '600' },
 
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 20 },
+  card:{
+    backgroundColor:"#FFFFFF",
 
-  label:    { fontSize: 12, color: COLORS.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+    borderRadius:24,
+
+    paddingHorizontal:22,
+     paddingVertical:22,
+     width:"100%",
+
+    paddingTop:20,
+
+    paddingBottom:24,
+
+    shadowColor:"#0F172A",
+
+    shadowOpacity:0.08,
+
+    shadowRadius:24,
+
+    shadowOffset:{
+        width:0,
+        height:12,
+    },
+
+    elevation:10,
+},
+  cardTitle:{
+    fontSize:20,
+    fontWeight:"700",
+    color:"#173B8C",
+    marginBottom:24,
+},
+
+  label:{
+    fontSize:12,
+    fontWeight:"600",
+    color:"#475569",
+    marginBottom:8,
+},
   inputRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.input,
-    borderRadius: 12, marginBottom: 16, paddingHorizontal: 12,
-  },
-  icon:  { marginRight: 8 },
-  input: { flex: 1, paddingVertical: 13, color: '#fff', fontSize: 14 },
-  eyeBtn: { padding: 4 },
+  flexDirection: "row",
+  alignItems: "center",
 
-  btn:         { paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  btnAdmin:    { backgroundColor: '#ef4444' },
-  btnEmployee: { backgroundColor: '#6366f1' },
-  btnTxt:      { color: '#fff', fontWeight: '700', fontSize: 15 },
+  height: 52,
+
+  borderRadius: 12,
+
+  backgroundColor: "#FFFFFF",
+
+  borderWidth: 1,
+
+  borderColor: "#E2E8F0",
+
+  paddingHorizontal: 16,
+
+  marginBottom: 18,
+},
+  icon:  { marginRight: 8 },
+  input:{
+    flex:1,
+
+    height:"100%",
+
+    fontSize:15,
+
+    color:"#0F172A",
+
+    paddingVertical:0,
+
+    includeFontPadding:false,
+
+    textAlignVertical:"center",
+},
+  eyeBtn:{
+    width:36,
+    height:36,
+
+    justifyContent:"center",
+    alignItems:"center",
+},
+
+  btn: {
+  height: 50,
+  borderRadius: 12,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: 12,
+},
+ btnAdmin: {
+  backgroundColor: "#173B8C",
+},
+
+btnEmployee: {
+  backgroundColor: "#173B8C",
+},
+  btnTxt:{
+    fontSize:15,
+    fontWeight:"700",
+    letterSpacing:0.2,
+    color:"#FFFFFF",
+},
 
   dividerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
-  dividerTxt:  { color: COLORS.textMuted, fontSize: 12 },
+  dividerLine:{
+height:1,
+
+backgroundColor:"#E2E8F0",
+
+flex:1,
+},
+  dividerTxt:{
+    fontSize:11,
+
+    letterSpacing:1,
+
+    color:"#94A3B8",
+
+    fontWeight:"600",
+},
 
   scanBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: 'rgba(99,102,241,0.25)',
-    borderWidth: 1, borderColor: 'rgba(99,102,241,0.5)',
-  },
-  scanBtnTxt: { color: '#fff', fontWeight: '600', fontSize: 15 },
+    height: 52,
+
+    borderRadius: 12,
+
+    backgroundColor: "#FFFFFF",
+
+    borderWidth: 1,
+
+    borderColor: "#D9E2EC",
+
+    flexDirection: "row",
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    marginTop: 14,
+},
+  scanBtnTxt: {
+    color: "#173B8C",
+
+    fontSize: 15,
+
+    fontWeight: "600",
+
+    marginLeft: 10,
+},
 });
