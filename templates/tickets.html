@@ -397,5 +397,76 @@
       {% endif %}
 
     </div>
+
+  <!-- Toast notification -->
+  <div id="ticket-toast" style="
+    display:none; position:fixed; bottom:28px; right:28px; z-index:9999;
+    padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600;
+    box-shadow:0 8px 28px rgba(0,0,0,0.15); max-width:380px;
+    animation: slideUp 0.3s ease;
+  "></div>
+  <style>
+    @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+
+  <script>
+  function showTicketToast(msg, type) {
+    var t = document.getElementById('ticket-toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    if (type === 'warning') {
+      t.style.background = '#fef9c3'; t.style.color = '#92400e'; t.style.border = '1px solid #fde68a';
+    } else {
+      t.style.background = '#dcfce7'; t.style.color = '#15803d'; t.style.border = '1px solid #86efac';
+    }
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function() { t.style.display = 'none'; }, 4000);
+  }
+
+  document.querySelectorAll('form.respond-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      var original = btn.textContent;
+      btn.textContent = 'Saving…';
+      btn.disabled = true;
+
+      var data = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: data
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        showTicketToast(res.msg, res.type || 'success');
+        // Update the existing response preview if visible
+        var card = form.closest('.ticket-card');
+        if (card) {
+          var respEl = card.querySelector('.existing-response');
+          var newResp = form.querySelector('textarea[name="admin_response"]').value.trim();
+          if (newResp) {
+            if (respEl) {
+              respEl.innerHTML = '<strong>Current Response</strong>' + newResp;
+            } else {
+              var div = document.createElement('div');
+              div.className = 'existing-response';
+              div.innerHTML = '<strong>Current Response</strong>' + newResp;
+              form.parentNode.insertBefore(div, form);
+            }
+          }
+        }
+      })
+      .catch(function() {
+        showTicketToast('Something went wrong. Please try again.', 'warning');
+      })
+      .finally(function() {
+        btn.textContent = original;
+        btn.disabled = false;
+      });
+    });
+  });
+  </script>
+
   </body>
 </html>

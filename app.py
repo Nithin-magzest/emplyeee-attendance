@@ -1861,37 +1861,154 @@ def delete_employee(emp_id):
     return redirect("/employees")
 
 
+@app.route("/edit_employee/<emp_id>", methods=["GET"])
+@admin_required
+def edit_employee_page(emp_id):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT employee_id, name, email, role FROM employees WHERE employee_id=%s", (emp_id,)
+    )
+    emp = cursor.fetchone()
+    cursor.close(); db.close()
+    if not emp:
+        return "Employee not found", 404
+    return render_template("edit_employee.html", emp=emp)
+
+
+@app.route("/employee_profile/<emp_id>")
+@admin_required
+def employee_profile(emp_id):
+    today = datetime.date.today()
+    with _db() as (cursor, db):
+        cursor.execute("""
+            SELECT employee_id, name, email, role, phone, gender, dob, blood_group,
+                   date_of_joining, department, manager_name, work_mode,
+                   address, city, state, pincode,
+                   emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+                   aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number,
+                   about_me, face_image, shift_id
+            FROM employees WHERE employee_id=%s
+        """, (emp_id,))
+        emp = cursor.fetchone()
+        if not emp:
+            return "Employee not found", 404
+
+        # Attendance this month
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('Present','Late Login') THEN 1 ELSE 0 END) AS present,
+                SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) AS absent,
+                SUM(CASE WHEN status='Late Login' THEN 1 ELSE 0 END) AS late,
+                SUM(CASE WHEN attendance_type='Half Day' THEN 1 ELSE 0 END) AS halfday
+            FROM attendance
+            WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        """, (emp_id, today.month, today.year))
+        att = cursor.fetchone()
+
+        # Last 5 attendance records
+        cursor.execute("""
+            SELECT date, login_time, logout_time, status, attendance_type
+            FROM attendance WHERE employee_id=%s
+            ORDER BY date DESC LIMIT 5
+        """, (emp_id,))
+        recent_att = cursor.fetchall()
+
+        # Leave summary this year
+        cursor.execute("""
+            SELECT lt.name, COUNT(*) as cnt
+            FROM leave_requests lr
+            LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+            WHERE lr.employee_id=%s AND lr.status='Approved'
+              AND YEAR(lr.leave_date)=%s
+            GROUP BY lt.name
+        """, (emp_id, today.year))
+        leave_used = cursor.fetchall()
+
+        # Pending leaves
+        cursor.execute("""
+            SELECT COUNT(*) FROM leave_requests
+            WHERE employee_id=%s AND status='Pending'
+        """, (emp_id,))
+        pending_leaves = cursor.fetchone()[0]
+
+        # Salary config
+        cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
+        sal_row = cursor.fetchone()
+        salary_per_day = sal_row[0] if sal_row else None
+
+        # Open tickets
+        cursor.execute("""
+            SELECT COUNT(*) FROM tickets WHERE employee_id=%s AND status IN ('Open','In Progress')
+        """, (emp_id,))
+        open_tickets = cursor.fetchone()[0]
+
+        # Shift info
+        shift_name = None
+        if emp[27]:
+            cursor.execute("SELECT name, start_time, end_time FROM shifts WHERE id=%s", (emp[27],))
+            sh = cursor.fetchone()
+            if sh:
+                shift_name = f"{sh[0]} ({sh[1]} – {sh[2]})"
+
+    return render_template("employee_profile.html",
+        emp=emp,
+        att=att,
+        recent_att=recent_att,
+        leave_used=leave_used,
+        pending_leaves=pending_leaves,
+        salary_per_day=salary_per_day,
+        open_tickets=open_tickets,
+        shift_name=shift_name,
+        today=today,
+    )
+
+
 @app.route("/edit_employee", methods=["POST"])
 @admin_required
 def edit_employee():
     emp_id          = request.form["emp_id"].strip()
-    name            = request.form.get("name", "").strip()
-    email           = request.form.get("email", "").strip() or None
-    role            = request.form.get("role", "").strip() or None
+    name            = request.form.get("name",            "").strip()
+    email           = request.form.get("email",           "").strip() or None
+    role            = request.form.get("role",            "").strip() or None
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
-    department      = request.form.get("department",   "").strip() or None
-    manager_name    = request.form.get("manager_name", "").strip() or None
-    db       = get_db_connection()
-    cursor   = db.cursor(buffered=True)
-    if request.form.get("update_work_mode"):
-        work_mode    = request.form.get("work_mode", "office").strip() or "office"
-        work_lat_raw = request.form.get("work_lat", "").strip()
-        work_lon_raw = request.form.get("work_lon", "").strip()
-        work_lat     = float(work_lat_raw) if work_lat_raw else None
-        work_lon     = float(work_lon_raw) if work_lon_raw else None
-        cursor.execute(
-            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-            "work_mode=%s, work_lat=%s, work_lon=%s, department=%s, manager_name=%s "
-            "WHERE employee_id=%s",
-            (name, email, role, date_of_joining, work_mode, work_lat, work_lon,
-             department, manager_name, emp_id)
-        )
-    else:
-        cursor.execute(
-            "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-            "department=%s, manager_name=%s WHERE employee_id=%s",
-            (name, email, role, date_of_joining, department, manager_name, emp_id)
-        )
+    department      = request.form.get("department",      "").strip() or None
+    manager_name    = request.form.get("manager_name",    "").strip() or None
+    phone           = request.form.get("phone",           "").strip() or None
+    gender          = request.form.get("gender",          "").strip() or None
+    dob             = request.form.get("dob",             "").strip() or None
+    blood_group     = request.form.get("blood_group",     "").strip() or None
+    shift_id_raw    = request.form.get("shift_id",        "").strip()
+    shift_id        = int(shift_id_raw) if shift_id_raw else None
+    address         = request.form.get("address",         "").strip() or None
+    city            = request.form.get("city",            "").strip() or None
+    state           = request.form.get("state",           "").strip() or None
+    pincode         = request.form.get("pincode",         "").strip() or None
+    ec_name         = request.form.get("ec_name",         "").strip() or None
+    ec_phone        = request.form.get("ec_phone",        "").strip() or None
+    ec_rel          = request.form.get("ec_rel",          "").strip() or None
+    work_mode       = request.form.get("work_mode",       "office").strip() or "office"
+    work_lat_raw    = request.form.get("work_lat",        "").strip()
+    work_lon_raw    = request.form.get("work_lon",        "").strip()
+    work_lat        = float(work_lat_raw) if work_lat_raw else None
+    work_lon        = float(work_lon_raw) if work_lon_raw else None
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
+        "department=%s, manager_name=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
+        "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
+        "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
+        "work_mode=%s, work_lat=%s, work_lon=%s "
+        "WHERE employee_id=%s",
+        (name, email, role, date_of_joining, department, manager_name,
+         phone, gender, dob, blood_group, shift_id,
+         address, city, state, pincode,
+         ec_name, ec_phone, ec_rel,
+         work_mode, work_lat, work_lon, emp_id)
+    )
     db.commit(); cursor.close(); db.close()
     flash(f"Employee '{emp_id}' updated successfully.", "success")
     return redirect("/employees")
@@ -1904,25 +2021,45 @@ def api_employee_info(emp_id):
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT employee_id, name, role, email, date_of_joining, "
-        "work_mode, work_lat, work_lon, department, manager_name "
+        "work_mode, work_lat, work_lon, department, manager_name, face_image, qr_code, "
+        "phone, gender, dob, blood_group, shift_id, "
+        "address, city, state, pincode, "
+        "emergency_contact_name, emergency_contact_phone, emergency_contact_relation "
         "FROM employees WHERE employee_id=%s", (emp_id,)
     )
     row = cursor.fetchone()
     cursor.close(); db.close()
     if not row:
         return jsonify({"error": "not found"}), 404
-    eid, name, role, email, doj, wm, wlat, wlon, dept, mgr = row
+    (eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code,
+     phone, gender, dob, blood_group, shift_id,
+     address, city, state, pincode,
+     ec_name, ec_phone, ec_rel) = row
     return jsonify({
-        "emp_id":       eid,
-        "name":         name or "",
-        "role":         role or "",
-        "email":        email or "",
-        "doj":          doj.strftime("%Y-%m-%d") if doj else "",
-        "work_mode":    wm or "office",
-        "work_lat":     str(wlat) if wlat else "",
-        "work_lon":     str(wlon) if wlon else "",
-        "department":   dept or "",
-        "manager_name": mgr or "",
+        "emp_id":          eid,
+        "name":            name         or "",
+        "role":            role         or "",
+        "email":           email        or "",
+        "doj":             doj.strftime("%Y-%m-%d") if doj else "",
+        "work_mode":       wm           or "office",
+        "work_lat":        str(wlat)    if wlat else "",
+        "work_lon":        str(wlon)    if wlon else "",
+        "department":      dept         or "",
+        "manager_name":    mgr          or "",
+        "has_photo":       bool(face_image and os.path.exists(face_image)),
+        "has_qr":          bool(qr_code  and os.path.exists(qr_code)),
+        "phone":           phone        or "",
+        "gender":          gender       or "",
+        "dob":             dob.strftime("%Y-%m-%d") if dob else "",
+        "blood_group":     blood_group  or "",
+        "shift_id":        shift_id     or "",
+        "address":         address      or "",
+        "city":            city         or "",
+        "state":           state        or "",
+        "pincode":         pincode      or "",
+        "ec_name":         ec_name      or "",
+        "ec_phone":        ec_phone     or "",
+        "ec_rel":          ec_rel       or "",
     })
 
 
@@ -1935,14 +2072,52 @@ def view_employees():
         SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
                COUNT(a.date)  AS total_days,
                MAX(a.date)    AS last_seen,
-               e.work_mode, e.work_lat, e.work_lon
+               e.work_mode, e.work_lat, e.work_lon,
+               e.face_image, e.qr_code,
+               e.department, e.phone, e.gender,
+               s.name AS shift_name, e.shift_id
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
+        LEFT JOIN shifts     s ON e.shift_id = s.id
         GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
-                 e.work_mode, e.work_lat, e.work_lon
+                 e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code,
+                 e.department, e.phone, e.gender, s.name, e.shift_id
         ORDER BY e.name
     """)
-    employees = cursor.fetchall()
+    employees_raw = cursor.fetchall()
+
+    cursor.execute("SELECT DISTINCT employee_id FROM resignation_requests WHERE status='Accepted'")
+    resigned_set  = {r[0] for r in cursor.fetchall()}
+    cursor.execute(
+        "SELECT DISTINCT employee_id FROM leave_requests "
+        "WHERE status='Approved' AND leave_date=CURDATE()"
+    )
+    on_leave_set  = {r[0] for r in cursor.fetchall()}
+
+    employees = []
+    for row in employees_raw:
+        eid = row[0]
+        if eid in resigned_set:
+            emp_status = "Resigned"
+        elif eid in on_leave_set:
+            emp_status = "On Leave"
+        else:
+            emp_status = "Active"
+        employees.append(row + (emp_status,))
+
+    total          = len(employees)
+    active_count   = sum(1 for e in employees if e[-1] == "Active")
+    on_leave_count = sum(1 for e in employees if e[-1] == "On Leave")
+    resigned_count = sum(1 for e in employees if e[-1] == "Resigned")
+
+    cursor.execute("SELECT id, name FROM shifts ORDER BY name")
+    shifts = cursor.fetchall()
+    cursor.execute(
+        "SELECT DISTINCT department FROM employees "
+        "WHERE department IS NOT NULL AND department != '' ORDER BY department"
+    )
+    departments = [r[0] for r in cursor.fetchall()]
+
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
@@ -1953,10 +2128,156 @@ def view_employees():
     db.close()
     return render_template("employees.html",
         employees=employees,
+        shifts=shifts,
+        departments=departments,
+        total=total,
+        active_count=active_count,
+        on_leave_count=on_leave_count,
+        resigned_count=resigned_count,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
     )
+
+
+# ---------------- ADD EMPLOYEE (from employees page) ----------------
+@app.route("/add_employee_page", methods=["POST"])
+@admin_required
+def add_employee_page():
+    name            = request.form.get("name", "").strip()
+    emp_id          = request.form.get("emp_id", "").strip()
+    email           = request.form.get("email", "").strip() or None
+    role            = request.form.get("role", "").strip() or None
+    date_of_joining = request.form.get("date_of_joining", "").strip() or None
+    work_mode       = request.form.get("work_mode", "office").strip() or "office"
+    work_lat_raw    = request.form.get("work_lat", "").strip()
+    work_lon_raw    = request.form.get("work_lon", "").strip()
+    work_lat        = float(work_lat_raw) if work_lat_raw else None
+    work_lon        = float(work_lon_raw) if work_lon_raw else None
+
+    if not name or not emp_id:
+        flash("Name and Employee ID are required.", "error")
+        return redirect("/employees")
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if cursor.fetchone():
+        flash(f"Employee ID '{emp_id}' already exists.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    file = request.files.get("face")
+    if not file or not file.filename:
+        flash("A face photo is required.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    _img_ok, _img_err = _validate_image_file(file)
+    if not _img_ok:
+        flash(_img_err, "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    file.save(filepath)
+
+    test_img = face_recognition.load_image_file(filepath)
+    if not face_recognition.face_encodings(test_img):
+        os.remove(filepath)
+        flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    qr_path   = generate_qr(emp_id)
+    auto_pass = secrets.token_urlsafe(8)
+    hashed_pwd = generate_password_hash(auto_pass)
+    try:
+        cursor.execute(
+            "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
+            "date_of_joining, work_mode, work_lat, work_lon) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
+             date_of_joining, work_mode, work_lat, work_lon)
+        )
+        db.commit()
+        flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        if email:
+            _ecfg = get_email_config()
+            if _ecfg:
+                _html = (f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
+                         f"<p>Employee ID: <strong>{emp_id}</strong><br>"
+                         f"Password: <strong>{auto_pass}</strong></p>")
+                try:
+                    send_email_smtp(email, f"Welcome {name} — Your Login Credentials", _html, _ecfg)
+                    flash(f"Credentials email sent to {email}", "success")
+                except Exception:
+                    pass
+    except Exception as ex:
+        db.rollback()
+        flash(f"Registration failed: {ex}", "error")
+    cursor.close(); db.close()
+    return redirect("/employees")
+
+
+# ---------------- UPDATE EMPLOYEE PHOTO ----------------
+@app.route("/update_employee_photo/<emp_id>", methods=["POST"])
+@admin_required
+def update_employee_photo(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if not cursor.fetchone():
+        flash("Employee not found.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    file = request.files.get("face")
+    if not file or not file.filename:
+        flash("No photo file provided.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    _img_ok, _img_err = _validate_image_file(file)
+    if not _img_ok:
+        flash(_img_err, "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    file.save(filepath)
+
+    test_img = face_recognition.load_image_file(filepath)
+    if not face_recognition.face_encodings(test_img):
+        os.remove(filepath)
+        flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+
+    cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
+    db.commit()
+    flash(f"Photo updated for employee '{emp_id}'.", "success")
+    cursor.close(); db.close()
+    return redirect("/employees")
+
+
+# ---------------- REGENERATE QR ----------------
+@app.route("/regenerate_qr/<emp_id>", methods=["POST"])
+@admin_required
+def regenerate_qr(emp_id):
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+    if not cursor.fetchone():
+        flash("Employee not found.", "error")
+        cursor.close(); db.close()
+        return redirect("/employees")
+    qr_path = generate_qr(emp_id)
+    cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (qr_path, emp_id))
+    db.commit()
+    flash(f"QR code regenerated for '{emp_id}'.", "success")
+    cursor.close(); db.close()
+    return redirect("/employees")
 
 
 # ---------------- LEAVE TYPES ADMIN ----------------
@@ -4568,8 +4889,9 @@ def ticket_action(tid):
     new_status     = request.form.get("status", "").strip()
     admin_response = request.form.get("admin_response", "").strip()
     allowed = ("Open", "In Progress", "Resolved", "Closed")
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if new_status not in allowed:
-        return redirect("/tickets")
+        return (jsonify({"ok": False, "msg": "Invalid status."}), 400) if is_ajax else redirect("/tickets")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -4588,6 +4910,8 @@ def ticket_action(tid):
     )
     db.commit(); cursor.close(); db.close()
 
+    msg = ""
+    msg_type = "success"
     if row and admin_response:
         subject_text, category, priority, description, emp_name, emp_email = row
         if emp_email:
@@ -4621,16 +4945,22 @@ def ticket_action(tid):
 </div>"""
                 try:
                     send_email_smtp(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
-                    flash(f"✅ Reply sent — ticket updated and email sent to {emp_email}", "success")
+                    msg = f"✅ Ticket updated — email sent to {emp_email}"
                 except Exception as _e:
-                    flash(f"⚠️ Ticket updated but email failed: {_e}", "error")
+                    msg = f"⚠️ Ticket updated but email failed: {_e}"
+                    msg_type = "warning"
             else:
-                flash("Ticket updated. SMTP not configured — email not sent.", "warning")
+                msg = "Ticket updated. SMTP not configured — email not sent."
+                msg_type = "warning"
         else:
-            flash("Ticket updated. Employee has no email on record.", "warning")
+            msg = "Ticket updated. Employee has no email on record."
+            msg_type = "warning"
     else:
-        flash("Ticket status updated.", "success")
+        msg = "✅ Ticket status updated."
 
+    if is_ajax:
+        return jsonify({"ok": True, "msg": msg, "type": msg_type, "new_status": new_status})
+    flash(msg, msg_type)
     return redirect("/tickets")
 
 
