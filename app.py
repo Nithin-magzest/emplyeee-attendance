@@ -4205,11 +4205,65 @@ def ticket_action(tid):
         return redirect("/tickets")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+
+    cursor.execute("""
+        SELECT t.subject, t.category, t.priority, t.description,
+               e.name, e.email
+        FROM tickets t
+        JOIN employees e ON t.employee_id = e.employee_id
+        WHERE t.id = %s
+    """, (tid,))
+    row = cursor.fetchone()
+
     cursor.execute(
         "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
         (new_status, admin_response or None, tid)
     )
     db.commit(); cursor.close(); db.close()
+
+    if row and admin_response:
+        subject_text, category, priority, description, emp_name, emp_email = row
+        if emp_email:
+            _ecfg = get_email_config()
+            if _ecfg:
+                status_color = {"Resolved": "#16a34a", "Closed": "#64748b",
+                                "In Progress": "#d97706"}.get(new_status, "#2563eb")
+                _html = f"""
+<div style="font-family:'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">🎫 Ticket Update</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Attendance System</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{emp_name}</strong>, your ticket has been updated.</p>
+    <div style="background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Ticket Subject</div>
+      <div style="font-size:15px;color:#1e293b;font-weight:700;margin-bottom:14px;">{subject_text}</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">{category}</span>
+        <span style="background:#fef9c3;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">{priority} Priority</span>
+        <span style="background:{status_color}22;color:{status_color};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">{new_status}</span>
+      </div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:18px 20px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Admin Response</div>
+      <div style="font-size:14px;color:#1e293b;white-space:pre-line;">{admin_response}</div>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">This is an automated message — please do not reply.</p>
+  </div>
+</div>"""
+                try:
+                    send_email_smtp(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
+                    flash(f"✅ Reply sent — ticket updated and email sent to {emp_email}", "success")
+                except Exception as _e:
+                    flash(f"⚠️ Ticket updated but email failed: {_e}", "error")
+            else:
+                flash("Ticket updated. SMTP not configured — email not sent.", "warning")
+        else:
+            flash("Ticket updated. Employee has no email on record.", "warning")
+    else:
+        flash("Ticket status updated.", "success")
+
     return redirect("/tickets")
 
 
