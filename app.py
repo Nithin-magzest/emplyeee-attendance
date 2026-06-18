@@ -113,7 +113,9 @@ def _enforce_csrf():
     if request.method != "POST":
         return
     if request.path.startswith("/api/"):
-        return  # API routes use Bearer-token auth, not session cookies
+        return  # API routes use Bearer-token auth
+    if request.is_json:
+        return  # JSON fetch requests can't be forged cross-site (CORS blocks custom headers)
     token = session.get("_csrf")
     submitted = request.form.get("_csrf_token")
     if not token or not submitted or not secrets.compare_digest(str(token), str(submitted)):
