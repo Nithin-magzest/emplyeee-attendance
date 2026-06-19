@@ -308,6 +308,17 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            recipient_type ENUM('admin', 'employee') NOT NULL,
+            employee_id VARCHAR(50) NULL,
+            title VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS resignation_requests (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
@@ -568,6 +579,21 @@ def init_db():
 
     cursor.close()
     db.close()
+
+# ---------------- NOTIFICATION HELPER ----------------
+def _create_notification(recipient_type, title, message, employee_id=None):
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute(
+            "INSERT INTO notifications (recipient_type, employee_id, title, message) VALUES (%s,%s,%s,%s)",
+            (recipient_type, employee_id, title, message)
+        )
+        db.commit()
+        cursor.close(); db.close()
+    except Exception:
+        pass
+
 
 # ---------------- ADMIN GUARD ----------------
 def admin_required(f):
@@ -5146,9 +5172,16 @@ def leave_action(lid):
     db.commit()
     cursor.close(); db.close()
 
-    # Send email notification to employee
+    # Send email + in-app notification to employee
     if leave_row:
-        emp_id, leave_date, reason, emp_name, emp_email = leave_row
+        emp_id, leave_date, reason, emp_name, emp_email, _ = leave_row
+        icon = "✅" if action == "Approved" else "❌"
+        _create_notification(
+            'employee',
+            f"{icon} Leave Request {action}",
+            f"Your leave request for {leave_date} has been {action.lower()}.",
+            emp_id
+        )
         if not emp_email:
             flash(f"Leave {action} but no email on record for {emp_name} — notification not sent.", "warning")
         else:
@@ -5353,6 +5386,13 @@ def resignation_action(rid):
 
     if resign_row:
         emp_id, lwd, reason, emp_name, emp_email = resign_row
+        icon = "✅" if action == "Accepted" else "❌"
+        _create_notification(
+            'employee',
+            f"{icon} Resignation {action}",
+            f"Your resignation request has been {action.lower()}.",
+            emp_id
+        )
         if emp_email:
             cfg = get_email_config()
             if cfg:
@@ -5666,6 +5706,8 @@ def api_dashboard():
     pending_resignations = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM notifications WHERE recipient_type='admin' AND is_read=FALSE")
+    unread_notifications = cursor.fetchone()[0]
     cursor.close(); db.close()
 
     return jsonify({
@@ -5673,7 +5715,7 @@ def api_dashboard():
         "absent": total - present, "late": late,
         "today": today.strftime("%d %b %Y"), "today_rows": today_rows,
         "pending_leaves": pending_leaves, "pending_resignations": pending_resignations,
-        "pending_tickets": pending_tickets,
+        "pending_tickets": pending_tickets, "unread_notifications": unread_notifications,
     })
 
 
@@ -6134,9 +6176,19 @@ def api_leave_action(lid):
     if action not in ("Approved", "Declined"):
         return jsonify({"ok": False, "msg": "action must be Approved or Declined"}), 400
     db = get_db_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, leave_date FROM leave_requests WHERE id=%s", (lid,))
+    row = cursor.fetchone()
     cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
     db.commit(); cursor.close(); db.close()
+    if row:
+        icon = "✅" if action == "Approved" else "❌"
+        _create_notification(
+            'employee',
+            f"{icon} Leave Request {action}",
+            f"Your leave request for {row[1]} has been {action.lower()}.",
+            row[0]
+        )
     return jsonify({"ok": True, "status": action})
 
 
@@ -6172,9 +6224,19 @@ def api_resignation_action(rid):
     if action not in ("Accepted", "Declined"):
         return jsonify({"ok": False, "msg": "action must be Accepted or Declined"}), 400
     db = get_db_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, last_working_day FROM resignation_requests WHERE id=%s", (rid,))
+    row = cursor.fetchone()
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit(); cursor.close(); db.close()
+    if row:
+        icon = "✅" if action == "Accepted" else "❌"
+        _create_notification(
+            'employee',
+            f"{icon} Resignation {action}",
+            f"Your resignation request (last working day: {row[1]}) has been {action.lower()}.",
+            row[0]
+        )
     return jsonify({"ok": True, "status": action})
 
 
@@ -6265,6 +6327,11 @@ def api_employee_portal():
         "WHERE employee_id=%s ORDER BY created_at DESC LIMIT 1", (emp_id,)
     )
     resign = cursor.fetchone()
+    cursor.execute(
+        "SELECT COUNT(*) FROM notifications WHERE recipient_type='employee' AND employee_id=%s AND is_read=FALSE",
+        (emp_id,)
+    )
+    unread_notifications = cursor.fetchone()[0]
     cursor.close(); db.close()
 
     return jsonify({
@@ -6296,6 +6363,7 @@ def api_employee_portal():
             "status": resign[2],
             "created_at": str(resign[3]),
         } if resign else None,
+        "unread_notifications": unread_notifications,
     })
 
 
@@ -6386,6 +6454,11 @@ def api_employee_leave_request():
         (emp_id, leave_date, reason)
     )
     db.commit(); cursor.close(); db.close()
+    _create_notification(
+        'admin',
+        "📋 New Leave Request",
+        f"Employee {emp_id} has submitted a leave request for {leave_date}. Reason: {reason}"
+    )
     return jsonify({"ok": True, "msg": "Leave request submitted."})
 
 
@@ -6416,6 +6489,11 @@ def api_employee_resign():
         (emp_id, last_working_day, reason)
     )
     db.commit()
+    _create_notification(
+        'admin',
+        "📤 New Resignation Request",
+        f"Employee {emp_name} ({emp_id}) has submitted a resignation. Last working day: {last_working_day}."
+    )
     config = get_email_config()
     if config:
         html_body = (
@@ -7199,6 +7277,74 @@ def overtime_action(oid):
     db.commit(); cursor.close(); db.close()
     flash(f"Overtime record {status.lower()}.", "success")
     return redirect('/overtime')
+
+
+# ---------------- API: NOTIFICATIONS (Admin) ----------------
+
+@app.route("/api/notifications", methods=["GET"])
+@api_required
+def api_get_notifications():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id, title, message, is_read, created_at FROM notifications "
+        "WHERE recipient_type='admin' ORDER BY created_at DESC LIMIT 50"
+    )
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "notifications": [
+        {"id": r[0], "title": r[1], "message": r[2],
+         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
+        for r in rows
+    ]})
+
+
+@app.route("/api/notifications/mark_read", methods=["POST"])
+@api_required
+def api_mark_notifications_read():
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE notifications SET is_read=TRUE WHERE recipient_type='admin'")
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+
+# ---------------- API: NOTIFICATIONS (Employee) ----------------
+
+@app.route("/api/employee/notifications", methods=["GET"])
+@employee_api_required
+def api_employee_get_notifications():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id, title, message, is_read, created_at FROM notifications "
+        "WHERE recipient_type='employee' AND employee_id=%s ORDER BY created_at DESC LIMIT 50",
+        (emp_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "notifications": [
+        {"id": r[0], "title": r[1], "message": r[2],
+         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
+        for r in rows
+    ]})
+
+
+@app.route("/api/employee/notifications/mark_read", methods=["POST"])
+@employee_api_required
+def api_employee_mark_notifications_read():
+    token  = request.headers.get("Authorization", "")[7:]
+    emp_id = _emp_api_tokens[token]
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE notifications SET is_read=TRUE WHERE recipient_type='employee' AND employee_id=%s",
+        (emp_id,)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
 
 
 # ---------------- RUN ----------------

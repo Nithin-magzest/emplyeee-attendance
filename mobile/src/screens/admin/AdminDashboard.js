@@ -12,16 +12,20 @@ import StatCard from '../../components/StatCard';
 import Badge from '../../components/Badge';
 import { COLORS } from '../../config';
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ navigation }) {
   const { signOut, user } = useAuth();
   const [data, setData]         = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading]   = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const load = async () => {
     try {
       const res = await fetchDashboard();
-      if (res.data.ok) setData(res.data);
+      if (res.data.ok) {
+        setData(res.data);
+        setUnreadCount(res.data.unread_notifications ?? 0);
+      }
     } catch (e) {
       Alert.alert('Error', 'Failed to load dashboard.');
     }
@@ -56,9 +60,19 @@ export default function AdminDashboard() {
             <Text style={styles.greeting}>👋 Welcome, Admin</Text>
             <Text style={styles.date}>{data?.today || ''}</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={22} color={COLORS.redLight} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellBtn}>
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Ionicons name="log-out-outline" size={22} color={COLORS.redLight} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Stat cards */}
@@ -123,6 +137,10 @@ const styles = StyleSheet.create({
   },
   greeting:  { fontSize: 20, fontWeight: '700', color: '#fff' },
   date:      { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bellBtn: { padding: 8, backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border },
+  badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   logoutBtn: { padding: 8, backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border },
 
   statsRow: { flexDirection: 'row', marginBottom: 0 },

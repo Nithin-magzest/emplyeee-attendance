@@ -65,3 +65,9 @@ export const fetchAllTickets = () => client.get('/api/tickets');
 
 export const ticketAction = (tid, status, admin_response) =>
   client.post(`/api/tickets/${tid}/action`, { status, admin_response });
+
+// ── Notifications ──────────────────────────────────────────────────
+export const fetchNotifications = () => client.get('/api/notifications');
+export const markNotificationsRead = () => client.post('/api/notifications/mark_read');
+export const fetchEmployeeNotifications = () => client.get('/api/employee/notifications');
+export const markEmployeeNotificationsRead = () => client.post('/api/employee/notifications/mark_read');
