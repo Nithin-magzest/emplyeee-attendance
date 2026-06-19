@@ -1,0 +1,305 @@
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+} from "react-native";
+
+import { Ionicons } from "@expo/vector-icons";
+
+export default function EmployeeRecentAttendance({
+
+  records = [],
+
+}) {
+
+  return (
+
+    <View style={styles.container}>
+
+      <View style={styles.header}>
+
+        <View>
+
+          <Text style={styles.title}>
+            Recent Attendance
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Last attendance activity
+          </Text>
+
+        </View>
+
+      </View>
+
+      {
+
+        records.length === 0 ?
+
+        (
+
+          <View style={styles.empty}>
+
+            <Ionicons
+              name="calendar-outline"
+              size={40}
+              color="#CBD5E1"
+            />
+
+            <Text style={styles.emptyTitle}>
+              No Records Found
+            </Text>
+
+            <Text style={styles.emptySubtitle}>
+              Attendance history will appear here.
+            </Text>
+
+          </View>
+
+        )
+
+        :
+
+        records.map((item,index)=>{
+
+          const status =
+            item.attendance_type ||
+            (item.login_time ? "Present" : "Absent");
+
+          const color =
+            status === "Present"
+              ? "#22C55E"
+              : status === "Late"
+              ? "#F59E0B"
+              : "#EF4444";
+
+          return(
+
+            <View
+              key={index}
+              style={styles.item}
+            >
+
+              <View style={styles.left}>
+
+                <View
+                  style={[
+                    styles.circle,
+                    {
+                      backgroundColor:color,
+                    },
+                  ]}
+                >
+
+                  <Ionicons
+                    name="checkmark"
+                    size={14}
+                    color="#FFFFFF"
+                  />
+
+                </View>
+
+                {
+
+                  index !== records.length-1 &&
+
+                  <View style={styles.line}/>
+
+                }
+
+              </View>
+
+              <View style={styles.content}>
+
+                <View style={styles.topRow}>
+
+                  <Text style={styles.date}>
+                    {item.date}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.badge,
+                      {
+                        backgroundColor:color,
+                      },
+                    ]}
+                  >
+
+                    <Text style={styles.badgeText}>
+                      {status}
+                    </Text>
+
+                  </View>
+
+                </View>
+
+                <View style={styles.timeRow}>
+
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color="#64748B"
+                  />
+
+                  <Text style={styles.time}>
+
+                    {item.login_time
+                      ? item.login_time.slice(0,5)
+                      : "--:--"}
+
+                    {"   "}
+
+                    -
+
+                    {"   "}
+
+                    {item.logout_time
+                      ? item.logout_time.slice(0,5)
+                      : "--:--"}
+
+                  </Text>
+
+                </View>
+
+              </View>
+
+            </View>
+
+          );
+
+        })
+
+      }
+
+    </View>
+
+  );
+
+}
+
+const styles = StyleSheet.create({
+
+  container:{
+    backgroundColor:"#FFFFFF",
+    borderRadius:22,
+    padding:20,
+    marginBottom:22,
+    borderWidth:1,
+    borderColor:"#E8EDF5",
+    shadowColor:"#0F172A",
+    shadowOpacity:.05,
+    shadowRadius:14,
+    shadowOffset:{
+      width:0,
+      height:6,
+    },
+    elevation:4,
+  },
+
+  header:{
+    marginBottom:20,
+  },
+
+  title:{
+    fontSize:18,
+    fontWeight:"700",
+    color:"#0F172A",
+  },
+
+  subtitle:{
+    marginTop:4,
+    color:"#64748B",
+    fontSize:13,
+  },
+
+  empty:{
+    alignItems:"center",
+    paddingVertical:35,
+  },
+
+  emptyTitle:{
+    marginTop:12,
+    fontWeight:"700",
+    color:"#0F172A",
+    fontSize:15,
+  },
+
+  emptySubtitle:{
+    marginTop:6,
+    color:"#94A3B8",
+    fontSize:12,
+  },
+
+  item:{
+    flexDirection:"row",
+    marginBottom:18,
+  },
+
+  left:{
+    width:28,
+    alignItems:"center",
+  },
+
+  circle:{
+    width:24,
+    height:24,
+    borderRadius:12,
+    justifyContent:"center",
+    alignItems:"center",
+  },
+
+  line:{
+    flex:1,
+    width:2,
+    backgroundColor:"#E2E8F0",
+    marginTop:2,
+  },
+
+  content:{
+    flex:1,
+    marginLeft:14,
+    paddingBottom:12,
+    borderBottomWidth:1,
+    borderBottomColor:"#F1F5F9",
+  },
+
+  topRow:{
+    flexDirection:"row",
+    justifyContent:"space-between",
+    alignItems:"center",
+  },
+
+  date:{
+    fontSize:15,
+    fontWeight:"700",
+    color:"#0F172A",
+  },
+
+  badge:{
+    paddingHorizontal:10,
+    paddingVertical:4,
+    borderRadius:20,
+  },
+
+  badgeText:{
+    color:"#FFFFFF",
+    fontSize:11,
+    fontWeight:"700",
+  },
+
+  timeRow:{
+    flexDirection:"row",
+    alignItems:"center",
+    marginTop:10,
+  },
+
+  time:{
+    marginLeft:6,
+    fontSize:13,
+    color:"#64748B",
+    fontWeight:"600",
+  },
+
+});

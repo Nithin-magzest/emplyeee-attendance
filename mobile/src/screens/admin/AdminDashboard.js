@@ -1,17 +1,32 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, RefreshControl,
-  TouchableOpacity, ActivityIndicator, Alert,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { fetchDashboard, adminLogout } from '../../api/client';
-import { useAuth } from '../../store/AuthContext';
-import StatCard from '../../components/StatCard';
-import Badge from '../../components/Badge';
-import { COLORS } from '../../config';
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
+  View,
+} from "react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
+
+import { fetchDashboard, adminLogout } from "../../api/client";
+import { useAuth } from "../../store/AuthContext";
+import { COLORS } from "../../config";
+
+import DashboardHeader from "../../components/dashboard/DashboardHeader";
+import DashboardStats from "../../components/dashboard/DashboardStats";
+import ModuleGrid from "../../components/dashboard/ModuleGrid";
+import PendingCard from "../../components/dashboard/PendingCard";
+import AttendanceCard from "../../components/dashboard/AttendanceCard";
+import DashboardActivity from "../../components/dashboard/DashboardActivity";
+
+import SectionHeader from "../../components/ui/SectionHeader";
+import EmptyState from "../../components/ui/EmptyState";
+import LoadingSkeleton from "../../components/ui/LoadingSkeleton";
+
+<<<<<<< HEAD
 export default function AdminDashboard({ navigation }) {
   const { signOut, user } = useAuth();
   const [data, setData]         = useState(null);
@@ -32,22 +47,44 @@ export default function AdminDashboard({ navigation }) {
     setLoading(false);
     setRefreshing(false);
   };
+=======
+export default function AdminDashboard() {
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+    const { signOut } = useAuth();
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-  const handleLogout = async () => {
-    try { await adminLogout(); } catch (_) {}
-    signOut();
-  };
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [data, setData] = useState(null);
 
-  if (loading) {
-    return (
-      <LinearGradient colors={COLORS.adminBg} style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
-      </LinearGradient>
+    const loadDashboard = async () => {
+
+        try {
+
+            const res = await fetchDashboard();
+
+            if (res.data.ok) {
+                setData(res.data);
+            }
+
+        } catch {
+
+            Alert.alert("Error", "Unable to load dashboard.");
+
+        }
+
+        setLoading(false);
+        setRefreshing(false);
+
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadDashboard();
+        }, [])
     );
-  }
 
+<<<<<<< HEAD
   return (
     <LinearGradient colors={COLORS.adminBg} style={styles.bg}>
       <ScrollView
@@ -74,63 +111,141 @@ export default function AdminDashboard({ navigation }) {
             </TouchableOpacity>
           </View>
         </View>
+=======
+    const handleLogout = async () => {
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-        {/* Stat cards */}
-        <View style={styles.statsRow}>
-          <StatCard num={data?.total   ?? '–'} label="👥 Total Employees"  color={COLORS.blueLight}  />
-          <StatCard num={data?.present ?? '–'} label="✅ Present Today"     color={COLORS.greenLight} />
-        </View>
-        <View style={styles.statsRow}>
-          <StatCard num={data?.absent  ?? '–'} label="❌ Absent Today"      color={COLORS.redLight}   />
-          <StatCard num={data?.late    ?? '–'} label="⏰ Late Today"         color={COLORS.yellowLight}/>
-        </View>
+        try {
+            await adminLogout();
+        } catch {}
 
-        {/* Pending alerts */}
-        {(data?.pending_leaves > 0 || data?.pending_resignations > 0) && (
-          <View style={styles.alertCard}>
-            <Text style={styles.alertTitle}>⚠️ Pending Actions</Text>
-            {data.pending_leaves > 0 && (
-              <Text style={styles.alertRow}>📋 {data.pending_leaves} leave request{data.pending_leaves > 1 ? 's' : ''} awaiting review</Text>
-            )}
-            {data.pending_resignations > 0 && (
-              <Text style={styles.alertRow}>📤 {data.pending_resignations} resignation{data.pending_resignations > 1 ? 's' : ''} awaiting review</Text>
-            )}
-          </View>
-        )}
+        signOut();
 
-        {/* Today's attendance table */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📅 Today's Attendance</Text>
-          {data?.today_rows?.length === 0 && (
-            <Text style={styles.empty}>No employees found.</Text>
-          )}
-          {data?.today_rows?.map((emp) => (
-            <View key={emp.employee_id} style={styles.empRow}>
-              <View style={styles.empInfo}>
-                <Text style={styles.empName}>{emp.name}</Text>
-                <Text style={styles.empId}>{emp.employee_id}</Text>
-              </View>
-              <View style={styles.empRight}>
-                <Badge label={emp.attendance_type || (emp.login_time ? 'Present' : 'Absent')} />
-                {emp.login_time && (
-                  <Text style={styles.time}>
-                    {emp.login_time?.slice(0, 5)} {emp.logout_time ? `– ${emp.logout_time.slice(0, 5)}` : ''}
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </LinearGradient>
-  );
+    };
+
+    if (loading) {
+
+        return (
+            <LinearGradient
+                colors={COLORS.adminBg}
+                style={styles.loadingContainer}
+            >
+                <LoadingSkeleton />
+            </LinearGradient>
+        );
+
+    }
+
+    return (
+
+        <LinearGradient
+  colors={[
+    "#F6F9FF",
+    "#EDF4FF",
+    "#E8F0FF",
+  ]}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={styles.container}
+>
+
+            <ScrollView
+
+                showsVerticalScrollIndicator={false}
+
+                contentContainerStyle={styles.content}
+
+                refreshControl={
+
+                    <RefreshControl
+
+                        refreshing={refreshing}
+
+                        tintColor="#fff"
+
+                        onRefresh={() => {
+
+                            setRefreshing(true);
+
+                            loadDashboard();
+
+                        }}
+
+                    />
+
+                }
+
+            >
+
+                <DashboardHeader
+                    date={data?.today}
+                    onLogout={handleLogout}
+                />
+
+                <DashboardStats
+                    total={data?.total}
+                    present={data?.present}
+                    absent={data?.absent}
+                    late={data?.late}
+                />
+
+                <ModuleGrid />
+
+                <PendingCard
+                    pendingLeaves={data?.pending_leaves}
+                    pendingResignations={data?.pending_resignations}
+                />
+
+                <SectionHeader
+                    title="Today's Attendance"
+                    subtitle="Employees checked in today"
+                />
+
+                {
+                    data?.today_rows?.length > 0
+                    ?
+
+                    data.today_rows.map(employee => (
+
+                        <AttendanceCard
+
+                            key={employee.employee_id}
+
+                            employee={employee}
+
+                        />
+
+                    ))
+
+                    :
+
+                    <EmptyState
+
+                        icon="people-outline"
+
+                        title="No Attendance"
+
+                        subtitle="No employees have checked in today."
+
+                    />
+
+                }
+
+                <DashboardActivity />
+
+                <View style={{height:40}}/>
+
+            </ScrollView>
+
+        </LinearGradient>
+
+    );
+
 }
 
 const styles = StyleSheet.create({
-  bg:     { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 20, paddingTop: 60 },
 
+<<<<<<< HEAD
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'flex-start', marginBottom: 24,
@@ -142,25 +257,32 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   logoutBtn: { padding: 8, backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border },
+=======
+    container:{
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-  statsRow: { flexDirection: 'row', marginBottom: 0 },
+        flex:1,
 
-  alertCard: {
-    backgroundColor: 'rgba(251,191,36,0.1)',
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
-    borderRadius: 14, padding: 14, marginTop: 14,
-  },
-  alertTitle: { color: '#fbbf24', fontWeight: '700', marginBottom: 6 },
-  alertRow:   { color: '#fde68a', fontSize: 13, marginTop: 2 },
+    },
 
-  section:      { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
-  sectionTitle: { color: '#fff', fontWeight: '700', fontSize: 15, marginBottom: 12 },
-  empty:        { color: COLORS.textMuted, textAlign: 'center', paddingVertical: 20 },
+    loadingContainer:{
 
-  empRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  empInfo: { flex: 1 },
-  empName: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  empId:   { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  empRight:{ alignItems: 'flex-end', gap: 4 },
-  time:    { color: COLORS.textDim, fontSize: 11, marginTop: 3 },
+        flex:1,
+
+        justifyContent:"center",
+
+        alignItems:"center",
+
+    },
+
+    content:{
+
+        paddingHorizontal:20,
+
+        paddingTop:55,
+
+        paddingBottom:110,
+
+    },
+
 });

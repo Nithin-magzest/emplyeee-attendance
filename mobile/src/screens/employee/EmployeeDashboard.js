@@ -1,16 +1,37 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, RefreshControl,
-  TouchableOpacity, Alert, ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { fetchEmployeePortal, employeeCheckin, employeeLogout } from '../../api/client';
-import { useAuth } from '../../store/AuthContext';
-import Badge from '../../components/Badge';
-import { COLORS } from '../../config';
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Alert,
+  View,
+} from "react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
+
+import {
+  fetchEmployeePortal,
+  employeeCheckin,
+  employeeLogout,
+} from "../../api/client";
+
+import { useAuth } from "../../store/AuthContext";
+
+import LoadingSkeleton from "../../components/ui/LoadingSkeleton";
+import EmptyState from "../../components/ui/EmptyState";
+
+import EmployeeHeroCard from "../../components/employee/EmployeeHeroCard";
+import EmployeeAttendanceCard from "../../components/employee/EmployeeAttendanceCard";
+import EmployeeSummaryCards from "../../components/employee/EmployeeSummaryCards";
+import EmployeeQuickActions from "../../components/employee/EmployeeQuickActions";
+import EmployeeRecentAttendance from "../../components/employee/EmployeeRecentAttendance";
+import EmployeeAnnouncementCard from "../../components/employee/EmployeeAnnouncementCard";
+import EmployeeUpcomingEvents from "../../components/employee/EmployeeUpcomingEvents";
+
+export default function EmployeeDashboard({ navigation }) {
+
+<<<<<<< HEAD
 export default function EmployeeDashboard({ navigation }) {
   const { signOut } = useAuth();
   const [data, setData]           = useState(null);
@@ -18,65 +39,168 @@ export default function EmployeeDashboard({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [checking, setChecking]   = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+=======
+  const { signOut } = useAuth();
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-  const load = async () => {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [data, setData] = useState(null);
+
+  const loadDashboard = async () => {
+
     try {
+
       const res = await fetchEmployeePortal();
+<<<<<<< HEAD
       if (res.data.ok) {
         setData(res.data);
         setUnreadCount(res.data.unread_notifications ?? 0);
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to load portal.');
+=======
+
+      if (res.data.ok) {
+
+        setData(res.data);
+
+      }
+
+    } catch {
+
+      Alert.alert(
+        "Error",
+        "Unable to load dashboard."
+      );
+
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
     }
+
     setLoading(false);
     setRefreshing(false);
+
   };
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(
 
-  const handleCheckin = async () => {
+    useCallback(() => {
+
+      loadDashboard();
+
+    }, [])
+
+  );
+
+  const handleCheckIn = async () => {
+
     setChecking(true);
+
     try {
+
       const res = await employeeCheckin();
+
       if (res.data.ok) {
+
         Alert.alert(
-          res.data.action === 'login' ? '✅ Checked In' : '✅ Checked Out',
-          `${res.data.status}\nTime: ${res.data.time}`
+
+          res.data.action === "login"
+            ? "Checked In"
+            : "Checked Out",
+
+          `${res.data.status}\n${res.data.time}`
+
         );
-        await load();
+
+        await loadDashboard();
+
       } else {
-        Alert.alert('Cannot Check In', res.data.msg);
+
+        Alert.alert(
+          "Unable",
+          res.data.msg
+        );
+
       }
+
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.msg || 'Failed to check in.');
+
+      Alert.alert(
+        "Error",
+        e.response?.data?.msg || "Something went wrong."
+      );
+
     }
+
     setChecking(false);
+
   };
 
   const handleLogout = async () => {
-    try { await employeeLogout(); } catch (_) {}
+
+    try {
+
+      await employeeLogout();
+
+    } catch {}
+
     signOut();
+
   };
 
-  const att = data?.today_attendance;
-  const checkedIn  = att?.login_time && !att?.logout_time;
-  const completed  = att?.login_time && att?.logout_time;
+  const attendance = data?.today_attendance;
 
   if (loading) {
+
     return (
-      <LinearGradient colors={COLORS.employeeBg} style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+
+      <LinearGradient
+        colors={[
+          "#F8FAFC",
+          "#F3F7FD",
+          "#EDF4FF",
+        ]}
+        style={styles.loadingContainer}
+      >
+
+        <LoadingSkeleton />
+
       </LinearGradient>
+
     );
+
   }
 
   return (
-    <LinearGradient colors={COLORS.employeeBg} style={styles.bg}>
+
+    <LinearGradient
+      colors={[
+        "#F8FAFC",
+        "#F3F7FD",
+        "#EDF4FF",
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+
       <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#fff" />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadDashboard();
+            }}
+            colors={["#173B8C"]}
+            tintColor="#173B8C"
+          />
+        }
       >
+<<<<<<< HEAD
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -98,98 +222,95 @@ export default function EmployeeDashboard({ navigation }) {
             </TouchableOpacity>
           </View>
         </View>
+=======
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-        {/* Today's attendance card */}
-        <View style={styles.attCard}>
-          <Text style={styles.attTitle}>📅 Today's Attendance</Text>
-          {att ? (
-            <View style={styles.attInfo}>
-              <View style={styles.attRow}>
-                <Text style={styles.attLbl}>Login</Text>
-                <Text style={styles.attVal}>{att.login_time?.slice(0,5) || '–'}</Text>
-              </View>
-              <View style={styles.attRow}>
-                <Text style={styles.attLbl}>Logout</Text>
-                <Text style={styles.attVal}>{att.logout_time?.slice(0,5) || '–'}</Text>
-              </View>
-              <View style={styles.attRow}>
-                <Text style={styles.attLbl}>Status</Text>
-                <Badge label={att.attendance_type || att.login_status || 'Present'} />
-              </View>
-            </View>
+        <EmployeeHeroCard
+          employeeName={data?.name}
+          designation={data?.designation}
+          employeeId={data?.employee_id}
+          date={data?.today}
+          attendance={attendance}
+          checking={checking}
+          onCheckIn={handleCheckIn}
+          onMenu={() => navigation.openDrawer()}
+          onLogout={handleLogout}
+        />
+
+        <EmployeeAttendanceCard
+          attendance={attendance}
+        />
+
+        <EmployeeSummaryCards
+          hours={
+            data?.today_hours || "08h 20m"
+          }
+          attendance={
+            data?.attendance_percentage || "98%"
+          }
+          leaveBalance={
+            data?.leave_balance || "08"
+          }
+          performance={
+            data?.performance || "A+"
+          }
+        />
+
+        <EmployeeQuickActions
+          navigation={navigation}
+        />
+                {
+          data?.recent_attendance?.length > 0 ? (
+
+            <EmployeeRecentAttendance
+              records={data.recent_attendance}
+            />
+
           ) : (
-            <Text style={styles.noAtt}>No attendance recorded today.</Text>
-          )}
-        </View>
 
-        {/* Check-in / Check-out button */}
-        {!completed && (
-          <TouchableOpacity
-            style={[styles.checkinBtn, checkedIn ? styles.checkoutBtn : styles.checkinBtnColor]}
-            onPress={handleCheckin}
-            disabled={checking}
-          >
-            {checking
-              ? <ActivityIndicator color="#fff" />
-              : <>
-                  <Ionicons name={checkedIn ? 'log-out-outline' : 'log-in-outline'} size={22} color="#fff" />
-                  <Text style={styles.checkinTxt}>
-                    {checkedIn ? 'Check Out' : 'Check In'}
-                  </Text>
-                </>}
-          </TouchableOpacity>
-        )}
-        {completed && (
-          <View style={styles.completedBadge}>
-            <Ionicons name="checkmark-circle" size={20} color={COLORS.greenLight} />
-            <Text style={styles.completedTxt}>Attendance completed for today</Text>
-          </View>
-        )}
+            <EmptyState
+              icon="calendar-outline"
+              title="No Recent Attendance"
+              subtitle="Your attendance history will appear here."
+            />
 
-        {/* Recent attendance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Recent Attendance</Text>
-          {(!data?.recent_attendance || data.recent_attendance.length === 0) && (
-            <Text style={styles.emptyTxt}>No recent records.</Text>
-          )}
-          {data?.recent_attendance?.map((r, i) => (
-            <View key={i} style={styles.recRow}>
-              <View>
-                <Text style={styles.recDate}>{r.date}</Text>
-                <Text style={styles.recTime}>
-                  {r.login_time ? r.login_time.slice(0,5) : '–'} {r.logout_time ? `– ${r.logout_time.slice(0,5)}` : ''}
-                </Text>
-              </View>
-              <Badge label={r.attendance_type || (r.login_time ? 'Present' : 'Absent')} />
-            </View>
-          ))}
-        </View>
+          )
+        }
 
-        {/* Recent leaves */}
-        {data?.recent_leaves?.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📋 Recent Leave Requests</Text>
-            {data.recent_leaves.map((l, i) => (
-              <View key={i} style={styles.recRow}>
-                <View>
-                  <Text style={styles.recDate}>{l.leave_date}</Text>
-                  <Text style={styles.recTime}>{l.reason}</Text>
-                </View>
-                <Badge label={l.status} />
-              </View>
-            ))}
-          </View>
-        )}
+        <EmployeeAnnouncementCard
+
+          announcements={
+
+            data?.announcements || []
+
+          }
+
+        />
+
+        <EmployeeUpcomingEvents
+
+          events={
+
+            data?.upcoming_events || []
+
+          }
+
+        />
+
+        <View
+          style={styles.bottomSpacing}
+        />
+
       </ScrollView>
+
     </LinearGradient>
+
   );
+
 }
-
 const styles = StyleSheet.create({
-  bg:     { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 20, paddingTop: 60 },
 
+<<<<<<< HEAD
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   greeting: { fontSize: 20, fontWeight: '700', color: '#fff' },
   date:     { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
@@ -199,27 +320,40 @@ const styles = StyleSheet.create({
   badge:    { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
   badgeText:{ color: '#fff', fontSize: 9, fontWeight: '700' },
   logoutBtn:{ padding: 8, backgroundColor: COLORS.card, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border },
+=======
+  container: {
+>>>>>>> 0ed281a (Redesign employee dashboard with professional SaaS UI)
 
-  attCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
-  attTitle: { color: '#fff', fontWeight: '700', fontSize: 15, marginBottom: 12 },
-  attInfo:  {},
-  attRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  attLbl:   { color: COLORS.textMuted, fontSize: 13 },
-  attVal:   { color: '#fff', fontSize: 13, fontWeight: '600' },
-  noAtt:    { color: COLORS.textMuted, textAlign: 'center', paddingVertical: 12 },
+    flex: 1,
 
-  checkinBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 14, marginBottom: 16 },
-  checkinBtnColor:  { backgroundColor: '#22c55e' },
-  checkoutBtn:      { backgroundColor: '#ef4444' },
-  checkinTxt:       { color: '#fff', fontWeight: '700', fontSize: 16 },
+  },
 
-  completedBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)' },
-  completedTxt:   { color: COLORS.greenLight, fontSize: 13 },
+  loadingContainer: {
 
-  section:      { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
-  sectionTitle: { color: '#fff', fontWeight: '700', fontSize: 14, marginBottom: 12 },
-  emptyTxt:     { color: COLORS.textMuted, textAlign: 'center', paddingVertical: 10 },
-  recRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  recDate:  { color: '#fff', fontSize: 13, fontWeight: '600' },
-  recTime:  { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+    flex: 1,
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    backgroundColor: "#F8FAFC",
+
+  },
+
+  content: {
+
+    paddingHorizontal: 20,
+
+    paddingTop: 55,
+
+    paddingBottom: 120,
+
+  },
+
+  bottomSpacing: {
+
+    height: 30,
+
+  },
+
 });
