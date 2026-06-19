@@ -245,7 +245,7 @@
 
     <div class="page-header">
       <h1>⚙️ Settings</h1>
-      <p>All system configuration in one place — Email, Shifts, Breaks, Salary &amp; Announcements.</p>
+      <p>All system configuration in one place — Email, Salary &amp; Incentives.</p>
     </div>
 
     {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -261,7 +261,6 @@
     <div class="tab-bar">
       <button class="tab-btn {% if tab=='email' %}active{% endif %}" onclick="showTab('email')">✉️ Email</button>
       <button class="tab-btn {% if tab=='salary' %}active{% endif %}" onclick="showTab('salary')">💵 Salary</button>
-      <button class="tab-btn {% if tab=='announcements' %}active{% endif %}" onclick="showTab('announcements')">📢 Announcements</button>
       <button class="tab-btn {% if tab=='incentives' %}active{% endif %}" onclick="showTab('incentives')">🏆 Incentives</button>
     </div>
 
@@ -432,64 +431,6 @@
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════
-         TAB: ANNOUNCEMENTS
-    ══════════════════════════════════════ -->
-    <div id="tab-announcements" class="tab-panel {% if tab=='announcements' %}active{% endif %}">
-
-      <!-- Post form -->
-      <div class="section">
-        <div class="section-title">➕ Post New Announcement</div>
-        <form action="/announcements" method="POST">
-          <input type="hidden" name="action" value="add" />
-          <div class="field">
-            <label>Title</label>
-            <input type="text" name="title" placeholder="Announcement title…" required maxlength="255" />
-          </div>
-          <div class="field">
-            <label>Content</label>
-            <textarea name="content" placeholder="Write the announcement details…" required></textarea>
-          </div>
-          <div class="field">
-            <label>Priority</label>
-            <select name="priority">
-              <option value="Normal">🔵 Normal</option>
-              <option value="Important">🟡 Important</option>
-              <option value="Urgent">🔴 Urgent</option>
-            </select>
-          </div>
-          <button type="submit" class="btn-add">📢 Post Announcement</button>
-        </form>
-      </div>
-
-      <!-- Announcement list -->
-      <div class="section">
-        <div class="section-title">📋 All Announcements ({{ ann_list | length }})</div>
-        {% if ann_list %}
-          {% for aid, atitle, acontent, apri, adate in ann_list %}
-          <div class="ann-card priority-{{ apri | lower }}">
-            <div class="ann-icon">{% if apri == 'Urgent' %}🔴{% elif apri == 'Important' %}🟡{% else %}📢{% endif %}</div>
-            <div class="ann-body">
-              <div class="ann-title">{{ atitle }}</div>
-              <div class="ann-content">{{ acontent }}</div>
-              <div class="ann-meta">
-                <span class="badge pri-{{ apri | lower }}">{{ apri }}</span>
-                <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
-                <form action="/announcements" method="POST" style="display:inline;margin-left:auto;">
-                  <input type="hidden" name="action" value="delete" />
-                  <input type="hidden" name="ann_id" value="{{ aid }}" />
-                  <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">🗑 Delete</button>
-                </form>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div style="text-align:center;padding:30px;color:#94a3b8;">No announcements posted yet.</div>
-        {% endif %}
       </div>
     </div>
 
@@ -743,7 +684,7 @@
     /* Fix tab button matching */
     (function() {
       var btns = document.querySelectorAll('.tab-btn');
-      ['email','salary','announcements','incentives'].forEach(function(id, i) {
+      ['email','salary','incentives'].forEach(function(id, i) {
         if (!btns[i]) return;
         btns[i].onclick = function() {
           document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
