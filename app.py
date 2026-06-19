@@ -78,6 +78,8 @@ _api_tokens: dict = {}
 def fmt_time_filter(value):
     if value is None:
         return "--"
+    if isinstance(value, str):
+        return value
     if hasattr(value, "strftime"):
         return value.strftime("%H:%M:%S")
     # timedelta (MySQL connector returns TIME columns as timedelta)
@@ -4472,10 +4474,6 @@ def employee_portal():
         WHERE e.employee_id = %s
     """, (emp_id,))
     emp = list(cursor.fetchone())
-    # Convert TIME columns (timedelta) to formatted strings
-    for idx in (8, 9):
-        if emp[idx] is not None:
-            emp[idx] = _fmt_time(emp[idx])
     # emp indices:
     # [0]=id [1]=name [2]=role [3]=email [4]=face_image [5]=date_of_joining
     # [6]=salary_per_day [7]=shift_name [8]=shift_start [9]=shift_end
@@ -4636,6 +4634,16 @@ def employee_portal():
     # Open ticket count for nav badge
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE employee_id=%s AND status='Open'", (emp_id,))
     open_tickets_count = cursor.fetchone()[0] or 0
+
+    # Unread notification count for bell icon
+    try:
+        cursor.execute(
+            "SELECT COUNT(*) FROM notifications WHERE recipient_type='employee' AND employee_id=%s AND is_read=FALSE",
+            (emp_id,)
+        )
+        unread_notifications_web = cursor.fetchone()[0] or 0
+    except Exception:
+        unread_notifications_web = 0
 
     # Upcoming holidays (next 3 from today) for dashboard widget
     cursor.execute("""
@@ -4855,6 +4863,7 @@ def employee_portal():
         announcements=announcements,
         pending_leaves_count=pending_leaves_count,
         open_tickets_count=open_tickets_count,
+        unread_notifications_web=unread_notifications_web,
         upcoming_holidays=upcoming_holidays,
         leave_holidays=leave_holidays,
         hol_year=hol_year,
@@ -7409,6 +7418,40 @@ def api_employee_mark_notifications_read():
     )
     db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True})
+
+
+@app.route("/web/notifications/mark_read", methods=["POST"])
+@employee_required
+def web_employee_mark_notifications_read():
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE notifications SET is_read=TRUE WHERE recipient_type='employee' AND employee_id=%s",
+        (emp_id,)
+    )
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/web/notifications/list")
+@employee_required
+def web_employee_notifications_list():
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id, title, message, is_read, created_at FROM notifications "
+        "WHERE recipient_type='employee' AND employee_id=%s ORDER BY created_at DESC LIMIT 30",
+        (emp_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "notifications": [
+        {"id": r[0], "title": r[1], "message": r[2],
+         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
+        for r in rows
+    ]})
 
 
 # ---------------- RUN ----------------
