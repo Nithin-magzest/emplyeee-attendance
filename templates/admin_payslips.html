@@ -109,9 +109,7 @@
       <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
       <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-      <a class="nav-item" href="/documents"><span class="nav-icon"><i class="ti ti-files"></i></span>Documents</a>
-      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>Overtime</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>Overtime</a>
       <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
@@ -122,20 +120,22 @@
     <!-- MAIN -->
     <div class="main">
 
-      <div class="page-header">
-        <h1>💳 Pay Slips</h1>
-        <p>View individual salary slips for any employee and month.</p>
+      <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>💳 Pay Slips</h1>
+          <p>View individual salary slips for any employee and month.</p>
+        </div>
+        <div style="position:relative;margin-top:32px;">
+          <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;color:#3b82f6;pointer-events:none;"></i>
+          <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+            oninput="filterEmpTable(this.value)"
+            style="padding:9px 12px 9px 34px;border:2px solid #3b82f6;border-radius:10px;background:#eff6ff;
+                   color:#1e293b;font-size:13px;outline:none;width:220px;box-shadow:0 2px 10px rgba(59,130,246,.2);font-weight:500;" />
+        </div>
       </div>
 
       <!-- MONTH SELECTOR -->
       <div class="filter-bar">
-        <div style="position:relative;">
-          <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
-          <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
-            oninput="filterEmpTable(this.value)"
-            style="padding:8px 12px 8px 34px;border:1.5px solid #dbeafe;border-radius:9px;background:#f8fafc;
-                   color:#1e293b;font-size:13px;outline:none;width:200px;" />
-        </div>
         <label>Month</label>
         <select id="selMonth" onchange="updateLinks()" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;">
           {% set months_seen = [] %}

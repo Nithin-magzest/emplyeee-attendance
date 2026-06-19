@@ -2328,6 +2328,13 @@ def employee_detail(emp_id):
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
 
+    # Documents for this employee
+    cursor.execute(
+        "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents WHERE employee_id=%s ORDER BY uploaded_at DESC",
+        (emp_id,)
+    )
+    emp_docs = cursor.fetchall()
+
     cursor.close(); db.close()
     return render_template("employee_detail.html",
         emp=row,
@@ -2338,6 +2345,7 @@ def employee_detail(emp_id):
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+        emp_docs=emp_docs,
     )
 
 
@@ -7105,7 +7113,8 @@ def upload_document():
     )
     db.commit(); cursor.close(); db.close()
     flash("Document uploaded successfully.", "success")
-    return redirect(f'/documents?emp_id={emp_id}')
+    redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
+    return redirect(redirect_to)
 
 
 @app.route("/delete_document/<int:did>", methods=["POST"])
@@ -7127,6 +7136,7 @@ def delete_document(did):
     cursor.close(); db.close()
     flash("Document deleted.", "success")
     return redirect(request.referrer or '/documents')
+
 
 
 @app.route("/download_document/<int:did>")

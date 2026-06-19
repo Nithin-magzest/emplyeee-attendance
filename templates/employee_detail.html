@@ -508,6 +508,83 @@
       {% endif %}
     </div>
 
+    <!-- Documents -->
+    <div class="card full">
+      <div style="background:linear-gradient(90deg,#1e3a8a,#2563eb);border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;gap:10px;">
+        <i class="ti ti-files" style="color:#fff;font-size:18px;"></i>
+        <span style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;">Documents</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.65);font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px;">— Upload &amp; manage employee files</span>
+      </div>
+
+      <!-- Upload form -->
+      <form action="/upload_document" method="POST" enctype="multipart/form-data"
+            style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+        <input type="hidden" name="employee_id" value="{{ emp[0] }}">
+        <input type="hidden" name="redirect_to" value="/employee_detail/{{ emp[0] }}">
+        <div style="flex:1;min-width:150px;">
+          <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;">Document Type</label>
+          <select name="doc_type" required style="width:100%;padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;font-size:13px;background:#fff;color:#1e293b;outline:none;">
+            <option value="">Select type…</option>
+            <option>Aadhaar Card</option>
+            <option>PAN Card</option>
+            <option>Offer Letter</option>
+            <option>Appointment Letter</option>
+            <option>Relieving Letter</option>
+            <option>Experience Letter</option>
+            <option>Salary Slip</option>
+            <option>Bank Passbook</option>
+            <option>Degree Certificate</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div style="flex:2;min-width:200px;">
+          <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;">File</label>
+          <input type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                 style="width:100%;padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;font-size:13px;background:#fff;color:#1e293b;">
+        </div>
+        <button type="submit" style="padding:9px 20px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          <i class="ti ti-upload"></i> Upload
+        </button>
+      </form>
+
+      <!-- Documents list -->
+      {% if emp_docs %}
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        {% for did, doc_type, orig_name, uploaded_by, uploaded_at in emp_docs %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ti ti-file-description" style="font-size:18px;color:#3b82f6;"></i>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#1e293b;">{{ doc_type }}</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px;">{{ orig_name }}</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Uploaded by {{ uploaded_by }} · {{ uploaded_at.strftime('%d %b %Y') if uploaded_at else '' }}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="/download_document/{{ did }}"
+               style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;">
+              <i class="ti ti-download"></i> Download
+            </a>
+            <form action="/delete_document/{{ did }}" method="POST" onsubmit="return confirm('Delete this document?');">
+              <button type="submit" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#fff5f5;color:#dc2626;border:1px solid #fecaca;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">
+                <i class="ti ti-trash"></i> Delete
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:#94a3b8;background:#f8fafc;border-radius:10px;border:1px dashed #e2e8f0;">
+        <i class="ti ti-files" style="font-size:36px;display:block;margin-bottom:8px;opacity:.4;"></i>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">No documents uploaded yet</div>
+        <div style="font-size:12px;">Use the form above to upload documents for this employee.</div>
+      </div>
+      {% endif %}
+    </div>
+
     <!-- QR Code -->
     <div class="card">
       <div class="card-title"><i class="ti ti-qrcode"></i> QR Code</div>
