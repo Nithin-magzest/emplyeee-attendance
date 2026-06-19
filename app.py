@@ -195,10 +195,32 @@ OFFICE_LAT = float(os.environ.get("OFFICE_LAT", "17.494664737165042"))
 OFFICE_LON = float(os.environ.get("OFFICE_LON", "78.40496618113566"))
 OFFICE_RADIUS_M = 300   # metres — 300 m radius as per policy
 
-# Shift timings
+# Shift timings (overridden by DB on startup via load_default_shift())
 SHIFT_START = datetime.time(9, 0)    # Full Day Login cutoff
 SHIFT_HALF  = datetime.time(13, 0)   # Half Day threshold
 SHIFT_END   = datetime.time(18, 0)   # Full Day Logout cutoff
+
+def load_default_shift():
+    global SHIFT_START, SHIFT_HALF, SHIFT_END
+    try:
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
+        cur.execute("SELECT shift_start, shift_half, shift_end FROM company_settings LIMIT 1")
+        row = cur.fetchone()
+        cur.close(); db.close()
+        if row and row[0]:
+            def _to_time(v):
+                if isinstance(v, datetime.timedelta):
+                    total = int(v.total_seconds())
+                    return datetime.time(total // 3600, (total % 3600) // 60)
+                if isinstance(v, datetime.time):
+                    return v
+                return datetime.time(9, 0)
+            SHIFT_START = _to_time(row[0])
+            SHIFT_HALF  = _to_time(row[1])
+            SHIFT_END   = _to_time(row[2])
+    except Exception:
+        pass
 
 # Deduction rates
 LATE_DEDUCTION_RATE = 0.10   # 10% deduction for late login
@@ -551,6 +573,14 @@ def init_db():
         )
     """)
     db.commit()
+    # Add default shift columns if not present
+    for col, default in [("shift_start","09:00:00"), ("shift_half","13:00:00"), ("shift_end","18:00:00")]:
+        try:
+            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {col} TIME DEFAULT '{default}'")
+            db.commit()
+        except Exception:
+            pass
+
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")
@@ -2749,7 +2779,7 @@ def add_shift():
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
     if not all([name, start, half, end]):
-        return redirect("/settings?tab=shifts&error=All+fields+required")
+        return redirect("/shifts?error=All+fields+required")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
@@ -2761,7 +2791,7 @@ def add_shift():
     except mysql.connector.errors.IntegrityError:
         pass
     cursor.close(); db.close()
-    return redirect("/settings?tab=shifts&saved=1")
+    return redirect("/shifts?saved=1")
 
 @app.route("/delete_shift/<int:sid>", methods=["POST"])
 @admin_required
@@ -2772,7 +2802,7 @@ def delete_shift(sid):
     cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
     db.commit()
     cursor.close(); db.close()
-    return redirect("/settings?tab=shifts&deleted=1")
+    return redirect("/shifts?deleted=1")
 
 @app.route("/edit_shift/<int:sid>", methods=["POST"])
 @admin_required
@@ -2782,7 +2812,7 @@ def edit_shift(sid):
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
     if not all([name, start, half, end]):
-        return redirect("/settings?tab=shifts&error=All+fields+required")
+        return redirect("/shifts?error=All+fields+required")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -2791,7 +2821,7 @@ def edit_shift(sid):
     )
     db.commit()
     cursor.close(); db.close()
-    return redirect("/settings?tab=shifts&updated=1")
+    return redirect("/shifts?updated=1")
 
 @app.route("/bulk_assign_shift", methods=["POST"])
 @admin_required
@@ -2799,7 +2829,7 @@ def bulk_assign_shift():
     shift_id  = request.form.get("shift_id", "").strip()
     emp_ids   = request.form.getlist("emp_ids")
     if not emp_ids:
-        return redirect("/settings?tab=shifts&error=No+employees+selected")
+        return redirect("/shifts?error=No+employees+selected")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     for emp_id in emp_ids:
@@ -2809,7 +2839,27 @@ def bulk_assign_shift():
         )
     db.commit()
     cursor.close(); db.close()
-    return redirect("/settings?tab=shifts&bulk_saved=1")
+    return redirect("/shifts?bulk_saved=1")
+
+@app.route("/update_default_shift", methods=["POST"])
+@admin_required
+def update_default_shift():
+    global SHIFT_START, SHIFT_HALF, SHIFT_END
+    start = request.form.get("shift_start", "").strip()
+    half  = request.form.get("shift_half",  "").strip()
+    end   = request.form.get("shift_end",   "").strip()
+    if not all([start, half, end]):
+        return redirect("/shifts?error=All+fields+required")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET shift_start=%s, shift_half=%s, shift_end=%s",
+        (start, half, end)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    load_default_shift()
+    return redirect("/shifts?default_saved=1")
 
 @app.route("/assign_shift", methods=["POST"])
 @admin_required
@@ -7360,4 +7410,5 @@ def api_employee_mark_notifications_read():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     init_db()
+    load_default_shift()
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
