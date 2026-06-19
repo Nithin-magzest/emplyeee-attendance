@@ -2635,8 +2635,11 @@ def shifts():
         "FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name"
     )
     employees = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    breaks = cursor.fetchall()
     cursor.close(); db.close()
     return render_template("shifts.html", shifts=shift_rows, employees=employees,
+                           breaks=breaks,
                            default_start=SHIFT_START.strftime("%H:%M"),
                            default_half=SHIFT_HALF.strftime("%H:%M"),
                            default_end=SHIFT_END.strftime("%H:%M"))
@@ -2803,7 +2806,7 @@ def add_break():
                    (name, btime, duration))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
-    return redirect("/settings?tab=breaks")
+    return redirect("/shifts")
 
 @app.route("/update_break/<int:bid>", methods=["POST"])
 @admin_required
@@ -2820,7 +2823,7 @@ def update_break(bid):
     )
     db.commit(); cursor.close(); db.close()
     flash("Break updated.", "success")
-    return redirect("/settings?tab=breaks")
+    return redirect("/shifts")
 
 @app.route("/delete_break/<int:bid>", methods=["POST"])
 @admin_required
@@ -2830,7 +2833,7 @@ def delete_break(bid):
     cursor.execute("DELETE FROM break_config WHERE id=%s", (bid,))
     db.commit(); cursor.close(); db.close()
     flash("Break deleted.", "success")
-    return redirect("/settings?tab=breaks")
+    return redirect("/shifts")
 
 # ---------------- VIEW SALARY CONFIG ----------------
 @app.route("/view_salary")
