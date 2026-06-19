@@ -3,6 +3,8 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import cv2
+import uuid
+from werkzeug.utils import secure_filename
 import datetime
 import html as _html
 import face_recognition
@@ -413,6 +415,32 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_documents (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            doc_type VARCHAR(100) NOT NULL,
+            original_name VARCHAR(255) NOT NULL,
+            stored_name VARCHAR(255) NOT NULL,
+            uploaded_by VARCHAR(20) DEFAULT 'admin',
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS overtime_records (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            date DATE NOT NULL,
+            shift_end TIME NOT NULL,
+            actual_logout TIME NOT NULL,
+            ot_minutes INT NOT NULL DEFAULT 0,
+            ot_pay DECIMAL(10,2) DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'Pending',
+            notes TEXT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_ot_emp_date (employee_id, date)
+        )
+    """)
     db.commit()
     # Seed default leave types if empty
     cursor.execute("SELECT COUNT(*) FROM leave_types")
@@ -625,6 +653,41 @@ def infer_type_legacy(status, login_time, logout_time):
     if status in ("Half Day Logout", "Early Logout"):
         return "Half Day"
     return "Full Day"
+
+def detect_overtime(employee_id, date, logout_time):
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "SELECT s.end_time FROM employees e JOIN shifts s ON e.shift_id=s.id WHERE e.employee_id=%s",
+            (employee_id,)
+        )
+        row = cursor.fetchone()
+        shift_end = _td_to_time(row[0]) if row else SHIFT_END
+        logout_t = _td_to_time(logout_time) if not isinstance(logout_time, datetime.time) else logout_time
+        if logout_t is None or shift_end is None:
+            cursor.close(); db.close(); return
+        end_mins = shift_end.hour * 60 + shift_end.minute
+        out_mins = logout_t.hour * 60 + logout_t.minute
+        ot_minutes = out_mins - end_mins
+        if ot_minutes < 30:
+            cursor.close(); db.close(); return
+        cursor.execute(
+            "SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s",
+            (employee_id,)
+        )
+        sc = cursor.fetchone()
+        spd = float(sc[0]) if sc else 0.0
+        ot_pay = round((spd / 8 / 60) * ot_minutes, 2)
+        cursor.execute("""
+            INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status)
+            VALUES (%s,%s,%s,%s,%s,%s,'Pending')
+            ON DUPLICATE KEY UPDATE actual_logout=VALUES(actual_logout), ot_minutes=VALUES(ot_minutes), ot_pay=VALUES(ot_pay)
+        """, (employee_id, date, shift_end, logout_t, ot_minutes, ot_pay))
+        db.commit()
+        cursor.close(); db.close()
+    except Exception:
+        pass
 
 def get_working_days(year, month):
     _, last_day = calendar.monthrange(year, month)
@@ -3807,6 +3870,7 @@ def attendance():
             (current_time, logout_status, att_type, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
+        detect_overtime(emp_id, today, current_time)
         time_str = current_time.strftime("%H:%M:%S")
         resp = {"ok": True, "type": "logout", "name": employee_name,
                 "status": logout_status, "att_type": att_type,
@@ -4569,6 +4633,91 @@ def employee_portal():
     except Exception:
         my_education = []
 
+    try:
+        cursor.execute(
+            "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents WHERE employee_id=%s ORDER BY uploaded_at DESC",
+            (emp_id,)
+        )
+        my_docs = cursor.fetchall()
+    except Exception:
+        my_docs = []
+
+    try:
+        cursor.execute(
+            "SELECT date, shift_end, actual_logout, ot_minutes, ot_pay, status FROM overtime_records WHERE employee_id=%s AND YEAR(date)=%s ORDER BY date DESC LIMIT 20",
+            (emp_id, today.year)
+        )
+        my_overtime = cursor.fetchall()
+    except Exception:
+        my_overtime = []
+
+    # Salary summary for Earnings tab
+    salary_per_day = float(emp[6]) if emp[6] else 0.0
+    gross_this_month = (full_days + late_days) * salary_per_day + half_days * salary_per_day * 0.5
+    deduction_this_month = absent_days * salary_per_day + half_days * salary_per_day * 0.5
+    try:
+        cursor.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s",
+            (emp_id, today.month, today.year)
+        )
+        incentives_this_month = float(cursor.fetchone()[0])
+    except Exception:
+        incentives_this_month = 0.0
+    try:
+        cursor.execute(
+            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'",
+            (emp_id, today.month, today.year)
+        )
+        ot_pay_this_month = float(cursor.fetchone()[0] or 0)
+    except Exception:
+        ot_pay_this_month = 0.0
+    net_this_month = gross_this_month + incentives_this_month + ot_pay_this_month
+
+    # Last 3 months payslip summaries
+    recent_payslips = []
+    py2, pm2 = today.year, today.month
+    for _ in range(3):
+        pm2 -= 1
+        if pm2 == 0:
+            pm2 = 12; py2 -= 1
+        _, ld = calendar.monthrange(py2, pm2)
+        cursor.execute("""
+            SELECT date, login_time, logout_time, status, logout_status, attendance_type
+            FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
+        """, (emp_id, datetime.date(py2, pm2, 1), datetime.date(py2, pm2, ld)))
+        p_att = cursor.fetchall()
+        p_billable = get_billable_past_days(py2, pm2)
+        p_att_map  = {r[0]: r for r in p_att}
+        p_full = p_late = p_half = p_absent = 0
+        for d in p_billable:
+            row = p_att_map.get(d)
+            if row:
+                _, lt, lot, st, _ls, at = row
+                final = at if at else infer_type_legacy(st, lt, lot)
+                if   final in ("Full Day", "Approved Leave"): p_full   += 1
+                elif final == "Late - Full Day":              p_late   += 1
+                elif final in ("Half Day", "Present"):        p_half   += 1
+                else:                                         p_absent += 1
+            else:
+                p_absent += 1
+        p_gross = (p_full + p_late) * salary_per_day + p_half * salary_per_day * 0.5
+        try:
+            cursor.execute("SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
+            p_inc = float(cursor.fetchone()[0])
+        except Exception:
+            p_inc = 0.0
+        try:
+            cursor.execute("SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'", (emp_id, pm2, py2))
+            p_ot = float(cursor.fetchone()[0] or 0)
+        except Exception:
+            p_ot = 0.0
+        recent_payslips.append({
+            'month': calendar.month_name[pm2], 'year': py2,
+            'gross': p_gross, 'incentives': p_inc, 'ot_pay': p_ot,
+            'net': p_gross + p_inc + p_ot,
+            'present': p_full + p_late + p_half, 'absent': p_absent,
+        })
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -4627,6 +4776,15 @@ def employee_portal():
         total_incentive_year=total_incentive_year,
         my_experience=my_experience,
         my_education=my_education,
+        my_docs=my_docs,
+        my_overtime=my_overtime,
+        salary_per_day=salary_per_day,
+        gross_this_month=gross_this_month,
+        deduction_this_month=deduction_this_month,
+        incentives_this_month=incentives_this_month,
+        ot_pay_this_month=ot_pay_this_month,
+        net_this_month=net_this_month,
+        recent_payslips=recent_payslips,
     )
 
 
@@ -4666,6 +4824,15 @@ def my_payslip_summary(year, month):
         incentive = 0.0
         incentive_details = []
 
+    try:
+        cursor.execute(
+            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'",
+            (emp_id, month, year)
+        )
+        ot_pay = float(cursor.fetchone()[0])
+    except Exception:
+        ot_pay = 0.0
+
     cursor.close(); db.close()
 
     att_map = {r[0]: r for r in att_rows}
@@ -4684,14 +4851,14 @@ def my_payslip_summary(year, month):
     half_earn = round(half * spd * 0.5, 2)
     gross = full_earn + late_earn + half_earn
     pf = round(gross * 0.12, 2)
-    net = round(gross - pf + incentive, 2)
+    net = round(gross - pf + incentive + ot_pay, 2)
 
     return _json.dumps({
         "salary_per_day": spd,
         "full_days": full, "late_days": late, "half_days": half,
         "full_earn": full_earn, "late_earn": late_earn, "half_earn": half_earn,
         "gross": gross, "pf": pf, "incentive": incentive,
-        "incentive_details": incentive_details, "net": net
+        "incentive_details": incentive_details, "ot_pay": ot_pay, "net": net
     }), 200, {"Content-Type": "application/json"}
 
 
@@ -5926,6 +6093,7 @@ def api_checkin():
             (current_time, logout_status, att_type, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
+        detect_overtime(emp_id, today, current_time)
         return jsonify({"ok": True, "type": "logout", "name": employee_name,
                         "status": logout_status, "att_type": att_type,
                         "time": current_time.strftime("%H:%M:%S")})
@@ -6192,6 +6360,7 @@ def api_employee_checkin():
             (current_time, out_status, att_type, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
+        detect_overtime(emp_id, today, current_time)
         return jsonify({"ok": True, "action": "logout", "name": employee_name,
                         "status": out_status, "att_type": att_type,
                         "time": current_time.strftime("%H:%M:%S")})
@@ -6612,6 +6781,424 @@ def api_shifts_assign():
     cursor.close(); db.close()
     return jsonify({"ok": True})
 
+
+
+# ================================================================
+#  FEATURE 1: ANALYTICS
+# ================================================================
+
+@app.route("/analytics")
+@admin_required
+def analytics():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    co = type('Co', (), {'company_name': row[0] if row else 'My Company'})()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    today = datetime.date.today()
+
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total_employees = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM employees WHERE MONTH(date_of_joining)=%s AND YEAR(date_of_joining)=%s",
+        (today.month, today.year)
+    )
+    new_this_month = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL",
+        (today,)
+    )
+    today_present = cursor.fetchone()[0]
+    today_absent = max(0, total_employees - today_present)
+
+    cursor.execute("SELECT date FROM holidays")
+    all_holidays = {r[0] for r in cursor.fetchall()}
+
+    def _working_days_in_month(y, m):
+        _, last_day = calendar.monthrange(y, m)
+        days = []
+        for d in range(1, last_day + 1):
+            dt = datetime.date(y, m, d)
+            if dt.weekday() != 6 and dt not in all_holidays:
+                days.append(dt)
+        return days
+
+    monthly_series = []
+    for i in range(5, -1, -1):
+        ref = today.replace(day=1) - datetime.timedelta(days=1) * (i * 28)
+        ref = ref.replace(day=1)
+        y, m = ref.year, ref.month
+        working_days = _working_days_in_month(y, m)
+        if not working_days:
+            continue
+        past_days = [d for d in working_days if d <= today]
+        total_days = len(past_days)
+        if total_days == 0:
+            monthly_series.append({
+                'month_label': datetime.date(y, m, 1).strftime("%b %Y"),
+                'total_days': 0, 'present_days': 0, 'absent_days': 0, 'att_pct': 0
+            })
+            continue
+        cursor.execute("""
+            SELECT COUNT(DISTINCT employee_id) FROM attendance
+            WHERE MONTH(date)=%s AND YEAR(date)=%s AND login_time IS NOT NULL
+        """, (m, y))
+        present_records = cursor.fetchone()[0]
+        expected = total_days * (total_employees or 1)
+        present_pct = round(present_records / expected * 100, 1) if expected else 0
+        monthly_series.append({
+            'month_label': datetime.date(y, m, 1).strftime("%b %Y"),
+            'total_days': total_days,
+            'present_days': present_records,
+            'absent_days': max(0, expected - present_records),
+            'att_pct': present_pct
+        })
+
+    if today.month >= 1:
+        y, m = today.year, today.month
+        working_days = _working_days_in_month(y, m)
+        past_days = [d for d in working_days if d <= today]
+        total_m = len(past_days)
+        if total_m > 0:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT employee_id) FROM attendance
+                WHERE MONTH(date)=%s AND YEAR(date)=%s AND login_time IS NOT NULL
+            """, (m, y))
+            present_m = cursor.fetchone()[0]
+            expected_m = total_m * (total_employees or 1)
+            avg_attendance_pct = round(present_m / expected_m * 100, 1) if expected_m else 0
+        else:
+            avg_attendance_pct = 0
+    else:
+        avg_attendance_pct = 0
+
+    cursor.execute("""
+        SELECT department, COUNT(*) as cnt FROM employees
+        WHERE department IS NOT NULL AND department != ''
+        GROUP BY department ORDER BY cnt DESC
+    """)
+    dept_data = [{'department': r[0], 'count': r[1]} for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT lt.name, COUNT(*) as cnt
+        FROM leave_requests lr
+        JOIN leave_types lt ON lr.leave_type_id = lt.id
+        WHERE lr.status='Approved' AND YEAR(lr.leave_date)=%s
+        GROUP BY lt.name ORDER BY cnt DESC
+    """, (today.year,))
+    leave_by_type = [{'name': r[0], 'count': r[1]} for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT e.employee_id, e.name,
+               ROUND(COUNT(CASE WHEN a.login_time IS NOT NULL THEN 1 END) / GREATEST(DATEDIFF(LEAST(LAST_DAY(%s), %s), %s) + 1, 1) * 100, 1) AS pct
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+        GROUP BY e.employee_id, e.name
+        ORDER BY pct DESC LIMIT 5
+    """, (datetime.date(today.year, today.month, 1), today, datetime.date(today.year, today.month, 1), today.month, today.year))
+    top_present = [{'name': r[1], 'employee_id': r[0], 'pct': float(r[2] or 0)} for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT gender, COUNT(*) as cnt FROM employees
+        WHERE gender IS NOT NULL AND gender != ''
+        GROUP BY gender
+    """)
+    gender_data = [{'gender': r[0], 'count': r[1]} for r in cursor.fetchall()]
+
+    cursor.close(); db.close()
+
+    return render_template("analytics.html",
+        co=co,
+        shift_start="09:00 AM", shift_end="06:00 PM",
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        total_employees=total_employees,
+        new_this_month=new_this_month,
+        today_present=today_present,
+        today_absent=today_absent,
+        avg_attendance_pct=avg_attendance_pct,
+        monthly_series=monthly_series,
+        dept_data=dept_data,
+        leave_by_type=leave_by_type,
+        top_present=top_present,
+        gender_data=gender_data,
+    )
+
+
+# ================================================================
+#  FEATURE 2: DOCUMENT MANAGEMENT
+# ================================================================
+
+_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
+
+def _allowed_doc(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in _DOC_ALLOWED_EXT
+
+def _doc_admin_ctx(cursor):
+    cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    co = type('Co', (), {'company_name': row[0] if row else 'My Company'})()
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    return co, pending_leaves, pending_resignations, pending_tickets
+
+
+@app.route("/documents")
+@admin_required
+def documents():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    co, pending_leaves, pending_resignations, pending_tickets = _doc_admin_ctx(cursor)
+
+    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+
+    sel_emp = request.args.get('emp_id', '')
+    sel_emp_name = ''
+
+    if sel_emp:
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (sel_emp,))
+        r = cursor.fetchone()
+        sel_emp_name = r[0] if r else sel_emp
+        cursor.execute("""
+            SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.stored_name,
+                   d.uploaded_by, d.uploaded_at
+            FROM employee_documents d JOIN employees e ON e.employee_id=d.employee_id
+            WHERE d.employee_id=%s ORDER BY d.uploaded_at DESC
+        """, (sel_emp,))
+    else:
+        cursor.execute("""
+            SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.stored_name,
+                   d.uploaded_by, d.uploaded_at
+            FROM employee_documents d JOIN employees e ON e.employee_id=d.employee_id
+            ORDER BY d.uploaded_at DESC
+        """)
+    docs = cursor.fetchall()
+    cursor.close(); db.close()
+
+    return render_template("documents.html",
+        co=co, shift_start="09:00 AM", shift_end="06:00 PM",
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        employees=employees, docs=docs,
+        sel_emp=sel_emp, sel_emp_name=sel_emp_name,
+    )
+
+
+@app.route("/upload_document", methods=["POST"])
+@admin_required
+def upload_document():
+    emp_id   = request.form.get('employee_id', '').strip()
+    doc_type = request.form.get('doc_type', '').strip()
+    f        = request.files.get('document')
+    if not emp_id or not doc_type or not f or not f.filename:
+        flash("All fields required.", "danger")
+        return redirect('/documents')
+    if not _allowed_doc(f.filename):
+        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+        return redirect(f'/documents?emp_id={emp_id}')
+    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
+    os.makedirs(folder, exist_ok=True)
+    orig_name    = f.filename
+    stored_name  = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
+    f.save(os.path.join(folder, stored_name))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) VALUES (%s,%s,%s,%s,'admin')",
+        (emp_id, doc_type, orig_name, stored_name)
+    )
+    db.commit(); cursor.close(); db.close()
+    flash("Document uploaded successfully.", "success")
+    return redirect(f'/documents?emp_id={emp_id}')
+
+
+@app.route("/delete_document/<int:did>", methods=["POST"])
+@admin_required
+def delete_document(did):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s", (did,))
+    row = cursor.fetchone()
+    if row:
+        emp_id, stored_name = row
+        fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id, stored_name)
+        try:
+            os.remove(fpath)
+        except Exception:
+            pass
+        cursor.execute("DELETE FROM employee_documents WHERE id=%s", (did,))
+        db.commit()
+    cursor.close(); db.close()
+    flash("Document deleted.", "success")
+    return redirect(request.referrer or '/documents')
+
+
+@app.route("/download_document/<int:did>")
+def download_document(did):
+    is_admin = session.get("admin_logged_in")
+    emp_session = session.get("employee_id")
+    if not is_admin and not emp_session:
+        return redirect("/employee_login")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, original_name, stored_name FROM employee_documents WHERE id=%s", (did,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        flash("Document not found.", "danger")
+        return redirect('/documents')
+    doc_emp_id, original_name, stored_name = row
+    if not is_admin and emp_session != doc_emp_id:
+        flash("Access denied.", "danger")
+        return redirect('/employee_portal')
+    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', doc_emp_id)
+    return send_from_directory(folder, stored_name, as_attachment=True, download_name=original_name)
+
+
+@app.route("/upload_my_document", methods=["POST"])
+def upload_my_document():
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return redirect("/employee_login")
+    doc_type = request.form.get('doc_type', '').strip()
+    f        = request.files.get('document')
+    if not doc_type or not f or not f.filename:
+        flash("All fields required.", "danger")
+        return redirect('/employee_portal')
+    if not _allowed_doc(f.filename):
+        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+        return redirect('/employee_portal')
+    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
+    os.makedirs(folder, exist_ok=True)
+    orig_name   = f.filename
+    stored_name = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
+    f.save(os.path.join(folder, stored_name))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) VALUES (%s,%s,%s,%s,'employee')",
+        (emp_id, doc_type, orig_name, stored_name)
+    )
+    db.commit(); cursor.close(); db.close()
+    flash("Document uploaded successfully.", "success")
+    return redirect('/employee_portal#documents')
+
+
+@app.route("/delete_my_document/<int:did>", methods=["POST"])
+def delete_my_document(did):
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return redirect("/employee_login")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s AND employee_id=%s", (did, emp_id))
+    row = cursor.fetchone()
+    if row:
+        fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id, row[1])
+        try:
+            os.remove(fpath)
+        except Exception:
+            pass
+        cursor.execute("DELETE FROM employee_documents WHERE id=%s AND employee_id=%s", (did, emp_id))
+        db.commit()
+    cursor.close(); db.close()
+    flash("Document deleted.", "success")
+    return redirect('/employee_portal#documents')
+
+
+# ================================================================
+#  FEATURE 3: OVERTIME TRACKING
+# ================================================================
+
+@app.route("/overtime")
+@admin_required
+def overtime():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    co = type('Co', (), {'company_name': row[0] if row else 'My Company'})()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    today = datetime.date.today()
+    month = int(request.args.get('month', today.month))
+    year  = int(request.args.get('year',  today.year))
+
+    cursor.execute("""
+        SELECT o.id, o.employee_id, e.name, o.date, o.shift_end, o.actual_logout,
+               o.ot_minutes, o.ot_pay, o.status, o.notes
+        FROM overtime_records o JOIN employees e ON e.employee_id=o.employee_id
+        WHERE MONTH(o.date)=%s AND YEAR(o.date)=%s
+        ORDER BY o.date DESC
+    """, (month, year))
+    records = cursor.fetchall()
+
+    total_ot_minutes = sum(r[6] for r in records)
+    total_ot_hours   = round(total_ot_minutes / 60, 1)
+    total_ot_pay     = sum(float(r[7]) for r in records)
+    pending_count    = sum(1 for r in records if r[8] == 'Pending')
+    approved_count   = sum(1 for r in records if r[8] == 'Approved')
+
+    cursor.close(); db.close()
+
+    return render_template("overtime.html",
+        co=co, shift_start="09:00 AM", shift_end="06:00 PM",
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        records=records,
+        month=month, year=year,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        total_ot_hours=total_ot_hours,
+        total_ot_pay=total_ot_pay,
+        pending_count=pending_count,
+        approved_count=approved_count,
+    )
+
+
+@app.route("/overtime_action/<int:oid>", methods=["POST"])
+@admin_required
+def overtime_action(oid):
+    action = request.form.get('action', '').strip()
+    notes  = request.form.get('notes', '').strip()
+    if action not in ('approve', 'reject'):
+        flash("Invalid action.", "danger")
+        return redirect('/overtime')
+    status = 'Approved' if action == 'approve' else 'Rejected'
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE overtime_records SET status=%s, notes=%s WHERE id=%s",
+        (status, notes or None, oid)
+    )
+    db.commit(); cursor.close(); db.close()
+    flash(f"Overtime record {status.lower()}.", "success")
+    return redirect('/overtime')
 
 
 # ---------------- RUN ----------------
