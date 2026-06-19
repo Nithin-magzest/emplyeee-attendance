@@ -148,8 +148,8 @@
     <div class="main">
 
       <div class="page-header">
-        <h1>🕐 Shift Management</h1>
-        <p>Create and manage work shifts, then assign them to employees.</p>
+        <h1>🕐 Shifts &amp; Breaks</h1>
+        <p>Manage break schedule and work shifts, then assign shifts to employees.</p>
       </div>
 
       {% if request.args.get('saved') %}
@@ -163,6 +163,80 @@
       {% elif request.args.get('error') %}
         <div class="flash flash-red">❌ {{ request.args.get('error') }}</div>
       {% endif %}
+
+      <!-- ══ BREAKS ══ -->
+      <div class="section" style="margin-bottom:22px;">
+        <div class="section-header">
+          <div class="section-title">☕ Break Schedule</div>
+        </div>
+
+        <!-- Add break form -->
+        <form action="/add_break" method="POST" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+          <div class="field" style="margin:0;flex:1;min-width:140px;">
+            <label>Break Name</label>
+            <input type="text" name="break_name" placeholder="e.g. Tea Break" required />
+          </div>
+          <div class="field" style="margin:0;min-width:120px;">
+            <label>Break Time</label>
+            <input type="time" name="break_time" required />
+          </div>
+          <div class="field" style="margin:0;min-width:110px;">
+            <label>Duration (mins)</label>
+            <input type="number" name="duration_minutes" value="10" min="1" max="120" required />
+          </div>
+          <button type="submit" class="btn-submit" style="width:auto;padding:10px 20px;margin:0;">➕ Add Break</button>
+        </form>
+
+        {% if breaks %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Break Name</th>
+                <th>Time</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bid, bname, btime, bdur, bactive in breaks %}
+              {% set _bt = btime.seconds if btime and btime.seconds is defined else 0 %}
+              {% set _h = (_bt // 3600) %}
+              {% set _m = ((_bt % 3600) // 60) %}
+              {% set _ampm = 'AM' if _h < 12 else 'PM' %}
+              {% set _h12 = _h if _h <= 12 else _h - 12 %}
+              {% set _h12 = 12 if _h12 == 0 else _h12 %}
+              <tr>
+                <td><strong>{{ bname }}</strong></td>
+                <td>{{ '%02d:%02d'|format(_h12, _m) }} {{ _ampm }}</td>
+                <td>{{ bdur }} min</td>
+                <td>
+                  {% if bactive %}
+                    <span class="badge b-green">Active</span>
+                  {% else %}
+                    <span class="badge b-gray">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button type="button" class="btn-edit-shift"
+                    onclick="openBreakModal({{ bid }},'{{ bname }}','{{ '%02d:%02d'|format(_h, _m) }}',{{ bdur }},{{ bactive }})">
+                    ✏️ Edit
+                  </button>
+                  <form method="POST" action="/delete_break/{{ bid }}" style="display:inline;"
+                    onsubmit="return confirm('Delete {{ bname }}?')">
+                    <button type="submit" class="btn-del-shift">🗑️</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:28px;color:#94a3b8;font-size:13px;">No breaks configured yet.</div>
+        {% endif %}
+      </div>
 
       <!-- TOP GRID: Create form + Shift list -->
       <div class="top-grid">
@@ -246,80 +320,6 @@
           </div>
         </div>
       </div><!-- /top-grid -->
-
-      <!-- ══ BREAKS ══ -->
-      <div class="section" style="margin-bottom:22px;">
-        <div class="section-header">
-          <div class="section-title">☕ Break Schedule</div>
-        </div>
-
-        <!-- Add break form -->
-        <form action="/add_break" method="POST" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
-          <div class="field" style="margin:0;flex:1;min-width:140px;">
-            <label>Break Name</label>
-            <input type="text" name="break_name" placeholder="e.g. Tea Break" required />
-          </div>
-          <div class="field" style="margin:0;min-width:120px;">
-            <label>Break Time</label>
-            <input type="time" name="break_time" required />
-          </div>
-          <div class="field" style="margin:0;min-width:110px;">
-            <label>Duration (mins)</label>
-            <input type="number" name="duration_minutes" value="10" min="1" max="120" required />
-          </div>
-          <button type="submit" class="btn-submit" style="width:auto;padding:10px 20px;margin:0;">➕ Add Break</button>
-        </form>
-
-        {% if breaks %}
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Break Name</th>
-                <th>Time</th>
-                <th>Duration</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for bid, bname, btime, bdur, bactive in breaks %}
-              {% set _bt = btime.seconds if btime and btime.seconds is defined else 0 %}
-              {% set _h = (_bt // 3600) %}
-              {% set _m = ((_bt % 3600) // 60) %}
-              {% set _ampm = 'AM' if _h < 12 else 'PM' %}
-              {% set _h12 = _h if _h <= 12 else _h - 12 %}
-              {% set _h12 = 12 if _h12 == 0 else _h12 %}
-              <tr>
-                <td><strong>{{ bname }}</strong></td>
-                <td>{{ '%02d:%02d'|format(_h12, _m) }} {{ _ampm }}</td>
-                <td>{{ bdur }} min</td>
-                <td>
-                  {% if bactive %}
-                    <span class="badge b-green">Active</span>
-                  {% else %}
-                    <span class="badge b-gray">Inactive</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <button type="button" class="btn-edit-shift"
-                    onclick="openBreakModal({{ bid }},'{{ bname }}','{{ '%02d:%02d'|format(_h, _m) }}',{{ bdur }},{{ bactive }})">
-                    ✏️ Edit
-                  </button>
-                  <form method="POST" action="/delete_break/{{ bid }}" style="display:inline;"
-                    onsubmit="return confirm('Delete {{ bname }}?')">
-                    <button type="submit" class="btn-del-shift">🗑️</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div style="text-align:center;padding:28px;color:#94a3b8;font-size:13px;">No breaks configured yet.</div>
-        {% endif %}
-      </div>
 
       <!-- ASSIGN SHIFTS TO EMPLOYEES -->
       <div class="section">
