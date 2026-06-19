@@ -631,7 +631,7 @@
                 {% if emp[7] %}
                   {{ emp[7] }}
                   <span style="font-size:11px; color:#94a3b8;">
-                    ({{ emp[8].strftime('%I:%M %p') if emp[8] else '' }} – {{ emp[9].strftime('%I:%M %p') if emp[9] else '' }})
+                    ({{ emp[8] or '' }} – {{ emp[9] or '' }})
                   </span>
                 {% else %}—{% endif %}
               </span>
@@ -1972,7 +1972,7 @@
                     ('Department', emp[31] or '—'),
                     ('Email', emp[3] or '—'),
                     ('Date of Joining', emp[5].strftime('%d %b %Y') if emp[5] else '—'),
-                    ('Shift', (emp[7] ~ ' (' ~ emp[8].strftime('%I:%M %p') ~ ' – ' ~ emp[9].strftime('%I:%M %p') ~ ')') if emp[7] else '—'),
+                    ('Shift', (emp[7] ~ ' (' ~ (emp[8] or '') ~ ' – ' ~ (emp[9] or '') ~ ')') if emp[7] else '—'),
                     ('Salary / Day', ('₹' ~ '%.2f'|format(emp[6])) if emp[6] and emp[6] > 0 else '—'),
                   ] %}
                   {% for lbl, val in work_rows %}

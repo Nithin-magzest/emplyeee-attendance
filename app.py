@@ -4471,7 +4471,11 @@ def employee_portal():
         LEFT JOIN shifts sh ON e.shift_id = sh.id
         WHERE e.employee_id = %s
     """, (emp_id,))
-    emp = cursor.fetchone()
+    emp = list(cursor.fetchone())
+    # Convert TIME columns (timedelta) to formatted strings
+    for idx in (8, 9):
+        if emp[idx] is not None:
+            emp[idx] = _fmt_time(emp[idx])
     # emp indices:
     # [0]=id [1]=name [2]=role [3]=email [4]=face_image [5]=date_of_joining
     # [6]=salary_per_day [7]=shift_name [8]=shift_start [9]=shift_end
