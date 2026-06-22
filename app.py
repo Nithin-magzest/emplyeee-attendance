@@ -6098,7 +6098,7 @@ def my_performance():
         kpis = cursor.fetchall()
         reviews_data.append({"review": rev, "kpis": kpis})
 
-    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()
     cursor.close(); db.close()
 
@@ -9087,7 +9087,7 @@ def my_compoff():
     lt_row = cursor.fetchone()
     compoff_lt_id = lt_row[0] if lt_row else None
 
-    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()
     cursor.close(); db.close()
 
@@ -9587,11 +9587,11 @@ def my_onboarding():
                 selected_ob = ob
                 break
 
-    cursor.execute("SELECT employee_id, name, role, department FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT employee_id, name, role, department, face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
     cursor.close(); db.close()
     return render_template("my_onboarding.html",
-        emp=emp, onboardings=onboardings, tasks=tasks,
+        emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
         selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None
     )
 

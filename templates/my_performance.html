@@ -1,16 +1,107 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Performance</title>
-  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
-    body{background:#eff6ff;min-height:100vh}
-    .wrap{max-width:860px;margin:0 auto;padding:28px 20px}
-    .back-bar{margin-bottom:20px}
-    .back-bar a{display:inline-flex;align-items:center;gap:6px;color:#1e3a8a;text-decoration:none;font-size:13px;font-weight:700;padding:7px 14px;background:#fff;border:1.5px solid #dbeafe;border-radius:9px;}
+
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      html, body { height: 100%; }
+      body { background: #f1f5f9; display: flex; flex-direction: row; min-height: 100dvh; }
+
+      .sidebar {
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        padding: 20px 14px; color: white;
+        display: flex; flex-direction: column; flex-shrink: 0;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.18); z-index: 300;
+        transition: transform 0.28s ease;
+      }
+      .sb-profile {
+        display: flex; align-items: center; gap: 12px;
+        padding-bottom: 18px; margin-bottom: 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .sb-avatar {
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        font-size: 18px; font-weight: 700; color: white;
+      }
+      .sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .sb-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
+      .sb-role { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+      .sb-id   { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+      .sb-nav-label {
+        font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 0 10px; margin: 12px 0 4px;
+      }
+      .sb-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 10px; margin: 1px 0;
+        color: rgba(255,255,255,0.75);
+        border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s;
+        position: relative; border: none; background: none; width: 100%;
+        text-align: left; cursor: pointer; font-family: inherit; text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sb-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+      .sb-item.active {
+        background: rgba(255,255,255,0.15); color: #fff; font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+      }
+      .sb-item.active::before {
+        content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+        width: 3px; border-radius: 2px; background: #60a5fa;
+      }
+      .sb-icon {
+        width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.08); font-size: 16px;
+      }
+      .sb-icon i { font-size: 16px; line-height: 1; }
+      .sb-item.active .sb-icon { background: rgba(96,165,250,0.2); }
+      .sb-item:hover .sb-icon  { background: rgba(255,255,255,0.12); }
+      .sb-item.danger { color: rgba(252,165,165,0.85); }
+      .sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+      .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .sb-footer {
+        margin-top: auto; padding-top: 14px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        font-size: 11px; color: rgba(255,255,255,0.4);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .main-area { flex: 1; min-width: 0; overflow-y: auto; }
+      .app-content { padding: 24px 28px; }
+
+.sb-avatar img{width:100%;height:100%;object-fit:cover}
+    
+    
+    
+    
+    
+    
+    .sb-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)}
+    .sb-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    
+    .sb-item.active 
+    
+    .sb-item.danger:hover{background:rgba(239,68,68,0.15);color:#fca5a5}
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
     .page-hdr{margin-bottom:22px}
     .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
     .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
@@ -22,7 +113,7 @@
     .review-block{border:1.5px solid #dbeafe;border-radius:14px;margin-bottom:16px;overflow:hidden}
     .review-hdr{background:#dbeafe;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
     .review-hdr .q-label{font-size:14px;font-weight:800;color:#1e3a8a}
-    .review-body{padding:16px 18px}
+    .review-
     .star-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
     .star-row .stars{font-size:20px;color:#f59e0b}
     .star-row .star-e{color:#e2e8f0}
@@ -45,18 +136,79 @@
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="back-bar">
-    <a href="/employee_portal"><i class="ti ti-arrow-left"></i> Back to Portal</a>
-  </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
+    <nav class="sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar">
+          {% if emp_info[3] %}
+            <img src="/my_photo" alt="{{ emp_info[0] }}" onerror="this.parentNode.innerHTML='{{ emp_info[0][0] | upper }}'" />
+          {% else %}
+            {{ emp_info[0][0] | upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div class="sb-name">{{ emp_info[0] }}</div>
+          <div class="sb-role">{{ emp_info[1] or 'Employee' }}</div>
+          <div class="sb-id">ID: {{ emp_id }}</div>
+        </div>
+      </div>
+
+      <div class="sb-nav-label">Main</div>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
+      </a>
+
+      <div class="sb-nav-label">Account</div>
+      <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
+      </a>
+      <a href="/my_performance" class="sb-item active" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
+      </a>
+      <a href="/my_onboarding" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
+      </a>
+
+      <div class="sb-nav-label">Policies</div>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
+      </a>
+
+      <hr class="sb-sep" />
+      <a href="/employee_logout" class="sb-item danger" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
+      </a>
+
+      <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+      <div class="sb-footer">👤 {{ emp_id }}</div>
+    </nav>
+  <div class="main-area">
+    <div class="app-content">
+{% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
     <div class="flash-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
     {% endfor %}
   {% endwith %}
 
-  {% set emp_name, emp_role, emp_dept = emp_info %}
+  {% set emp_name, emp_role, emp_dept, _ = emp_info %}
   <div class="hero">
     <div>
       <h2>{{ emp_name }}</h2>
@@ -180,6 +332,12 @@
   </div>
   {% endif %}
 </div>
+<script src="/static/darkmode.js"></script>
+  </div>
+</div>
+<script src="/static/darkmode.js"></script>
+    </div>
+  </div>
 <script src="/static/darkmode.js"></script>
 </body>
 </html>
