@@ -1068,7 +1068,8 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 
     basic        = round(monthly_ctc * basic_pct / 100, 2)
     hra          = round(monthly_ctc * 0.20, 2)
-    conveyance   = 1600.0
+    # Cap conveyance so gross never exceeds CTC
+    conveyance   = round(min(1600.0, max(0, monthly_ctc - basic - hra)), 2)
     special_all  = round(max(0, monthly_ctc - basic - hra - conveyance), 2)
     gross_salary = round(basic + hra + conveyance + special_all, 2)
 
@@ -1093,8 +1094,15 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
     pf_er_ded     = round(min(basic, pf_cap_basic) * pf_er_pct / 100, 2)
     annual_ctc    = monthly_ctc * 12
     tds_ded       = round(annual_ctc * tds_ann_pct / 100 / 12, 2)
+    # Cap statutory deductions to gross earned (net cannot go below 0)
+    stat_ded      = pf_ded + pt_monthly + tds_ded
+    if stat_ded > gross_earned:
+        ratio     = gross_earned / stat_ded if stat_ded > 0 else 0
+        pf_ded    = round(pf_ded * ratio, 2)
+        pt_monthly = round(pt_monthly * ratio, 2)
+        tds_ded   = round(tds_ded * ratio, 2)
     total_ded     = round(lop_ded + pf_ded + pt_monthly + tds_ded, 2)
-    net_pay       = round(gross_earned - pf_ded - pt_monthly - tds_ded, 2)
+    net_pay       = max(0, round(gross_earned - pf_ded - pt_monthly - tds_ded, 2))
 
     emp_row_extra = ""
     if emp_designation: emp_row_extra += f"<tr><td>Designation</td><td>{emp_designation}</td></tr>"
@@ -4121,13 +4129,19 @@ def send_salary_email():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT name, email, COALESCE(s.salary_per_day, 0) FROM employees e LEFT JOIN salary_config s ON e.employee_id=s.employee_id WHERE e.employee_id=%s", (emp_id,))
+    cursor.execute("""
+        SELECT e.name, e.email, COALESCE(s.salary_per_day,0),
+               COALESCE(s.monthly_ctc,0), COALESCE(s.basic_pct,50),
+               COALESCE(e.role,''), COALESCE(e.department,'')
+        FROM employees e LEFT JOIN salary_config s ON e.employee_id=s.employee_id
+        WHERE e.employee_id=%s
+    """, (emp_id,))
     emp = cursor.fetchone()
     if not emp:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
 
-    name, email, spd = emp
+    name, email, spd, monthly_ctc, basic_pct, designation, dept = emp
     if not email:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": f"No email address set for {name}."})
@@ -4150,14 +4164,27 @@ def send_salary_email():
     )
     leave_dates = {row[0] for row in cursor.fetchall()}
 
+    # Fetch payroll config
+    db2 = get_db_connection()
+    cur2 = db2.cursor(buffered=True)
+    cur2.execute("SELECT pf_employee_pct,pf_employer_pct,professional_tax,tds_annual_pct,pf_basic_cap FROM payroll_config LIMIT 1")
+    pc_row = cur2.fetchone()
+    payroll_cfg = {"pf_employee_pct": float(pc_row[0] or 12), "pf_employer_pct": float(pc_row[1] or 12),
+                   "professional_tax": float(pc_row[2] or 200), "tds_annual_pct": float(pc_row[3] or 0),
+                   "pf_basic_cap": float(pc_row[4] or 15000)} if pc_row else {}
+    cur2.close(); db2.close()
     cursor.close(); db.close()
 
     holidays_set  = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
     entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                          holidays_set=holidays_set, leave_dates=leave_dates)
+    entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
+    entry["basic_pct"]   = int(basic_pct)
     month_name    = datetime.date(year, month, 1).strftime("%B %Y")
-    html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+    html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
+                                           emp_designation=designation, emp_dept=dept,
+                                           payroll_cfg=payroll_cfg)
 
     try:
         send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
