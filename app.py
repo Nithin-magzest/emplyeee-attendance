@@ -2933,7 +2933,7 @@ def delete_holiday(hid):
 # ---------------- AUTO GENERATE EMPLOYEE ID ----------------
 @app.route("/api/generate_emp_id")
 def generate_emp_id():
-    if not session.get("admin"):
+    if not session.get("admin_logged_in"):
         return jsonify({"error": "not logged in"}), 401
     work_mode = request.args.get("work_mode", "office").strip().lower()
     db     = get_db_connection()
