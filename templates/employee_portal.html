@@ -527,6 +527,12 @@
       </button>
 
       <div class="sb-nav-label">Account</div>
+      <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
+      </a>
+      <a href="/my_performance" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
+      </a>
       <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">
         <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
       </button>
@@ -1017,6 +1023,20 @@
             <div style="font-size:10px;color:#94a3b8;">{{ ltb.used }} used · {{ ltb.balance }} remaining</div>
           </div>
           {% endfor %}
+          <!-- Comp-off balance card -->
+          <a href="/my_compoff" style="text-decoration:none;">
+          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='{% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %}'">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Comp-off <span style="background:#eff6ff;color:#3b82f6;border-radius:4px;padding:1px 5px;font-size:9px;">OT</span></div>
+            <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:6px;">
+              <span style="font-size:26px;font-weight:800;color:{% if compoff_avail_days > 0 %}#16a34a{% else %}#94a3b8{% endif %};line-height:1;">{{ compoff_avail_days }}</span>
+              <span style="font-size:12px;color:#94a3b8;">/ {{ compoff_earned_days }} days</span>
+            </div>
+            <div style="background:#f1f5f9;border-radius:20px;height:6px;overflow:hidden;margin-bottom:6px;">
+              <div style="height:100%;border-radius:20px;width:{% if compoff_earned_days > 0 %}{{ [(compoff_avail_days / compoff_earned_days * 100)|int, 100]|min }}{% else %}0{% endif %}%;background:#22c55e;"></div>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;">{{ compoff_avail_days }} available · view details →</div>
+          </div>
+          </a>
         </div>
         {% else %}
         <div style="display:flex;gap:18px;font-size:12px;">

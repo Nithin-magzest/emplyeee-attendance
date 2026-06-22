@@ -581,6 +581,34 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS performance_reviews (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            quarter TINYINT NOT NULL,
+            year INT NOT NULL,
+            overall_rating DECIMAL(3,1) DEFAULT 0,
+            reviewer_feedback TEXT,
+            employee_comment TEXT,
+            status VARCHAR(20) DEFAULT 'Draft',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_emp_qtr_yr (employee_id, quarter, year)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS performance_kpis (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            review_id INT NOT NULL,
+            kpi_title VARCHAR(200) NOT NULL,
+            description TEXT,
+            target VARCHAR(200),
+            achievement VARCHAR(200),
+            weight INT DEFAULT 20,
+            rating TINYINT DEFAULT 0,
+            comments TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS overtime_records (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
@@ -593,6 +621,15 @@ def init_db():
             notes TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uq_ot_emp_date (employee_id, date)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS compoff_balance (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL UNIQUE,
+            earned_minutes INT DEFAULT 0,
+            used_minutes INT DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
@@ -631,8 +668,14 @@ def init_db():
                 ("Earned Leave",    15,  1),
                 ("Maternity Leave", 90,  1),
                 ("Paternity Leave",  5,  1),
+                ("Comp-off",         0,  1),
             ]
         )
+        db.commit()
+    # Ensure Comp-off leave type exists
+    cursor.execute("SELECT id FROM leave_types WHERE name='Comp-off' LIMIT 1")
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO leave_types (name, annual_quota, is_paid) VALUES ('Comp-off', 0, 1)")
         db.commit()
     # Seed default breaks if table is empty
     cursor.execute("SELECT COUNT(*) FROM break_config")
@@ -685,6 +728,7 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN about_me TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN is_active TINYINT(1) DEFAULT 1",
         "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
         "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
@@ -694,6 +738,8 @@ def init_db():
         "ALTER TABLE attendance ADD COLUMN last_relogin TIME DEFAULT NULL",
         "ALTER TABLE salary_config ADD COLUMN monthly_ctc DECIMAL(12,2) DEFAULT 0",
         "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
+        "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
+        "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
     ]:
         try:
             cursor.execute(sql)
@@ -2236,23 +2282,9 @@ def announcements_admin():
             db.commit()
             flash("Announcement deleted.", "success")
         cursor.close(); db.close()
-        return redirect("/announcements")
-
-    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
-    ann_list = cursor.fetchall()
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
-    pending_leaves = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
-    pending_resignations = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
-    pending_tickets = cursor.fetchone()[0]
+        return redirect("/performance?tab=announcements")
     cursor.close(); db.close()
-    return render_template("announcements.html",
-        ann_list=ann_list,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-    )
+    return redirect("/performance?tab=announcements")
 
 # ---------------- INDIAN PUBLIC HOLIDAYS ----------------
 def get_indian_holidays(year):
@@ -4572,39 +4604,6 @@ def update_my_bank_details():
     return redirect("/employee_portal?bank_saved=1#my-profile")
 
 
-@app.route("/employee_portal/regularize", methods=["POST"])
-@employee_required
-def employee_regularize():
-    emp_id       = session["employee_id"]
-    request_date = request.form.get("request_date", "").strip()
-    login_time   = request.form.get("login_time", "").strip() or None
-    logout_time  = request.form.get("logout_time", "").strip() or None
-    reason       = request.form.get("reason", "").strip()
-    if not request_date or not reason:
-        return jsonify({"ok": False, "msg": "request_date and reason are required"}), 400
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    try:
-        cursor.execute(
-            """INSERT INTO regularization_requests
-               (employee_id, request_date, login_time, logout_time, reason)
-               VALUES (%s, %s, %s, %s, %s)
-               ON DUPLICATE KEY UPDATE
-               login_time=VALUES(login_time), logout_time=VALUES(logout_time),
-               reason=VALUES(reason), status='Pending', resolved_at=NULL""",
-            (emp_id, request_date, login_time, logout_time, reason)
-        )
-        db.commit()
-    except Exception as exc:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": str(exc)}), 500
-    cursor.close(); db.close()
-    _create_notification(
-        'admin',
-        "Regularization Request",
-        f"Employee {emp_id} has requested attendance regularization for {request_date}."
-    )
-    return jsonify({"ok": True})
 
 
 @app.route("/add_experience", methods=["POST"])
@@ -5296,6 +5295,19 @@ def employee_portal():
         ot_pay_this_month = 0.0
     net_this_month = gross_this_month + incentives_this_month + ot_pay_this_month
 
+    # Comp-off balance
+    try:
+        cursor.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+        mpd_row = cursor.fetchone()
+        compoff_mpd = int(mpd_row[0]) if mpd_row else 480
+        cursor.execute("SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
+        co_row = cursor.fetchone() or (0, 0)
+        compoff_earned_days = round(co_row[0] / compoff_mpd, 1) if compoff_mpd else 0
+        compoff_avail_days  = round(max(0, co_row[0] - co_row[1]) / compoff_mpd, 1) if compoff_mpd else 0
+    except Exception:
+        compoff_earned_days = 0
+        compoff_avail_days  = 0
+
     # Last 3 months payslip summaries
     recent_payslips = []
     py2, pm2 = today.year, today.month
@@ -5402,6 +5414,8 @@ def employee_portal():
         my_education=my_education,
         my_docs=my_docs,
         my_overtime=my_overtime,
+        compoff_avail_days=compoff_avail_days,
+        compoff_earned_days=compoff_earned_days,
         salary_per_day=salary_per_day,
         gross_this_month=gross_this_month,
         deduction_this_month=deduction_this_month,
@@ -5746,6 +5760,306 @@ def set_leave_balance():
     return redirect(f"/leave_balance?year={year}")
 
 
+# ─────────────────────────── PERFORMANCE MANAGEMENT ───────────────────────────
+
+RATING_LABELS = {0: "Not Rated", 1: "Unsatisfactory", 2: "Needs Improvement",
+                 3: "Meets Expectations", 4: "Exceeds Expectations", 5: "Outstanding"}
+
+@app.route("/performance")
+@admin_required
+def performance():
+    today  = datetime.date.today()
+    q      = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr     = int(request.args.get("year", today.year))
+    dept   = request.args.get("dept", "")
+    active_tab = request.args.get("tab", "performance")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    dept_filter = "AND e.department=%s" if dept else ""
+    params = [yr, q] + ([dept] if dept else [])
+    cursor.execute(f"""
+        SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+               pr.id, COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
+               (SELECT COUNT(*) FROM performance_kpis pk WHERE pk.review_id=pr.id) AS kpi_count
+        FROM employees e
+        LEFT JOIN performance_reviews pr
+            ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
+        WHERE e.is_active=1 {dept_filter}
+        ORDER BY e.name
+    """, params)
+    employees = cursor.fetchall()
+
+    cursor.execute("SELECT DISTINCT COALESCE(department,'') FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' ORDER BY 1")
+    departments = [r[0] for r in cursor.fetchall()]
+
+    # Announcements
+    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
+    ann_list = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    co = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return render_template("performance.html",
+        employees=employees, departments=departments,
+        quarter=q, year=yr, selected_dept=dept,
+        rating_labels=RATING_LABELS,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets, co=co,
+        today=today,
+        ann_list=ann_list,
+        active_tab=active_tab,
+    )
+
+
+@app.route("/performance_review/<emp_id>", methods=["GET"])
+@admin_required
+def performance_review(emp_id):
+    today = datetime.date.today()
+    q     = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr    = int(request.args.get("year", today.year))
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("""
+        SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+               COALESCE(e.email,''), COALESCE(e.phone,'')
+        FROM employees e WHERE e.employee_id=%s
+    """, (emp_id,))
+    emp = cursor.fetchone()
+    if not emp:
+        cursor.close(); db.close()
+        flash("Employee not found.", "error")
+        return redirect("/performance")
+
+    # Get or create review
+    cursor.execute("""
+        SELECT id, overall_rating, reviewer_feedback, employee_comment, status
+        FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s
+    """, (emp_id, q, yr))
+    review = cursor.fetchone()
+
+    kpis = []
+    if review:
+        cursor.execute("""
+            SELECT id, kpi_title, description, target, achievement, weight, rating, comments
+            FROM performance_kpis WHERE review_id=%s ORDER BY id
+        """, (review[0],))
+        kpis = cursor.fetchall()
+
+    # Past reviews for history tab
+    cursor.execute("""
+        SELECT id, quarter, year, overall_rating, status, created_at
+        FROM performance_reviews WHERE employee_id=%s ORDER BY year DESC, quarter DESC LIMIT 8
+    """, (emp_id,))
+    history = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    co = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return render_template("performance_review.html",
+        emp=emp, review=review, kpis=kpis, history=history,
+        quarter=q, year=yr, rating_labels=RATING_LABELS,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets, co=co
+    )
+
+
+@app.route("/performance_save_review", methods=["POST"])
+@admin_required
+def performance_save_review():
+    emp_id   = request.form["employee_id"]
+    q        = int(request.form["quarter"])
+    yr       = int(request.form["year"])
+    feedback = request.form.get("reviewer_feedback", "").strip()
+    status   = request.form.get("status", "Draft")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        INSERT INTO performance_reviews (employee_id, quarter, year, reviewer_feedback, status)
+        VALUES (%s,%s,%s,%s,%s)
+        ON DUPLICATE KEY UPDATE reviewer_feedback=%s, status=%s, updated_at=NOW()
+    """, (emp_id, q, yr, feedback, status, feedback, status))
+    db.commit()
+
+    # Recalculate overall rating from KPIs
+    cursor.execute("SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s", (emp_id, q, yr))
+    rev = cursor.fetchone()
+    if rev:
+        cursor.execute("""
+            SELECT weight, rating FROM performance_kpis WHERE review_id=%s AND rating > 0
+        """, (rev[0],))
+        kpi_rows = cursor.fetchall()
+        if kpi_rows:
+            total_weight = sum(r[0] for r in kpi_rows)
+            weighted_sum = sum(r[0] * r[1] for r in kpi_rows)
+            overall = round(weighted_sum / total_weight, 1) if total_weight > 0 else 0
+            cursor.execute("UPDATE performance_reviews SET overall_rating=%s WHERE id=%s", (overall, rev[0]))
+            db.commit()
+
+    cursor.close(); db.close()
+    flash("Review saved successfully.", "success")
+    return redirect(f"/performance_review/{emp_id}?quarter={q}&year={yr}")
+
+
+@app.route("/performance_add_kpi", methods=["POST"])
+@admin_required
+def performance_add_kpi():
+    emp_id = request.form["employee_id"]
+    q      = int(request.form["quarter"])
+    yr     = int(request.form["year"])
+    title  = request.form.get("kpi_title", "").strip()
+    desc   = request.form.get("description", "").strip()
+    target = request.form.get("target", "").strip()
+    weight = int(request.form.get("weight", 20))
+
+    if not title:
+        flash("KPI title is required.", "error")
+        return redirect(f"/performance_review/{emp_id}?quarter={q}&year={yr}")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Ensure review exists
+    cursor.execute("""
+        INSERT INTO performance_reviews (employee_id, quarter, year, status)
+        VALUES (%s,%s,%s,'Draft')
+        ON DUPLICATE KEY UPDATE updated_at=NOW()
+    """, (emp_id, q, yr))
+    db.commit()
+
+    cursor.execute("SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s", (emp_id, q, yr))
+    rev_id = cursor.fetchone()[0]
+
+    cursor.execute("""
+        INSERT INTO performance_kpis (review_id, kpi_title, description, target, weight)
+        VALUES (%s,%s,%s,%s,%s)
+    """, (rev_id, title, desc, target, weight))
+    db.commit()
+    cursor.close(); db.close()
+    flash("KPI added.", "success")
+    return redirect(f"/performance_review/{emp_id}?quarter={q}&year={yr}")
+
+
+@app.route("/performance_rate_kpi", methods=["POST"])
+@admin_required
+def performance_rate_kpi():
+    kpi_id      = int(request.form["kpi_id"])
+    emp_id      = request.form["employee_id"]
+    q           = int(request.form["quarter"])
+    yr          = int(request.form["year"])
+    rating      = int(request.form.get("rating", 0))
+    achievement = request.form.get("achievement", "").strip()
+    comments    = request.form.get("comments", "").strip()
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        UPDATE performance_kpis SET rating=%s, achievement=%s, comments=%s WHERE id=%s
+    """, (rating, achievement, comments, kpi_id))
+    db.commit()
+
+    # Recalculate overall rating
+    cursor.execute("SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s", (emp_id, q, yr))
+    rev = cursor.fetchone()
+    if rev:
+        cursor.execute("SELECT weight, rating FROM performance_kpis WHERE review_id=%s AND rating>0", (rev[0],))
+        rows = cursor.fetchall()
+        if rows:
+            tw = sum(r[0] for r in rows); ws = sum(r[0]*r[1] for r in rows)
+            cursor.execute("UPDATE performance_reviews SET overall_rating=%s WHERE id=%s",
+                           (round(ws/tw, 1) if tw else 0, rev[0]))
+            db.commit()
+
+    cursor.close(); db.close()
+    return redirect(f"/performance_review/{emp_id}?quarter={q}&year={yr}")
+
+
+@app.route("/performance_delete_kpi", methods=["POST"])
+@admin_required
+def performance_delete_kpi():
+    kpi_id = int(request.form["kpi_id"])
+    emp_id = request.form["employee_id"]
+    q      = int(request.form["quarter"])
+    yr     = int(request.form["year"])
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM performance_kpis WHERE id=%s", (kpi_id,))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect(f"/performance_review/{emp_id}?quarter={q}&year={yr}")
+
+
+@app.route("/my_performance")
+@employee_required
+def my_performance():
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("""
+        SELECT pr.id, pr.quarter, pr.year, pr.overall_rating, pr.reviewer_feedback,
+               pr.employee_comment, pr.status, pr.updated_at
+        FROM performance_reviews pr
+        WHERE pr.employee_id=%s ORDER BY pr.year DESC, pr.quarter DESC
+    """, (emp_id,))
+    reviews = cursor.fetchall()
+
+    reviews_data = []
+    for rev in reviews:
+        cursor.execute("""
+            SELECT kpi_title, target, achievement, weight, rating, comments
+            FROM performance_kpis WHERE review_id=%s ORDER BY id
+        """, (rev[0],))
+        kpis = cursor.fetchall()
+        reviews_data.append({"review": rev, "kpis": kpis})
+
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    emp_info = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return render_template("my_performance.html",
+        reviews_data=reviews_data, emp_info=emp_info,
+        emp_id=emp_id, rating_labels=RATING_LABELS
+    )
+
+
+@app.route("/performance_employee_comment", methods=["POST"])
+@employee_required
+def performance_employee_comment():
+    rev_id  = int(request.form["review_id"])
+    comment = request.form.get("comment", "").strip()
+    emp_id  = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    # Only allow comment on own review
+    cursor.execute("UPDATE performance_reviews SET employee_comment=%s WHERE id=%s AND employee_id=%s",
+                   (comment, rev_id, emp_id))
+    db.commit()
+    cursor.close(); db.close()
+    flash("Comment submitted.", "success")
+    return redirect("/my_performance")
+
+
 @app.route("/leave_requests")
 @admin_required
 def leave_requests_view():
@@ -5867,6 +6181,21 @@ def leave_action(lid):
                     %s)
                 ON DUPLICATE KEY UPDATE used_days = used_days + %s
             """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
+            # Deduct comp-off balance if this is a Comp-off leave type
+            cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
+            lt_name_row = cursor.fetchone()
+            if lt_name_row and lt_name_row[0] == 'Comp-off':
+                cfg_cur = db.cursor(buffered=True)
+                cfg_cur.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+                mpd_row = cfg_cur.fetchone()
+                cfg_cur.close()
+                mpd = int(mpd_row[0]) if mpd_row else 480
+                deduct_minutes = int(deduction * mpd)
+                cursor.execute("""
+                    INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
+                    VALUES (%s, 0, %s)
+                    ON DUPLICATE KEY UPDATE used_minutes = used_minutes + %s
+                """, (emp_id, deduct_minutes, deduct_minutes))
 
     db.commit()
     cursor.close(); db.close()
@@ -5923,78 +6252,6 @@ def leave_action(lid):
     return redirect("/leave_requests")
 
 
-# ── Attendance Regularization (admin) ────────────────────────────────────────
-
-@app.route("/admin/regularization")
-@admin_required
-def admin_regularization():
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT rr.id, rr.employee_id, e.name,
-               rr.request_date, rr.login_time, rr.logout_time,
-               rr.reason, rr.status, rr.admin_note, rr.created_at
-        FROM regularization_requests rr
-        JOIN employees e ON rr.employee_id = e.employee_id
-        ORDER BY rr.created_at DESC
-    """)
-    requests = cursor.fetchall()
-    cursor.close(); db.close()
-    return render_template("regularization_admin.html", requests=requests)
-
-
-@app.route("/admin/regularization/<int:rid>/action", methods=["POST"])
-@admin_required
-def admin_regularization_action(rid):
-    action = request.form.get("action", "").strip()
-    note   = request.form.get("note", "").strip() or None
-    if action not in ("Approve", "Reject"):
-        flash("Invalid action.", "error")
-        return redirect("/admin/regularization")
-
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT employee_id, request_date, login_time, logout_time FROM regularization_requests WHERE id=%s",
-        (rid,)
-    )
-    row = cursor.fetchone()
-    if not row:
-        cursor.close(); db.close()
-        flash("Regularization request not found.", "error")
-        return redirect("/admin/regularization")
-
-    emp_id, req_date, login_t, logout_t = row
-    new_status = "Approved" if action == "Approve" else "Rejected"
-
-    if action == "Approve":
-        # Determine attendance type from login/logout status strings
-        login_status  = "Full Day Login" if login_t else None
-        logout_status = "Completed" if logout_t else None
-        att_type = get_attendance_type(login_status, logout_status)
-        cursor.execute("""
-            INSERT INTO attendance (employee_id, date, login_time, logout_time, attendance_type)
-            VALUES (%s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-            login_time=VALUES(login_time), logout_time=VALUES(logout_time),
-            attendance_type=VALUES(attendance_type)
-        """, (emp_id, req_date, login_t, logout_t, att_type))
-
-    cursor.execute(
-        "UPDATE regularization_requests SET status=%s, admin_note=%s, resolved_at=NOW() WHERE id=%s",
-        (new_status, note, rid)
-    )
-    db.commit()
-    cursor.close(); db.close()
-    _create_notification(
-        'employee',
-        f"Regularization {new_status}",
-        f"Your regularization request for {req_date} has been {new_status.lower()}." +
-        (f" Note: {note}" if note else ""),
-        emp_id
-    )
-    flash(f"Regularization request {new_status.lower()}.", "success")
-    return redirect("/admin/regularization")
 
 
 @app.route("/leave_calendar")
@@ -8356,7 +8613,9 @@ def overtime():
     today = datetime.date.today()
     month = int(request.args.get('month', today.month))
     year  = int(request.args.get('year',  today.year))
+    active_tab = request.args.get('tab', 'ot')
 
+    # OT records
     cursor.execute("""
         SELECT o.id, o.employee_id, e.name, o.date, o.shift_end, o.actual_logout,
                o.ot_minutes, o.ot_pay, o.status, o.notes
@@ -8372,6 +8631,31 @@ def overtime():
     pending_count    = sum(1 for r in records if r[8] == 'Pending')
     approved_count   = sum(1 for r in records if r[8] == 'Approved')
 
+    # Comp-off settings
+    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+    cfg = cursor.fetchone() or (120, 480)
+    min_ot_minutes  = int(cfg[0])
+    minutes_per_day = int(cfg[1])
+
+    # Comp-off balances per employee
+    cursor.execute("""
+        SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+               COALESCE(cb.earned_minutes,0), COALESCE(cb.used_minutes,0)
+        FROM employees e
+        LEFT JOIN compoff_balance cb ON cb.employee_id=e.employee_id
+        ORDER BY e.name
+    """)
+    compoff_balances = []
+    for emp_id, name, role, dept, earned, used in cursor.fetchall():
+        earned_days = round(earned / minutes_per_day, 2) if minutes_per_day else 0
+        used_days   = round(used   / minutes_per_day, 2) if minutes_per_day else 0
+        avail_days  = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
+        compoff_balances.append({
+            "emp_id": emp_id, "name": name, "role": role, "dept": dept,
+            "earned_min": earned, "used_min": used,
+            "earned_days": earned_days, "used_days": used_days, "avail_days": avail_days
+        })
+
     cursor.close(); db.close()
 
     return render_template("overtime.html",
@@ -8386,6 +8670,10 @@ def overtime():
         total_ot_pay=total_ot_pay,
         pending_count=pending_count,
         approved_count=approved_count,
+        active_tab=active_tab,
+        min_ot_minutes=min_ot_minutes,
+        minutes_per_day=minutes_per_day,
+        compoff_balances=compoff_balances,
     )
 
 
@@ -8396,17 +8684,188 @@ def overtime_action(oid):
     notes  = request.form.get('notes', '').strip()
     if action not in ('approve', 'reject'):
         flash("Invalid action.", "danger")
-        return redirect('/overtime')
+        return redirect('/overtime?tab=ot')
     status = 'Approved' if action == 'approve' else 'Rejected'
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+
+    # Fetch OT record before updating
+    cursor.execute("SELECT employee_id, ot_minutes, status FROM overtime_records WHERE id=%s", (oid,))
+    ot_row = cursor.fetchone()
+
     cursor.execute(
         "UPDATE overtime_records SET status=%s, notes=%s WHERE id=%s",
         (status, notes or None, oid)
     )
+    db.commit()
+
+    # Credit comp-off balance when approving
+    if status == 'Approved' and ot_row and ot_row[2] != 'Approved':
+        emp_id     = ot_row[0]
+        ot_minutes = ot_row[1]
+        # Get compoff threshold settings
+        cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120) FROM company_settings LIMIT 1")
+        min_row = cursor.fetchone()
+        min_ot  = int(min_row[0]) if min_row else 120
+        if ot_minutes >= min_ot:
+            cursor.execute("""
+                INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
+                VALUES (%s, %s, 0)
+                ON DUPLICATE KEY UPDATE earned_minutes = earned_minutes + %s
+            """, (emp_id, ot_minutes, ot_minutes))
+            db.commit()
+            flash(f"Overtime approved. {ot_minutes} OT minutes credited to comp-off balance.", "success")
+        else:
+            flash(f"Overtime approved. OT below threshold ({min_ot} min) — no comp-off credited.", "success")
+    elif status == 'Rejected' and ot_row and ot_row[2] == 'Approved':
+        # Reverse comp-off if previously approved
+        emp_id     = ot_row[0]
+        ot_minutes = ot_row[1]
+        cursor.execute("""
+            UPDATE compoff_balance SET earned_minutes = GREATEST(0, earned_minutes - %s)
+            WHERE employee_id=%s
+        """, (ot_minutes, emp_id))
+        db.commit()
+        flash("Overtime rejected and comp-off balance reversed.", "success")
+    else:
+        flash(f"Overtime record {status.lower()}.", "success")
+
+    cursor.close(); db.close()
+    return redirect('/overtime?tab=ot')
+
+
+# ─────────────────────────── COMP-OFF MANAGEMENT ───────────────────────────
+
+@app.route("/compoff")
+@admin_required
+def compoff():
+    return redirect("/overtime?tab=compoff")
+
+@app.route("/compoff_old")
+@admin_required
+def compoff_old():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Settings
+    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480), COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    cfg_row = cursor.fetchone() or (120, 480, '')
+    min_ot_minutes      = int(cfg_row[0])
+    minutes_per_day     = int(cfg_row[1])
+    company_name        = cfg_row[2]
+
+    # Employee balances
+    cursor.execute("""
+        SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+               COALESCE(cb.earned_minutes,0), COALESCE(cb.used_minutes,0)
+        FROM employees e
+        LEFT JOIN compoff_balance cb ON cb.employee_id=e.employee_id
+        WHERE e.is_active=1 ORDER BY e.name
+    """)
+    balances = []
+    for emp_id, name, role, dept, earned, used in cursor.fetchall():
+        earned_days = round(earned / minutes_per_day, 2) if minutes_per_day else 0
+        used_days   = round(used   / minutes_per_day, 2) if minutes_per_day else 0
+        avail_days  = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
+        balances.append({
+            "emp_id": emp_id, "name": name, "role": role, "dept": dept,
+            "earned_min": earned, "used_min": used,
+            "earned_days": earned_days, "used_days": used_days, "avail_days": avail_days
+        })
+
+    # Recent OT records (last 30 days)
+    cursor.execute("""
+        SELECT o.id, e.name, o.employee_id, o.date, o.ot_minutes, o.ot_pay, o.status
+        FROM overtime_records o JOIN employees e ON e.employee_id=o.employee_id
+        ORDER BY o.date DESC LIMIT 50
+    """)
+    ot_records = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.close(); db.close()
+
+    return render_template("compoff.html",
+        balances=balances, ot_records=ot_records,
+        min_ot_minutes=min_ot_minutes, minutes_per_day=minutes_per_day,
+        company_name=company_name,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets
+    )
+
+
+@app.route("/compoff_settings", methods=["POST"])
+@admin_required
+def compoff_settings():
+    min_ot  = int(request.form.get("min_ot_minutes", 120))
+    mpd     = int(request.form.get("minutes_per_day", 480))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        UPDATE company_settings SET compoff_min_ot_minutes=%s, compoff_minutes_per_day=%s
+    """, (min_ot, mpd))
     db.commit(); cursor.close(); db.close()
-    flash(f"Overtime record {status.lower()}.", "success")
-    return redirect('/overtime')
+    flash("Comp-off settings saved.", "success")
+    return redirect("/overtime?tab=settings")
+
+
+@app.route("/my_compoff")
+@employee_required
+def my_compoff():
+    emp_id = session["employee_id"]
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+    cfg = cursor.fetchone() or (120, 480)
+    min_ot_minutes  = int(cfg[0])
+    minutes_per_day = int(cfg[1])
+
+    cursor.execute("SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
+    bal = cursor.fetchone() or (0, 0)
+    earned_min, used_min = bal
+    avail_min   = max(0, earned_min - used_min)
+    earned_days = round(earned_min / minutes_per_day, 2) if minutes_per_day else 0
+    used_days   = round(used_min   / minutes_per_day, 2) if minutes_per_day else 0
+    avail_days  = round(avail_min  / minutes_per_day, 2) if minutes_per_day else 0
+
+    # My OT records
+    cursor.execute("""
+        SELECT date, ot_minutes, ot_pay, status, notes
+        FROM overtime_records WHERE employee_id=%s ORDER BY date DESC LIMIT 30
+    """, (emp_id,))
+    ot_records = cursor.fetchall()
+
+    # My comp-off leave applications
+    cursor.execute("""
+        SELECT lr.leave_date, lr.status, lr.reason, lr.created_at
+        FROM leave_requests lr JOIN leave_types lt ON lt.id=lr.leave_type_id
+        WHERE lr.employee_id=%s AND lt.name='Comp-off'
+        ORDER BY lr.created_at DESC LIMIT 20
+    """, (emp_id,))
+    compoff_leaves = cursor.fetchall()
+
+    cursor.execute("SELECT id FROM leave_types WHERE name='Comp-off' LIMIT 1")
+    lt_row = cursor.fetchone()
+    compoff_lt_id = lt_row[0] if lt_row else None
+
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    emp_info = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return render_template("my_compoff.html",
+        emp_id=emp_id, emp_info=emp_info,
+        earned_days=earned_days, used_days=used_days, avail_days=avail_days,
+        earned_min=earned_min, used_min=used_min, avail_min=avail_min,
+        minutes_per_day=minutes_per_day, min_ot_minutes=min_ot_minutes,
+        ot_records=ot_records, compoff_leaves=compoff_leaves,
+        compoff_lt_id=compoff_lt_id
+    )
 
 
 # ---------------- API: NOTIFICATIONS (Admin) ----------------

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>My Comp-off</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#eff6ff;min-height:100vh}
+    .wrap{max-width:860px;margin:0 auto;padding:28px 20px}
+    .back-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .back-bar a{display:inline-flex;align-items:center;gap:6px;color:#1e3a8a;text-decoration:none;font-size:13px;font-weight:700;padding:7px 14px;background:#fff;border:1.5px solid #dbeafe;border-radius:9px}
+    .page-hdr{margin-bottom:20px}
+    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    .hero{background:linear-gradient(135deg,#0f2460,#1a3a8f);color:#fff;border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+    .hero h2{font-size:20px;font-weight:800;margin-bottom:4px}
+    .hero p{font-size:13px;opacity:.75}
+    .stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+    .stat-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:16px;text-align:center}
+    .stat-card .num{font-size:30px;font-weight:900;margin-bottom:4px}
+    .stat-card .lbl{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:18px}
+    .sec-title{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#dbeafe;color:#1e3a8a;padding:10px 14px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+    td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .b-pending{background:#fef9c3;color:#854d0e}
+    .b-approved{background:#dcfce7;color:#15803d}
+    .b-rejected{background:#fee2e2;color:#dc2626}
+    .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;font-size:13px;color:#1e3a8a;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px}
+    .btn{padding:8px 18px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+    .btn-primary{background:#1e3a8a;color:#fff}
+    .apply-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;color:#1e293b;outline:none;background:#f8fafc}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#3b82f6}
+    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .empty-row td{text-align:center;padding:30px;color:#94a3b8;font-style:italic}
+    .avail-badge{display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:800;background:#dcfce7;color:#15803d}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="back-bar">
+    <a href="/employee_portal"><i class="ti ti-arrow-left"></i> Back to Portal</a>
+    {% if compoff_lt_id %}
+    <button onclick="document.getElementById('applyModal').style.display='flex'" class="btn btn-primary">
+      <i class="ti ti-plus"></i> Apply for Comp-off
+    </button>
+    {% endif %}
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% set emp_name, emp_role, emp_dept = emp_info %}
+  <div class="hero">
+    <div>
+      <h2>{{ emp_name }}</h2>
+      <p>{{ emp_role }} &nbsp;·&nbsp; {{ emp_dept or 'No Department' }}</p>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:38px;font-weight:900;color:{% if avail_days > 0 %}#4ade80{% else %}rgba(255,255,255,.5){% endif %};">
+        {{ "%.1f"|format(avail_days) }}
+      </div>
+      <div style="font-size:12px;opacity:.75;">Comp-off Days Available</div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num" style="color:#3b82f6;">{{ "%.1f"|format(earned_min / 60) }}</div>
+      <div class="lbl">OT Hours Earned</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#16a34a;">{{ "%.1f"|format(avail_days) }}</div>
+      <div class="lbl">Days Available</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#f59e0b;">{{ "%.1f"|format(used_days) }}</div>
+      <div class="lbl">Days Used</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#6366f1;">{{ "%.1f"|format(earned_days) }}</div>
+      <div class="lbl">Total Earned</div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <i class="ti ti-info-circle" style="font-size:18px;flex-shrink:0;"></i>
+    <span>
+      OT of ≥ <b>{{ min_ot_minutes }} minutes</b> per day (when approved by admin) credits your comp-off balance.
+      Every <b>{{ minutes_per_day }} OT minutes</b> ({{ "%.0f"|format(minutes_per_day / 60) }} hrs) = <b>1 comp-off day</b>.
+    </span>
+  </div>
+
+  <!-- OT Records -->
+  <div class="card">
+    <div class="sec-title"><i class="ti ti-clock-bolt"></i> My Overtime Records</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>OT Duration</th>
+            <th>OT Pay</th>
+            <th>Comp-off Credited</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for date, ot_min, ot_pay, status, notes in ot_records %}
+          <tr>
+            <td>{{ date.strftime('%d %b %Y') if date else '—' }}</td>
+            <td>
+              <span style="font-weight:700;color:#3b82f6;">{{ (ot_min // 60) }}h {{ (ot_min % 60) }}m</span>
+              <span style="font-size:11px;color:#94a3b8;">({{ ot_min }} min)</span>
+            </td>
+            <td style="color:#16a34a;font-weight:600;">Rs. {{ "%.2f"|format(ot_pay) }}</td>
+            <td>
+              {% if status == 'Approved' and ot_min >= min_ot_minutes %}
+              <span style="color:#16a34a;font-weight:700;font-size:12px;">
+                <i class="ti ti-check"></i> +{{ "%.1f"|format(ot_min / minutes_per_day) }} days
+              </span>
+              {% elif ot_min < min_ot_minutes %}
+              <span style="color:#94a3b8;font-size:11px;">Below threshold</span>
+              {% else %}
+              <span style="color:#94a3b8;font-size:11px;">Pending</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {% if status=='Approved' %}b-approved{% elif status=='Rejected' %}b-rejected{% else %}b-pending{% endif %}">
+                {{ status }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty-row">No overtime records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Comp-off Leave History -->
+  <div class="card">
+    <div class="sec-title"><i class="ti ti-calendar-off"></i> Comp-off Leave Applications</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Reason</th>
+            <th>Applied On</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for leave_date, status, reason, created_at in compoff_leaves %}
+          <tr>
+            <td style="font-weight:700;">{{ leave_date.strftime('%d %b %Y') if leave_date else '—' }}</td>
+            <td>
+              <span class="badge {% if status=='Approved' %}b-approved{% elif status=='Rejected' %}b-rejected{% else %}b-pending{% endif %}">
+                {{ status }}
+              </span>
+            </td>
+            <td style="color:#64748b;">{{ reason or '—' }}</td>
+            <td style="color:#94a3b8;font-size:11px;">{{ created_at.strftime('%d %b %Y') if created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-row">No comp-off leaves applied yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Apply Comp-off Modal -->
+{% if compoff_lt_id %}
+<div id="applyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:18px;padding:28px;width:460px;max-width:95%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:17px;font-weight:800;color:#1e293b;"><i class="ti ti-calendar-plus" style="color:#3b82f6;"></i> Apply for Comp-off Leave</h2>
+      <button onclick="document.getElementById('applyModal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;">&times;</button>
+    </div>
+
+    {% if avail_days <= 0 %}
+    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:14px 16px;color:#dc2626;font-size:13px;margin-bottom:16px;">
+      <i class="ti ti-alert-circle"></i> You don't have any comp-off balance available. Get overtime approved first.
+    </div>
+    {% else %}
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 16px;color:#15803d;font-size:13px;margin-bottom:16px;">
+      <i class="ti ti-circle-check"></i> Available balance: <b>{{ "%.1f"|format(avail_days) }} days</b>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/apply_leave" class="apply-form">
+      <input type="hidden" name="leave_type_id" value="{{ compoff_lt_id }}"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Leave Date</label>
+          <input type="date" name="leave_date" required min="{{ today }}"/>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select name="is_half">
+            <option value="0">Full Day</option>
+            <option value="1">Half Day</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <textarea name="reason" rows="3" placeholder="Reason for comp-off leave…"></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button type="button" onclick="document.getElementById('applyModal').style.display='none'" class="btn" style="background:#f1f5f9;color:#64748b;">Cancel</button>
+        <button type="submit" class="btn btn-primary" {% if avail_days <= 0 %}disabled{% endif %}><i class="ti ti-send"></i> Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+var today = new Date().toISOString().split('T')[0];
+document.querySelectorAll('input[type=date]').forEach(function(el){ el.min = today; });
+</script>
+<script src="/static/darkmode.js"></script>
+</body>
+</html>
