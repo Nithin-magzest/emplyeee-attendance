@@ -176,17 +176,19 @@ def get_company_settings():
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute("SELECT company_name, company_tagline, company_logo, currency_symbol, timezone, setup_done FROM company_settings LIMIT 1")
+        cursor.execute("SELECT company_name, company_tagline, company_logo, currency_symbol, timezone, setup_done, COALESCE(company_code,'') FROM company_settings LIMIT 1")
         row = cursor.fetchone()
         cursor.close(); db.close()
         if row:
             return {"company_name": row[0], "company_tagline": row[1],
                     "company_logo": row[2], "currency_symbol": row[3],
+                    "company_code": row[6],
                     "timezone": row[4], "setup_done": bool(row[5])}
     except Exception:
         pass
     return {"company_name": "My Company", "company_tagline": "Employee Attendance System",
-            "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata", "setup_done": False}
+            "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
+            "setup_done": False, "company_code": ""}
 
 @app.context_processor
 def inject_company():
@@ -545,6 +547,7 @@ def init_db():
         "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
         "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN company_code VARCHAR(10) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1686,10 +1689,15 @@ def settings_page():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
     pending_tickets = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
+    _cr = cursor.fetchone()
+    company_code = _cr[0] if _cr else ""
+
     cursor.close(); db.close()
     return render_template("settings.html",
         tab=tab,
         email_config=email_config,
+        company_code=company_code,
         shifts=shift_rows,
         emp_list=emp_list,
         breaks=breaks,
@@ -1707,6 +1715,18 @@ def settings_page():
         now_month=datetime.date.today().month,
         now_year=datetime.date.today().year,
     )
+
+# ---------------- SAVE COMPANY CODE ----------------
+@app.route("/save_company_code", methods=["POST"])
+@admin_required
+def save_company_code():
+    code = request.form.get("company_code", "").strip().upper()[:10]
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET company_code=%s", (code,))
+    db.commit(); cursor.close(); db.close()
+    flash(f"Company code set to '{code}'.", "success")
+    return redirect("/settings?tab=email")
+
 
 # ---------------- INCENTIVES ----------------
 
@@ -2909,6 +2929,26 @@ def delete_holiday(hid):
     cursor.close()
     db.close()
     return redirect(f"/view_holidays?year={year}")
+
+# ---------------- AUTO GENERATE EMPLOYEE ID ----------------
+@app.route("/api/generate_emp_id")
+@admin_required
+def generate_emp_id():
+    work_mode = request.args.get("work_mode", "office").strip().lower()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    code = (row[0] or "").strip().upper() if row else ""
+    # count total employees to get next sequence number
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total = cursor.fetchone()[0]
+    cursor.close(); db.close()
+    seq = total + 1
+    mode_letter = "H" if work_mode == "wfh" else "O"
+    emp_id = f"{code}{mode_letter}{seq:03d}"
+    return jsonify({"emp_id": emp_id, "code": code, "seq": seq})
+
 
 # ---------------- BREAK CONFIG ----------------
 @app.route("/api/breaks")

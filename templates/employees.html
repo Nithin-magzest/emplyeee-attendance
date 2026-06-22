@@ -291,7 +291,7 @@
                    oninput="applyFilters()" />
           </div>
           <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
-          <button class="btn-add" onclick="openModal('addModal')">
+          <button class="btn-add" onclick="openModal('addModal');setTimeout(generateEmpId,150)">
             <i class="ti ti-plus"></i> Add Employee
           </button>
         </div>
@@ -485,7 +485,15 @@
             </div>
             <div class="field-group">
               <label>Employee ID *</label>
-              <input type="text" name="emp_id" required placeholder="EMP001" />
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" name="emp_id" id="addEmpId" required placeholder="Auto-generated on work mode select"
+                       style="flex:1;font-weight:700;letter-spacing:1px;" />
+                <button type="button" onclick="generateEmpId()" title="Re-generate ID"
+                  style="padding:9px 12px;border:1px solid #dbeafe;border-radius:9px;background:#eff6ff;color:#1e3a8a;cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600;">
+                  🔄 Generate
+                </button>
+              </div>
+              <div id="empIdHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
             </div>
             <div class="field-group">
               <label>Email</label>
@@ -533,11 +541,11 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value)" style="accent-color:#1e3a8a;" /> 🏢 Office
+                         onchange="toggleAddLocation(this.value);generateEmpId()" style="accent-color:#1e3a8a;" /> 🏢 Office
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value)" style="accent-color:#059669;" /> 🏠 Work from Home
+                         onchange="toggleAddLocation(this.value);generateEmpId()" style="accent-color:#059669;" /> 🏠 Work from Home
                 </label>
               </div>
             </div>
@@ -1015,6 +1023,23 @@
       function toggleAddLocation(mode) {
         document.getElementById('addLocationBox').style.display = mode === 'wfh' ? 'block' : 'none';
       }
+
+      async function generateEmpId() {
+        var sel = document.querySelector('input[name="work_mode"]:checked');
+        var mode = sel ? sel.value : 'office';
+        try {
+          var res  = await fetch('/api/generate_emp_id?work_mode=' + encodeURIComponent(mode));
+          var data = await res.json();
+          document.getElementById('addEmpId').value = data.emp_id;
+          var hint = document.getElementById('empIdHint');
+          if (hint) hint.textContent = 'Auto-generated: ' + data.emp_id + (data.code ? ' (code: ' + data.code + ')' : ' — set company code in Settings');
+        } catch(e) {}
+      }
+      // Generate on modal open
+      document.addEventListener('DOMContentLoaded', function() {
+        var addBtn = document.querySelector('[onclick*="addModal"]');
+        if (addBtn) addBtn.addEventListener('click', function() { setTimeout(generateEmpId, 100); });
+      });
 
       // ========== EDIT MODAL ==========
       function toggleEditLocation(mode) {

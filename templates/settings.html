@@ -268,6 +268,27 @@
          TAB: EMAIL
     ══════════════════════════════════════ -->
     <div id="tab-email" class="tab-panel {% if tab=='email' %}active{% endif %}">
+
+      <!-- COMPANY CODE -->
+      <div class="section" style="margin-bottom:22px;">
+        <div class="section-title">🏢 Company Code (for Employee ID generation)</div>
+        <form method="POST" action="/save_company_code" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+          <div class="field" style="margin:0;flex:1;min-width:180px;">
+            <label>Company Code</label>
+            <input type="text" name="company_code" value="{{ company_code or '' }}"
+                   maxlength="10" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;font-size:16px;"
+                   placeholder="e.g. GRZ" />
+          </div>
+          <div style="padding-bottom:1px;">
+            <button type="submit" class="btn-add">💾 Save Code</button>
+          </div>
+          <div style="font-size:12px;color:#64748b;padding-bottom:6px;max-width:320px;line-height:1.6;">
+            Used to auto-generate Employee IDs.<br>
+            <strong>Format:</strong> <code>{{ company_code or 'GRZ' }}O001</code> (Office) &nbsp;·&nbsp; <code>{{ company_code or 'GRZ' }}H002</code> (Work from Home)
+          </div>
+        </form>
+      </div>
+
       <div class="two-col">
 
         <!-- SMTP form -->
