@@ -669,6 +669,8 @@ def init_db():
         "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN company_code VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN role VARCHAR(20) DEFAULT 'admin'",
+        "ALTER TABLE attendance ADD COLUMN worked_minutes INT DEFAULT 0",
+        "ALTER TABLE attendance ADD COLUMN last_relogin TIME DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -876,6 +878,17 @@ def get_attendance_type(login_status, logout_status):
     if login_status == "Late Login":
         return "Late - Full Day"
     return "Full Day"
+
+def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
+    """Classify attendance based on cumulative worked minutes vs shift length."""
+    today_d = datetime.date.today()
+    shift_mins = max(1, int((
+        datetime.datetime.combine(today_d, s_end) -
+        datetime.datetime.combine(today_d, s_start)
+    ).total_seconds() / 60))
+    if total_minutes >= shift_mins * 0.75:
+        return "Late - Full Day" if login_status == "Late Login" else "Full Day"
+    return "Half Day"
 
 def calculate_deduction(salary_per_day, attendance_type):
     spd = float(salary_per_day)
@@ -4203,13 +4216,16 @@ def attendance():
     current_time = now.time()
 
     cursor.execute(
-        "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
+        "SELECT login_time, logout_time, status, worked_minutes, last_relogin "
+        "FROM attendance WHERE employee_id=%s AND date=%s",
         (emp_id, today)
     )
     record              = cursor.fetchone()
     login_time          = record[0] if record else None
     logout_time         = record[1] if record else None
     login_status_stored = record[2] if record else None
+    worked_mins_stored  = (record[3] or 0) if record else 0
+    last_relogin_stored = record[4] if record else None
 
     # Use employee's assigned shift, or global defaults
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
@@ -4233,6 +4249,15 @@ def attendance():
                         "work_mode": emp_work_mode})
 
     elif not logout_time:
+        # Determine session start (re-login time if present, else first login)
+        session_start = last_relogin_stored if last_relogin_stored else login_time
+        if not isinstance(session_start, datetime.time):
+            session_start = _td_to_time(session_start)
+        cur_dt    = datetime.datetime.combine(today, current_time)
+        start_dt  = datetime.datetime.combine(today, session_start)
+        session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
+        total_m   = worked_mins_stored + session_m
+
         if current_time < s_half:
             logout_status = "Half Day Logout"
         elif current_time < s_end:
@@ -4243,11 +4268,11 @@ def attendance():
         now_mins   = current_time.hour * 60 + current_time.minute
         end_mins   = s_end.hour * 60 + s_end.minute
         overtime_m = max(0, now_mins - end_mins)
-        att_type = get_attendance_type(login_status_stored, logout_status)
+        att_type = classify_by_worked_minutes(login_status_stored, total_m, s_start, s_end)
         cursor.execute(
-            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
-            (current_time, logout_status, att_type, emp_id, today)
+            (current_time, logout_status, att_type, total_m, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
         detect_overtime(emp_id, today, current_time)
@@ -4260,8 +4285,18 @@ def attendance():
         return jsonify(resp)
 
     else:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
+        # Re-login after a break — re-open the session
+        # worked_minutes was already saved on the previous logout, so just set last_relogin
+        cursor.execute(
+            "UPDATE attendance SET logout_time=NULL, last_relogin=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, emp_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        time_str = current_time.strftime("%H:%M:%S")
+        return jsonify({"ok": True, "type": "relogin", "name": employee_name,
+                        "status": "Re-Login", "time": time_str, "shift": shift_name,
+                        "work_mode": emp_work_mode})
 
 # ================================================================
 #  EMPLOYEE PORTAL
@@ -6573,13 +6608,16 @@ def api_checkin():
     today         = now.date()
     current_time  = now.time()
     cursor.execute(
-        "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
+        "SELECT login_time, logout_time, status, worked_minutes, last_relogin "
+        "FROM attendance WHERE employee_id=%s AND date=%s",
         (emp_id, today)
     )
-    record             = cursor.fetchone()
-    login_time         = record[0] if record else None
-    logout_time        = record[1] if record else None
-    login_status_stored= record[2] if record else None
+    record              = cursor.fetchone()
+    login_time          = record[0] if record else None
+    logout_time         = record[1] if record else None
+    login_status_stored = record[2] if record else None
+    worked_mins_stored  = (record[3] or 0) if record else 0
+    last_relogin_stored = record[4] if record else None
     if not login_time:
         grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
         if current_time <= grace_time:
@@ -6596,17 +6634,24 @@ def api_checkin():
         return jsonify({"ok": True, "type": "login", "name": employee_name,
                         "status": login_status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
+        session_start = last_relogin_stored if last_relogin_stored else login_time
+        if not isinstance(session_start, datetime.time):
+            session_start = _td_to_time(session_start)
+        cur_dt    = datetime.datetime.combine(today, current_time)
+        start_dt  = datetime.datetime.combine(today, session_start)
+        session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
+        total_m   = worked_mins_stored + session_m
         if current_time < SHIFT_HALF:
             logout_status = "Half Day Logout"
         elif current_time < SHIFT_END:
             logout_status = "Early Logout"
         else:
             logout_status = "Completed"
-        att_type = get_attendance_type(login_status_stored, logout_status)
+        att_type = classify_by_worked_minutes(login_status_stored, total_m, SHIFT_START, SHIFT_END)
         cursor.execute(
-            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
-            (current_time, logout_status, att_type, emp_id, today)
+            (current_time, logout_status, att_type, total_m, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
         detect_overtime(emp_id, today, current_time)
@@ -6614,8 +6659,14 @@ def api_checkin():
                         "status": logout_status, "att_type": att_type,
                         "time": current_time.strftime("%H:%M:%S")})
     else:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
+        cursor.execute(
+            "UPDATE attendance SET logout_time=NULL, last_relogin=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, emp_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "type": "relogin", "name": employee_name,
+                        "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
 
 
 # ---------------- API: LEAVE REQUESTS ----------------
@@ -6883,13 +6934,16 @@ def api_employee_checkin():
     current_time = now.time()
 
     cursor.execute(
-        "SELECT login_time, logout_time, status FROM attendance WHERE employee_id=%s AND date=%s",
+        "SELECT login_time, logout_time, status, worked_minutes, last_relogin "
+        "FROM attendance WHERE employee_id=%s AND date=%s",
         (emp_id, today)
     )
-    record       = cursor.fetchone()
-    login_time   = record[0] if record else None
-    logout_time  = record[1] if record else None
-    login_status = record[2] if record else None
+    record              = cursor.fetchone()
+    login_time          = record[0] if record else None
+    logout_time         = record[1] if record else None
+    login_status        = record[2] if record else None
+    worked_mins_stored  = (record[3] or 0) if record else 0
+    last_relogin_stored = record[4] if record else None
 
     if not login_time:
         grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
@@ -6907,17 +6961,24 @@ def api_employee_checkin():
         return jsonify({"ok": True, "action": "login", "name": employee_name,
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
+        session_start = last_relogin_stored if last_relogin_stored else login_time
+        if not isinstance(session_start, datetime.time):
+            session_start = _td_to_time(session_start)
+        cur_dt    = datetime.datetime.combine(today, current_time)
+        start_dt  = datetime.datetime.combine(today, session_start)
+        session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
+        total_m   = worked_mins_stored + session_m
         if current_time < SHIFT_HALF:
             out_status = "Half Day Logout"
         elif current_time < SHIFT_END:
             out_status = "Early Logout"
         else:
             out_status = "Completed"
-        att_type = get_attendance_type(login_status, out_status)
+        att_type = classify_by_worked_minutes(login_status, total_m, SHIFT_START, SHIFT_END)
         cursor.execute(
-            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s "
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
-            (current_time, out_status, att_type, emp_id, today)
+            (current_time, out_status, att_type, total_m, emp_id, today)
         )
         db.commit(); cursor.close(); db.close()
         detect_overtime(emp_id, today, current_time)
@@ -6925,8 +6986,14 @@ def api_employee_checkin():
                         "status": out_status, "att_type": att_type,
                         "time": current_time.strftime("%H:%M:%S")})
     else:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Attendance already completed for today."})
+        cursor.execute(
+            "UPDATE attendance SET logout_time=NULL, last_relogin=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, emp_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "action": "relogin", "name": employee_name,
+                        "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
 
 
 @app.route("/api/employee/leave_request", methods=["POST"])
