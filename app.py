@@ -7232,7 +7232,8 @@ def analytics():
                 'level': 'danger',
                 'icon': 'ti-user-off',
                 'title': f'{len(absent3)} employee{"s" if len(absent3)>1 else ""} absent for 3+ consecutive days',
-                'detail': names + extra
+                'detail': names + extra,
+                'link': '/monthly_report'
             })
 
     # 2. Leave requests spike this week vs last week
@@ -7248,7 +7249,8 @@ def analytics():
             'level': 'warning',
             'icon': 'ti-calendar-up',
             'title': f'Leave requests spiked {pct_jump}% compared to last week',
-            'detail': f'{leaves_this_week} requests this week vs {leaves_last_week} last week'
+            'detail': f'{leaves_this_week} requests this week vs {leaves_last_week} last week',
+            'link': '/leave_requests'
         })
 
     # 3. Employees with attendance below 50% this month
@@ -7270,7 +7272,8 @@ def analytics():
             'level': 'warning',
             'icon': 'ti-chart-bar-off',
             'title': f'{len(low_att)} employee{"s" if len(low_att)>1 else ""} below 50% attendance this month',
-            'detail': names + extra
+            'detail': names + extra,
+            'link': '/monthly_report'
         })
 
     # 4. High pending leave approvals
@@ -7279,7 +7282,8 @@ def analytics():
             'level': 'warning',
             'icon': 'ti-clock-pause',
             'title': f'{pending_leaves} leave requests pending approval',
-            'detail': 'Employees may be waiting — review and approve'
+            'detail': 'Employees may be waiting — review and approve',
+            'link': '/leave_requests'
         })
 
     # 5. New joiners who have never logged in
@@ -7296,7 +7300,8 @@ def analytics():
             'level': 'info',
             'icon': 'ti-user-question',
             'title': f'{len(never_logged)} new joiner{"s" if len(never_logged)>1 else ""} {"have" if len(never_logged)>1 else "has"} never logged attendance',
-            'detail': names + extra
+            'detail': names + extra,
+            'link': '/employees'
         })
 
     # 6. Pending overtime approvals
@@ -7307,7 +7312,8 @@ def analytics():
             'level': 'info',
             'icon': 'ti-clock-bolt',
             'title': f'{ot_pending_count} overtime requests waiting for approval',
-            'detail': 'Review pending OT requests from the dashboard'
+            'detail': 'Review pending OT requests from the dashboard',
+            'link': '/overtime'
         })
 
     if not smart_alerts:
@@ -7315,7 +7321,8 @@ def analytics():
             'level': 'success',
             'icon': 'ti-circle-check',
             'title': 'All systems healthy — no anomalies detected',
-            'detail': 'Attendance, leaves and approvals are all on track'
+            'detail': 'Attendance, leaves and approvals are all on track',
+            'link': ''
         })
 
     cursor.close(); db.close()

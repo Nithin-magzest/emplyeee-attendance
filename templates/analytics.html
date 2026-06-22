@@ -142,7 +142,15 @@
         {% else %}
           {% set bg='#eff6ff' %}{% set border='#bfdbfe' %}{% set ic='#3b82f6' %}{% set badge_bg='#dbeafe' %}{% set badge_c='#1d4ed8' %}{% set badge='Info' %}
         {% endif %}
-        <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">
+        {% if alert.link %}
+        <a href="{{ alert.link }}" style="text-decoration:none;">
+        {% endif %}
+        <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
+          {% if alert.link %}cursor:pointer;transition:all .18s;{% endif %}"
+          {% if alert.link %}
+          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,.1)';this.style.borderColor='{{ ic }}';"
+          onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='{{ border }}';"
+          {% endif %}>
           <div style="width:34px;height:34px;border-radius:9px;background:{{ badge_bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="ti {{ alert.icon }}" style="color:{{ ic }};font-size:16px;"></i>
           </div>
@@ -150,8 +158,14 @@
             <div style="font-size:13px;font-weight:700;color:#1e293b;line-height:1.4;">{{ alert.title }}</div>
             <div style="font-size:11px;color:#64748b;margin-top:3px;">{{ alert.detail }}</div>
           </div>
-          <span style="font-size:10px;font-weight:700;background:{{ badge_bg }};color:{{ badge_c }};padding:2px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;">{{ badge }}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span style="font-size:10px;font-weight:700;background:{{ badge_bg }};color:{{ badge_c }};padding:2px 9px;border-radius:20px;white-space:nowrap;">{{ badge }}</span>
+            {% if alert.link %}<i class="ti ti-arrow-right" style="color:{{ ic }};font-size:14px;"></i>{% endif %}
+          </div>
         </div>
+        {% if alert.link %}
+        </a>
+        {% endif %}
         {% endfor %}
       </div>
     </div>
@@ -159,7 +173,14 @@
 
   <div class="charts-grid">
     <div class="chart-card full">
-      <div class="chart-title"><i class="ti ti-chart-bar" style="color:#3b82f6;"></i> Last 6 Months Attendance</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div class="chart-title" style="margin-bottom:0;"><i class="ti ti-chart-bar" style="color:#3b82f6;"></i> Last 6 Months Attendance Rate</div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:600;">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#16a34a;display:inline-block;"></span> ≥80% Good</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#f59e0b;display:inline-block;"></span> 60–80% Average</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#ef4444;display:inline-block;"></span> &lt;60% Poor</span>
+        </div>
+      </div>
       <div class="chart-wrap tall"><canvas id="monthlyChart"></canvas></div>
     </div>
     <div class="chart-card">
@@ -203,64 +224,105 @@
   <!-- ROW 3: Heatmap + Late Trend -->
   <div class="charts-grid" style="margin-top:16px;">
     <!-- Attendance Heatmap -->
-    <div class="chart-card full" style="background:#fff;border:1px solid #dbeafe;padding:28px 32px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;">
-        <div>
-          <div style="font-size:15px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:8px;">
-            <i class="ti ti-calendar-stats" style="color:#6366f1;font-size:18px;"></i> Attendance Heatmap
+    <div class="chart-card full" style="padding:24px 28px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 2px 16px rgba(99,102,241,.06);">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(99,102,241,.3);">
+            <i class="ti ti-calendar-stats" style="color:#fff;font-size:20px;"></i>
           </div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:3px;">Last 35 days · {{ total_employees }} total employees</div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#1e293b;">Attendance Heatmap</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">Last 35 days · {{ total_employees }} employees</div>
+          </div>
         </div>
         <!-- Legend -->
-        <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;">
-          <span>Low</span>
-          <div style="display:flex;gap:3px;">
-            <span style="width:14px;height:14px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;display:inline-block;"></span>
-            <span style="width:14px;height:14px;border-radius:4px;background:#fecdd3;display:inline-block;"></span>
-            <span style="width:14px;height:14px;border-radius:4px;background:#fde68a;display:inline-block;"></span>
-            <span style="width:14px;height:14px;border-radius:4px;background:#86efac;display:inline-block;"></span>
-            <span style="width:14px;height:14px;border-radius:4px;background:#16a34a;display:inline-block;"></span>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#64748b;font-weight:500;">
+          <span>Less</span>
+          <div style="display:flex;gap:3px;align-items:center;">
+            <span style="width:16px;height:16px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;display:inline-block;"></span>
+            <span style="width:16px;height:16px;border-radius:4px;background:#fca5a5;display:inline-block;"></span>
+            <span style="width:16px;height:16px;border-radius:4px;background:#fde68a;display:inline-block;"></span>
+            <span style="width:16px;height:16px;border-radius:4px;background:#86efac;display:inline-block;"></span>
+            <span style="width:16px;height:16px;border-radius:4px;background:#16a34a;display:inline-block;"></span>
           </div>
-          <span>High</span>
+          <span>More</span>
         </div>
       </div>
 
-      <!-- Day labels + grid -->
-      <div style="display:flex;gap:0;">
-        <!-- Y-axis day labels -->
-        <div style="display:grid;grid-template-rows:repeat(7,40px);gap:4px;margin-right:12px;padding-top:2px;">
+      <!-- Grid -->
+      <div style="display:flex;gap:0;overflow-x:auto;">
+        <!-- Day labels -->
+        <div style="display:grid;grid-template-rows:repeat(7,58px);gap:5px;margin-right:10px;flex-shrink:0;padding-top:28px;">
           {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-          <div style="font-size:10px;color:#94a3b8;font-weight:600;display:flex;align-items:center;height:40px;">{{ day }}</div>
+          <div style="font-size:10px;color:#94a3b8;font-weight:700;display:flex;align-items:center;height:58px;letter-spacing:.3px;">{{ day }}</div>
           {% endfor %}
         </div>
 
-        <!-- Heatmap grid: 5 weeks × 7 days -->
-        <div style="display:grid;grid-template-rows:repeat(7,40px);grid-auto-columns:50px;grid-auto-flow:column;gap:4px;">
-          {% for d in heatmap_data %}
-          {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
-          {% if pct == 0 %}{% set bg = '#f8fafc' %}{% set tc = '#cbd5e1' %}{% set border = '#e2e8f0' %}
-          {% elif pct < 40 %}{% set bg = '#fff1f2' %}{% set tc = '#e11d48' %}{% set border = '#fecdd3' %}
-          {% elif pct < 70 %}{% set bg = '#fffbeb' %}{% set tc = '#d97706' %}{% set border = '#fde68a' %}
-          {% elif pct < 90 %}{% set bg = '#f0fdf4' %}{% set tc = '#16a34a' %}{% set border = '#bbf7d0' %}
-          {% else %}{% set bg = '#dcfce7' %}{% set tc = '#15803d' %}{% set border = '#86efac' %}{% endif %}
-          <div
-            onclick="showHeatmapTooltip(this, '{{ d.date }}', {{ d.count }}, {{ pct|round(1) }})"
-            style="border-radius:8px;background:{{ bg }};border:1.5px solid {{ border }};
-                   display:flex;flex-direction:column;align-items:center;justify-content:center;
-                   cursor:pointer;transition:all .15s;position:relative;"
-            onmouseover="this.style.transform='scale(1.12)';this.style.zIndex=10;this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';"
-            onmouseout="this.style.transform='';this.style.zIndex='';this.style.boxShadow='';">
-            <div style="font-size:9px;color:{{ tc }};font-weight:600;opacity:.7;line-height:1;">{{ d.date[8:] }}</div>
-            <div style="font-size:13px;color:{{ tc }};font-weight:800;line-height:1.3;">{{ d.count }}</div>
+        <!-- Weeks wrapper with labels -->
+        <div style="display:flex;flex-direction:column;gap:0;flex:1;">
+          <!-- Week labels -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:5px;">
+            {% for w in range(1,6) %}
+            {% set wi = (w-1)*7 %}
+            <div style="font-size:10px;color:#94a3b8;font-weight:700;text-align:center;letter-spacing:.3px;">
+              {% if wi < heatmap_data|length %}Wk {{ w }}{% endif %}
+            </div>
+            {% endfor %}
           </div>
-          {% endfor %}
+
+          <!-- Cells: 5 columns × 7 rows -->
+          <div style="display:grid;grid-template-rows:repeat(7,58px);grid-template-columns:repeat(5,1fr);grid-auto-flow:column;gap:5px;">
+            {% for d in heatmap_data %}
+            {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
+            {% set absent = total_employees - d.count %}
+            {% if pct == 0 %}{% set bg='#f1f5f9' %}{% set tc='#94a3b8' %}{% set sh='rgba(0,0,0,0)' %}{% set ac='#94a3b8' %}
+            {% elif pct < 25 %}{% set bg='#fee2e2' %}{% set tc='#b91c1c' %}{% set sh='rgba(239,68,68,.2)' %}{% set ac='#f87171' %}
+            {% elif pct < 50 %}{% set bg='#fca5a5' %}{% set tc='#7f1d1d' %}{% set sh='rgba(239,68,68,.25)' %}{% set ac='#ef4444' %}
+            {% elif pct < 75 %}{% set bg='#fde68a' %}{% set tc='#78350f' %}{% set sh='rgba(245,158,11,.3)' %}{% set ac='#d97706' %}
+            {% elif pct < 90 %}{% set bg='#86efac' %}{% set tc='#14532d' %}{% set sh='rgba(34,197,94,.3)' %}{% set ac='#15803d' %}
+            {% else %}{% set bg='#16a34a' %}{% set tc='#fff' %}{% set sh='rgba(22,163,74,.4)' %}{% set ac='rgba(255,255,255,.7)' %}{% endif %}
+            <div
+              onmouseenter="showHeatmapTooltip(this,'{{ d.date }}',{{ d.count }},{{ absent }},{{ pct|round(1) }})"
+              onmouseleave="document.getElementById('hmTooltip').style.display='none'"
+              style="border-radius:10px;background:{{ bg }};
+                     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+                     cursor:pointer;transition:all .18s;box-shadow:0 2px 6px {{ sh }};position:relative;padding:4px 2px;"
+              onmouseover="this.style.transform='scale(1.08)';this.style.zIndex=10;"
+              onmouseout="this.style.transform='';this.style.zIndex='';">
+              <div style="font-size:9px;color:{{ tc }};font-weight:600;opacity:.6;line-height:1;">{{ d.date[8:] }}</div>
+              <div style="font-size:13px;color:{{ tc }};font-weight:800;line-height:1.2;">{{ d.count }}</div>
+              <div style="font-size:10px;color:{{ ac }};font-weight:600;opacity:.8;line-height:1;">-{{ absent }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      {% set total_present = heatmap_data | sum(attribute='count') %}
+      {% set best_day = heatmap_data | max(attribute='count') %}
+      <div style="display:flex;gap:24px;margin-top:18px;padding-top:16px;border-top:1px solid #f1f5f9;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-users" style="font-size:15px;color:#3b82f6;"></i></div>
+          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Total Check-ins</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ total_present }}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:8px;background:#fdf4ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-trending-up" style="font-size:15px;color:#a855f7;"></i></div>
+          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Best Single Day</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ best_day.count }} <span style="font-size:11px;color:#94a3b8;font-weight:500;">on {{ best_day.date }}</span></div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-calendar-check" style="font-size:15px;color:#16a34a;"></i></div>
+          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Avg / Day</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ ((total_present / 35) | round(1)) }}</div></div>
         </div>
       </div>
 
       <!-- Tooltip -->
-      <div id="hmTooltip" style="display:none;position:fixed;background:#1e293b;color:#fff;font-size:12px;padding:8px 14px;border-radius:9px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:9999;pointer-events:none;border:1px solid #334155;">
-        <div id="hmDate" style="font-weight:700;color:#60a5fa;"></div>
-        <div id="hmCount" style="margin-top:2px;color:#e2e8f0;"></div>
+      <div id="hmTooltip" style="display:none;position:fixed;background:#1e293b;color:#fff;font-size:12px;padding:10px 16px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.25);z-index:9999;pointer-events:none;border:1px solid #334155;min-width:160px;">
+        <div id="hmDate" style="font-weight:700;color:#818cf8;font-size:13px;"></div>
+        <div id="hmCount" style="margin-top:4px;color:#e2e8f0;"></div>
+        <div id="hmPct" style="margin-top:2px;color:#94a3b8;font-size:11px;"></div>
       </div>
     </div>
 
@@ -310,32 +372,87 @@
 
 <script>
 // Heatmap tooltip
-function showHeatmapTooltip(el, date, count, pct) {
+function showHeatmapTooltip(el, date, present, absent, pct) {
   const tip = document.getElementById('hmTooltip');
   document.getElementById('hmDate').textContent = date;
-  document.getElementById('hmCount').textContent = count + ' present (' + pct + '%)';
+  document.getElementById('hmCount').textContent = '+' + present + ' present   -' + absent + ' absent';
+  document.getElementById('hmPct').textContent = pct + '% attendance rate';
   tip.style.display = 'block';
   const r = el.getBoundingClientRect();
-  tip.style.left = (r.left + r.width / 2 - tip.offsetWidth / 2) + 'px';
-  tip.style.top  = (r.top - tip.offsetHeight - 8) + 'px';
-  clearTimeout(tip._t);
-  tip._t = setTimeout(() => tip.style.display = 'none', 2200);
+  tip.style.left = (r.left + r.width / 2 - 90) + 'px';
+  tip.style.top  = (r.top - 80 + window.scrollY) + 'px';
 }
 document.addEventListener('scroll', () => { document.getElementById('hmTooltip').style.display='none'; });
 
 const COLORS = ['#3b82f6','#22c55e','#ef4444','#f59e0b','#a855f7','#6366f1','#ec4899','#14b8a6'];
 
 const monthlyData = {{ monthly_series | tojson }};
+const monthlyColors = monthlyData.map(d =>
+  d.att_pct >= 80 ? '#16a34a' : d.att_pct >= 60 ? '#f59e0b' : '#ef4444'
+);
+const monthlyBorderColors = monthlyData.map(d =>
+  d.att_pct >= 80 ? '#15803d' : d.att_pct >= 60 ? '#d97706' : '#dc2626'
+);
 new Chart(document.getElementById('monthlyChart'), {
   type: 'bar',
   data: {
     labels: monthlyData.map(d => d.month_label),
-    datasets: [
-      { label: 'Present Records', data: monthlyData.map(d => d.present_days), backgroundColor: '#3b82f6', borderRadius: 6 },
-      { label: 'Absent Records',  data: monthlyData.map(d => d.absent_days),  backgroundColor: '#ef4444', borderRadius: 6 }
-    ]
+    datasets: [{
+      label: 'Attendance Rate',
+      data: monthlyData.map(d => d.att_pct),
+      backgroundColor: monthlyColors,
+      borderColor: monthlyBorderColors,
+      borderWidth: 2,
+      borderRadius: 10,
+      borderSkipped: false,
+    }]
   },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } } }
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y}% attendance rate`,
+          afterLabel: ctx => {
+            const d = monthlyData[ctx.dataIndex];
+            return ` Present: ${d.present_days}  |  Absent: ${d.absent_days}`;
+          }
+        }
+      },
+      // Target line annotation via datalabels
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' } } },
+      y: {
+        beginAtZero: true, max: 100,
+        ticks: { callback: v => v + '%', font: { size: 11 } },
+        grid: { color: '#f1f5f9' }
+      }
+    },
+    // Draw % label inside each bar
+    animation: {
+      onComplete: function() {
+        const chart = this;
+        const ctx2 = chart.ctx;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((bar, index) => {
+            const val = dataset.data[index];
+            ctx2.save();
+            ctx2.font = 'bold 13px Segoe UI';
+            ctx2.fillStyle = '#fff';
+            ctx2.textAlign = 'center';
+            ctx2.textBaseline = 'middle';
+            const y = bar.y + (bar.base - bar.y) / 2;
+            if (bar.base - bar.y > 24) ctx2.fillText(val + '%', bar.x, y);
+            ctx2.restore();
+          });
+        });
+      }
+    }
+  }
 });
 
 const deptData = {{ dept_data | tojson }};
