@@ -1818,7 +1818,7 @@ def announcements_admin():
             db.commit()
             flash("Announcement deleted.", "success")
         cursor.close(); db.close()
-        return redirect("/settings?tab=announcements")
+        return redirect("/announcements")
 
     cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
     ann_list = cursor.fetchall()
