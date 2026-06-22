@@ -272,12 +272,15 @@
       <!-- COMPANY CODE -->
       <div class="section" style="margin-bottom:22px;">
         <div class="section-title">🏢 Company Code (for Employee ID generation)</div>
-        <form method="POST" action="/save_company_code" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <form method="POST" action="/save_company_code" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;" onsubmit="return confirmCodeChange(this)">
           <div class="field" style="margin:0;flex:1;min-width:180px;">
             <label>Company Code</label>
-            <input type="text" name="company_code" value="{{ company_code or '' }}"
+            <input type="text" name="company_code" id="companyCodeInput"
+                   value="{{ company_code or '' }}"
+                   data-original="{{ company_code or '' }}"
                    maxlength="10" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;font-size:16px;"
-                   placeholder="e.g. GRZ" />
+                   placeholder="e.g. GRZ"
+                   oninput="showCodeChangeWarning(this)" />
           </div>
           <div style="padding-bottom:1px;">
             <button type="submit" class="btn-add">💾 Save Code</button>
@@ -287,6 +290,12 @@
             <strong>Format:</strong> <code>{{ company_code or 'GRZ' }}001</code>, <code>{{ company_code or 'GRZ' }}002</code>, <code>{{ company_code or 'GRZ' }}003</code> …
           </div>
         </form>
+        {% if company_code %}
+        <div id="codeChangeWarning" style="display:none;margin-top:12px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;line-height:1.6;">
+          ⚠️ <strong>Warning:</strong> If you change the company code, new employee IDs will start from <strong>001</strong> again (e.g. <span id="newCodePreview">NEW</span>001).
+          Existing employees keep their old IDs.
+        </div>
+        {% endif %}
       </div>
 
       <div class="two-col">
@@ -872,6 +881,32 @@
       document.querySelectorAll('#salTbody tr').forEach(function(r) {
         r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
       });
+    }
+
+    function showCodeChangeWarning(input) {
+      var original = (input.getAttribute('data-original') || '').toUpperCase();
+      var current  = input.value.toUpperCase();
+      var warning  = document.getElementById('codeChangeWarning');
+      var preview  = document.getElementById('newCodePreview');
+      if (!warning) return;
+      if (original && current && current !== original) {
+        if (preview) preview.textContent = current;
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+
+    function confirmCodeChange(form) {
+      var input    = document.getElementById('companyCodeInput');
+      var original = (input.getAttribute('data-original') || '').toUpperCase();
+      var current  = input.value.toUpperCase();
+      if (original && current && current !== original) {
+        return confirm(
+          'Warning: Changing the company code from "' + original + '" to "' + current + '" will restart employee ID numbering from 001.\n\nExisting employees keep their old IDs.\n\nAre you sure you want to change it?'
+        );
+      }
+      return true;
     }
   </script>
 
