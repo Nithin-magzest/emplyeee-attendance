@@ -2932,21 +2932,34 @@ def delete_holiday(hid):
 
 # ---------------- AUTO GENERATE EMPLOYEE ID ----------------
 @app.route("/api/generate_emp_id")
-@admin_required
 def generate_emp_id():
+    if not session.get("admin"):
+        return jsonify({"error": "not logged in"}), 401
     work_mode = request.args.get("work_mode", "office").strip().lower()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
     row = cursor.fetchone()
     code = (row[0] or "").strip().upper() if row else ""
-    # count total employees to get next sequence number
+    # find the highest sequence number already used to avoid duplicates
+    mode_letter = "H" if work_mode == "wfh" else "O"
+    prefix = f"{code}{mode_letter}"
+    cursor.execute(
+        "SELECT employee_id FROM employees WHERE employee_id LIKE %s ORDER BY employee_id DESC",
+        (prefix + "%",)
+    )
+    rows = cursor.fetchall()
+    max_seq = 0
+    for (eid,) in rows:
+        suffix = eid[len(prefix):]
+        if suffix.isdigit():
+            max_seq = max(max_seq, int(suffix))
+    # also check cross-mode to keep global sequence unique
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
     cursor.close(); db.close()
-    seq = total + 1
-    mode_letter = "H" if work_mode == "wfh" else "O"
-    emp_id = f"{code}{mode_letter}{seq:03d}"
+    seq = max(max_seq + 1, total + 1)
+    emp_id = f"{prefix}{seq:03d}"
     return jsonify({"emp_id": emp_id, "code": code, "seq": seq})
 
 

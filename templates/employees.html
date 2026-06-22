@@ -1025,21 +1025,32 @@
       }
 
       async function generateEmpId() {
-        var sel = document.querySelector('input[name="work_mode"]:checked');
+        var sel  = document.querySelector('input[name="work_mode"]:checked');
         var mode = sel ? sel.value : 'office';
+        var hint = document.getElementById('empIdHint');
+        var inp  = document.getElementById('addEmpId');
+        if (!inp) return;
+        inp.placeholder = 'Generating…';
         try {
           var res  = await fetch('/api/generate_emp_id?work_mode=' + encodeURIComponent(mode));
+          if (!res.ok) { throw new Error('HTTP ' + res.status); }
           var data = await res.json();
-          document.getElementById('addEmpId').value = data.emp_id;
-          var hint = document.getElementById('empIdHint');
-          if (hint) hint.textContent = 'Auto-generated: ' + data.emp_id + (data.code ? ' (code: ' + data.code + ')' : ' — set company code in Settings');
-        } catch(e) {}
+          if (data.error) { throw new Error(data.error); }
+          inp.value = data.emp_id;
+          inp.placeholder = '';
+          if (hint) {
+            if (!data.code) {
+              hint.innerHTML = '<span style="color:#dc2626;">⚠ Set company code in <a href="/settings" target="_blank">Settings</a> first.</span>';
+            } else {
+              hint.textContent = '✓ Generated: ' + data.emp_id + ' (Company: ' + data.code + ')';
+              hint.style.color = '#16a34a';
+            }
+          }
+        } catch(e) {
+          inp.placeholder = 'Enter manually';
+          if (hint) { hint.textContent = 'Could not auto-generate: ' + e.message; hint.style.color = '#dc2626'; }
+        }
       }
-      // Generate on modal open
-      document.addEventListener('DOMContentLoaded', function() {
-        var addBtn = document.querySelector('[onclick*="addModal"]');
-        if (addBtn) addBtn.addEventListener('click', function() { setTimeout(generateEmpId, 100); });
-      });
 
       // ========== EDIT MODAL ==========
       function toggleEditLocation(mode) {
