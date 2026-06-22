@@ -38,6 +38,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import logging
+import sys
+
+# Structured logging
+_log_handler = logging.StreamHandler(sys.stdout)
+_log_handler.setFormatter(logging.Formatter(
+    '{"time":"%(asctime)s","level":"%(levelname)s","module":"%(module)s","msg":%(message)s}'
+))
+app_log = logging.getLogger("attendance")
+app_log.addHandler(_log_handler)
+app_log.setLevel(logging.INFO)
+
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
 if _missing_env:
@@ -51,10 +63,11 @@ if _missing_env:
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+_REDIS_URL = os.environ.get("REDIS_URL", "memory://")
 limiter = Limiter(
     get_remote_address,
     app=app,
-    storage_uri="memory://",
+    storage_uri=_REDIS_URL,
     default_limits=[],
 )
 
@@ -70,8 +83,20 @@ def favicon():
     ico = os.path.join(app.static_folder, "favicon.ico")
     return send_from_directory(app.static_folder, "favicon.ico", mimetype="image/x-icon") if os.path.exists(ico) else ("", 204)
 
-# In-memory API token store  { token: username }
-_api_tokens: dict = {}
+
+@app.route("/healthz")
+def healthz():
+    """Health check for load balancers."""
+    from database import get_db_connection as _hc_get_db
+    try:
+        conn = _hc_get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close(); conn.close()
+        return jsonify({"status": "ok", "db": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "db": str(e)}), 503
+
 
 # Jinja2 filter: handles both datetime.time and datetime.timedelta from MySQL
 @app.template_filter("fmt_time")
@@ -129,6 +154,48 @@ def _enforce_csrf():
                  or request.headers.get("X-CSRFToken"))
     if not token or not submitted or not secrets.compare_digest(str(token), str(submitted)):
         return jsonify({"ok": False, "msg": "Session expired. Please refresh and try again."}), 403
+
+
+@app.before_request
+def _resolve_tenant():
+    """Determine the tenant database for this request and store it in g.tenant_db."""
+    from flask import g as _g
+
+    # Skip for static files and special paths
+    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin")
+    if any(request.path.startswith(p) for p in skip_prefixes):
+        return
+
+    # 1. Already resolved in this session
+    if session.get("tenant_db"):
+        _g.tenant_db = session["tenant_db"]
+        return
+
+    # 2. Subdomain resolution
+    host = request.host.split(":")[0]  # strip port
+    parts = host.split(".")
+    if len(parts) >= 3:
+        subdomain = parts[0]
+        try:
+            from database import get_master_db
+            conn = get_master_db()
+            cur = conn.cursor(buffered=True)
+            cur.execute(
+                "SELECT db_name FROM tenants WHERE subdomain=%s AND status='active'",
+                (subdomain,)
+            )
+            row = cur.fetchone()
+            cur.close(); conn.close()
+            if row:
+                _g.tenant_db = row[0]
+                session["tenant_db"] = row[0]
+                return
+        except Exception:
+            pass  # master DB not yet set up — fall through to default
+
+    # 3. Default single-tenant fallback
+    _g.tenant_db = os.environ.get("DB_NAME", "employee_attendance")
+
 
 _CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
 _CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
@@ -245,6 +312,35 @@ def _validate_image_file(file):
     if ct and ct not in _ALLOWED_IMG_MIME:
         return False, f"Invalid content type '{ct}'. Only image files accepted."
     return True, ""
+
+
+# ── PII Encryption ────────────────────────────────────────────────
+# Set ENCRYPTION_KEY in .env: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
+
+_ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "").encode()
+_fernet = None
+if _ENCRYPTION_KEY:
+    try:
+        _fernet = Fernet(_ENCRYPTION_KEY)
+    except Exception:
+        pass
+
+def encrypt_pii(value: str) -> str:
+    """Encrypt a PII string. Returns original value if encryption not configured."""
+    if not value or not _fernet:
+        return value
+    return _fernet.encrypt(value.encode()).decode()
+
+def decrypt_pii(value: str) -> str:
+    """Decrypt a PII string. Returns original value if decryption fails (handles legacy plaintext)."""
+    if not value or not _fernet:
+        return value
+    try:
+        return _fernet.decrypt(value.encode()).decode()
+    except (_FernetInvalid, Exception):
+        return value  # legacy plaintext — return as-is
+
 
 # ---------------- DB CONTEXT MANAGER ----------------
 @contextmanager
@@ -478,6 +574,30 @@ def init_db():
             UNIQUE KEY uq_ot_emp_date (employee_id, date)
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS api_tokens (
+            token VARCHAR(64) PRIMARY KEY,
+            token_type VARCHAR(20) NOT NULL DEFAULT 'admin',
+            identity VARCHAR(100) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS regularization_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            request_date DATE NOT NULL,
+            login_time TIME DEFAULT NULL,
+            logout_time TIME DEFAULT NULL,
+            reason TEXT NOT NULL,
+            status VARCHAR(20) DEFAULT 'Pending',
+            admin_note TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            resolved_at DATETIME DEFAULT NULL,
+            UNIQUE KEY uq_emp_reg_date (employee_id, request_date)
+        )
+    """)
     db.commit()
     # Seed default leave types if empty
     cursor.execute("SELECT COUNT(*) FROM leave_types")
@@ -548,6 +668,7 @@ def init_db():
         "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
         "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN company_code VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN role VARCHAR(20) DEFAULT 'admin'",
     ]:
         try:
             cursor.execute(sql)
@@ -602,10 +723,10 @@ def init_db():
             (_admin_user, generate_password_hash(_admin_pass))
         )
         db.commit()
-        print(f"Admin created -> username: {_admin_user}")
+        app_log.info('"Admin created: username=%s"', _admin_user)
         admin_count = 1
     elif admin_count == 0 and not _admin_pass:
-        print("WARNING: ADMIN_PASSWORD not set in .env — complete setup via /setup")
+        app_log.warning('"ADMIN_PASSWORD not set in .env — complete setup via /setup"')
 
     # Auto-mark setup done for existing installs that already have an admin
     if admin_count > 0:
@@ -614,6 +735,45 @@ def init_db():
 
     cursor.close()
     db.close()
+
+
+def init_master_db():
+    """Create the att_master database and its tenants table if they don't exist."""
+    try:
+        import mysql.connector as _mc
+        root_conn = _mc.connect(
+            host=os.environ.get("DB_HOST", "localhost"),
+            user=os.environ.get("DB_USER", "root"),
+            password=os.environ.get("DB_PASS", ""),
+        )
+        cur = root_conn.cursor()
+        cur.execute("CREATE DATABASE IF NOT EXISTS att_master CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+        cur.execute("USE att_master")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tenants (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_name VARCHAR(200) NOT NULL,
+                subdomain VARCHAR(100) UNIQUE NOT NULL,
+                db_name VARCHAR(100) UNIQUE NOT NULL,
+                admin_email VARCHAR(200) DEFAULT NULL,
+                plan VARCHAR(50) DEFAULT 'starter',
+                status VARCHAR(20) DEFAULT 'active',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        root_conn.commit()
+        cur.close()
+        root_conn.close()
+    except Exception as _e:
+        app_log.warning('"init_master_db failed (non-fatal for single-tenant mode): %s"', _e)
+
+
+def init_tenant_db(db_name: str):
+    """Initialize schema in a freshly created tenant database."""
+    from flask import g as _g
+    _g.tenant_db = db_name
+    init_db()
+
 
 # ---------------- NOTIFICATION HELPER ----------------
 def _create_notification(recipient_type, title, message, employee_id=None):
@@ -652,6 +812,29 @@ def employee_required(f):
     def wrapper(*args, **kwargs):
         if not session.get("employee_id"):
             return redirect("/employee_login")
+        return f(*args, **kwargs)
+    return wrapper
+
+def manager_or_admin_required(f):
+    """Allow access to admin users whose role is 'admin' or 'manager'.
+
+    Managers can access leave, attendance, and employee views but NOT
+    salary, settings, or user management (enforced by the views themselves).
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            is_ajax = (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.headers.get("Accept", "").startswith("application/json")
+                or request.is_json
+            )
+            if is_ajax:
+                return jsonify({"ok": False, "msg": "Session expired. Please log in again.", "redirect": url_for("admin_login")}), 401
+            return redirect(url_for("admin_login"))
+        admin_role = session.get("admin_role", "admin")
+        if admin_role not in ("admin", "manager"):
+            return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -932,7 +1115,7 @@ def send_email_async(to_email, subject, html_body, config, **kwargs):
         try:
             send_email_smtp(to_email, subject, html_body, config, **kwargs)
         except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send to {to_email}: {e}")
+            app_log.error('"Email send failed to %s: %s"', to_email, e)
     threading.Thread(target=_send, daemon=True).start()
 
 def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
@@ -1085,7 +1268,7 @@ def forbidden(e):
 @app.errorhandler(500)
 def internal_error(e):
     tb = _traceback.format_exc()
-    print("[500 ERROR]", tb)
+    app_log.error('"500 error: %s"', tb.replace('\n', '\\n'))
     return _error_page(500, "⚙️", "Internal Server Error",
         "Something went wrong on our end. The error has been logged.",
         "Please try again in a moment or contact your administrator.")
@@ -1096,7 +1279,7 @@ def unhandled_exception(e):
         return _error_page(e.code, "⚠️", e.name, e.description,
             "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
-    print("[UNHANDLED]", tb)
+    app_log.error('"Unhandled exception: %s"', tb.replace('\n', '\\n'))
     return _error_page(500, "⚙️", "Unexpected Error",
         f"{type(e).__name__}: {e}",
         "The error has been logged. Please try again or contact your administrator.")
@@ -1158,10 +1341,11 @@ def admin_login():
         password   = request.form.get("password", "").strip()
         # Try admin credentials first
         with _db() as (cursor, db):
-            cursor.execute("SELECT password FROM admin_users WHERE username=%s", (identifier,))
+            cursor.execute("SELECT password, COALESCE(role,'admin') FROM admin_users WHERE username=%s", (identifier,))
             admin_row = cursor.fetchone()
         if admin_row and check_password_hash(admin_row[0], password):
             session["admin_logged_in"] = True
+            session["admin_role"] = admin_row[1]
             session.permanent = True
             return redirect("/admin")
         # Try employee credentials
@@ -2077,6 +2261,11 @@ def employee_profile(emp_id):
         emp = cursor.fetchone()
         if not emp:
             return "Employee not found", 404
+        # Decrypt PII: [19]=aadhar_number, [20]=pan_number, [22]=bank_account, [23]=bank_ifsc, [24]=uan_number
+        emp = list(emp)
+        for _pii_idx in (19, 20, 22, 23, 24):
+            if _pii_idx < len(emp):
+                emp[_pii_idx] = decrypt_pii(emp[_pii_idx])
 
         # Attendance this month
         cursor.execute("""
@@ -2360,6 +2549,12 @@ def employee_detail(emp_id):
         cursor.close(); db.close()
         flash("Employee not found.", "error")
         return redirect("/employees")
+
+    # Decrypt PII fields: [23]=aadhar_number, [24]=pan_number, [26]=bank_account, [27]=bank_ifsc, [28]=uan_number
+    row = list(row)
+    for _pii_idx in (23, 24, 26, 27, 28):
+        if _pii_idx < len(row):
+            row[_pii_idx] = decrypt_pii(row[_pii_idx])
 
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
     is_resigned = cursor.fetchone()[0] > 0
@@ -4150,12 +4345,12 @@ def update_my_profile():
 def update_my_bank_details():
     emp_id = session["employee_id"]
     fields = {
-        "aadhar_number": request.form.get("aadhar_number", "").strip() or None,
-        "pan_number":    request.form.get("pan_number", "").upper().strip() or None,
+        "aadhar_number": encrypt_pii(request.form.get("aadhar_number", "").strip() or None),
+        "pan_number":    encrypt_pii(request.form.get("pan_number", "").upper().strip() or None),
         "bank_name":     request.form.get("bank_name", "").strip() or None,
-        "bank_account":  request.form.get("bank_account", "").strip() or None,
-        "bank_ifsc":     request.form.get("bank_ifsc", "").upper().strip() or None,
-        "uan_number":    request.form.get("uan_number", "").strip() or None,
+        "bank_account":  encrypt_pii(request.form.get("bank_account", "").strip() or None),
+        "bank_ifsc":     encrypt_pii(request.form.get("bank_ifsc", "").upper().strip() or None),
+        "uan_number":    encrypt_pii(request.form.get("uan_number", "").strip() or None),
     }
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -4167,6 +4362,41 @@ def update_my_bank_details():
     """, (*fields.values(), emp_id))
     db.commit(); cursor.close(); db.close()
     return redirect("/employee_portal?bank_saved=1#my-profile")
+
+
+@app.route("/employee_portal/regularize", methods=["POST"])
+@employee_required
+def employee_regularize():
+    emp_id       = session["employee_id"]
+    request_date = request.form.get("request_date", "").strip()
+    login_time   = request.form.get("login_time", "").strip() or None
+    logout_time  = request.form.get("logout_time", "").strip() or None
+    reason       = request.form.get("reason", "").strip()
+    if not request_date or not reason:
+        return jsonify({"ok": False, "msg": "request_date and reason are required"}), 400
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute(
+            """INSERT INTO regularization_requests
+               (employee_id, request_date, login_time, logout_time, reason)
+               VALUES (%s, %s, %s, %s, %s)
+               ON DUPLICATE KEY UPDATE
+               login_time=VALUES(login_time), logout_time=VALUES(logout_time),
+               reason=VALUES(reason), status='Pending', resolved_at=NULL""",
+            (emp_id, request_date, login_time, logout_time, reason)
+        )
+        db.commit()
+    except Exception as exc:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": str(exc)}), 500
+    cursor.close(); db.close()
+    _create_notification(
+        'admin',
+        "Regularization Request",
+        f"Employee {emp_id} has requested attendance regularization for {request_date}."
+    )
+    return jsonify({"ok": True})
 
 
 @app.route("/add_experience", methods=["POST"])
@@ -4559,6 +4789,10 @@ def employee_portal():
     # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
     # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
     # [27]=qr_code [28]=work_mode [29]=about_me [30]=manager_name [31]=department
+    # Decrypt PII fields
+    for _pii_idx in (21, 22, 24, 25, 26):
+        if _pii_idx < len(emp):
+            emp[_pii_idx] = decrypt_pii(emp[_pii_idx])
 
     today = datetime.date.today()
     cursor.execute(
@@ -5206,7 +5440,7 @@ def request_leave():
                 html_body, config
             )
         except Exception as e:
-            print(f"[EMAIL ERROR] Leave request notification failed: {e}")
+            app_log.error('"Leave request notification email failed: %s"', e)
 
     return redirect("/employee_portal?leave_sent=1#apply-leave")
 
@@ -5372,6 +5606,80 @@ def leave_action(lid):
     return redirect("/leave_requests")
 
 
+# ── Attendance Regularization (admin) ────────────────────────────────────────
+
+@app.route("/admin/regularization")
+@admin_required
+def admin_regularization():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT rr.id, rr.employee_id, e.name,
+               rr.request_date, rr.login_time, rr.logout_time,
+               rr.reason, rr.status, rr.admin_note, rr.created_at
+        FROM regularization_requests rr
+        JOIN employees e ON rr.employee_id = e.employee_id
+        ORDER BY rr.created_at DESC
+    """)
+    requests = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("regularization_admin.html", requests=requests)
+
+
+@app.route("/admin/regularization/<int:rid>/action", methods=["POST"])
+@admin_required
+def admin_regularization_action(rid):
+    action = request.form.get("action", "").strip()
+    note   = request.form.get("note", "").strip() or None
+    if action not in ("Approve", "Reject"):
+        flash("Invalid action.", "error")
+        return redirect("/admin/regularization")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT employee_id, request_date, login_time, logout_time FROM regularization_requests WHERE id=%s",
+        (rid,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        flash("Regularization request not found.", "error")
+        return redirect("/admin/regularization")
+
+    emp_id, req_date, login_t, logout_t = row
+    new_status = "Approved" if action == "Approve" else "Rejected"
+
+    if action == "Approve":
+        # Determine attendance type from login/logout status strings
+        login_status  = "Full Day Login" if login_t else None
+        logout_status = "Completed" if logout_t else None
+        att_type = get_attendance_type(login_status, logout_status)
+        cursor.execute("""
+            INSERT INTO attendance (employee_id, date, login_time, logout_time, attendance_type)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            login_time=VALUES(login_time), logout_time=VALUES(logout_time),
+            attendance_type=VALUES(attendance_type)
+        """, (emp_id, req_date, login_t, logout_t, att_type))
+
+    cursor.execute(
+        "UPDATE regularization_requests SET status=%s, admin_note=%s, resolved_at=NOW() WHERE id=%s",
+        (new_status, note, rid)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    _create_notification(
+        'employee',
+        f"Regularization {new_status}",
+        f"Your regularization request for {req_date} has been {new_status.lower()}." +
+        (f" Note: {note}" if note else ""),
+        emp_id
+    )
+    flash(f"Regularization request {new_status.lower()}.", "success")
+    return redirect("/admin/regularization")
+
+
 @app.route("/leave_calendar")
 @admin_required
 def leave_calendar():
@@ -5490,7 +5798,7 @@ def request_resignation():
                 html_body, config
             )
         except Exception as e:
-            print(f"[EMAIL ERROR] Resignation notification failed: {e}")
+            app_log.error('"Resignation notification email failed: %s"', e)
 
     return redirect("/employee_portal?resigned=1#resign")
 
@@ -5782,8 +6090,19 @@ def api_required(f):
         if not auth.startswith("Bearer "):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         token = auth[7:]
-        if token not in _api_tokens:
+        with _db() as (cursor, _conn):
+            # Clean up expired tokens opportunistically
+            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
+            _conn.commit()
+            cursor.execute(
+                "SELECT identity FROM api_tokens WHERE token=%s AND token_type='admin' AND expires_at > NOW()",
+                (token,)
+            )
+            row = cursor.fetchone()
+        if not row:
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        from flask import g as _g
+        _g.api_user = row[0]
         return f(*args, **kwargs)
     return wrapper
 
@@ -5794,13 +6113,18 @@ def api_login():
     data     = request.get_json() or {}
     username = data.get("username", "")
     password = data.get("password", "")
-    with _db() as (cursor, _conn):
+    with _db() as (cursor, conn):
         cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
         row = cursor.fetchone()
-    if row and check_password_hash(row[0], password):
-        token = secrets.token_hex(32)
-        _api_tokens[token] = username
-        return jsonify({"ok": True, "token": token, "username": username})
+        if row and check_password_hash(row[0], password):
+            token = secrets.token_hex(32)
+            cursor.execute(
+                "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
+                "VALUES (%s, 'admin', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
+                (token, username)
+            )
+            conn.commit()
+            return jsonify({"ok": True, "token": token, "username": username})
     return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
 
 
@@ -5808,7 +6132,9 @@ def api_login():
 def api_logout():
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        _api_tokens.pop(auth[7:], None)
+        with _db() as (cursor, conn):
+            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (auth[7:],))
+            conn.commit()
     return jsonify({"ok": True})
 
 
@@ -6388,10 +6714,6 @@ def api_resignation_action(rid):
     return jsonify({"ok": True, "status": action})
 
 
-# ── Employee API token store  { token → employee_id } ──
-_emp_api_tokens: dict = {}
-
-
 def employee_api_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -6399,8 +6721,19 @@ def employee_api_required(f):
         if not auth.startswith("Bearer "):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         token = auth[7:]
-        if token not in _emp_api_tokens:
+        with _db() as (cursor, _conn):
+            # Clean up expired tokens opportunistically
+            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
+            _conn.commit()
+            cursor.execute(
+                "SELECT identity FROM api_tokens WHERE token=%s AND token_type='employee' AND expires_at > NOW()",
+                (token,)
+            )
+            row = cursor.fetchone()
+        if not row:
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        from flask import g as _g
+        _g.api_emp_id = row[0]
         return f(*args, **kwargs)
     return wrapper
 
@@ -6409,17 +6742,26 @@ def employee_api_required(f):
 def api_employee_login():
     data   = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
+    password = data.get("password", "").strip()
     if not emp_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, email, password FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     cursor.close(); db.close()
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    if password and row[2] and not check_password_hash(row[2], password):
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     token = secrets.token_hex(32)
-    _emp_api_tokens[token] = emp_id
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
+            "VALUES (%s, 'employee', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
+            (token, emp_id)
+        )
+        conn.commit()
     return jsonify({"ok": True, "token": token, "employee_id": emp_id,
                     "name": row[0], "email": row[1]})
 
@@ -6428,7 +6770,9 @@ def api_employee_login():
 def api_employee_logout():
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        _emp_api_tokens.pop(auth[7:], None)
+        with _db() as (cursor, conn):
+            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (auth[7:],))
+            conn.commit()
     return jsonify({"ok": True})
 
 
@@ -6442,8 +6786,8 @@ def _fmt_t(t):
 @app.route("/api/employee/portal", methods=["GET"])
 @employee_api_required
 def api_employee_portal():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
@@ -6518,8 +6862,8 @@ def api_employee_portal():
 @app.route("/api/employee/checkin", methods=["POST"])
 @employee_api_required
 def api_employee_checkin():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     data   = request.get_json() or {}
     lat    = data.get("lat")
     lon    = data.get("lon")
@@ -6588,8 +6932,8 @@ def api_employee_checkin():
 @app.route("/api/employee/leave_request", methods=["POST"])
 @employee_api_required
 def api_employee_leave_request():
-    token      = request.headers.get("Authorization", "")[7:]
-    emp_id     = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id     = _g.api_emp_id
     data       = request.get_json() or {}
     leave_date = data.get("leave_date", "").strip()
     reason     = data.get("reason", "").strip()
@@ -6613,8 +6957,8 @@ def api_employee_leave_request():
 @app.route("/api/employee/resign", methods=["POST"])
 @employee_api_required
 def api_employee_resign():
-    token            = request.headers.get("Authorization", "")[7:]
-    emp_id           = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id           = _g.api_emp_id
     data             = request.get_json() or {}
     last_working_day = data.get("last_working_day", "").strip()
     reason           = data.get("reason", "").strip()
@@ -6663,7 +7007,7 @@ def api_employee_resign():
                 html_body, config
             )
         except Exception as e:
-            print(f"[EMAIL ERROR] Resignation notification failed: {e}")
+            app_log.error('"Resignation notification email failed: %s"', e)
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 
@@ -6673,8 +7017,8 @@ def api_employee_resign():
 @app.route("/api/employee/tickets", methods=["GET"])
 @employee_api_required
 def api_employee_tickets():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
@@ -6694,8 +7038,8 @@ def api_employee_tickets():
 @app.route("/api/employee/raise_ticket", methods=["POST"])
 @employee_api_required
 def api_employee_raise_ticket():
-    token       = request.headers.get("Authorization", "")[7:]
-    emp_id      = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id      = _g.api_emp_id
     data        = request.get_json() or {}
     category    = data.get("category", "").strip()
     subject     = data.get("subject", "").strip()
@@ -6716,8 +7060,8 @@ def api_employee_raise_ticket():
 @app.route("/api/employee/change_password", methods=["POST"])
 @employee_api_required
 def api_employee_change_password():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     data   = request.get_json() or {}
     new_pw = data.get("new_password", "").strip()
     if not new_pw:
@@ -6734,8 +7078,8 @@ def api_employee_change_password():
 @employee_api_required
 def api_employee_salary():
     import calendar as cal
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     try:
         year  = int(request.args.get("year",  datetime.date.today().year))
         month = int(request.args.get("month", datetime.date.today().month))
@@ -7650,8 +7994,8 @@ def api_mark_notifications_read():
 @app.route("/api/employee/notifications", methods=["GET"])
 @employee_api_required
 def api_employee_get_notifications():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -7671,8 +8015,8 @@ def api_employee_get_notifications():
 @app.route("/api/employee/notifications/mark_read", methods=["POST"])
 @employee_api_required
 def api_employee_mark_notifications_read():
-    token  = request.headers.get("Authorization", "")[7:]
-    emp_id = _emp_api_tokens[token]
+    from flask import g as _g
+    emp_id = _g.api_emp_id
     db = get_db_connection()
     cursor = db.cursor()
     cursor.execute(
@@ -7717,8 +8061,110 @@ def web_employee_notifications_list():
     ]})
 
 
+# ── Tenant Provisioning ──────────────────────────────────────────────────────
+
+_SUBDOMAIN_RE = re.compile(r'^[a-z0-9\-]+$')
+
+@app.route("/create_org", methods=["GET"])
+def create_org_page():
+    return render_template("create_org.html")
+
+
+@app.route("/create_org", methods=["POST"])
+def create_org():
+    company_name    = request.form.get("company_name", "").strip()
+    subdomain       = request.form.get("subdomain", "").strip().lower()
+    admin_username  = request.form.get("admin_username", "").strip()
+    admin_password  = request.form.get("admin_password", "").strip()
+    admin_email     = request.form.get("admin_email", "").strip() or None
+
+    # Validate
+    if not all([company_name, subdomain, admin_username, admin_password]):
+        flash("All fields (company name, subdomain, admin username and password) are required.", "error")
+        return redirect("/create_org")
+    if not _SUBDOMAIN_RE.match(subdomain):
+        flash("Subdomain may only contain lowercase letters, digits, and hyphens.", "error")
+        return redirect("/create_org")
+    if len(admin_password) < 8:
+        flash("Admin password must be at least 8 characters.", "error")
+        return redirect("/create_org")
+
+    # Check subdomain not taken
+    try:
+        from database import get_master_db
+        mconn = get_master_db()
+        mcur  = mconn.cursor(buffered=True)
+        mcur.execute("SELECT id FROM tenants WHERE subdomain=%s", (subdomain,))
+        if mcur.fetchone():
+            mcur.close(); mconn.close()
+            flash(f"Subdomain '{subdomain}' is already taken. Choose another.", "error")
+            return redirect("/create_org")
+        mcur.close(); mconn.close()
+    except Exception as exc:
+        flash(f"Could not check subdomain availability: {exc}", "error")
+        return redirect("/create_org")
+
+    # Derive DB name
+    db_name = "att_" + subdomain.replace("-", "_")
+
+    try:
+        from database import create_tenant_database
+        create_tenant_database(db_name)
+    except Exception as exc:
+        flash(f"Failed to create tenant database: {exc}", "error")
+        return redirect("/create_org")
+
+    try:
+        from flask import g as _g
+        _g.tenant_db = db_name
+        init_tenant_db(db_name)
+    except Exception as exc:
+        flash(f"Failed to initialize tenant schema: {exc}", "error")
+        return redirect("/create_org")
+
+    # Insert company settings and admin user into the new tenant DB
+    try:
+        from database import get_tenant_db
+        tconn = get_tenant_db(db_name)
+        tcur  = tconn.cursor()
+        tcur.execute(
+            "UPDATE company_settings SET company_name=%s, setup_done=1 WHERE id=1",
+            (company_name,)
+        )
+        tcur.execute(
+            "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)"
+            " ON DUPLICATE KEY UPDATE password=VALUES(password)",
+            (admin_username, generate_password_hash(admin_password), admin_email)
+        )
+        tconn.commit()
+        tcur.close(); tconn.close()
+    except Exception as exc:
+        flash(f"Failed to seed tenant data: {exc}", "error")
+        return redirect("/create_org")
+
+    # Register tenant in master DB
+    try:
+        from database import get_master_db
+        mconn = get_master_db()
+        mcur  = mconn.cursor()
+        mcur.execute(
+            "INSERT INTO tenants (company_name, subdomain, db_name, admin_email, status) "
+            "VALUES (%s, %s, %s, %s, 'active')",
+            (company_name, subdomain, db_name, admin_email)
+        )
+        mconn.commit()
+        mcur.close(); mconn.close()
+    except Exception as exc:
+        flash(f"Tenant registered in DB but master registry failed: {exc}", "error")
+        return redirect("/create_org")
+
+    flash(f"Organisation '{company_name}' created! Subdomain: {subdomain}. You can now log in.", "success")
+    return redirect("/admin_login")
+
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
+    init_master_db()
     init_db()
     load_default_shift()
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
