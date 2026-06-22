@@ -624,6 +624,53 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS onboarding_templates (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            description TEXT,
+            is_active TINYINT(1) DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS onboarding_template_tasks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            template_id INT NOT NULL,
+            task_title VARCHAR(300) NOT NULL,
+            task_description TEXT,
+            requires_document TINYINT(1) DEFAULT 0,
+            due_days INT DEFAULT 7,
+            sort_order INT DEFAULT 0
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_onboarding (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            template_id INT NOT NULL,
+            assigned_date DATE NOT NULL,
+            due_date DATE,
+            status VARCHAR(20) DEFAULT 'In Progress',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employee_onboarding_tasks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            onboarding_id INT NOT NULL,
+            template_task_id INT NOT NULL,
+            employee_id VARCHAR(50) NOT NULL,
+            task_title VARCHAR(300) NOT NULL,
+            task_description TEXT,
+            requires_document TINYINT(1) DEFAULT 0,
+            due_days INT DEFAULT 7,
+            status VARCHAR(20) DEFAULT 'Pending',
+            completed_at TIMESTAMP NULL,
+            document_path VARCHAR(500),
+            admin_notes TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS compoff_balance (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL UNIQUE,
@@ -740,6 +787,7 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
         "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
         "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
+        "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -9069,6 +9117,341 @@ def create_org():
 
     flash(f"Organisation '{company_name}' created! Subdomain: {subdomain}. You can now log in.", "success")
     return redirect("/admin_login")
+
+
+# ─────────────────────────────────────────
+#  ONBOARDING WORKFLOW
+# ─────────────────────────────────────────
+
+@app.route("/onboarding")
+@admin_required
+def onboarding():
+    db = get_db_connection()
+    cursor = db.cursor()
+    active_tab = request.args.get("tab", "active")
+
+    # Active onboardings with progress
+    cursor.execute("""
+        SELECT eo.id, e.employee_id, e.name, e.role, e.department,
+               ot.name AS template_name, eo.assigned_date, eo.due_date, eo.status,
+               COUNT(eot.id) AS total_tasks,
+               SUM(CASE WHEN eot.status='Done' THEN 1 ELSE 0 END) AS done_tasks
+        FROM employee_onboarding eo
+        JOIN employees e ON e.employee_id = eo.employee_id
+        JOIN onboarding_templates ot ON ot.id = eo.template_id
+        LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id = eo.id
+        GROUP BY eo.id
+        ORDER BY eo.assigned_date DESC
+    """)
+    active_onboardings = cursor.fetchall()
+
+    # Templates with task count
+    cursor.execute("""
+        SELECT ot.id, ot.name, ot.description, ot.is_active,
+               COUNT(tt.id) AS task_count
+        FROM onboarding_templates ot
+        LEFT JOIN onboarding_template_tasks tt ON tt.template_id = ot.id
+        GROUP BY ot.id
+        ORDER BY ot.created_at DESC
+    """)
+    templates = cursor.fetchall()
+
+    # Employees list for assign dropdown
+    cursor.execute("SELECT employee_id, name, role FROM employees WHERE is_active=1 ORDER BY name")
+    emp_list = cursor.fetchall()
+
+    # Active templates for assign dropdown
+    cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
+    active_templates = cursor.fetchall()
+
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("onboarding.html",
+        active_onboardings=active_onboardings,
+        templates=templates,
+        emp_list=emp_list,
+        active_templates=active_templates,
+        active_tab=active_tab,
+        co=co,
+        pending_leaves=0, pending_resignations=0, pending_tickets=0
+    )
+
+@app.route("/onboarding_template_save", methods=["POST"])
+@admin_required
+def onboarding_template_save():
+    db = get_db_connection(); cursor = db.cursor()
+    tid    = request.form.get("template_id")
+    name   = request.form.get("name", "").strip()
+    desc   = request.form.get("description", "").strip()
+    if not name:
+        flash("Template name is required.", "error")
+        return redirect("/onboarding?tab=templates")
+    if tid:
+        cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s WHERE id=%s", (name, desc, tid))
+        flash("Template updated.", "success")
+    else:
+        cursor.execute("INSERT INTO onboarding_templates (name, description) VALUES (%s,%s)", (name, desc))
+        flash("Template created.", "success")
+    db.commit(); cursor.close(); db.close()
+    return redirect("/onboarding?tab=templates")
+
+@app.route("/onboarding_template_delete", methods=["POST"])
+@admin_required
+def onboarding_template_delete():
+    db = get_db_connection(); cursor = db.cursor()
+    tid = request.form.get("template_id")
+    cursor.execute("DELETE FROM onboarding_template_tasks WHERE template_id=%s", (tid,))
+    cursor.execute("DELETE FROM onboarding_templates WHERE id=%s", (tid,))
+    db.commit(); cursor.close(); db.close()
+    flash("Template deleted.", "success")
+    return redirect("/onboarding?tab=templates")
+
+@app.route("/onboarding_task_save", methods=["POST"])
+@admin_required
+def onboarding_task_save():
+    db = get_db_connection(); cursor = db.cursor()
+    task_id   = request.form.get("task_id")
+    tid       = request.form.get("template_id")
+    title     = request.form.get("task_title", "").strip()
+    desc      = request.form.get("task_description", "").strip()
+    req_doc   = 1 if request.form.get("requires_document") else 0
+    due_days  = int(request.form.get("due_days", 7))
+    sort_order= int(request.form.get("sort_order", 0))
+    if not title:
+        flash("Task title is required.", "error")
+        return redirect(f"/onboarding_template_detail/{tid}")
+    if task_id:
+        cursor.execute("""UPDATE onboarding_template_tasks
+                          SET task_title=%s, task_description=%s, requires_document=%s,
+                              due_days=%s, sort_order=%s
+                          WHERE id=%s""", (title, desc, req_doc, due_days, sort_order, task_id))
+        flash("Task updated.", "success")
+    else:
+        cursor.execute("""INSERT INTO onboarding_template_tasks
+                          (template_id, task_title, task_description, requires_document, due_days, sort_order)
+                          VALUES (%s,%s,%s,%s,%s,%s)""", (tid, title, desc, req_doc, due_days, sort_order))
+        flash("Task added.", "success")
+    db.commit(); cursor.close(); db.close()
+    return redirect(f"/onboarding_template_detail/{tid}")
+
+@app.route("/onboarding_task_delete", methods=["POST"])
+@admin_required
+def onboarding_task_delete():
+    db = get_db_connection(); cursor = db.cursor()
+    task_id = request.form.get("task_id")
+    cursor.execute("SELECT template_id FROM onboarding_template_tasks WHERE id=%s", (task_id,))
+    row = cursor.fetchone()
+    tid = row[0] if row else None
+    cursor.execute("DELETE FROM onboarding_template_tasks WHERE id=%s", (task_id,))
+    db.commit(); cursor.close(); db.close()
+    flash("Task deleted.", "success")
+    return redirect(f"/onboarding_template_detail/{tid}")
+
+@app.route("/onboarding_template_detail/<int:tid>")
+@admin_required
+def onboarding_template_detail(tid):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("SELECT id, name, description, is_active FROM onboarding_templates WHERE id=%s", (tid,))
+    template = cursor.fetchone()
+    cursor.execute("""SELECT id, task_title, task_description, requires_document, due_days, sort_order
+                      FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id""", (tid,))
+    tasks = cursor.fetchall()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("onboarding_template_detail.html",
+        template=template, tasks=tasks, co=co,
+        pending_leaves=0, pending_resignations=0, pending_tickets=0
+    )
+
+@app.route("/onboarding_assign", methods=["POST"])
+@admin_required
+def onboarding_assign():
+    db = get_db_connection(); cursor = db.cursor()
+    emp_id   = request.form.get("employee_id")
+    tid      = request.form.get("template_id")
+    due_date = request.form.get("due_date") or None
+    today    = date.today()
+
+    # Check not already assigned same template
+    cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'",
+                   (emp_id, tid))
+    if cursor.fetchone():
+        flash("This employee already has this onboarding in progress.", "error")
+        cursor.close(); db.close()
+        return redirect("/onboarding?tab=active")
+
+    cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date) VALUES (%s,%s,%s,%s)",
+                   (emp_id, tid, today, due_date))
+    ob_id = cursor.lastrowid
+
+    # Copy tasks from template
+    cursor.execute("""SELECT id, task_title, task_description, requires_document, due_days
+                      FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id""", (tid,))
+    for task in cursor.fetchall():
+        cursor.execute("""INSERT INTO employee_onboarding_tasks
+                          (onboarding_id, template_task_id, employee_id, task_title, task_description, requires_document, due_days)
+                          VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                       (ob_id, task[0], emp_id, task[1], task[2], task[3], task[4]))
+    db.commit()
+
+    # Notification to employee
+    try:
+        cursor.execute("SELECT name FROM onboarding_templates WHERE id=%s", (tid,))
+        tname = cursor.fetchone()[0]
+        cursor.execute("""INSERT INTO employee_notifications (employee_id, title, message, notif_type)
+                          VALUES (%s, 'Onboarding Started', %s, 'info')""",
+                       (emp_id, f"Your onboarding checklist '{tname}' has been assigned. Please complete all tasks."))
+        db.commit()
+    except Exception:
+        pass
+
+    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    emp_name = cursor.fetchone()[0]
+    cursor.close(); db.close()
+    flash(f"Onboarding assigned to {emp_name}.", "success")
+    return redirect("/onboarding?tab=active")
+
+@app.route("/onboarding_detail/<int:ob_id>")
+@admin_required
+def onboarding_detail(ob_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT eo.id, e.employee_id, e.name, e.role, e.department,
+               ot.name AS tname, eo.assigned_date, eo.due_date, eo.status
+        FROM employee_onboarding eo
+        JOIN employees e ON e.employee_id=eo.employee_id
+        JOIN onboarding_templates ot ON ot.id=eo.template_id
+        WHERE eo.id=%s
+    """, (ob_id,))
+    ob = cursor.fetchone()
+    cursor.execute("""
+        SELECT id, task_title, task_description, requires_document, due_days,
+               status, completed_at, document_path, admin_notes
+        FROM employee_onboarding_tasks WHERE onboarding_id=%s ORDER BY id
+    """, (ob_id,))
+    tasks = cursor.fetchall()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("onboarding_detail.html",
+        ob=ob, tasks=tasks, co=co,
+        pending_leaves=0, pending_resignations=0, pending_tickets=0
+    )
+
+@app.route("/onboarding_admin_task_update", methods=["POST"])
+@admin_required
+def onboarding_admin_task_update():
+    db = get_db_connection(); cursor = db.cursor()
+    task_id    = request.form.get("task_id")
+    new_status = request.form.get("status")
+    notes      = request.form.get("admin_notes", "")
+    ob_id      = request.form.get("ob_id")
+    completed  = datetime.now() if new_status == "Done" else None
+    cursor.execute("""UPDATE employee_onboarding_tasks
+                      SET status=%s, completed_at=%s, admin_notes=%s WHERE id=%s""",
+                   (new_status, completed, notes, task_id))
+    # Auto-complete onboarding if all tasks done
+    cursor.execute("SELECT COUNT(*) FROM employee_onboarding_tasks WHERE onboarding_id=%s AND status!='Done'", (ob_id,))
+    remaining = cursor.fetchone()[0]
+    if remaining == 0:
+        cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
+    db.commit(); cursor.close(); db.close()
+    flash("Task updated.", "success")
+    return redirect(f"/onboarding_detail/{ob_id}")
+
+@app.route("/onboarding_close", methods=["POST"])
+@admin_required
+def onboarding_close():
+    db = get_db_connection(); cursor = db.cursor()
+    ob_id = request.form.get("ob_id")
+    cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
+    db.commit(); cursor.close(); db.close()
+    flash("Onboarding marked as completed.", "success")
+    return redirect("/onboarding?tab=active")
+
+# Employee portal onboarding
+@app.route("/my_onboarding")
+@employee_required
+def my_onboarding():
+    emp_id = session.get("employee_id")
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT eo.id, ot.name, eo.assigned_date, eo.due_date, eo.status,
+               COUNT(eot.id) AS total, SUM(CASE WHEN eot.status='Done' THEN 1 ELSE 0 END) AS done
+        FROM employee_onboarding eo
+        JOIN onboarding_templates ot ON ot.id=eo.template_id
+        LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id=eo.id
+        WHERE eo.employee_id=%s
+        GROUP BY eo.id ORDER BY eo.assigned_date DESC
+    """, (emp_id,))
+    onboardings = cursor.fetchall()
+
+    selected_ob_id = request.args.get("ob_id")
+    tasks = []
+    selected_ob = None
+    if not selected_ob_id and onboardings:
+        selected_ob_id = onboardings[0][0]
+    if selected_ob_id:
+        cursor.execute("""SELECT id, task_title, task_description, requires_document,
+                                 due_days, status, completed_at, document_path
+                          FROM employee_onboarding_tasks
+                          WHERE onboarding_id=%s AND employee_id=%s ORDER BY id""",
+                       (selected_ob_id, emp_id))
+        tasks = cursor.fetchall()
+        for ob in onboardings:
+            if ob[0] == int(selected_ob_id):
+                selected_ob = ob
+                break
+
+    cursor.execute("SELECT employee_id, name, role, department FROM employees WHERE employee_id=%s", (emp_id,))
+    emp = cursor.fetchone()
+    cursor.close(); db.close()
+    return render_template("my_onboarding.html",
+        emp=emp, onboardings=onboardings, tasks=tasks,
+        selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None
+    )
+
+@app.route("/my_onboarding_task_done", methods=["POST"])
+@employee_required
+def my_onboarding_task_done():
+    emp_id = session.get("employee_id")
+    db = get_db_connection(); cursor = db.cursor()
+    task_id = request.form.get("task_id")
+    ob_id   = request.form.get("ob_id")
+
+    cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
+    row = cursor.fetchone()
+    if not row or row[0] != emp_id:
+        flash("Not authorised.", "error")
+        cursor.close(); db.close()
+        return redirect("/my_onboarding")
+
+    doc_path = None
+    if 'document' in request.files:
+        f = request.files['document']
+        if f and f.filename:
+            import os as _os
+            upload_dir = _os.path.join("static", "onboarding_docs")
+            _os.makedirs(upload_dir, exist_ok=True)
+            safe_name = f"{emp_id}_{task_id}_{f.filename.replace(' ','_')}"
+            f.save(_os.path.join(upload_dir, safe_name))
+            doc_path = safe_name
+
+    update_args = [datetime.now(), task_id]
+    if doc_path:
+        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s WHERE id=%s",
+                       (datetime.now(), doc_path, task_id))
+    else:
+        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s WHERE id=%s",
+                       (datetime.now(), task_id))
+
+    # Auto-complete if all done
+    cursor.execute("SELECT COUNT(*) FROM employee_onboarding_tasks WHERE onboarding_id=%s AND status!='Done'", (ob_id,))
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
+
+    db.commit(); cursor.close(); db.close()
+    flash("Task marked as done!", "success")
+    return redirect(f"/my_onboarding?ob_id={ob_id}")
 
 
 # ---------------- RUN ----------------

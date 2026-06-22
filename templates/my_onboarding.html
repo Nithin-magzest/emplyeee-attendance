@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Onboarding</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#f1f5f9;min-height:100vh}
+    .top-bar{background:linear-gradient(135deg,#0f2460,#1a3a8f);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+    .top-bar-left{display:flex;align-items:center;gap:12px}
+    .top-bar h1{font-size:18px;font-weight:800}
+    .top-bar .sub{font-size:12px;color:rgba(255,255,255,0.6)}
+    .back-btn{color:rgba(255,255,255,0.8);text-decoration:none;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.1);padding:8px 14px;border-radius:9px;transition:0.2s}
+    .back-btn:hover{background:rgba(255,255,255,0.18);color:#fff}
+    .content{max-width:860px;margin:28px auto;padding:0 20px}
+    .ob-selector{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+    .ob-chip{padding:8px 18px;border-radius:99px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:2px solid #e2e8f0;background:#fff;color:#475569;transition:0.2s}
+    .ob-chip.active{border-color:#1e3a8a;background:#1e3a8a;color:#fff}
+    .ob-chip:hover:not(.active){border-color:#93c5fd;color:#1e3a8a}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px 24px;margin-bottom:20px}
+    .card-title{font-size:15px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+    .progress-wrap{margin:16px 0}
+    .progress-label{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px}
+    .progress-bar{background:#e2e8f0;border-radius:99px;height:12px;overflow:hidden}
+    .progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#6366f1);transition:width 0.4s}
+    .progress-fill.done{background:linear-gradient(90deg,#16a34a,#22c55e)}
+    .task-list{list-style:none}
+    .task-item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #f1f5f9;align-items:flex-start}
+    .task-item:last-child{border-bottom:none}
+    .task-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:2px}
+    .icon-done{background:#dcfce7;color:#16a34a}
+    .icon-pending{background:#f1f5f9;color:#94a3b8}
+    .task-body{flex:1}
+    .task-name{font-size:14px;font-weight:600;color:#0f172a}
+    .task-desc{font-size:12px;color:#64748b;margin-top:3px}
+    .task-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tag{font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+    .tag-done{background:#dcfce7;color:#15803d}
+    .tag-pending{background:#fef9c3;color:#854d0e}
+    .tag-doc{background:#dbeafe;color:#1d4ed8}
+    .btn-done{padding:7px 16px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:0.2s;flex-shrink:0}
+    .btn-done:hover{background:#1d4ed8;transform:translateY(-1px)}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+    .modal.open{display:flex}
+    .modal-box{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,0.2)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .modal-header h3{font-size:16px;font-weight:800;color:#0f172a}
+    .modal-close{border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px}
+    .field input[type=file]{width:100%;padding:10px;border:2px dashed #e2e8f0;border-radius:9px;background:#f8fafc;font-size:13px;color:#475569;cursor:pointer}
+    .btn-submit{width:100%;padding:11px;border:none;border-radius:9px;background:#16a34a;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+    .btn-cancel{width:100%;padding:11px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px}
+    .flash-list{list-style:none;margin-bottom:16px}
+    .flash-msg{padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .flash-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+    .flash-error{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .empty-state{text-align:center;padding:60px 20px;color:#94a3b8}
+    .empty-state i{font-size:52px;color:#cbd5e1}
+    .empty-state p{margin-top:12px;font-size:14px}
+    .badge-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .badge-green{background:#dcfce7;color:#15803d}
+    .badge-blue{background:#dbeafe;color:#1d4ed8}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-left">
+    <div style="background:rgba(255,255,255,0.15);width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;">
+      <i class="ti ti-checklist" style="font-size:20px;"></i>
+    </div>
+    <div>
+      <div class="top-bar h1">My Onboarding</div>
+      <div class="top-bar sub">{{ emp[1] }} &bull; {{ emp[2] or 'Employee' }}</div>
+    </div>
+  </div>
+  <a href="/employee_portal" class="back-btn"><i class="ti ti-arrow-left"></i> Back to Portal</a>
+</div>
+
+<div class="content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<ul class="flash-list">{% for cat,msg in messages %}
+      <li class="flash-msg flash-{{ cat }}"><i class="ti ti-{% if cat=='success' %}circle-check{% else %}alert-circle{% endif %}"></i>{{ msg }}</li>
+    {% endfor %}</ul>{% endif %}
+  {% endwith %}
+
+  {% if not onboardings %}
+  <div class="empty-state">
+    <i class="ti ti-checklist"></i>
+    <p>No onboarding assigned yet. Your HR team will assign one when you join.</p>
+  </div>
+  {% else %}
+
+  <!-- Onboarding selector (if multiple) -->
+  {% if onboardings|length > 1 %}
+  <div class="ob-selector">
+    {% for ob in onboardings %}
+    <a href="/my_onboarding?ob_id={{ ob[0] }}"
+       class="ob-chip {% if selected_ob_id == ob[0] %}active{% endif %}">
+      {{ ob[1] }}
+      {% if ob[4]=='Completed' %} ✓{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if selected_ob %}
+  {% set total = selected_ob[5] or 0 %}
+  {% set done_count = selected_ob[6] or 0 %}
+  {% set pct = ((done_count / total * 100)|int) if total > 0 else 0 %}
+
+  <!-- Header card -->
+  <div class="card">
+    <div class="card-title">
+      <i class="ti ti-template" style="color:#1e3a8a;"></i>
+      {{ selected_ob[1] }}
+      {% if selected_ob[4]=='Completed' %}
+        <span class="badge-status badge-green" style="margin-left:8px;">Completed</span>
+      {% else %}
+        <span class="badge-status badge-blue" style="margin-left:8px;">In Progress</span>
+      {% endif %}
+    </div>
+    <div style="font-size:12px;color:#64748b;">Assigned: {{ selected_ob[2] }}{% if selected_ob[3] %} &bull; Due: {{ selected_ob[3] }}{% endif %}</div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>{{ done_count }} of {{ total }} tasks completed</span>
+        <span style="color:{% if pct==100 %}#16a34a{% else %}#1e3a8a{% endif %};">{{ pct }}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill {% if pct==100 %}done{% endif %}" style="width:{{ pct }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task list -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:16px;"><i class="ti ti-list-check" style="color:#1e3a8a;"></i> Tasks</div>
+    <ul class="task-list">
+      {% for t in tasks %}
+      <li class="task-item">
+        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %}">
+          <i class="ti ti-{% if t[5]=='Done' %}circle-check{% else %}circle-dashed{% endif %}"></i>
+        </div>
+        <div class="task-body">
+          <div class="task-name" style="{% if t[5]=='Done' %}text-decoration:line-through;color:#94a3b8;{% endif %}">{{ t[1] }}</div>
+          {% if t[2] %}<div class="task-desc">{{ t[2] }}</div>{% endif %}
+          <div class="task-meta">
+            {% if t[5]=='Done' %}
+              <span class="tag tag-done"><i class="ti ti-check" style="font-size:10px;"></i> Completed</span>
+              {% if t[6] %}<span class="tag tag-done">{{ t[6].strftime('%d %b %Y') }}</span>{% endif %}
+            {% else %}
+              <span class="tag tag-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>
+            {% endif %}
+            {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip" style="font-size:10px;"></i> Doc required</span>{% endif %}
+            {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="tag tag-doc" style="text-decoration:none;"><i class="ti ti-download" style="font-size:10px;"></i> View doc</a>{% endif %}
+          </div>
+        </div>
+        {% if t[5] != 'Done' %}
+        <button class="btn-done" onclick="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, '{{ t[1]|replace("'","\\'") }}')">
+          <i class="ti ti-check"></i> Mark Done
+        </button>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- MODAL: Mark as Done -->
+<div class="modal" id="doneModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="done_modal_title"><i class="ti ti-check"></i> Mark Task as Done</h3>
+      <button class="modal-close" onclick="closeModal('doneModal')">✕</button>
+    </div>
+    <form action="/my_onboarding_task_done" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="task_id" id="done_task_id" />
+      <input type="hidden" name="ob_id" id="done_ob_id" />
+      <div id="doc_field" class="field" style="display:none;">
+        <label>Upload Document *</label>
+        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+        <p style="font-size:11px;color:#64748b;margin-top:6px;">Accepted: PDF, JPG, PNG, DOC</p>
+      </div>
+      <p style="font-size:13px;color:#475569;margin-bottom:16px;">Confirm that you have completed this task.</p>
+      <button type="submit" class="btn-submit"><i class="ti ti-circle-check"></i> Confirm — Mark as Done</button>
+      <button type="button" class="btn-cancel" onclick="closeModal('doneModal')">Cancel</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>{
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
+});
+function openDoneModal(taskId, obId, reqDoc, title){
+  document.getElementById('done_task_id').value  = taskId;
+  document.getElementById('done_ob_id').value    = obId;
+  document.getElementById('done_modal_title').innerHTML = '<i class="ti ti-check"></i> ' + title;
+  document.getElementById('doc_field').style.display = reqDoc ? 'block' : 'none';
+  openModal('doneModal');
+}
+</script>
+<script src="/static/darkmode.js"></script>
+</body>
+</html>

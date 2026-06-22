@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Onboarding</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#f1f5f9;min-height:100vh;display:flex}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:white;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,0.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:0.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,0.2)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:white;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .main{flex:1;padding:28px 30px;overflow-x:hidden}
+    .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:24px}
+    .page-header h1{font-size:24px;font-weight:800;color:#0f172a}
+    .page-header .sub{font-size:13px;color:#64748b;margin-top:3px}
+    .tabs{display:flex;gap:4px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:4px;margin-bottom:24px;width:fit-content}
+    .tab-btn{padding:8px 20px;border:none;border-radius:9px;background:transparent;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:6px}
+    .tab-btn.active{background:#1e3a8a;color:#fff;box-shadow:0 2px 8px rgba(30,58,138,0.25)}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .section{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px 24px;margin-bottom:20px}
+    .section-title{font-size:15px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:18px}
+    .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#f8fafc;color:#475569;padding:10px 14px;text-align:left;font-weight:600;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+    td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fafc}
+    .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+    .badge-green{background:#dcfce7;color:#15803d}
+    .badge-blue{background:#dbeafe;color:#1d4ed8}
+    .badge-yellow{background:#fef9c3;color:#854d0e}
+    .badge-red{background:#fee2e2;color:#dc2626}
+    .badge-gray{background:#f1f5f9;color:#64748b}
+    .btn{padding:8px 16px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:0.15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-navy{background:#1e3a8a;color:#fff}
+    .btn-green{background:#16a34a;color:#fff}
+    .btn-red{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .btn-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+    .btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px}
+    .field input,.field select,.field textarea{width:100%;padding:10px 13px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#0f172a;font-size:13px;outline:none;transition:0.2s}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:#93c5fd;background:#fff}
+    .field textarea{resize:vertical;min-height:70px}
+    .progress-bar{background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;width:120px}
+    .progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#6366f1);transition:width 0.3s}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    .template-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;transition:0.2s;position:relative}
+    .template-card:hover{border-color:#93c5fd;box-shadow:0 4px 16px rgba(30,58,138,0.08)}
+    .template-card h3{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:6px}
+    .template-card p{font-size:12px;color:#64748b;margin-bottom:12px;min-height:32px}
+    .flash-list{list-style:none;margin-bottom:16px}
+    .flash-msg{padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .flash-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+    .flash-error{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+    .modal.open{display:flex}
+    .modal-box{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:480px;box-shadow:0 24px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .modal-header h3{font-size:16px;font-weight:800;color:#0f172a}
+    .modal-close{border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px}
+    .empty-cell{text-align:center;padding:40px;color:#94a3b8;font-size:14px}
+    .dm-toggle{margin-top:auto;padding:8px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:12px}
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; Tickets{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+  <hr class="nav-sep" style="margin-top:12px;" />
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item active" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+  <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+</div>
+
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h1><i class="ti ti-checklist" style="color:#1e3a8a;"></i> Onboarding</h1>
+      <p class="sub">Manage employee onboarding checklists and templates</p>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-navy" onclick="openModal('assignModal')"><i class="ti ti-user-plus"></i> Assign Onboarding</button>
+      <button class="btn btn-green" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> New Template</button>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<ul class="flash-list">{% for cat,msg in messages %}
+      <li class="flash-msg flash-{{ cat }}"><i class="ti ti-{% if cat=='success' %}circle-check{% else %}alert-circle{% endif %}"></i>{{ msg }}</li>
+    {% endfor %}</ul>{% endif %}
+  {% endwith %}
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn {% if active_tab=='active' %}active{% endif %}" onclick="switchTab('active')">
+      <i class="ti ti-user-check"></i> Active Onboardings
+    </button>
+    <button class="tab-btn {% if active_tab=='templates' %}active{% endif %}" onclick="switchTab('templates')">
+      <i class="ti ti-template"></i> Templates
+    </button>
+  </div>
+
+  <!-- TAB: ACTIVE ONBOARDINGS -->
+  <div class="tab-content {% if active_tab=='active' %}active{% endif %}" id="tab-active">
+    <div class="section">
+      <div class="section-title"><i class="ti ti-users" style="color:#1e3a8a;"></i> Current Onboardings</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Template</th>
+              <th>Assigned</th>
+              <th>Due Date</th>
+              <th>Progress</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ob in active_onboardings %}
+            {% set total = ob[9] or 0 %}
+            {% set done = ob[10] or 0 %}
+            {% set pct = ((done / total * 100) | int) if total > 0 else 0 %}
+            <tr>
+              <td>
+                <div style="font-weight:600;color:#0f172a;">{{ ob[2] }}</div>
+                <div style="font-size:11px;color:#64748b;">{{ ob[3] }} &bull; {{ ob[4] or '—' }}</div>
+              </td>
+              <td>{{ ob[5] }}</td>
+              <td>{{ ob[6] }}</td>
+              <td>{{ ob[7] or '—' }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%;{% if pct==100 %}background:#16a34a;{% endif %}"></div></div>
+                  <span style="font-size:12px;font-weight:700;color:{% if pct==100 %}#16a34a{% else %}#1e3a8a{% endif %};">{{ done }}/{{ total }}</span>
+                </div>
+              </td>
+              <td>
+                {% if ob[8]=='Completed' %}
+                  <span class="badge badge-green">Completed</span>
+                {% elif ob[8]=='Overdue' %}
+                  <span class="badge badge-red">Overdue</span>
+                {% else %}
+                  <span class="badge badge-blue">In Progress</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="/onboarding_detail/{{ ob[0] }}" class="btn btn-gray btn-sm"><i class="ti ti-eye"></i> View</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-cell">No onboardings yet. Assign a template to an employee to get started.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: TEMPLATES -->
+  <div class="tab-content {% if active_tab=='templates' %}active{% endif %}" id="tab-templates">
+    {% if templates %}
+    <div class="grid-3" style="margin-bottom:20px;">
+      {% for t in templates %}
+      <div class="template-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="background:#dbeafe;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+            <i class="ti ti-template" style="color:#1e3a8a;font-size:16px;"></i>
+          </div>
+          <span class="badge {% if t[3] %}badge-green{% else %}badge-gray{% endif %}">{{ 'Active' if t[3] else 'Inactive' }}</span>
+        </div>
+        <h3>{{ t[1] }}</h3>
+        <p>{{ t[2] or 'No description' }}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;color:#64748b;"><i class="ti ti-list-check"></i> {{ t[4] }} tasks</span>
+          <div style="display:flex;gap:6px;">
+            <a href="/onboarding_template_detail/{{ t[0] }}" class="btn btn-gray btn-sm"><i class="ti ti-pencil"></i> Edit</a>
+            <form action="/onboarding_template_delete" method="POST" style="display:inline"
+                  onsubmit="return confirm('Delete this template?')">
+              <input type="hidden" name="template_id" value="{{ t[0] }}" />
+              <button type="submit" class="btn btn-red btn-sm"><i class="ti ti-trash"></i></button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="section" style="text-align:center;padding:40px;">
+      <i class="ti ti-template" style="font-size:48px;color:#cbd5e1;"></i>
+      <p style="color:#94a3b8;margin-top:12px;font-size:14px;">No templates yet. Create your first onboarding template.</p>
+      <button class="btn btn-navy" style="margin-top:16px;" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> Create Template</button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- MODAL: New Template -->
+<div class="modal" id="templateModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><i class="ti ti-template"></i> New Onboarding Template</h3>
+      <button class="modal-close" onclick="closeModal('templateModal')">✕</button>
+    </div>
+    <form action="/onboarding_template_save" method="POST">
+      <input type="hidden" name="template_id" value="" />
+      <div class="field">
+        <label>Template Name *</label>
+        <input type="text" name="name" placeholder="e.g. Software Engineer Onboarding" required />
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea name="description" placeholder="Brief description of this onboarding process..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button type="submit" class="btn btn-navy" style="flex:1;">Create Template</button>
+        <button type="button" class="btn btn-gray" onclick="closeModal('templateModal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Assign Onboarding -->
+<div class="modal" id="assignModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><i class="ti ti-user-plus"></i> Assign Onboarding</h3>
+      <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+    </div>
+    <form action="/onboarding_assign" method="POST">
+      <div class="field">
+        <label>Employee *</label>
+        <select name="employee_id" required>
+          <option value="">Select employee...</option>
+          {% for e in emp_list %}
+          <option value="{{ e[0] }}">{{ e[1] }} ({{ e[0] }}) {% if e[2] %}— {{ e[2] }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Onboarding Template *</label>
+        <select name="template_id" required>
+          <option value="">Select template...</option>
+          {% for t in active_templates %}
+          <option value="{{ t[0] }}">{{ t[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Due Date (optional)</label>
+        <input type="date" name="due_date" />
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button type="submit" class="btn btn-green" style="flex:1;"><i class="ti ti-user-plus"></i> Assign</button>
+        <button type="button" class="btn btn-gray" onclick="closeModal('assignModal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  history.replaceState(null, '', '/onboarding?tab=' + tab);
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+</script>
+<script src="/static/darkmode.js"></script>
+</body>
+</html>
