@@ -475,7 +475,7 @@
       <div class="modal-box" style="max-width:600px;">
         <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
         <h3><i class="ti ti-user-plus" style="color:#1e3a8a;"></i> Add New Employee</h3>
-        <form action="/add_employee_page" method="POST" enctype="multipart/form-data">
+        <form action="/add_employee_page" method="POST" enctype="multipart/form-data" onsubmit="return validateAddForm(this)">
           <div class="form-grid">
             <div class="sec-title">Basic Info</div>
             <div class="field-group">
@@ -495,8 +495,8 @@
               <div id="empIdHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
             </div>
             <div class="field-group">
-              <label>Email</label>
-              <input type="email" name="email" placeholder="employee@company.com" />
+              <label>Email <span style="color:#dc2626;">*</span></label>
+              <input type="email" name="email" placeholder="employee@company.com" required />
             </div>
             <div class="field-group">
               <label>Phone</label>
@@ -570,14 +570,16 @@
 
             <div class="sec-title">Face Photo *</div>
             <div class="field-group full">
-              <div class="photo-upload-box" onclick="document.getElementById('addFaceInput').click()">
+              <div class="photo-upload-box" id="addPhotoBox" onclick="document.getElementById('addFaceInput').click()"
+                   style="border:2px dashed #bfdbfe;border-radius:12px;padding:18px;text-align:center;cursor:pointer;background:#f8fafc;">
                 <i class="ti ti-camera-plus" style="font-size:28px;color:#93c5fd;"></i>
-                <div style="font-size:13px;color:#64748b;margin-top:5px;">Click to upload face photo</div>
+                <div id="addPhotoLabel" style="font-size:13px;color:#64748b;margin-top:5px;">Click to upload face photo</div>
                 <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Clear front-facing photo required</div>
-                <input type="file" id="addFaceInput" name="face" accept="image/*" required
-                       onchange="previewPhoto(this,'addPhotoPreview')" />
+                <input type="file" id="addFaceInput" name="face" accept="image/*"
+                       onchange="previewPhoto(this,'addPhotoPreview');document.getElementById('addPhotoLabel').textContent=this.files[0]?this.files[0].name:'Click to upload face photo';document.getElementById('addPhotoBox').style.borderColor='#22c55e';" />
                 <img id="addPhotoPreview" class="photo-preview" style="display:none;" alt="Preview" />
               </div>
+              <div id="addPhotoErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none;">⚠ Please upload a face photo before registering.</div>
             </div>
           </div>
 
@@ -1022,6 +1024,19 @@
       // ========== ADD MODAL ==========
       function toggleAddLocation(mode) {
         document.getElementById('addLocationBox').style.display = mode === 'wfh' ? 'block' : 'none';
+      }
+
+      function validateAddForm(form) {
+        var faceInput = document.getElementById('addFaceInput');
+        var errDiv    = document.getElementById('addPhotoErr');
+        if (!faceInput || !faceInput.files || faceInput.files.length === 0) {
+          if (errDiv) { errDiv.style.display = 'block'; }
+          document.getElementById('addPhotoBox').style.borderColor = '#dc2626';
+          document.getElementById('addPhotoBox').scrollIntoView({behavior:'smooth', block:'center'});
+          return false;
+        }
+        if (errDiv) errDiv.style.display = 'none';
+        return true;
       }
 
       async function generateEmpId() {
