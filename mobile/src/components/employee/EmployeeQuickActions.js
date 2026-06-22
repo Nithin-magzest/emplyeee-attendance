@@ -46,6 +46,15 @@ const ACTIONS = [
     screen: "Support",
   },
 
+  {
+    title: "Change PIN",
+    subtitle: "Update PIN",
+    icon: "key-outline",
+    color: "#0891B2",
+    bg: "#ECFEFF",
+    screen: "ChangePin",
+  },
+
 ];
 
 export default function EmployeeQuickActions({ navigation }) {

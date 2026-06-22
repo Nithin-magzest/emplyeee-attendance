@@ -39,8 +39,11 @@ export const resignationAction = (rid, action) =>
   client.post(`/api/resignation_requests/${rid}/action`, { action });
 
 // ── Employee API ───────────────────────────────────────────────────
-export const employeeLogin = (employee_id) =>
-  client.post('/api/employee/login', { employee_id });
+export const employeeLogin = (employee_id, pin) =>
+  client.post('/api/employee/login', { employee_id, password: pin });
+
+export const changePin = (current_pin, new_pin) =>
+  client.post('/api/employee/change-pin', { current_pin, new_pin });
 
 export const employeeLogout = () => client.post('/api/employee/logout');
 

@@ -795,14 +795,31 @@ def init_db():
         except mysql.connector.errors.DatabaseError:
             db.rollback()
 
-    # Back-fill password for existing employees that have none (default = their employee_id)
+    # Back-fill password for existing employees that have none (default PIN = 1234)
     cursor.execute("SELECT employee_id FROM employees WHERE password IS NULL")
     for (eid,) in cursor.fetchall():
         cursor.execute(
             "UPDATE employees SET password=%s WHERE employee_id=%s",
-            (generate_password_hash(eid), eid)
+            (generate_password_hash('1234'), eid)
         )
     db.commit()
+
+    # One-time migration: reset ALL employees to default PIN 1234
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS _applied_migrations (
+                name VARCHAR(100) PRIMARY KEY,
+                applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='default_pin_1234'")
+        if not cursor.fetchone():
+            cursor.execute("UPDATE employees SET password=%s", (generate_password_hash('1234'),))
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('default_pin_1234')")
+            db.commit()
+    except Exception:
+        pass
 
     # Create company_settings table
     cursor.execute("""
@@ -7390,8 +7407,10 @@ def api_employee_login():
     cursor.close(); db.close()
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
-    if password and row[2] and not check_password_hash(row[2], password):
-        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if not password:
+        return jsonify({"ok": False, "msg": "PIN required"}), 400
+    if not row[2] or not check_password_hash(row[2], password):
+        return jsonify({"ok": False, "msg": "Invalid PIN"}), 401
     token = secrets.token_hex(32)
     with _db() as (cursor, conn):
         cursor.execute(
@@ -7412,6 +7431,33 @@ def api_employee_logout():
             cursor.execute("DELETE FROM api_tokens WHERE token=%s", (auth[7:],))
             conn.commit()
     return jsonify({"ok": True})
+
+
+@app.route("/api/employee/change-pin", methods=["POST"])
+@employee_api_required
+def api_employee_change_pin():
+    data = request.get_json() or {}
+    current_pin = data.get("current_pin", "").strip()
+    new_pin     = data.get("new_pin", "").strip()
+    if not current_pin or not new_pin:
+        return jsonify({"ok": False, "msg": "current_pin and new_pin required"}), 400
+    if len(new_pin) != 4 or not new_pin.isdigit():
+        return jsonify({"ok": False, "msg": "New PIN must be exactly 4 digits"}), 400
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    with _db() as (cursor, conn):
+        cursor.execute("SELECT password FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({"ok": False, "msg": "Employee not found"}), 404
+        if not row[0] or not check_password_hash(row[0], current_pin):
+            return jsonify({"ok": False, "msg": "Current PIN is incorrect"}), 401
+        cursor.execute(
+            "UPDATE employees SET password=%s WHERE employee_id=%s",
+            (generate_password_hash(new_pin), emp_id)
+        )
+        conn.commit()
+    return jsonify({"ok": True, "msg": "PIN changed successfully"})
 
 
 def _fmt_t(t):

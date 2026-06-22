@@ -41,43 +41,31 @@ export default function LoginScreen() {
   };
 
   const handleEmployeeLogin = async () => {
-
     if (!empId.trim() || !pin.trim()) {
-        Alert.alert(
-            "Error",
-            "Please enter Employee ID and PIN."
-        );
-        return;
+      Alert.alert('Error', 'Please enter Employee ID and PIN.');
+      return;
     }
-
+    if (pin.trim().length !== 4) {
+      Alert.alert('Error', 'PIN must be 4 digits.');
+      return;
+    }
     setLoading(true);
-
-    // Sample credentials
-    if (
-        empId.trim().toUpperCase() === "EMP001" &&
-        pin.trim() === "1234"
-    ) {
-
-        await signIn(
-            "demo-token",
-            {
-                role: "employee",
-                name: "John Doe",
-                employeeId: "EMP001",
-            }
-        );
-
-        setLoading(false);
-        return;
+    try {
+      const res = await employeeLogin(empId.trim().toUpperCase(), pin.trim());
+      if (res.data.ok) {
+        await signIn(res.data.token, {
+          role: 'employee',
+          name: res.data.name,
+          employeeId: res.data.employee_id,
+        });
+      } else {
+        Alert.alert('Login Failed', res.data.msg || 'Invalid credentials.');
+      }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.msg || 'Cannot connect to server.');
     }
-
-    Alert.alert(
-        "Login Failed",
-        "Invalid Employee ID or PIN."
-    );
-
     setLoading(false);
-};
+  };
 
   return (
     <View

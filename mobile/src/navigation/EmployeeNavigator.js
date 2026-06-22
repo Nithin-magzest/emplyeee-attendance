@@ -1,16 +1,18 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import EmployeeDashboard from '../screens/employee/EmployeeDashboard';
-import LeaveScreen       from '../screens/employee/LeaveScreen';
-import ResignScreen      from '../screens/employee/ResignScreen';
-import TicketsScreen     from '../screens/employee/TicketsScreen';
+import EmployeeDashboard   from '../screens/employee/EmployeeDashboard';
+import LeaveScreen         from '../screens/employee/LeaveScreen';
+import ResignScreen        from '../screens/employee/ResignScreen';
+import TicketsScreen       from '../screens/employee/TicketsScreen';
+import ChangePinScreen     from '../screens/employee/ChangePinScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
-import { COLORS } from '../config';
 
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
-export default function EmployeeNavigator() {
+function EmployeeTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -49,5 +51,14 @@ export default function EmployeeNavigator() {
       <Tab.Screen name="Resign"        component={ResignScreen}        options={{ tabBarLabel: '🚨 Resign',  tabBarActiveTintColor: '#fca5a5' }} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarLabel: '🔔 Alerts',  tabBarActiveTintColor: '#fbbf24' }} />
     </Tab.Navigator>
+  );
+}
+
+export default function EmployeeNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="EmployeeTabs" component={EmployeeTabs} />
+      <Stack.Screen name="ChangePin"    component={ChangePinScreen} />
+    </Stack.Navigator>
   );
 }
