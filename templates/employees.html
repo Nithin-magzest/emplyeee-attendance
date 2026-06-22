@@ -444,6 +444,32 @@
       </div>
     </div><!-- /main -->
 
+    <!-- ═══ CAMERA MODAL ═══ -->
+    <div id="empCameraModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;align-items:center;justify-content:center;">
+      <div style="background:#1e1b3a;border-radius:20px;padding:28px;width:100%;max-width:420px;color:white;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
+        <h3 style="margin-bottom:6px;">📷 Take Face Photo</h3>
+        <p style="font-size:12px;opacity:0.55;margin-bottom:14px;">Position the employee's face in the frame, then click Capture.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;text-align:left;">
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Front-facing</div>
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Good lighting</div>
+          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">❌ No sunglasses</div>
+        </div>
+        <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;">
+          <video id="empCamVideo" autoplay playsinline muted style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+            <div style="width:160px;height:200px;border:2px dashed rgba(0,255,136,0.6);border-radius:50%;"></div>
+          </div>
+        </div>
+        <canvas id="empCamCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
+        <div style="display:flex;gap:10px;">
+          <button id="empCaptureBtn" onclick="empCapturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
+          <button id="empRetakeBtn"  onclick="empRetakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
+          <button id="empUseBtn"     onclick="empUsePhoto()"     style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#22c55e,#16a34a);color:white;font-size:14px;font-weight:700;cursor:pointer;">✅ Use Photo</button>
+          <button onclick="closeEmpCameraModal()" style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ================================================================
          PHOTO LIGHTBOX
     ================================================================ -->
@@ -570,16 +596,17 @@
 
             <div class="sec-title">Face Photo *</div>
             <div class="field-group full">
-              <div class="photo-upload-box" id="addPhotoBox" onclick="document.getElementById('addFaceInput').click()"
-                   style="border:2px dashed #bfdbfe;border-radius:12px;padding:18px;text-align:center;cursor:pointer;background:#f8fafc;">
-                <i class="ti ti-camera-plus" style="font-size:28px;color:#93c5fd;"></i>
-                <div id="addPhotoLabel" style="font-size:13px;color:#64748b;margin-top:5px;">Click to upload face photo</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Clear front-facing photo required</div>
-                <input type="file" id="addFaceInput" name="face" accept="image/*"
-                       onchange="previewPhoto(this,'addPhotoPreview');document.getElementById('addPhotoLabel').textContent=this.files[0]?this.files[0].name:'Click to upload face photo';document.getElementById('addPhotoBox').style.borderColor='#22c55e';" />
-                <img id="addPhotoPreview" class="photo-preview" style="display:none;" alt="Preview" />
+              <div id="addPhotoBox" style="border:2px dashed #bfdbfe;border-radius:12px;padding:16px;text-align:center;background:#f8fafc;transition:0.2s;">
+                <img id="addPhotoPreview" style="display:none;width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #22c55e;margin:0 auto 10px;" alt="Preview" />
+                <div id="addPhotoLabel" style="font-size:13px;color:#64748b;margin-bottom:10px;">No photo selected</div>
+                <div style="display:flex;gap:8px;justify-content:center;">
+                  <button type="button" onclick="openEmpCameraModal()" style="padding:9px 16px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📷 Camera</button>
+                  <button type="button" onclick="document.getElementById('addFaceInput').click()" style="padding:9px 16px;border:1px solid #dbeafe;border-radius:8px;background:#fff;color:#1e3a8a;font-size:12px;font-weight:700;cursor:pointer;">🖼 Upload</button>
+                </div>
+                <input type="file" id="addFaceInput" name="face" accept="image/*" style="display:none;"
+                       onchange="empPhotoSelected(this)" />
               </div>
-              <div id="addPhotoErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none;">⚠ Please upload a face photo before registering.</div>
+              <div id="addPhotoErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none;">⚠ Please take or upload a face photo before registering.</div>
             </div>
           </div>
 
@@ -1024,6 +1051,70 @@
       // ========== ADD MODAL ==========
       function toggleAddLocation(mode) {
         document.getElementById('addLocationBox').style.display = mode === 'wfh' ? 'block' : 'none';
+      }
+
+      /* ── EMPLOYEE PAGE CAMERA ── */
+      var _empCamStream = null, _empCapturedBlob = null;
+      async function openEmpCameraModal() {
+        _empCapturedBlob = null;
+        var modal = document.getElementById('empCameraModal');
+        modal.style.display = 'flex';
+        document.getElementById('empCamCanvas').style.display  = 'none';
+        document.getElementById('empCamVideo').style.display   = 'block';
+        document.getElementById('empCaptureBtn').style.display = 'inline-block';
+        document.getElementById('empRetakeBtn').style.display  = 'none';
+        document.getElementById('empUseBtn').style.display     = 'none';
+        try {
+          _empCamStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+          document.getElementById('empCamVideo').srcObject = _empCamStream;
+        } catch(e) {
+          alert('Camera not accessible: '+e.message+'\nUse Upload Photo instead.');
+          closeEmpCameraModal();
+        }
+      }
+      function empCapturePhoto() {
+        var video = document.getElementById('empCamVideo'), canvas = document.getElementById('empCamCanvas');
+        canvas.width = video.videoWidth||640; canvas.height = video.videoHeight||480;
+        canvas.getContext('2d').drawImage(video,0,0);
+        if (_empCamStream) { _empCamStream.getTracks().forEach(t=>t.stop()); _empCamStream = null; }
+        video.style.display = 'none'; canvas.style.display = 'block';
+        document.getElementById('empCaptureBtn').style.display = 'none';
+        document.getElementById('empRetakeBtn').style.display  = 'inline-block';
+        document.getElementById('empUseBtn').style.display     = 'inline-block';
+        canvas.toBlob(blob => { _empCapturedBlob = blob; }, 'image/jpeg', 0.92);
+      }
+      function empRetakePhoto() { _empCapturedBlob = null; openEmpCameraModal(); }
+      function empUsePhoto() {
+        if (!_empCapturedBlob) return;
+        var file = new File([_empCapturedBlob], 'face_capture.jpg', {type:'image/jpeg'});
+        var dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('addFaceInput').files = dt.files;
+        var url = URL.createObjectURL(_empCapturedBlob);
+        var prev = document.getElementById('addPhotoPreview');
+        prev.src = url; prev.style.display = 'block';
+        document.getElementById('addPhotoLabel').textContent = '✓ Photo captured from camera';
+        document.getElementById('addPhotoBox').style.borderColor = '#22c55e';
+        document.getElementById('addPhotoErr').style.display = 'none';
+        closeEmpCameraModal();
+      }
+      function closeEmpCameraModal() {
+        if (_empCamStream) { _empCamStream.getTracks().forEach(t=>t.stop()); _empCamStream = null; }
+        document.getElementById('empCameraModal').style.display = 'none';
+      }
+      document.getElementById('empCameraModal').addEventListener('click', function(e) {
+        if (e.target === e.currentTarget) closeEmpCameraModal();
+      });
+      function empPhotoSelected(input) {
+        if (!input.files || !input.files[0]) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var prev = document.getElementById('addPhotoPreview');
+          prev.src = e.target.result; prev.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+        document.getElementById('addPhotoLabel').textContent = '✓ ' + input.files[0].name;
+        document.getElementById('addPhotoBox').style.borderColor = '#22c55e';
+        document.getElementById('addPhotoErr').style.display = 'none';
       }
 
       function validateAddForm(form) {
