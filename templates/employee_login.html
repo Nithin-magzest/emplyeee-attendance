@@ -64,8 +64,7 @@
         {{ error }}
         {% if 'password' in error.lower() %}
         <div style="margin-top:8px;padding:8px 10px;background:#fff7ed;border:1px solid #fdba74;border-radius:7px;color:#c2410c;font-size:12px;line-height:1.5;">
-          💡 <strong>Hint:</strong> Your default password is your <strong>Employee ID</strong>.<br>
-          Example: if your ID is <code>EMP001</code>, password is <code>EMP001</code>.<br>
+          💡 <strong>Hint:</strong> Your default password is <strong>1234</strong>.<br>
           Contact admin if you've forgotten your password.
         </div>
         {% endif %}
@@ -80,7 +79,7 @@
         <input type="password" name="password" placeholder="Enter your password"
                required title="Your password" />
         <p style="font-size:12px;color:#64748b;margin-top:-12px;margin-bottom:16px;">
-          🔑 Default password = your Employee ID
+          🔑 Default password is <strong>1234</strong>
         </p>
         <button type="submit" class="btn">Sign In</button>
       </form>

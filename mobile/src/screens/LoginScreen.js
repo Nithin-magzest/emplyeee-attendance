@@ -15,8 +15,8 @@ export default function LoginScreen() {
   const [tab, setTab]           = useState('admin'); // 'admin' | 'employee'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [empId, setEmpId]       = useState('');
-  const [pin, setPin] = useState('');
+  const [empId, setEmpId]         = useState('');
+  const [empPassword, setEmpPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -41,17 +41,13 @@ export default function LoginScreen() {
   };
 
   const handleEmployeeLogin = async () => {
-    if (!empId.trim() || !pin.trim()) {
-      Alert.alert('Error', 'Please enter Employee ID and PIN.');
-      return;
-    }
-    if (pin.trim().length !== 4) {
-      Alert.alert('Error', 'PIN must be 4 digits.');
+    if (!empId.trim() || !empPassword.trim()) {
+      Alert.alert('Error', 'Please enter Employee ID and Password.');
       return;
     }
     setLoading(true);
     try {
-      const res = await employeeLogin(empId.trim().toUpperCase(), pin.trim());
+      const res = await employeeLogin(empId.trim().toUpperCase(), empPassword.trim());
       if (res.data.ok) {
         await signIn(res.data.token, {
           role: 'employee',
@@ -369,45 +365,35 @@ Employee Login
         autoCorrect={false}
     />
 </View>
-<Text style={styles.label}>
-    PIN
-</Text>
+<Text style={styles.label}>Password</Text>
 
 <View style={styles.inputRow}>
-
     <Ionicons
-        name="key-outline"
+        name="lock-closed-outline"
         size={18}
         color="#64748B"
         style={{ marginRight: 12 }}
     />
-
     <TextInput
         style={styles.input}
-        placeholder="4-digit PIN"
+        placeholder="Password"
         placeholderTextColor="#94A3B8"
-        value={pin}
-        onChangeText={setPin}
-        keyboardType="number-pad"
+        value={empPassword}
+        onChangeText={setEmpPassword}
         secureTextEntry={!showPass}
-        maxLength={4}
+        autoCapitalize="none"
+        autoCorrect={false}
     />
-
     <TouchableOpacity
         style={styles.eyeBtn}
         onPress={() => setShowPass(!showPass)}
     >
         <Ionicons
-            name={
-                showPass
-                    ? "eye-off-outline"
-                    : "eye-outline"
-            }
+            name={showPass ? "eye-off-outline" : "eye-outline"}
             size={20}
             color="#64748B"
         />
     </TouchableOpacity>
-
 </View>
 
 

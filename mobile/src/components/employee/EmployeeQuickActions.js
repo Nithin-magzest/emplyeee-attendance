@@ -52,8 +52,8 @@ const ACTIONS = [
     screen: "Profile",
   },
   {
-    title: "Change PIN",
-    subtitle: "Update PIN",
+    title: "Password",
+    subtitle: "Change Password",
     icon: "key-outline",
     color: "#0891B2",
     bg: "#ECFEFF",

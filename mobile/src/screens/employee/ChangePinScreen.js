@@ -13,43 +13,43 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { changePin } from "../../api/client";
+import { changePassword } from "../../api/client";
 
 export default function ChangePinScreen({ navigation }) {
-  const [currentPin, setCurrentPin] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
 
-  const handleChangePin = async () => {
-    if (!currentPin || !newPin || !confirmPin) {
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
-    if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
-      Alert.alert("Error", "New PIN must be exactly 4 digits.");
+    if (newPassword.length < 4) {
+      Alert.alert("Error", "New password must be at least 4 characters.");
       return;
     }
-    if (newPin !== confirmPin) {
-      Alert.alert("Error", "New PIN and Confirm PIN do not match.");
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "New password and confirm password do not match.");
       return;
     }
-    if (newPin === currentPin) {
-      Alert.alert("Error", "New PIN must be different from your current PIN.");
+    if (newPassword === currentPassword) {
+      Alert.alert("Error", "New password must be different from your current password.");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await changePin(currentPin, newPin);
+      const res = await changePassword(currentPassword, newPassword);
       if (res.data.ok) {
-        Alert.alert("Success", "PIN changed successfully!", [
+        Alert.alert("Success", "Password changed successfully!", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert("Failed", res.data.msg || "Unable to change PIN.");
+        Alert.alert("Failed", res.data.msg || "Unable to change password.");
       }
     } catch (e) {
       Alert.alert("Error", e.response?.data?.msg || "Something went wrong.");
@@ -68,33 +68,31 @@ export default function ChangePinScreen({ navigation }) {
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="arrow-back" size={22} color="#173B8C" />
             </TouchableOpacity>
             <View style={styles.iconCircle}>
-              <Ionicons name="key" size={28} color="#fff" />
+              <Ionicons name="lock-closed" size={28} color="#fff" />
             </View>
-            <Text style={styles.title}>Change PIN</Text>
-            <Text style={styles.subtitle}>Update your 4-digit login PIN</Text>
+            <Text style={styles.title}>Change Password</Text>
+            <Text style={styles.subtitle}>Update your login password</Text>
           </View>
 
-          {/* Form Card */}
           <View style={styles.card}>
 
-            <Text style={styles.label}>Current PIN</Text>
+            <Text style={styles.label}>Current Password</Text>
             <View style={styles.inputRow}>
               <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter current PIN"
+                placeholder="Enter current password"
                 placeholderTextColor="#94A3B8"
-                value={currentPin}
-                onChangeText={setCurrentPin}
-                keyboardType="number-pad"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
                 secureTextEntry={!showCurrent}
-                maxLength={4}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)} style={styles.eyeBtn}>
                 <Ionicons
@@ -105,18 +103,18 @@ export default function ChangePinScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>New PIN</Text>
+            <Text style={styles.label}>New Password</Text>
             <View style={styles.inputRow}>
               <Ionicons name="key-outline" size={18} color="#64748B" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter new 4-digit PIN"
+                placeholder="Enter new password"
                 placeholderTextColor="#94A3B8"
-                value={newPin}
-                onChangeText={setNewPin}
-                keyboardType="number-pad"
+                value={newPassword}
+                onChangeText={setNewPassword}
                 secureTextEntry={!showNew}
-                maxLength={4}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <TouchableOpacity onPress={() => setShowNew(!showNew)} style={styles.eyeBtn}>
                 <Ionicons
@@ -127,30 +125,30 @@ export default function ChangePinScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>Confirm New PIN</Text>
+            <Text style={styles.label}>Confirm New Password</Text>
             <View style={styles.inputRow}>
               <Ionicons name="checkmark-circle-outline" size={18} color="#64748B" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Re-enter new PIN"
+                placeholder="Re-enter new password"
                 placeholderTextColor="#94A3B8"
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                keyboardType="number-pad"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
                 secureTextEntry
-                maxLength={4}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
             <TouchableOpacity
               style={[styles.btn, loading && styles.btnDisabled]}
-              onPress={handleChangePin}
+              onPress={handleChangePassword}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.btnTxt}>Update PIN</Text>
+                <Text style={styles.btnTxt}>Update Password</Text>
               )}
             </TouchableOpacity>
 
@@ -159,7 +157,7 @@ export default function ChangePinScreen({ navigation }) {
           <View style={styles.hint}>
             <Ionicons name="information-circle-outline" size={16} color="#64748B" />
             <Text style={styles.hintTxt}>
-              Your default PIN is <Text style={styles.hintBold}>1234</Text>. Change it to something secure.
+              Your default password is <Text style={styles.hintBold}>1234</Text>. Change it to something secure.
             </Text>
           </View>
 
@@ -240,9 +238,8 @@ const styles = StyleSheet.create({
   icon: { marginRight: 10 },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: "#0F172A",
-    letterSpacing: 4,
   },
   eyeBtn: {
     width: 36,

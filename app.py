@@ -7408,9 +7408,9 @@ def api_employee_login():
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     if not password:
-        return jsonify({"ok": False, "msg": "PIN required"}), 400
+        return jsonify({"ok": False, "msg": "Password required"}), 400
     if not row[2] or not check_password_hash(row[2], password):
-        return jsonify({"ok": False, "msg": "Invalid PIN"}), 401
+        return jsonify({"ok": False, "msg": "Invalid password"}), 401
     token = secrets.token_hex(32)
     with _db() as (cursor, conn):
         cursor.execute(
@@ -7433,16 +7433,16 @@ def api_employee_logout():
     return jsonify({"ok": True})
 
 
-@app.route("/api/employee/change-pin", methods=["POST"])
+@app.route("/api/employee/change-password", methods=["POST"])
 @employee_api_required
-def api_employee_change_pin():
+def api_employee_change_password():
     data = request.get_json() or {}
-    current_pin = data.get("current_pin", "").strip()
-    new_pin     = data.get("new_pin", "").strip()
-    if not current_pin or not new_pin:
-        return jsonify({"ok": False, "msg": "current_pin and new_pin required"}), 400
-    if len(new_pin) != 4 or not new_pin.isdigit():
-        return jsonify({"ok": False, "msg": "New PIN must be exactly 4 digits"}), 400
+    current_password = data.get("current_password", "").strip()
+    new_password     = data.get("new_password", "").strip()
+    if not current_password or not new_password:
+        return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
+    if len(new_password) < 4:
+        return jsonify({"ok": False, "msg": "New password must be at least 4 characters"}), 400
     from flask import g as _g
     emp_id = _g.api_emp_id
     with _db() as (cursor, conn):
@@ -7450,14 +7450,14 @@ def api_employee_change_pin():
         row = cursor.fetchone()
         if not row:
             return jsonify({"ok": False, "msg": "Employee not found"}), 404
-        if not row[0] or not check_password_hash(row[0], current_pin):
-            return jsonify({"ok": False, "msg": "Current PIN is incorrect"}), 401
+        if not row[0] or not check_password_hash(row[0], current_password):
+            return jsonify({"ok": False, "msg": "Current password is incorrect"}), 401
         cursor.execute(
             "UPDATE employees SET password=%s WHERE employee_id=%s",
-            (generate_password_hash(new_pin), emp_id)
+            (generate_password_hash(new_password), emp_id)
         )
         conn.commit()
-    return jsonify({"ok": True, "msg": "PIN changed successfully"})
+    return jsonify({"ok": True, "msg": "Password changed successfully"})
 
 
 def _fmt_t(t):
