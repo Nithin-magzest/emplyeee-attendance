@@ -431,7 +431,11 @@
                 </div>
                 <div class="field">
                   <label>Employee ID <span style="color:#dc2626;">*</span></label>
-                  <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" name="emp_id" id="dashEmpId" placeholder="Generating…" required style="flex:1;font-weight:700;letter-spacing:1px;" />
+                    <button type="button" onclick="generateDashEmpId()" title="Re-generate" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:13px;cursor:pointer;white-space:nowrap;">🔄</button>
+                  </div>
+                  <div id="dashEmpIdHint" style="font-size:11px;margin-top:4px;"></div>
                 </div>
                 <div class="field">
                   <label>Email</label>
@@ -830,6 +834,35 @@
       function toggleWorkLocation(mode) {
         document.getElementById("locationSection").style.display = mode === "wfh" ? "block" : "none";
       }
+
+      /* ── AUTO GENERATE EMPLOYEE ID ── */
+      async function generateDashEmpId() {
+        var inp  = document.getElementById('dashEmpId');
+        var hint = document.getElementById('dashEmpIdHint');
+        if (!inp) return;
+        inp.placeholder = 'Generating…';
+        try {
+          var res  = await fetch('/api/generate_emp_id');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          var data = await res.json();
+          if (data.error) throw new Error(data.error);
+          inp.value = data.emp_id;
+          inp.placeholder = '';
+          if (hint) {
+            if (!data.code) {
+              hint.innerHTML = '⚠ <a href="/settings" target="_blank" style="color:#1e3a8a;">Set company code in Settings</a> first.';
+              hint.style.color = '#dc2626';
+            } else {
+              hint.textContent = '✓ ID generated: ' + data.emp_id;
+              hint.style.color = '#16a34a';
+            }
+          }
+        } catch(e) {
+          if (inp) inp.placeholder = 'Enter manually';
+          if (hint) { hint.textContent = 'Could not auto-generate — enter manually.'; hint.style.color = '#dc2626'; }
+        }
+      }
+      document.addEventListener('DOMContentLoaded', function() { generateDashEmpId(); });
 
       function updateRegMapPreview() {
         var lat = document.getElementById("reg_work_lat").value;

@@ -291,7 +291,7 @@
                    oninput="applyFilters()" />
           </div>
           <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
-          <button class="btn-add" onclick="openModal('addModal');setTimeout(generateEmpId,150)">
+          <button class="btn-add" onclick="openModal('addModal')">
             <i class="ti ti-plus"></i> Add Employee
           </button>
         </div>
@@ -943,6 +943,7 @@
       function openModal(id) {
         document.getElementById(id).classList.add('open');
         document.body.style.overflow = 'hidden';
+        if (id === 'addModal') { setTimeout(generateEmpId, 50); }
       }
       function closeModal(id) {
         document.getElementById(id).classList.remove('open');
