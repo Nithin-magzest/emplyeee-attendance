@@ -7122,7 +7122,6 @@ def analytics():
 
     return render_template("analytics.html",
         co=co,
-        shift_start="09:00 AM", shift_end="06:00 PM",
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
@@ -7195,7 +7194,7 @@ def documents():
     cursor.close(); db.close()
 
     return render_template("documents.html",
-        co=co, shift_start="09:00 AM", shift_end="06:00 PM",
+        co=co,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
@@ -7371,7 +7370,7 @@ def overtime():
     cursor.close(); db.close()
 
     return render_template("overtime.html",
-        co=co, shift_start="09:00 AM", shift_end="06:00 PM",
+        co=co,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
