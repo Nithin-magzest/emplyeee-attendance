@@ -146,12 +146,17 @@
           <h1>💰 Salary Report — {{ month_name }}</h1>
           <p>Deductions: Late Login = {{ late_rate }}% &nbsp;|&nbsp; Half Day = {{ half_rate }}% &nbsp;|&nbsp; Absent = 100%</p>
         </div>
-        <div style="position:relative;margin-top:32px;">
-          <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;color:#3b82f6;pointer-events:none;"></i>
-          <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
-            oninput="filterEmpTable(this.value)"
-            style="padding:9px 12px 9px 34px;border:2px solid #3b82f6;border-radius:10px;background:#eff6ff;
-                   color:#1e293b;font-size:13px;outline:none;width:220px;box-shadow:0 2px 10px rgba(59,130,246,.2);font-weight:500;" />
+        <div style="display:flex;align-items:center;gap:10px;margin-top:32px;flex-wrap:wrap;">
+          <a href="/payroll_settings" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:9px;text-decoration:none;font-size:13px;font-weight:700;">
+            <i class="ti ti-adjustments-horizontal"></i> Payroll Settings
+          </a>
+          <div style="position:relative;">
+            <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;color:#3b82f6;pointer-events:none;"></i>
+            <input type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+              oninput="filterEmpTable(this.value)"
+              style="padding:9px 12px 9px 34px;border:2px solid #3b82f6;border-radius:10px;background:#eff6ff;
+                     color:#1e293b;font-size:13px;outline:none;width:220px;box-shadow:0 2px 10px rgba(59,130,246,.2);font-weight:500;" />
+          </div>
         </div>
       </div>
 

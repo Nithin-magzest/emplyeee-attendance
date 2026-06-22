@@ -399,6 +399,16 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payroll_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            pf_employee_pct DECIMAL(5,2) DEFAULT 12.00,
+            pf_employer_pct DECIMAL(5,2) DEFAULT 12.00,
+            professional_tax DECIMAL(8,2) DEFAULT 200.00,
+            tds_annual_pct DECIMAL(5,2) DEFAULT 0.00,
+            pf_basic_cap DECIMAL(10,2) DEFAULT 15000.00
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
@@ -549,6 +559,17 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS leave_balances (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id VARCHAR(50) NOT NULL,
+            leave_type_id INT NOT NULL,
+            year INT NOT NULL,
+            total_days INT NOT NULL DEFAULT 0,
+            used_days DECIMAL(4,1) NOT NULL DEFAULT 0,
+            UNIQUE KEY uq_emp_lt_yr (employee_id, leave_type_id, year)
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_documents (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
@@ -671,6 +692,8 @@ def init_db():
         "ALTER TABLE admin_users ADD COLUMN role VARCHAR(20) DEFAULT 'admin'",
         "ALTER TABLE attendance ADD COLUMN worked_minutes INT DEFAULT 0",
         "ALTER TABLE attendance ADD COLUMN last_relogin TIME DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN monthly_ctc DECIMAL(12,2) DEFAULT 0",
+        "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
     ]:
         try:
             cursor.execute(sql)
@@ -737,6 +760,19 @@ def init_db():
 
     cursor.close()
     db.close()
+
+
+def assign_leave_balances_for_employee(cursor, employee_id, year=None):
+    """Auto-assign leave balances for all active leave types for a new/existing employee."""
+    if year is None:
+        year = datetime.date.today().year
+    cursor.execute("SELECT id, annual_quota FROM leave_types WHERE is_active=1")
+    for lt_id, quota in cursor.fetchall():
+        cursor.execute("""
+            INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
+            VALUES (%s, %s, %s, %s, 0)
+            ON DUPLICATE KEY UPDATE total_days=IF(total_days=0, VALUES(total_days), total_days)
+        """, (employee_id, lt_id, year, quota))
 
 
 def init_master_db():
@@ -1017,85 +1053,201 @@ def get_email_config():
         }
     return None
 
-def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data):
+def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
+                           company_name="", emp_designation="", emp_dept="",
+                           pan="", uan="", bank_account="", bank_name="",
+                           payroll_cfg=None):
     e = salary_data
-    return f"""
-<!DOCTYPE html>
+    pc = payroll_cfg or {}
+
+    # ── Salary structure ──────────────────────────────────────────
+    monthly_ctc  = float(e.get("monthly_ctc", 0))
+    basic_pct    = int(e.get("basic_pct", 50))
+    if monthly_ctc <= 0 and float(e.get("spd", 0)) > 0:
+        monthly_ctc = round(float(e["spd"]) * 26, 2)
+
+    basic        = round(monthly_ctc * basic_pct / 100, 2)
+    hra          = round(monthly_ctc * 0.20, 2)
+    conveyance   = 1600.0
+    special_all  = round(max(0, monthly_ctc - basic - hra - conveyance), 2)
+    gross_salary = round(basic + hra + conveyance + special_all, 2)
+
+    # ── LOP: standard 26-day denominator (Indian payroll norm) ───
+    full_d  = int(e.get("full_days", 0))
+    late_d  = int(e.get("late_days", 0))
+    half_d  = int(e.get("half_days", 0))
+    lop_days     = float(e.get("absent", 0))
+    paid_days_display = full_d + late_d + half_d   # integer count for display
+    lop_ded      = round(gross_salary / 26 * lop_days, 2)
+    gross_earned = round(gross_salary - lop_ded, 2)
+
+    # ── Statutory deductions ─────────────────────────────────────
+    pf_pct        = float(pc.get("pf_employee_pct", 12))
+    pf_er_pct     = float(pc.get("pf_employer_pct", 12))
+    pf_cap_basic  = float(pc.get("pf_basic_cap", 15000))
+    pt_monthly    = float(pc.get("professional_tax", 200))
+    tds_ann_pct   = float(pc.get("tds_annual_pct", 0))
+
+    # PF on capped basic; TDS = annual taxable (CTC×12) × rate ÷ 12
+    pf_ded        = round(min(basic, pf_cap_basic) * pf_pct / 100, 2)
+    pf_er_ded     = round(min(basic, pf_cap_basic) * pf_er_pct / 100, 2)
+    annual_ctc    = monthly_ctc * 12
+    tds_ded       = round(annual_ctc * tds_ann_pct / 100 / 12, 2)
+    total_ded     = round(lop_ded + pf_ded + pt_monthly + tds_ded, 2)
+    net_pay       = round(gross_earned - pf_ded - pt_monthly - tds_ded, 2)
+
+    emp_row_extra = ""
+    if emp_designation: emp_row_extra += f"<tr><td>Designation</td><td>{emp_designation}</td></tr>"
+    if emp_dept:        emp_row_extra += f"<tr><td>Department</td><td>{emp_dept}</td></tr>"
+    if pan:             emp_row_extra += f"<tr><td>PAN</td><td>{pan}</td></tr>"
+    if uan:             emp_row_extra += f"<tr><td>UAN</td><td>{uan}</td></tr>"
+    if bank_account:    emp_row_extra += f"<tr><td>Bank A/C</td><td>{'*'*len(bank_account[:-4]) + bank_account[-4:]}</td></tr>"
+    if bank_name:       emp_row_extra += f"<tr><td>Bank</td><td>{bank_name}</td></tr>"
+
+    incentive_row = ""
+    if e.get("incentive", 0) > 0:
+        incentive_row = f'<tr><td>Incentive / Bonus</td><td class="green">+ Rs. {e["incentive"]:.2f}</td><td></td><td></td></tr>'
+
+    return f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-  body {{ font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }}
-  .slip {{ max-width: 650px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-  .header {{ background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; color: white; text-align: center; }}
-  .header h2 {{ margin: 0 0 6px; font-size: 22px; }}
-  .header p {{ margin: 0; opacity: 0.85; font-size: 14px; }}
-  .body {{ padding: 28px; }}
-  .emp-info {{ background: #f8f9fc; border-radius: 8px; padding: 16px 20px; margin-bottom: 22px; }}
-  .emp-info table {{ width: 100%; border-collapse: collapse; }}
-  .emp-info td {{ padding: 5px 8px; font-size: 14px; }}
-  .emp-info td:first-child {{ font-weight: 600; color: #555; width: 140px; }}
-  .section-title {{ font-size: 15px; font-weight: 700; color: #444; margin: 20px 0 10px; border-bottom: 2px solid #eee; padding-bottom: 6px; }}
-  .att-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }}
-  .att-card {{ background: #f8f9fc; border-radius: 8px; padding: 12px; text-align: center; }}
-  .att-card .num {{ font-size: 22px; font-weight: 700; }}
-  .att-card .lbl {{ font-size: 11px; color: #888; margin-top: 3px; }}
-  .green {{ color: #22c55e; }} .yellow {{ color: #f59e0b; }} .red {{ color: #ef4444; }} .blue {{ color: #3b82f6; }}
-  .salary-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
-  .salary-table td {{ padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }}
-  .salary-table td:last-child {{ text-align: right; font-weight: 600; }}
-  .salary-table tr.total {{ background: #f8f9fc; font-weight: 700; font-size: 15px; }}
-  .salary-table tr.total td {{ border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; }}
-  .net-row td {{ background: linear-gradient(135deg, #667eea15, #764ba215); color: #5b21b6; font-size: 16px; font-weight: 700; }}
-  .footer {{ background: #f8f9fc; padding: 18px 28px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; }}
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:"Segoe UI",Arial,sans-serif;background:#f0f4ff;color:#1e293b}}
+  .wrap{{max-width:800px;margin:20px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.12)}}
+  .hdr{{background:linear-gradient(135deg,#0f2460,#1e3a8a);padding:28px 32px;color:#fff;display:flex;justify-content:space-between;align-items:center}}
+  .hdr-left h1{{font-size:20px;font-weight:800;margin-bottom:4px}}
+  .hdr-left p{{font-size:13px;opacity:.75}}
+  .hdr-right{{text-align:right}}
+  .hdr-right .slip-num{{font-size:12px;opacity:.7;margin-bottom:4px}}
+  .hdr-right .month{{font-size:18px;font-weight:700}}
+  .emp-bar{{background:#dbeafe;padding:16px 32px;display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;font-size:13px}}
+  .emp-bar td:first-child{{font-weight:700;color:#1e3a8a;white-space:nowrap}}
+  .emp-bar td{{padding:3px 6px;color:#1e293b}}
+  .att-strip{{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-bottom:1px solid #e2e8f0}}
+  .att-cell{{text-align:center;padding:14px 8px;border-right:1px solid #e2e8f0}}
+  .att-cell:last-child{{border-right:none}}
+  .att-cell .num{{font-size:22px;font-weight:800}}
+  .att-cell .lbl{{font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.3px}}
+  .body{{padding:24px 32px}}
+  .two-col{{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px}}
+  .sec-title{{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;padding-bottom:7px;border-bottom:2px solid #dbeafe;margin-bottom:10px}}
+  table.pay-tbl{{width:100%;border-collapse:collapse;font-size:13px}}
+  table.pay-tbl td{{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}}
+  table.pay-tbl td:last-child{{text-align:right;font-weight:600;white-space:nowrap}}
+  table.pay-tbl tr.tot td{{background:#f8fafc;font-weight:800;border-top:2px solid #dbeafe;border-bottom:2px solid #dbeafe;font-size:14px}}
+  .net-box{{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:12px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;margin-top:16px}}
+  .net-box .lbl{{font-size:13px;opacity:.8}}
+  .net-box .amt{{font-size:28px;font-weight:900}}
+  .footer{{background:#f8fafc;padding:14px 32px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}}
+  .print-btn{{display:flex;gap:10px;margin:18px 32px 4px;justify-content:flex-end}}
+  .btn{{padding:9px 20px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer}}
+  .btn-print{{background:#0f2460;color:#fff}}
+  .btn-back{{background:#f1f5f9;color:#64748b}}
+  .green{{color:#16a34a}} .red{{color:#ef4444}} .yellow{{color:#f59e0b}}
+  @media print{{
+    body{{background:#fff}}
+    .wrap{{box-shadow:none;margin:0;border-radius:0}}
+    .print-btn{{display:none}}
+    .btn{{display:none}}
+  }}
 </style>
 </head>
 <body>
-<div class="slip">
-  <div class="header">
-    <h2>Salary Slip — {month_name}</h2>
-    <p>Employee Attendance & Payroll Statement</p>
+<div class="wrap">
+  <div class="print-btn">
+    <button class="btn btn-back" onclick="history.back()">&#8592; Back</button>
+    <button class="btn btn-print" onclick="window.print()">&#128438; Download / Print PDF</button>
   </div>
-  <div class="body">
-    <div class="emp-info">
-      <table>
-        <tr><td>Employee Name</td><td>{emp_name}</td></tr>
-        <tr><td>Employee ID</td><td>{emp_id}</td></tr>
-        <tr><td>Email</td><td>{emp_email or 'N/A'}</td></tr>
-        <tr><td>Pay Period</td><td>{month_name}</td></tr>
-        <tr><td>Working Days</td><td>{e['billable']} days</td></tr>
-        <tr><td>Daily Rate</td><td>Rs. {e['spd']:.2f}</td></tr>
-      </table>
-    </div>
 
-    <div class="section-title">Attendance Summary</div>
-    <div class="att-grid">
-      <div class="att-card"><div class="num green">{e['full_days']}</div><div class="lbl">Full Days</div></div>
-      <div class="att-card"><div class="num yellow">{e['late_days']}</div><div class="lbl">Late Days</div></div>
-      <div class="att-card"><div class="num yellow">{e['half_days']}</div><div class="lbl">Half Days</div></div>
-      <div class="att-card"><div class="num red">{e['absent']}</div><div class="lbl">Absent</div></div>
-      <div class="att-card"><div class="num blue">{e.get('holiday_days', 0)}</div><div class="lbl">Holidays (Paid)</div></div>
-      <div class="att-card"><div class="num" style="color:#9333ea">{e.get('leave_days', 0)}</div><div class="lbl">Leave Days</div></div>
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>{company_name or "Payslip"}</h1>
+      <p>Salary Slip — {month_name}</p>
     </div>
+    <div class="hdr-right">
+      <div class="slip-num">Slip ID: {emp_id}-{year}{month:02d}</div>
+      <div class="month">{month_name}</div>
+    </div>
+  </div>
 
-    <div class="section-title">Salary Breakdown</div>
-    <table class="salary-table">
-      <tr><td>Full Days ({e['full_days']} days × Rs. {e['spd']:.2f})</td><td class="green">Rs. {e['full_earn']:.2f}</td></tr>
-      <tr><td>Late Days ({e['late_days']} days × Rs. {e['spd']:.2f} × 90%)</td><td class="yellow">Rs. {e['late_earn']:.2f}</td></tr>
-      <tr><td>Half Days ({e['half_days']} days × Rs. {e['spd']:.2f} × 50%)</td><td class="yellow">Rs. {e['half_earn']:.2f}</td></tr>
-      <tr><td>Absent ({e['absent']} days × Rs. 0.00)</td><td class="red">Rs. 0.00</td></tr>
-      {f'<tr><td>🏆 Incentive Bonus (Tasks &amp; Goals)</td><td class="green">+ Rs. {e["incentive"]:.2f}</td></tr>' if e.get('incentive', 0) > 0 else ''}
-      <tr class="net-row"><td>Net Payable Amount</td><td>Rs. {e['net']:.2f}</td></tr>
+  <div class="emp-bar">
+    <table>
+      <tr><td>Employee Name</td><td>{emp_name}</td></tr>
+      <tr><td>Employee ID</td><td>{emp_id}</td></tr>
+      <tr><td>Email</td><td>{emp_email or 'N/A'}</td></tr>
+      {emp_row_extra}
+    </table>
+    <table>
+      <tr><td>Pay Period</td><td>{month_name}</td></tr>
+      <tr><td>Working Days (Standard)</td><td>26</td></tr>
+      <tr><td>Days Present</td><td>{paid_days_display}</td></tr>
+      <tr><td>LOP Days</td><td>{int(lop_days)}</td></tr>
+      <tr><td>Monthly CTC</td><td>Rs. {monthly_ctc:,.2f}</td></tr>
     </table>
   </div>
+
+  <div class="att-strip">
+    <div class="att-cell"><div class="num green">{full_d}</div><div class="lbl">Full Days</div></div>
+    <div class="att-cell"><div class="num yellow">{late_d}</div><div class="lbl">Late Days</div></div>
+    <div class="att-cell"><div class="num yellow">{half_d}</div><div class="lbl">Half Days</div></div>
+    <div class="att-cell"><div class="num red">{int(lop_days)}</div><div class="lbl">LOP / Absent</div></div>
+    <div class="att-cell"><div class="num" style="color:#3b82f6">{e.get('holiday_days',0)}</div><div class="lbl">Holidays</div></div>
+    <div class="att-cell"><div class="num" style="color:#9333ea">{e.get('leave_days',0)}</div><div class="lbl">Leave (Paid)</div></div>
+  </div>
+
+  <div class="body">
+    <div class="two-col">
+      <div>
+        <div class="sec-title">Earnings (Monthly)</div>
+        <table class="pay-tbl">
+          <tr><td>Basic Salary ({basic_pct}% of CTC)</td><td>Rs. {basic:,.2f}</td></tr>
+          <tr><td>House Rent Allowance (HRA)</td><td>Rs. {hra:,.2f}</td></tr>
+          <tr><td>Conveyance Allowance</td><td>Rs. {conveyance:,.2f}</td></tr>
+          <tr><td>Special Allowance</td><td>Rs. {special_all:,.2f}</td></tr>
+          {incentive_row}
+          <tr class="tot"><td>Gross Salary</td><td>Rs. {gross_salary:,.2f}</td></tr>
+        </table>
+        <div style="margin-top:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#15803d;">
+          <b>PF — Employer Contribution ({pf_er_pct:.0f}%)</b>: Rs. {pf_er_ded:,.2f}
+          <div style="color:#64748b;margin-top:2px;font-size:11px;">Company's share — not deducted from your pay</div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-title">Deductions</div>
+        <table class="pay-tbl">
+          <tr><td>Loss of Pay — LOP ({int(lop_days)} days × Rs.{gross_salary/26:,.2f})</td><td class="red">Rs. {lop_ded:,.2f}</td></tr>
+          <tr><td>PF — Employee Contribution ({pf_pct:.0f}% of Basic)</td><td class="red">Rs. {pf_ded:,.2f}</td></tr>
+          <tr><td>Professional Tax</td><td class="red">Rs. {pt_monthly:,.2f}</td></tr>
+          {"<tr><td>TDS — Income Tax (annual " + f"{tds_ann_pct:.1f}%" + ")</td><td class='red'>Rs. " + f"{tds_ded:,.2f}</td></tr>" if tds_ded > 0 else ""}
+          <tr class="tot"><td>Total Deductions</td><td>Rs. {total_ded:,.2f}</td></tr>
+        </table>
+        <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;">
+          <b>Gross Earned</b> (after LOP): Rs. {gross_earned:,.2f}
+          <div style="color:#64748b;margin-top:2px;font-size:11px;">Gross Salary − LOP before other deductions</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="net-box">
+      <div>
+        <div class="lbl">Net Take-Home Pay</div>
+        <div style="font-size:11px;opacity:.65;margin-top:4px;">
+          Rs.{gross_salary:,.2f} − LOP Rs.{lop_ded:,.2f} − PF Rs.{pf_ded:,.2f} − PT Rs.{pt_monthly:,.2f}{f" − TDS Rs.{tds_ded:,.2f}" if tds_ded > 0 else ""}
+        </div>
+      </div>
+      <div class="amt">Rs. {net_pay:,.2f}</div>
+    </div>
+  </div>
+
   <div class="footer">
-    This is a system-generated salary slip. Please contact HR for any discrepancies.<br>
-    Generated on {datetime.date.today().strftime('%d %B %Y')}
+    <span>This is a system-generated payslip. Contact HR for any discrepancies.</span>
+    <span>Generated on {datetime.date.today().strftime('%d %B %Y')}</span>
   </div>
 </div>
 </body>
-</html>
-"""
+</html>"""
 
 def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None, attachment_filename=None):
     from_addr = config.get("from_email") or config["user"]
@@ -2720,6 +2872,8 @@ def add_employee_page():
             (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
              date_of_joining, work_mode, work_lat, work_lon)
         )
+        db.commit()
+        assign_leave_balances_for_employee(cursor, emp_id)
         db.commit()
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
         if email:
@@ -4930,23 +5084,31 @@ def employee_portal():
             "SELECT id, name, annual_quota, is_paid FROM leave_types WHERE is_active=1 ORDER BY id"
         )
         leave_types_list = cursor.fetchall()
+        # Ensure balances exist for this employee
+        assign_leave_balances_for_employee(cursor, emp_id, today.year)
+        # Fetch from leave_balances table
         cursor.execute("""
-            SELECT leave_type_id,
-                   SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
-            FROM leave_requests
-            WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
-            GROUP BY leave_type_id
+            SELECT lt.id, lt.name, lt.annual_quota, lt.is_paid,
+                   COALESCE(lb.total_days, lt.annual_quota) as total,
+                   COALESCE(lb.used_days, 0) as used
+            FROM leave_types lt
+            LEFT JOIN leave_balances lb ON lb.employee_id=%s
+                AND lb.leave_type_id=lt.id AND lb.year=%s
+            WHERE lt.is_active=1 ORDER BY lt.id
         """, (emp_id, today.year))
-        used_by_type = {r[0]: float(r[1]) for r in cursor.fetchall()}
         leave_type_balances = []
-        for lt_id, lt_name, lt_quota, lt_paid in leave_types_list:
-            used = used_by_type.get(lt_id, 0.0)
+        annual_leave_quota = 0
+        leaves_used = 0
+        for lt_id, lt_name, lt_quota, lt_paid, total, used in cursor.fetchall():
+            used = float(used or 0)
+            total = int(total or lt_quota)
+            remaining = max(0, total - used)
             leave_type_balances.append({
-                "id": lt_id, "name": lt_name, "quota": lt_quota,
-                "used": used, "balance": max(0, lt_quota - used), "is_paid": lt_paid
+                "id": lt_id, "name": lt_name, "quota": total,
+                "used": used, "balance": remaining, "is_paid": lt_paid
             })
-        annual_leave_quota = sum(lt[2] for lt in leave_types_list) or 12
-        leaves_used   = sum(used_by_type.values())
+            annual_leave_quota += total
+            leaves_used += used
         leave_balance = max(0, annual_leave_quota - leaves_used)
     except Exception:
         leave_type_balances = []
@@ -5472,6 +5634,91 @@ def request_leave():
     return redirect("/employee_portal?leave_sent=1#apply-leave")
 
 
+@app.route("/leave_balance")
+@admin_required
+def leave_balance():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    year = int(request.args.get("year", datetime.date.today().year))
+
+    cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    co = type('Co', (), {'company_name': row[0] if row else 'My Company'})()
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
+    leave_types = cursor.fetchall()
+
+    # Auto-assign balances for employees who don't have them yet
+    cursor.execute("SELECT employee_id FROM employees")
+    all_emps = [r[0] for r in cursor.fetchall()]
+    for eid in all_emps:
+        assign_leave_balances_for_employee(cursor, eid, year)
+    db.commit()
+
+    # Fetch all balances
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.department,
+               lt.id, lt.name, lb.total_days, lb.used_days
+        FROM employees e
+        JOIN leave_types lt ON lt.is_active=1
+        LEFT JOIN leave_balances lb ON lb.employee_id=e.employee_id
+            AND lb.leave_type_id=lt.id AND lb.year=%s
+        ORDER BY e.name, lt.id
+    """, (year,))
+    rows = cursor.fetchall()
+
+    # Group by employee
+    from collections import defaultdict, OrderedDict
+    emp_balances = OrderedDict()
+    for emp_id, emp_name, dept, lt_id, lt_name, total, used in rows:
+        if emp_id not in emp_balances:
+            emp_balances[emp_id] = {'name': emp_name, 'dept': dept or '—', 'leaves': []}
+        used = float(used or 0)
+        total = int(total or 0)
+        remaining = max(0, total - used)
+        emp_balances[emp_id]['leaves'].append({
+            'lt_id': lt_id, 'lt_name': lt_name,
+            'total': total, 'used': used, 'remaining': remaining
+        })
+
+    cursor.close(); db.close()
+    return render_template("leave_balance.html",
+        co=co, year=year,
+        leave_types=leave_types,
+        emp_balances=emp_balances,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        shift_start="09:00 AM", shift_end="06:00 PM"
+    )
+
+
+@app.route("/set_leave_balance", methods=["POST"])
+@admin_required
+def set_leave_balance():
+    emp_id = request.form.get("employee_id")
+    lt_id  = int(request.form.get("leave_type_id"))
+    total  = int(request.form.get("total_days", 0))
+    year   = int(request.form.get("year", datetime.date.today().year))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
+        VALUES (%s, %s, %s, %s, 0)
+        ON DUPLICATE KEY UPDATE total_days=%s
+    """, (emp_id, lt_id, year, total, total))
+    db.commit()
+    cursor.close(); db.close()
+    flash("Leave balance updated successfully.", "success")
+    return redirect(f"/leave_balance?year={year}")
+
+
 @app.route("/leave_requests")
 @admin_required
 def leave_requests_view():
@@ -5567,6 +5814,11 @@ def leave_action(lid):
     """, (lid,))
     leave_row = cursor.fetchone()
 
+    # Fetch leave_type_id before updating
+    cursor.execute("SELECT leave_type_id FROM leave_requests WHERE id=%s", (lid,))
+    lt_row = cursor.fetchone()
+    leave_type_id = lt_row[0] if lt_row else None
+
     cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
 
     if action == "Approved" and leave_row:
@@ -5577,6 +5829,17 @@ def leave_action(lid):
             VALUES (%s, %s, %s)
             ON DUPLICATE KEY UPDATE attendance_type=%s
         """, (emp_id, leave_date, att_type, att_type))
+        # Deduct leave balance
+        deduction = 0.5 if is_half else 1
+        if leave_type_id:
+            year = leave_date.year if hasattr(leave_date, 'year') else datetime.date.today().year
+            cursor.execute("""
+                INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
+                VALUES (%s, %s, %s,
+                    (SELECT annual_quota FROM leave_types WHERE id=%s),
+                    %s)
+                ON DUPLICATE KEY UPDATE used_days = used_days + %s
+            """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
 
     db.commit()
     cursor.close(); db.close()
@@ -7251,17 +7514,38 @@ def view_payslip(emp_id, year, month):
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT e.name, e.email, COALESCE(s.salary_per_day, 0) "
-        "FROM employees e LEFT JOIN salary_config s ON e.employee_id = s.employee_id "
-        "WHERE e.employee_id = %s",
-        (emp_id,)
-    )
+    cursor.execute("""
+        SELECT e.name, e.email, COALESCE(s.salary_per_day, 0),
+               COALESCE(s.monthly_ctc, 0), COALESCE(s.basic_pct, 50),
+               COALESCE(e.role,''), COALESCE(e.department,''),
+               COALESCE(e.pan_number,''), COALESCE(e.uan_number,''),
+               COALESCE(e.bank_account,''), COALESCE(e.bank_name,'')
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
     row = cursor.fetchone()
     if not row:
         cursor.close(); db.close()
         return "Employee not found", 404
-    name, email, spd = row
+    name, email, spd, monthly_ctc, basic_pct, designation, dept, pan, uan, bank_acct, bank_nm = row
+
+    # Payroll config
+    cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
+    pc_row = cursor.fetchone()
+    payroll_cfg = {}
+    if pc_row:
+        payroll_cfg = {
+            "pf_employee_pct": float(pc_row[0] or 12),
+            "pf_employer_pct": float(pc_row[1] or 12),
+            "professional_tax": float(pc_row[2] or 200),
+            "tds_annual_pct": float(pc_row[3] or 0),
+            "pf_basic_cap": float(pc_row[4] or 15000),
+        }
+
+    cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    co_row = cursor.fetchone()
+    company_name = co_row[0] if co_row else ""
 
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -7285,9 +7569,17 @@ def view_payslip(emp_id, year, month):
     billable_past = get_billable_past_days(year, month)
     entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                  holidays_set=holidays_set, leave_dates=leave_dates)
+    entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
+    entry["basic_pct"]   = int(basic_pct)
 
     month_name = calendar.month_name[month] + f" {year}"
-    return build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+    return build_salary_slip_html(
+        name, emp_id, email, month_name, year, month, entry,
+        company_name=company_name,
+        emp_designation=designation, emp_dept=dept,
+        pan=pan, uan=uan, bank_account=bank_acct, bank_name=bank_nm,
+        payroll_cfg=payroll_cfg
+    )
 
 
 @app.route("/admin_payslips")
@@ -7323,6 +7615,78 @@ def admin_payslips():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets
+    )
+
+
+@app.route("/payroll_settings", methods=["GET", "POST"])
+@admin_required
+def payroll_settings():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Ensure at least one row exists
+    cursor.execute("SELECT COUNT(*) FROM payroll_config")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO payroll_config (pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap) VALUES (12,12,200,0,15000)")
+        db.commit()
+
+    if request.method == "POST":
+        pf_emp  = float(request.form.get("pf_employee_pct", 12))
+        pf_er   = float(request.form.get("pf_employer_pct", 12))
+        pt      = float(request.form.get("professional_tax", 200))
+        tds     = float(request.form.get("tds_annual_pct", 0))
+        pf_cap  = float(request.form.get("pf_basic_cap", 15000))
+        cursor.execute("""
+            UPDATE payroll_config SET pf_employee_pct=%s, pf_employer_pct=%s,
+            professional_tax=%s, tds_annual_pct=%s, pf_basic_cap=%s
+        """, (pf_emp, pf_er, pt, tds, pf_cap))
+        db.commit()
+
+        # Update per-employee monthly CTC / basic_pct if submitted
+        emp_ids = request.form.getlist("emp_id")
+        for eid in emp_ids:
+            ctc  = request.form.get(f"ctc_{eid}", "")
+            bpct = request.form.get(f"bpct_{eid}", "50")
+            if ctc:
+                spd = round(float(ctc) / 26, 2)
+                cursor.execute("""
+                    INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE salary_per_day=%s, monthly_ctc=%s, basic_pct=%s
+                """, (eid, spd, ctc, bpct, spd, ctc, bpct))
+        db.commit()
+        flash("Payroll settings saved.", "success")
+        cursor.close(); db.close()
+        return redirect("/payroll_settings")
+
+    cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
+    cfg = cursor.fetchone() or (12, 12, 200, 0, 15000)
+
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.department,
+               COALESCE(s.monthly_ctc, 0), COALESCE(s.salary_per_day, 0), COALESCE(s.basic_pct, 50)
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        ORDER BY e.name
+    """)
+    employees = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    co = cursor.fetchone()
+    cursor.close(); db.close()
+
+    return render_template("payroll_settings.html",
+        cfg=cfg, employees=employees,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+        co=co
     )
 
 

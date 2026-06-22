@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Payroll Settings</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#eff6ff;min-height:100vh;display:flex}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460,#1a3a8f);padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,.2)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .sidebar-footer{margin-top:auto;font-size:11px;color:rgba(255,255,255,.4);padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:7px}
+    .main{flex:1;padding:28px;overflow-y:auto}
+    .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:22px}
+    .sec-title{font-size:13px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px}
+    .form-group input,.form-group select{width:100%;padding:9px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:14px;outline:none;color:#1e293b;background:#f8fafc}
+    .form-group input:focus,.form-group select:focus{border-color:#3b82f6;background:#fff}
+    .hint{font-size:11px;color:#94a3b8;margin-top:4px}
+    .btn-save{padding:10px 28px;background:#1e3a8a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+    .btn-save:hover{background:#1e40af}
+    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#dbeafe;color:#1e3a8a;padding:9px 12px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+    td{padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fafc}
+    .emp-name{font-weight:700}
+    .emp-sub{font-size:11px;color:#94a3b8}
+    .tbl-input{width:120px;padding:6px 10px;border:1.5px solid #dbeafe;border-radius:7px;font-size:13px;outline:none;color:#1e293b;background:#f8fafc}
+    .tbl-input:focus{border-color:#3b82f6;background:#fff}
+    .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#1e3a8a;display:flex;gap:10px;align-items:flex-start}
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co[0] if co else '' }}</div></div>
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
+  <a class="nav-item active" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; Tickets{% set _tp = (pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
+  <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+  <hr class="nav-sep" style="margin-top:12px;"/>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+</div>
+
+<div class="main">
+  <div class="page-hdr">
+    <div>
+      <h1><i class="ti ti-adjustments-horizontal" style="color:#3b82f6;"></i> Payroll Settings</h1>
+      <p>Configure PF, Professional Tax, TDS and per-employee CTC</p>
+    </div>
+    <a href="/salary_report" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#fff;border:1.5px solid #dbeafe;border-radius:9px;color:#1e3a8a;text-decoration:none;font-size:13px;font-weight:700;">
+      <i class="ti ti-arrow-left"></i> Back
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="/payroll_settings">
+
+    <!-- Statutory deductions config -->
+    <div class="card">
+      <div class="sec-title"><i class="ti ti-building-bank"></i> Statutory Deduction Rates</div>
+      <div class="info-box">
+        <i class="ti ti-info-circle" style="font-size:18px;flex-shrink:0;margin-top:2px;"></i>
+        <span>These rates apply to all employees. PF is on Basic salary (capped at the basic cap). LOP = Gross ÷ 26 × absent days (standard Indian payroll). TDS is annual % ÷ 12 per month.</span>
+      </div>
+
+      <!-- Row 1: PF settings (3 columns) -->
+      <div style="background:#eff6ff;border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px;">
+          <i class="ti ti-building-bank"></i> Provident Fund (PF)
+        </div>
+        <div class="grid3">
+          <div class="form-group">
+            <label>Employee Contribution (%)</label>
+            <input type="number" name="pf_employee_pct" value="{{ cfg[0] }}" step="0.01" min="0" max="100"/>
+            <div class="hint">Standard: 12% of Basic — deducted from salary</div>
+          </div>
+          <div class="form-group">
+            <label>Employer Contribution (%)</label>
+            <input type="number" name="pf_employer_pct" value="{{ cfg[1] }}" step="0.01" min="0" max="100"/>
+            <div class="hint">Standard: 12% of Basic — company's cost, shown in slip for reference</div>
+          </div>
+          <div class="form-group">
+            <label>Basic Salary Cap for PF (Rs.)</label>
+            <input type="number" name="pf_basic_cap" value="{{ cfg[4] }}" step="1" min="0"/>
+            <div class="hint">PF computed on min(Basic, cap). At Rs.15,000 cap → max PF = Rs.1,800</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: PT + TDS (2 columns) -->
+      <div style="background:#f0fdf4;border-radius:10px;padding:16px 18px;">
+        <div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px;">
+          <i class="ti ti-receipt-tax"></i> Tax Deductions
+        </div>
+        <div class="grid2">
+          <div class="form-group">
+            <label>Professional Tax — Monthly (Rs.)</label>
+            <input type="number" name="professional_tax" value="{{ cfg[2] }}" step="1" min="0"/>
+            <div class="hint">Fixed flat amount per employee per month (varies by state)</div>
+          </div>
+          <div class="form-group">
+            <label>TDS — Annual Income Tax Rate (%)</label>
+            <input type="number" name="tds_annual_pct" value="{{ cfg[3] }}" step="0.01" min="0" max="50"/>
+            <div class="hint">Applied as: Annual CTC × rate% ÷ 12 per month. Set 0 to disable.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Per-employee CTC -->
+    <div class="card">
+      <div class="sec-title"><i class="ti ti-users"></i> Employee Monthly CTC</div>
+      <div class="info-box">
+        <i class="ti ti-info-circle" style="font-size:18px;flex-shrink:0;margin-top:2px;"></i>
+        <span>Set Monthly CTC per employee. Daily rate auto-computed as CTC ÷ 26. Basic % splits the CTC into Basic, HRA, Conveyance, Special Allowance.</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Monthly CTC (Rs.)</th>
+              <th>Basic %</th>
+              <th style="color:#16a34a;">Basic</th>
+              <th style="color:#0369a1;">HRA (20%)</th>
+              <th style="color:#7c3aed;">Conveyance</th>
+              <th style="color:#b45309;">Special All.</th>
+              <th style="color:#1e3a8a;">Daily Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp_id, name, role, dept, monthly_ctc, spd, basic_pct in employees %}
+            {% set ctc = monthly_ctc|float %}
+            {% set bpct = basic_pct|int %}
+            {% set basic = (ctc * bpct / 100)|round(0)|int %}
+            {% set hra = (ctc * 0.20)|round(0)|int %}
+            {% set conv = 1600 %}
+            {% set spl = ([ctc - basic - hra - conv, 0]|max)|round(0)|int %}
+            <tr data-ctc="{{ ctc }}" data-bpct="{{ bpct }}">
+              <td>
+                <input type="hidden" name="emp_id" value="{{ emp_id }}"/>
+                <div class="emp-name">{{ name }}</div>
+                <div class="emp-sub">{{ emp_id }} · {{ role }}</div>
+              </td>
+              <td style="color:#64748b;">{{ dept or '—' }}</td>
+              <td>
+                <input type="number" class="tbl-input ctc-inp" name="ctc_{{ emp_id }}"
+                       value="{{ ctc|int if ctc > 0 else '' }}"
+                       placeholder="e.g. 30000" step="100" min="0"
+                       data-empid="{{ emp_id }}" oninput="updateRow(this)"/>
+              </td>
+              <td>
+                <select class="tbl-input" name="bpct_{{ emp_id }}" style="width:80px;"
+                        data-empid="{{ emp_id }}" onchange="updateRow(document.querySelector('[name=ctc_{{ emp_id }}]'))">
+                  {% for pct in [40,45,50,55,60] %}
+                  <option value="{{ pct }}" {% if bpct == pct %}selected{% endif %}>{{ pct }}%</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td><span id="basic_{{ emp_id }}" style="font-weight:700;color:#16a34a;">{% if ctc > 0 %}{{ basic|int }}{% else %}—{% endif %}</span></td>
+              <td><span id="hra_{{ emp_id }}" style="font-weight:600;color:#0369a1;">{% if ctc > 0 %}{{ hra|int }}{% else %}—{% endif %}</span></td>
+              <td><span style="color:#7c3aed;">{% if ctc > 0 %}1,600{% else %}—{% endif %}</span></td>
+              <td><span id="spl_{{ emp_id }}" style="font-weight:600;color:#b45309;">{% if ctc > 0 %}{{ spl|int }}{% else %}—{% endif %}</span></td>
+              <td><span id="spd_{{ emp_id }}" style="font-weight:700;color:#1e3a8a;">
+                {% if ctc > 0 %}{{ (ctc / 26)|round(2) }}{% elif spd > 0 %}{{ spd }}{% else %}—{% endif %}
+              </span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:12px;">
+      <a href="/salary_report" style="padding:10px 22px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;">Cancel</a>
+      <button type="submit" class="btn-save"><i class="ti ti-device-floppy"></i> Save All Settings</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function updateRow(ctcInp) {
+  const eid  = ctcInp.dataset.empid;
+  const ctc  = parseFloat(ctcInp.value) || 0;
+  const bpct = parseFloat(document.querySelector('[name="bpct_' + eid + '"]').value) || 50;
+
+  if (ctc <= 0) {
+    ['basic','hra','spl','spd'].forEach(id => {
+      const el = document.getElementById(id + '_' + eid);
+      if (el) el.textContent = '—';
+    });
+    return;
+  }
+  const basic = Math.round(ctc * bpct / 100);
+  const hra   = Math.round(ctc * 0.20);
+  const conv  = 1600;
+  const spl   = Math.max(0, Math.round(ctc - basic - hra - conv));
+  const spd   = (ctc / 26).toFixed(2);
+
+  document.getElementById('basic_' + eid).textContent = basic.toLocaleString('en-IN');
+  document.getElementById('hra_'  + eid).textContent = hra.toLocaleString('en-IN');
+  document.getElementById('spl_'  + eid).textContent = spl.toLocaleString('en-IN');
+  document.getElementById('spd_'  + eid).textContent = spd;
+}
+</script>
+<script src="/static/darkmode.js"></script>
+</body>
+</html>

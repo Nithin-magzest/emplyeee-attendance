@@ -994,25 +994,34 @@
       <div class="mod-title">📝 Apply for Leave <span>Submit a leave request and view your history</span></div>
       <!-- Leave balance per type -->
       <div style="background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:18px 20px;margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;">📊 Leave Balance — {{ today.split(' ')[2] if today else '' }}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:14px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:7px;">
+            <i class="ti ti-calendar-stats" style="color:#3b82f6;font-size:16px;"></i> Leave Balance
+          </div>
+          <span style="font-size:11px;font-weight:700;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;padding:3px 10px;border-radius:20px;">{{ today.split(' ')[2] if today else '' }}</span>
+        </div>
         {% if leave_type_balances %}
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
           {% for ltb in leave_type_balances %}
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">{{ ltb.name }}</div>
-            <div style="font-size:24px;font-weight:800;color:{% if ltb.balance == 0 %}#ef4444{% elif ltb.balance <= 3 %}#f59e0b{% else %}#16a34a{% endif %};">{{ ltb.balance }}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">of {{ ltb.quota }} days left</div>
-            {% set pct = (((ltb.quota - ltb.balance) / ltb.quota) * 100) | int if ltb.quota > 0 else 0 %}
-            <div style="background:#e2e8f0;border-radius:20px;height:5px;overflow:hidden;margin-top:8px;">
-              <div style="height:100%;border-radius:20px;width:{{ [pct,100]|min }}%;background:{% if pct >= 80 %}#ef4444{% elif pct >= 50 %}#f59e0b{% else %}#16a34a{% endif %};"></div>
+          {% set pct_used = (ltb.used / ltb.quota * 100)|int if ltb.quota > 0 else 0 %}
+          {% set col = '#ef4444' if ltb.balance == 0 else ('#f59e0b' if ltb.balance <= 3 else '#16a34a') %}
+          <div style="background:#fff;border:1.5px solid {% if ltb.balance == 0 %}#fecdd3{% elif ltb.balance <= 3 %}#fde68a{% else %}#bbf7d0{% endif %};border-radius:12px;padding:14px;">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">{{ ltb.name }}</div>
+            <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:6px;">
+              <span style="font-size:26px;font-weight:800;color:{{ col }};line-height:1;">{{ ltb.balance }}</span>
+              <span style="font-size:12px;color:#94a3b8;">/ {{ ltb.quota }} days</span>
             </div>
+            <div style="background:#f1f5f9;border-radius:20px;height:6px;overflow:hidden;margin-bottom:6px;">
+              <div style="height:100%;border-radius:20px;width:{{ [pct_used,100]|min }}%;background:{% if pct_used >= 80 %}#ef4444{% elif pct_used >= 50 %}#f59e0b{% else %}#22c55e{% endif %};transition:.4s;"></div>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;">{{ ltb.used }} used · {{ ltb.balance }} remaining</div>
           </div>
           {% endfor %}
         </div>
         {% else %}
         <div style="display:flex;gap:18px;font-size:12px;">
           <span style="color:#16a34a;font-weight:700;">✅ Available: {{ leave_balance }}</span>
-          <span style="color:#f59e0b;font-weight:700;">⏳ Used/Pending: {{ leaves_used }}</span>
+          <span style="color:#f59e0b;font-weight:700;">⏳ Used: {{ leaves_used }}</span>
           <span style="color:#64748b;font-weight:600;">📅 Quota: {{ annual_leave_quota }}</span>
         </div>
         {% endif %}
