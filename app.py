@@ -7702,6 +7702,122 @@ def api_employee_checkin():
                         "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
 
 
+@app.route("/api/employee/qr-face-checkin", methods=["POST"])
+def api_employee_qr_face_checkin():
+    """Public kiosk endpoint: QR code + face photo attendance marking (no auth token required)."""
+    employee_id = request.form.get("employee_id", "").strip().upper()
+    lat         = request.form.get("lat")
+    lon         = request.form.get("lon")
+    face_photo  = request.files.get("face_photo")
+
+    if not employee_id:
+        return jsonify({"ok": False, "msg": "employee_id required"}), 400
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s",
+        (employee_id,)
+    )
+    result = cursor.fetchone()
+    if not result:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    employee_name, work_mode, work_lat, work_lon = result
+
+    if lat and lon:
+        try:
+            if work_mode == 'wfh':
+                if work_lat and work_lon:
+                    if not is_within_range(float(lat), float(lon), float(work_lat), float(work_lon)):
+                        cursor.close(); db.close()
+                        return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+            else:
+                if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
+                    cursor.close(); db.close()
+                    return jsonify({"ok": False, "msg": "You are outside the office premises."})
+        except (ValueError, TypeError):
+            pass
+
+    if face_photo:
+        try:
+            from PIL import Image as _PILImage
+            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            os.makedirs(face_dir, exist_ok=True)
+            ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
+            img = _PILImage.open(face_photo.stream).convert("RGB")
+            img.save(face_path, "JPEG", quality=80)
+        except Exception:
+            pass
+
+    now          = datetime.datetime.now()
+    today        = now.date()
+    current_time = now.time()
+
+    cursor.execute(
+        "SELECT login_time, logout_time, status, worked_minutes, last_relogin "
+        "FROM attendance WHERE employee_id=%s AND date=%s",
+        (employee_id, today)
+    )
+    record             = cursor.fetchone()
+    login_time         = record[0] if record else None
+    logout_time        = record[1] if record else None
+    login_status       = record[2] if record else None
+    worked_mins_stored = (record[3] or 0) if record else 0
+    last_relogin_stored = record[4] if record else None
+
+    if not login_time:
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        if current_time <= grace_time:
+            status = "Full Day Login"
+        elif current_time <= SHIFT_HALF:
+            status = "Late Login"
+        else:
+            status = "Half Day Login"
+        cursor.execute(
+            "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
+            (employee_id, today, current_time, status)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "action": "login", "name": employee_name,
+                        "status": status, "time": current_time.strftime("%H:%M:%S")})
+    elif not logout_time:
+        session_start = last_relogin_stored if last_relogin_stored else login_time
+        if not isinstance(session_start, datetime.time):
+            session_start = _td_to_time(session_start)
+        cur_dt    = datetime.datetime.combine(today, current_time)
+        start_dt  = datetime.datetime.combine(today, session_start)
+        session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
+        total_m   = worked_mins_stored + session_m
+        if current_time < SHIFT_HALF:
+            out_status = "Half Day Logout"
+        elif current_time < SHIFT_END:
+            out_status = "Early Logout"
+        else:
+            out_status = "Completed"
+        att_type = classify_by_worked_minutes(login_status, total_m, SHIFT_START, SHIFT_END)
+        cursor.execute(
+            "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, out_status, att_type, total_m, employee_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        detect_overtime(employee_id, today, current_time)
+        return jsonify({"ok": True, "action": "logout", "name": employee_name,
+                        "status": out_status, "att_type": att_type,
+                        "time": current_time.strftime("%H:%M:%S")})
+    else:
+        cursor.execute(
+            "UPDATE attendance SET logout_time=NULL, last_relogin=%s "
+            "WHERE employee_id=%s AND date=%s",
+            (current_time, employee_id, today)
+        )
+        db.commit(); cursor.close(); db.close()
+        return jsonify({"ok": True, "action": "relogin", "name": employee_name,
+                        "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
+
+
 @app.route("/api/employee/leave_request", methods=["POST"])
 @employee_api_required
 def api_employee_leave_request():

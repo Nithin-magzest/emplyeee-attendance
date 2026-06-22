@@ -48,6 +48,9 @@ export const changePassword = (current_password, new_password) =>
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
+export const qrFaceCheckin = (formData) =>
+  client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
 export const getPhotoUrl = (empId) => `${API_BASE_URL}/dataset/${empId}.jpg`;
 
 export const employeeLogout = () => client.post('/api/employee/logout');
