@@ -1235,6 +1235,9 @@ def admin():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COUNT(*) FROM overtime_records WHERE status='Pending'")
+    pending_ot = cursor.fetchone()[0]
+
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
     break_rows = cursor.fetchall()
     breaks_display = []
@@ -1267,6 +1270,7 @@ def admin():
         shift_end=SHIFT_END.strftime("%I:%M %p"),
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
+        pending_ot=pending_ot,
         pending_tickets=pending_tickets,
         now_month=today.month,
         now_year=today.year,
@@ -7111,6 +7115,181 @@ def analytics():
     """)
     gender_data = [{'gender': r[0], 'count': r[1]} for r in cursor.fetchall()]
 
+    # Attendance heatmap — last 35 days (5 weeks) present count per day
+    heatmap_start = today - datetime.timedelta(days=34)
+    cursor.execute("""
+        SELECT date, COUNT(DISTINCT employee_id) as cnt
+        FROM attendance
+        WHERE date BETWEEN %s AND %s AND login_time IS NOT NULL
+        GROUP BY date
+    """, (heatmap_start, today))
+    heatmap_raw = {r[0]: r[1] for r in cursor.fetchall()}
+    heatmap_data = []
+    for i in range(35):
+        d = heatmap_start + datetime.timedelta(days=i)
+        heatmap_data.append({'date': d.strftime('%Y-%m-%d'), 'day': d.strftime('%a'), 'count': heatmap_raw.get(d, 0)})
+
+    # Department-wise attendance rate this month
+    cursor.execute("""
+        SELECT e.department,
+               COUNT(DISTINCT e.employee_id) as total_emp,
+               COUNT(DISTINCT CASE WHEN a.login_time IS NOT NULL THEN a.employee_id END) as present_emp
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+        WHERE e.department IS NOT NULL AND e.department != ''
+        GROUP BY e.department
+        ORDER BY present_emp DESC
+    """, (today.month, today.year))
+    dept_attendance = []
+    for r in cursor.fetchall():
+        dept, total, present = r[0], r[1], r[2]
+        pct = round(present / total * 100, 1) if total else 0
+        dept_attendance.append({'dept': dept, 'total': total, 'present': present, 'pct': pct})
+
+    # Late arrival trend — last 14 days
+    late_start = today - datetime.timedelta(days=13)
+    cursor.execute("""
+        SELECT date, COUNT(DISTINCT employee_id) as late_cnt
+        FROM attendance
+        WHERE date BETWEEN %s AND %s AND status='Late Login'
+        GROUP BY date ORDER BY date ASC
+    """, (late_start, today))
+    late_raw = {r[0]: r[1] for r in cursor.fetchall()}
+    late_trend = []
+    for i in range(14):
+        d = late_start + datetime.timedelta(days=i)
+        late_trend.append({'date': d.strftime('%d %b'), 'count': late_raw.get(d, 0)})
+
+    # Employee retention — tenure bands
+    cursor.execute("SELECT date_of_joining FROM employees WHERE date_of_joining IS NOT NULL")
+    retention = {'0-6m': 0, '6-12m': 0, '1-3y': 0, '3y+': 0}
+    for (doj,) in cursor.fetchall():
+        if isinstance(doj, str):
+            try: doj = datetime.date.fromisoformat(doj)
+            except: continue
+        months = (today.year - doj.year) * 12 + (today.month - doj.month)
+        if months < 6:       retention['0-6m'] += 1
+        elif months < 12:    retention['6-12m'] += 1
+        elif months < 36:    retention['1-3y'] += 1
+        else:                retention['3y+'] += 1
+
+    # Smart Alerts Panel
+    smart_alerts = []
+
+    # 1. Employees absent 3+ consecutive working days
+    working_days_back = []
+    for i in range(1, 15):
+        d = today - datetime.timedelta(days=i)
+        if d.weekday() != 6 and d not in all_holidays:
+            working_days_back.append(d)
+        if len(working_days_back) == 5:
+            break
+    last3 = working_days_back[:3]
+    if len(last3) == 3:
+        cursor.execute("""
+            SELECT e.name, e.employee_id
+            FROM employees e
+            WHERE NOT EXISTS (
+                SELECT 1 FROM attendance a
+                WHERE a.employee_id = e.employee_id
+                AND a.date IN (%s,%s,%s)
+                AND a.login_time IS NOT NULL
+            )
+        """, (last3[0], last3[1], last3[2]))
+        absent3 = cursor.fetchall()
+        if absent3:
+            names = ', '.join(r[1] for r in absent3[:3])
+            extra = f' +{len(absent3)-3} more' if len(absent3) > 3 else ''
+            smart_alerts.append({
+                'level': 'danger',
+                'icon': 'ti-user-off',
+                'title': f'{len(absent3)} employee{"s" if len(absent3)>1 else ""} absent for 3+ consecutive days',
+                'detail': names + extra
+            })
+
+    # 2. Leave requests spike this week vs last week
+    week_start = today - datetime.timedelta(days=today.weekday())
+    last_week_start = week_start - datetime.timedelta(days=7)
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s", (week_start,))
+    leaves_this_week = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s AND leave_date < %s", (last_week_start, week_start))
+    leaves_last_week = cursor.fetchone()[0]
+    if leaves_last_week > 0 and leaves_this_week > leaves_last_week * 1.4:
+        pct_jump = round((leaves_this_week - leaves_last_week) / leaves_last_week * 100)
+        smart_alerts.append({
+            'level': 'warning',
+            'icon': 'ti-calendar-up',
+            'title': f'Leave requests spiked {pct_jump}% compared to last week',
+            'detail': f'{leaves_this_week} requests this week vs {leaves_last_week} last week'
+        })
+
+    # 3. Employees with attendance below 50% this month
+    cursor.execute("""
+        SELECT e.name, e.employee_id,
+               COUNT(CASE WHEN a.login_time IS NOT NULL THEN 1 END) as present_days,
+               COUNT(a.date) as total_days
+        FROM employees e
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id
+            AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+        GROUP BY e.employee_id, e.name
+        HAVING total_days > 0 AND (present_days / total_days) < 0.5
+    """, (today.month, today.year))
+    low_att = cursor.fetchall()
+    if low_att:
+        names = ', '.join(r[1] for r in low_att[:3])
+        extra = f' +{len(low_att)-3} more' if len(low_att) > 3 else ''
+        smart_alerts.append({
+            'level': 'warning',
+            'icon': 'ti-chart-bar-off',
+            'title': f'{len(low_att)} employee{"s" if len(low_att)>1 else ""} below 50% attendance this month',
+            'detail': names + extra
+        })
+
+    # 4. High pending leave approvals
+    if pending_leaves >= 5:
+        smart_alerts.append({
+            'level': 'warning',
+            'icon': 'ti-clock-pause',
+            'title': f'{pending_leaves} leave requests pending approval',
+            'detail': 'Employees may be waiting — review and approve'
+        })
+
+    # 5. New joiners who have never logged in
+    cursor.execute("""
+        SELECT e.name, e.employee_id FROM employees e
+        WHERE e.date_of_joining >= %s
+        AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id=e.employee_id AND a.login_time IS NOT NULL)
+    """, (today - datetime.timedelta(days=30),))
+    never_logged = cursor.fetchall()
+    if never_logged:
+        names = ', '.join(r[1] for r in never_logged[:3])
+        extra = f' +{len(never_logged)-3} more' if len(never_logged) > 3 else ''
+        smart_alerts.append({
+            'level': 'info',
+            'icon': 'ti-user-question',
+            'title': f'{len(never_logged)} new joiner{"s" if len(never_logged)>1 else ""} {"have" if len(never_logged)>1 else "has"} never logged attendance',
+            'detail': names + extra
+        })
+
+    # 6. Pending overtime approvals
+    cursor.execute("SELECT COUNT(*) FROM overtime_records WHERE status='Pending'")
+    ot_pending_count = cursor.fetchone()[0]
+    if ot_pending_count >= 3:
+        smart_alerts.append({
+            'level': 'info',
+            'icon': 'ti-clock-bolt',
+            'title': f'{ot_pending_count} overtime requests waiting for approval',
+            'detail': 'Review pending OT requests from the dashboard'
+        })
+
+    if not smart_alerts:
+        smart_alerts.append({
+            'level': 'success',
+            'icon': 'ti-circle-check',
+            'title': 'All systems healthy — no anomalies detected',
+            'detail': 'Attendance, leaves and approvals are all on track'
+        })
+
     cursor.close(); db.close()
 
     return render_template("analytics.html",
@@ -7128,6 +7307,11 @@ def analytics():
         leave_by_type=leave_by_type,
         top_present=top_present,
         gender_data=gender_data,
+        heatmap_data=heatmap_data,
+        dept_attendance=dept_attendance,
+        late_trend=late_trend,
+        retention=retention,
+        smart_alerts=smart_alerts,
     )
 
 

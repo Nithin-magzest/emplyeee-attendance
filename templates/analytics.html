@@ -77,8 +77,7 @@
   <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
   <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
   <hr class="nav-sep" style="margin-top:12px;"/>
-  <a class="nav-item active" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-overtime"></i></span>Overtime</a>
-  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item active" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
   <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
   <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
@@ -117,23 +116,64 @@
     </div>
   </div>
 
+  <!-- Smart Alerts Panel -->
+  <div style="margin-bottom:20px;">
+    <div class="chart-card full" style="padding:20px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;">
+            <i class="ti ti-bell-ringing" style="color:#fff;font-size:17px;"></i>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#1e293b;">Smart Alerts</div>
+            <div style="font-size:11px;color:#94a3b8;">Auto-detected anomalies &amp; action items</div>
+          </div>
+        </div>
+        <span style="font-size:11px;font-weight:700;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;padding:4px 12px;border-radius:20px;">{{ smart_alerts|length }} alert{{ 's' if smart_alerts|length != 1 else '' }}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;">
+        {% for alert in smart_alerts %}
+        {% if alert.level == 'danger' %}
+          {% set bg='#fff1f2' %}{% set border='#fecdd3' %}{% set ic='#ef4444' %}{% set badge_bg='#fee2e2' %}{% set badge_c='#b91c1c' %}{% set badge='Critical' %}
+        {% elif alert.level == 'warning' %}
+          {% set bg='#fffbeb' %}{% set border='#fde68a' %}{% set ic='#f59e0b' %}{% set badge_bg='#fef3c7' %}{% set badge_c='#92400e' %}{% set badge='Warning' %}
+        {% elif alert.level == 'success' %}
+          {% set bg='#f0fdf4' %}{% set border='#bbf7d0' %}{% set ic='#16a34a' %}{% set badge_bg='#dcfce7' %}{% set badge_c='#15803d' %}{% set badge='Healthy' %}
+        {% else %}
+          {% set bg='#eff6ff' %}{% set border='#bfdbfe' %}{% set ic='#3b82f6' %}{% set badge_bg='#dbeafe' %}{% set badge_c='#1d4ed8' %}{% set badge='Info' %}
+        {% endif %}
+        <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:34px;height:34px;border-radius:9px;background:{{ badge_bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti {{ alert.icon }}" style="color:{{ ic }};font-size:16px;"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:#1e293b;line-height:1.4;">{{ alert.title }}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">{{ alert.detail }}</div>
+          </div>
+          <span style="font-size:10px;font-weight:700;background:{{ badge_bg }};color:{{ badge_c }};padding:2px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;">{{ badge }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
   <div class="charts-grid">
     <div class="chart-card full">
       <div class="chart-title"><i class="ti ti-chart-bar" style="color:#3b82f6;"></i> Last 6 Months Attendance</div>
       <div class="chart-wrap tall"><canvas id="monthlyChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-building" style="color:#6366f1;"></i> Department Distribution</div>
-      <div class="chart-wrap"><canvas id="deptChart"></canvas></div>
-    </div>
-    <div class="chart-card">
       <div class="chart-title"><i class="ti ti-ticket" style="color:#f59e0b;"></i> Leave Type Breakdown (This Year)</div>
       <div class="chart-wrap"><canvas id="leaveChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-gender-bigender" style="color:#22c55e;"></i> Gender Distribution</div>
+      <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
     </div>
   </div>
 
   <div class="bottom-grid">
-    <div class="chart-card">
+    <div class="chart-card full">
       <div class="chart-title"><i class="ti ti-trophy" style="color:#f59e0b;"></i> Top 5 Employees by Attendance (This Month)</div>
       {% if top_present %}
       <table>
@@ -158,14 +198,131 @@
       <div class="empty">No attendance data this month.</div>
       {% endif %}
     </div>
+  </div>
+
+  <!-- ROW 3: Heatmap + Late Trend -->
+  <div class="charts-grid" style="margin-top:16px;">
+    <!-- Attendance Heatmap -->
+    <div class="chart-card full" style="background:#fff;border:1px solid #dbeafe;padding:28px 32px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:8px;">
+            <i class="ti ti-calendar-stats" style="color:#6366f1;font-size:18px;"></i> Attendance Heatmap
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:3px;">Last 35 days · {{ total_employees }} total employees</div>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b;">
+          <span>Low</span>
+          <div style="display:flex;gap:3px;">
+            <span style="width:14px;height:14px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;display:inline-block;"></span>
+            <span style="width:14px;height:14px;border-radius:4px;background:#fecdd3;display:inline-block;"></span>
+            <span style="width:14px;height:14px;border-radius:4px;background:#fde68a;display:inline-block;"></span>
+            <span style="width:14px;height:14px;border-radius:4px;background:#86efac;display:inline-block;"></span>
+            <span style="width:14px;height:14px;border-radius:4px;background:#16a34a;display:inline-block;"></span>
+          </div>
+          <span>High</span>
+        </div>
+      </div>
+
+      <!-- Day labels + grid -->
+      <div style="display:flex;gap:0;">
+        <!-- Y-axis day labels -->
+        <div style="display:grid;grid-template-rows:repeat(7,40px);gap:4px;margin-right:12px;padding-top:2px;">
+          {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          <div style="font-size:10px;color:#94a3b8;font-weight:600;display:flex;align-items:center;height:40px;">{{ day }}</div>
+          {% endfor %}
+        </div>
+
+        <!-- Heatmap grid: 5 weeks × 7 days -->
+        <div style="display:grid;grid-template-rows:repeat(7,40px);grid-auto-columns:50px;grid-auto-flow:column;gap:4px;">
+          {% for d in heatmap_data %}
+          {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
+          {% if pct == 0 %}{% set bg = '#f8fafc' %}{% set tc = '#cbd5e1' %}{% set border = '#e2e8f0' %}
+          {% elif pct < 40 %}{% set bg = '#fff1f2' %}{% set tc = '#e11d48' %}{% set border = '#fecdd3' %}
+          {% elif pct < 70 %}{% set bg = '#fffbeb' %}{% set tc = '#d97706' %}{% set border = '#fde68a' %}
+          {% elif pct < 90 %}{% set bg = '#f0fdf4' %}{% set tc = '#16a34a' %}{% set border = '#bbf7d0' %}
+          {% else %}{% set bg = '#dcfce7' %}{% set tc = '#15803d' %}{% set border = '#86efac' %}{% endif %}
+          <div
+            onclick="showHeatmapTooltip(this, '{{ d.date }}', {{ d.count }}, {{ pct|round(1) }})"
+            style="border-radius:8px;background:{{ bg }};border:1.5px solid {{ border }};
+                   display:flex;flex-direction:column;align-items:center;justify-content:center;
+                   cursor:pointer;transition:all .15s;position:relative;"
+            onmouseover="this.style.transform='scale(1.12)';this.style.zIndex=10;this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';"
+            onmouseout="this.style.transform='';this.style.zIndex='';this.style.boxShadow='';">
+            <div style="font-size:9px;color:{{ tc }};font-weight:600;opacity:.7;line-height:1;">{{ d.date[8:] }}</div>
+            <div style="font-size:13px;color:{{ tc }};font-weight:800;line-height:1.3;">{{ d.count }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Tooltip -->
+      <div id="hmTooltip" style="display:none;position:fixed;background:#1e293b;color:#fff;font-size:12px;padding:8px 14px;border-radius:9px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:9999;pointer-events:none;border:1px solid #334155;">
+        <div id="hmDate" style="font-weight:700;color:#60a5fa;"></div>
+        <div id="hmCount" style="margin-top:2px;color:#e2e8f0;"></div>
+      </div>
+    </div>
+
+    <!-- Late Arrival Trend -->
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-gender-bigender" style="color:#22c55e;"></i> Gender Distribution</div>
-      <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
+      <div class="chart-title"><i class="ti ti-clock-exclamation" style="color:#ef4444;"></i> Late Arrivals — Last 14 Days</div>
+      <div class="chart-wrap tall"><canvas id="lateChart"></canvas></div>
+    </div>
+
+    <!-- Retention Bands -->
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-users-group" style="color:#a855f7;"></i> Staff Tenure Overview</div>
+      <div class="chart-wrap tall"><canvas id="retentionChart"></canvas></div>
     </div>
   </div>
+
+  <!-- ROW 4: Department Distribution + Department-wise Attendance Rate side by side -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-building" style="color:#6366f1;"></i> Department Distribution</div>
+      <div class="chart-wrap tall"><canvas id="deptChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-building" style="color:#3b82f6;"></i> Department-wise Attendance Rate — This Month</div>
+      {% if dept_attendance %}
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+        {% for d in dept_attendance %}
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:130px;font-size:13px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ d.dept }}</div>
+          <div style="flex:1;background:#e2e8f0;border-radius:20px;height:10px;overflow:hidden;">
+            <div style="height:100%;border-radius:20px;width:{{ d.pct }}%;
+              background:{% if d.pct >= 90 %}#16a34a{% elif d.pct >= 70 %}#3b82f6{% elif d.pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
+              transition:.4s;"></div>
+          </div>
+          <div style="width:44px;font-size:13px;font-weight:800;color:#1e293b;text-align:right;">{{ d.pct }}%</div>
+          <div style="font-size:11px;color:#94a3b8;white-space:nowrap;">{{ d.present }}/{{ d.total }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No department data available.</div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 <script>
+// Heatmap tooltip
+function showHeatmapTooltip(el, date, count, pct) {
+  const tip = document.getElementById('hmTooltip');
+  document.getElementById('hmDate').textContent = date;
+  document.getElementById('hmCount').textContent = count + ' present (' + pct + '%)';
+  tip.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  tip.style.left = (r.left + r.width / 2 - tip.offsetWidth / 2) + 'px';
+  tip.style.top  = (r.top - tip.offsetHeight - 8) + 'px';
+  clearTimeout(tip._t);
+  tip._t = setTimeout(() => tip.style.display = 'none', 2200);
+}
+document.addEventListener('scroll', () => { document.getElementById('hmTooltip').style.display='none'; });
+
 const COLORS = ['#3b82f6','#22c55e','#ef4444','#f59e0b','#a855f7','#6366f1','#ec4899','#14b8a6'];
 
 const monthlyData = {{ monthly_series | tojson }};
@@ -222,6 +379,54 @@ if (genderData.length) {
 } else {
   document.getElementById('genderChart').parentNode.innerHTML = '<div class="empty">No gender data.</div>';
 }
+
+// Late Arrival Trend
+const lateData = {{ late_trend | tojson }};
+new Chart(document.getElementById('lateChart'), {
+  type: 'line',
+  data: {
+    labels: lateData.map(d => d.date),
+    datasets: [{
+      label: 'Late Arrivals',
+      data: lateData.map(d => d.count),
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239,68,68,0.1)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#ef4444',
+      pointRadius: 4,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+// Retention Bands
+const retentionData = {{ retention | tojson }};
+new Chart(document.getElementById('retentionChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['< 6 Months', '6–12 Months', '1–3 Years', '3+ Years'],
+    datasets: [{
+      data: [retentionData['0-6m'], retentionData['6-12m'], retentionData['1-3y'], retentionData['3y+']],
+      backgroundColor: ['#fca5a5','#fde68a','#6ee7b7','#3b82f6'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+    }
+  }
+});
 </script>
 <script src="/static/darkmode.js"></script>
 </body>

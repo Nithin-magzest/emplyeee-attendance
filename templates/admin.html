@@ -92,7 +92,7 @@
       .hbtn-blue   { background: #2563eb; color: white; }
 
       /* ── STAT CARDS ── */
-      .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+      .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 24px; }
       .stat-card {
         background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
         padding: 18px 20px; display: flex; align-items: center; gap: 16px;
@@ -263,8 +263,7 @@
       <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
       <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
       <hr class="nav-sep" style="margin-top:12px;" />
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>Overtime</a>
-      <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
       <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -324,6 +323,13 @@
           <div>
             <div class="stat-num sn-yellow" id="statLate">{{ late }}</div>
             <div class="stat-lbl">Late Logins</div>
+          </div>
+        </a>
+        <a class="stat-card" href="/overtime" style="border-color:{% if pending_ot > 0 %}#fca5a5{% endif %};">
+          <div class="stat-icon" style="background:#fff7ed;"><i class="ti ti-clock-bolt" style="font-size:24px;color:#ea580c;"></i></div>
+          <div>
+            <div class="stat-num" style="color:#ea580c;">{{ pending_ot }}</div>
+            <div class="stat-lbl">OT Pending</div>
           </div>
         </a>
       </div>
