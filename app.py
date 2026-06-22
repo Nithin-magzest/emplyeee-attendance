@@ -7770,22 +7770,6 @@ def api_employee_raise_ticket():
     return jsonify({"ok": True, "msg": "Ticket raised successfully."})
 
 
-@app.route("/api/employee/change_password", methods=["POST"])
-@employee_api_required
-def api_employee_change_password():
-    from flask import g as _g
-    emp_id = _g.api_emp_id
-    data   = request.get_json() or {}
-    new_pw = data.get("new_password", "").strip()
-    if not new_pw:
-        return jsonify({"ok": False, "msg": "new_password required"}), 400
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
-                   (generate_password_hash(new_pw), emp_id))
-    db.commit(); cursor.close(); db.close()
-    return jsonify({"ok": True, "msg": "Password changed successfully."})
-
 
 @app.route("/api/employee/salary", methods=["GET"])
 @employee_api_required
