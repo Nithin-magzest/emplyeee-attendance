@@ -1235,8 +1235,11 @@ def admin():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM overtime_records WHERE status='Pending'")
-    pending_ot = cursor.fetchone()[0]
+    try:
+        cursor.execute("SELECT COUNT(*) FROM overtime_records WHERE status='Pending'")
+        pending_ot = cursor.fetchone()[0]
+    except Exception:
+        pending_ot = 0
 
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
     break_rows = cursor.fetchall()

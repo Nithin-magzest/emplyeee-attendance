@@ -325,10 +325,10 @@
             <div class="stat-lbl">Late Logins</div>
           </div>
         </a>
-        <a class="stat-card" href="/overtime" style="border-color:{% if pending_ot > 0 %}#fca5a5{% endif %};">
+        <a class="stat-card" href="/overtime" style="border-color:{% if pending_ot|default(0) > 0 %}#fca5a5{% endif %};">
           <div class="stat-icon" style="background:#fff7ed;"><i class="ti ti-clock-bolt" style="font-size:24px;color:#ea580c;"></i></div>
           <div>
-            <div class="stat-num" style="color:#ea580c;">{{ pending_ot }}</div>
+            <div class="stat-num" style="color:#ea580c;">{{ pending_ot|default(0) }}</div>
             <div class="stat-lbl">OT Pending</div>
           </div>
         </a>
