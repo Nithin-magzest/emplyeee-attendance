@@ -862,7 +862,7 @@
           if (hint) { hint.textContent = 'Could not auto-generate — enter manually.'; hint.style.color = '#dc2626'; }
         }
       }
-      document.addEventListener('DOMContentLoaded', function() { generateDashEmpId(); });
+      generateDashEmpId();
 
       function updateRegMapPreview() {
         var lat = document.getElementById("reg_work_lat").value;
