@@ -2942,19 +2942,20 @@ def generate_emp_id():
     row = cursor.fetchone()
     code = (row[0] or "").strip().upper() if row else ""
     # find the highest sequence number already used to avoid duplicates
-    mode_letter = "H" if work_mode == "wfh" else "O"
-    prefix = f"{code}{mode_letter}"
-    cursor.execute(
-        "SELECT employee_id FROM employees WHERE employee_id LIKE %s ORDER BY employee_id DESC",
-        (prefix + "%",)
-    )
-    rows = cursor.fetchall()
-    max_seq = 0
-    for (eid,) in rows:
-        suffix = eid[len(prefix):]
-        if suffix.isdigit():
-            max_seq = max(max_seq, int(suffix))
-    # also check cross-mode to keep global sequence unique
+    prefix = code
+    if prefix:
+        cursor.execute(
+            "SELECT employee_id FROM employees WHERE employee_id LIKE %s ORDER BY employee_id DESC",
+            (prefix + "%",)
+        )
+        rows = cursor.fetchall()
+        max_seq = 0
+        for (eid,) in rows:
+            suffix = eid[len(prefix):]
+            if suffix.isdigit():
+                max_seq = max(max_seq, int(suffix))
+    else:
+        max_seq = 0
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
     cursor.close(); db.close()

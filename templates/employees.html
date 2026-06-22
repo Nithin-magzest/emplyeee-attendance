@@ -541,11 +541,11 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value);generateEmpId()" style="accent-color:#1e3a8a;" /> 🏢 Office
+                         onchange="toggleAddLocation(this.value)" style="accent-color:#1e3a8a;" /> 🏢 Office
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value);generateEmpId()" style="accent-color:#059669;" /> 🏠 Work from Home
+                         onchange="toggleAddLocation(this.value)" style="accent-color:#059669;" /> 🏠 Work from Home
                 </label>
               </div>
             </div>
@@ -1025,14 +1025,12 @@
       }
 
       async function generateEmpId() {
-        var sel  = document.querySelector('input[name="work_mode"]:checked');
-        var mode = sel ? sel.value : 'office';
         var hint = document.getElementById('empIdHint');
         var inp  = document.getElementById('addEmpId');
         if (!inp) return;
         inp.placeholder = 'Generating…';
         try {
-          var res  = await fetch('/api/generate_emp_id?work_mode=' + encodeURIComponent(mode));
+          var res  = await fetch('/api/generate_emp_id');
           if (!res.ok) { throw new Error('HTTP ' + res.status); }
           var data = await res.json();
           if (data.error) { throw new Error(data.error); }
@@ -1040,15 +1038,16 @@
           inp.placeholder = '';
           if (hint) {
             if (!data.code) {
-              hint.innerHTML = '<span style="color:#dc2626;">⚠ Set company code in <a href="/settings" target="_blank">Settings</a> first.</span>';
+              hint.innerHTML = '⚠ Set company code in <a href="/settings" target="_blank" style="color:#1e3a8a;">Settings</a> first, then click 🔄 Generate.';
+              hint.style.color = '#dc2626';
             } else {
-              hint.textContent = '✓ Generated: ' + data.emp_id + ' (Company: ' + data.code + ')';
+              hint.textContent = '✓ ' + data.emp_id + ' (next after ' + (data.seq - 1) + ' existing employees)';
               hint.style.color = '#16a34a';
             }
           }
         } catch(e) {
           inp.placeholder = 'Enter manually';
-          if (hint) { hint.textContent = 'Could not auto-generate: ' + e.message; hint.style.color = '#dc2626'; }
+          if (hint) { hint.textContent = 'Could not auto-generate. Enter manually.'; hint.style.color = '#dc2626'; }
         }
       }
 
