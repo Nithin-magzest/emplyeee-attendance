@@ -1,34 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
 export default function EmployeeHeroCard({
-
   employeeName,
-
   designation,
-
   employeeId,
-
   date,
-
   attendance,
-
   onCheckIn,
-
   checking,
-
   onMenu,
-
   onLogout,
-
+  photoUrl,
+  onScanQR,
 }) {
+  const [photoError, setPhotoError] = useState(false);
 
   const checkedIn =
     attendance?.login_time &&
@@ -76,31 +70,13 @@ export default function EmployeeHeroCard({
     <View style={styles.card}>
 
       {/* Top Row */}
-
       <View style={styles.topRow}>
-
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={onMenu}
-        >
-          <Ionicons
-            name="menu"
-            size={22}
-            color="#173B8C"
-          />
+        <TouchableOpacity style={styles.iconBtn} onPress={onScanQR}>
+          <Ionicons name="qr-code-outline" size={22} color="#173B8C" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={onLogout}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={21}
-            color="#173B8C"
-          />
+        <TouchableOpacity style={styles.iconBtn} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={21} color="#173B8C" />
         </TouchableOpacity>
-
       </View>
 
       {/* User */}
@@ -108,15 +84,16 @@ export default function EmployeeHeroCard({
       <View style={styles.userRow}>
 
         <View style={styles.avatar}>
-
-          <Ionicons
-            name="person"
-            size={32}
-            color="#173B8C"
-          />
-
-          <View style={styles.onlineDot}/>
-
+          {photoUrl && !photoError ? (
+            <Image
+              source={{ uri: photoUrl }}
+              style={styles.avatarImg}
+              onError={() => setPhotoError(true)}
+            />
+          ) : (
+            <Ionicons name="person" size={32} color="#173B8C" />
+          )}
+          <View style={styles.onlineDot} />
         </View>
 
         <View style={{flex:1}}>
@@ -333,6 +310,13 @@ const styles = StyleSheet.create({
     alignItems:"center",
     marginRight:16,
     position:"relative",
+    overflow:"hidden",
+  },
+
+  avatarImg:{
+    width:72,
+    height:72,
+    borderRadius:36,
   },
 
   onlineDot:{

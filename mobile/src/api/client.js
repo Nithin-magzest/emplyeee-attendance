@@ -45,6 +45,11 @@ export const employeeLogin = (employee_id, password) =>
 export const changePassword = (current_password, new_password) =>
   client.post('/api/employee/change-password', { current_password, new_password });
 
+export const uploadEmployeePhoto = (formData) =>
+  client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
+export const getPhotoUrl = (empId) => `${API_BASE_URL}/dataset/${empId}.jpg`;
+
 export const employeeLogout = () => client.post('/api/employee/logout');
 
 export const fetchEmployeePortal = () => client.get('/api/employee/portal');

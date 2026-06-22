@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { fetchEmployeeProfile } from "../../api/client";
+import * as ImagePicker from "expo-image-picker";
+import { fetchEmployeeProfile, uploadEmployeePhoto, getPhotoUrl } from "../../api/client";
 
 function Section({ title, icon, children }) {
   return (
@@ -41,8 +42,10 @@ const fld = StyleSheet.create({
 });
 
 export default function ProfileScreen({ navigation }) {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile]       = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [uploading, setUploading]   = useState(false);
+  const [photoKey, setPhotoKey]     = useState(Date.now());
 
   useEffect(() => {
     fetchEmployeeProfile()
@@ -50,6 +53,41 @@ export default function ProfileScreen({ navigation }) {
       .catch(() => Alert.alert("Error", "Failed to load profile."))
       .finally(() => setLoading(false));
   }, []);
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", {
+        uri: asset.uri,
+        name: "photo.jpg",
+        type: "image/jpeg",
+      });
+      const res = await uploadEmployeePhoto(formData);
+      if (res.data.ok) {
+        setPhotoKey(Date.now());
+        Alert.alert("Success", "Profile photo updated!");
+      } else {
+        Alert.alert("Error", res.data.msg || "Failed to upload photo.");
+      }
+    } catch (e) {
+      Alert.alert("Error", e.response?.data?.msg || "Upload failed.");
+    }
+    setUploading(false);
+  };
 
   const p = profile;
 
@@ -69,9 +107,23 @@ export default function ProfileScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* Hero */}
           <LinearGradient colors={["#173B8C", "#2563EB"]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={36} color="#173B8C" />
-            </View>
+            <TouchableOpacity onPress={handlePickPhoto} disabled={uploading} style={styles.avatarWrapper}>
+              <Image
+                key={photoKey}
+                source={{ uri: `${getPhotoUrl(p.employee_id)}?t=${photoKey}` }}
+                style={styles.avatarImg}
+                defaultSource={undefined}
+                onError={() => {}}
+              />
+              <View style={styles.avatarCircleFallback} pointerEvents="none">
+                <Ionicons name="person" size={36} color="#173B8C" />
+              </View>
+              <View style={styles.cameraOverlay}>
+                {uploading
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Ionicons name="camera" size={18} color="#fff" />}
+              </View>
+            </TouchableOpacity>
             <Text style={styles.heroName}>{p.name}</Text>
             <Text style={styles.heroRole}>{p.role || "Employee"}</Text>
             <Text style={styles.heroDept}>{p.department || ""}</Text>
@@ -159,6 +211,10 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: 20, padding: 24, marginBottom: 16, alignItems: "center",
   },
+  avatarWrapper: { position: "relative", marginBottom: 12 },
+  avatarImg: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: "rgba(255,255,255,0.8)" },
+  avatarCircleFallback: { position: "absolute", top: 0, left: 0, width: 88, height: 88, borderRadius: 44, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", zIndex: -1 },
+  cameraOverlay: { position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: "#173B8C", borderWidth: 2, borderColor: "#fff", justifyContent: "center", alignItems: "center" },
   avatarCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", marginBottom: 12 },
   heroName:     { color: "#FFFFFF", fontSize: 22, fontWeight: "800" },
   heroRole:     { color: "rgba(255,255,255,0.85)", fontSize: 14, marginTop: 4 },

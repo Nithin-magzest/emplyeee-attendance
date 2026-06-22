@@ -14,12 +14,14 @@ import {
   fetchEmployeePortal,
   employeeCheckin,
   employeeLogout,
+  getPhotoUrl,
 } from "../../api/client";
 
 import { useAuth } from "../../store/AuthContext";
 
 import LoadingSkeleton from "../../components/ui/LoadingSkeleton";
 import EmptyState from "../../components/ui/EmptyState";
+import AttendanceScannerModal from "../AttendanceScannerModal";
 
 import EmployeeHeroCard from "../../components/employee/EmployeeHeroCard";
 import EmployeeAttendanceCard from "../../components/employee/EmployeeAttendanceCard";
@@ -33,10 +35,11 @@ export default function EmployeeDashboard({ navigation }) {
 
   const { signOut } = useAuth();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [data, setData] = useState(null);
+  const [checking, setChecking]     = useState(false);
+  const [data, setData]             = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -84,6 +87,7 @@ export default function EmployeeDashboard({ navigation }) {
   };
 
   const attendance = data?.today_attendance;
+  const photoUrl   = data?.employee_id ? getPhotoUrl(data.employee_id) : null;
 
   if (loading) {
     return (
@@ -103,6 +107,11 @@ export default function EmployeeDashboard({ navigation }) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
+      <AttendanceScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onSuccess={() => loadDashboard()}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
@@ -120,14 +129,15 @@ export default function EmployeeDashboard({ navigation }) {
       >
         <EmployeeHeroCard
           employeeName={data?.name}
-          designation={data?.designation}
+          designation={data?.role || data?.designation}
           employeeId={data?.employee_id}
           date={data?.today}
           attendance={attendance}
           checking={checking}
           onCheckIn={handleCheckIn}
-          onMenu={undefined}
           onLogout={handleLogout}
+          photoUrl={photoUrl}
+          onScanQR={() => setShowScanner(true)}
         />
 
         <EmployeeAttendanceCard attendance={attendance} />

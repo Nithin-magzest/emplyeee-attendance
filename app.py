@@ -7565,15 +7565,25 @@ def api_employee_checkin():
     lat    = data.get("lat")
     lon    = data.get("lon")
 
-    if lat and lon:
-        if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
-            return jsonify({"ok": False, "msg": "You are outside the office premises."})
-
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
-    employee_name = result[0] if result else emp_id
+    if not result:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    employee_name, work_mode, work_lat, work_lon = result
+
+    if lat and lon:
+        if work_mode == 'wfh':
+            if work_lat and work_lon:
+                if not is_within_range(float(lat), float(lon), float(work_lat), float(work_lon)):
+                    cursor.close(); db.close()
+                    return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+        else:
+            if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
     now          = datetime.datetime.now()
     today        = now.date()
@@ -7972,8 +7982,30 @@ def api_employee_profile():
             "pan_number": row[19], "aadhar_number": row[20],
             "salary_per_day": float(row[21]),
             "join_date": str(row[22]) if row[22] else None,
+            "photo_url": f"/dataset/{row[0]}.jpg",
         },
     })
+
+
+@app.route("/api/employee/photo", methods=["POST"])
+@employee_api_required
+def api_employee_upload_photo():
+    from flask import g as _g
+    from PIL import Image
+    emp_id = _g.api_emp_id
+    file = request.files.get("photo")
+    if not file:
+        return jsonify({"ok": False, "msg": "No photo provided"}), 400
+    ext = os.path.splitext(file.filename.lower())[1] if file.filename else ""
+    if ext not in (".jpg", ".jpeg", ".png"):
+        return jsonify({"ok": False, "msg": "Only JPG/PNG files allowed"}), 400
+    try:
+        img = Image.open(file.stream).convert("RGB")
+        save_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
+        img.save(save_path, "JPEG", quality=85)
+        return jsonify({"ok": True, "msg": "Photo uploaded successfully", "photo_url": f"/dataset/{emp_id}.jpg"})
+    except Exception:
+        return jsonify({"ok": False, "msg": "Failed to process image"}), 500
 
 
 # ---------------- API: TICKETS (admin) ----------------
