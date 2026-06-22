@@ -2960,25 +2960,20 @@ def generate_emp_id():
     cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
     row = cursor.fetchone()
     code = (row[0] or "").strip().upper() if row else ""
-    # find the highest sequence number already used to avoid duplicates
+    # find highest sequence among employees whose ID starts with this company code
     prefix = code
+    max_seq = 0
     if prefix:
         cursor.execute(
-            "SELECT employee_id FROM employees WHERE employee_id LIKE %s ORDER BY employee_id DESC",
+            "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
             (prefix + "%",)
         )
-        rows = cursor.fetchall()
-        max_seq = 0
-        for (eid,) in rows:
+        for (eid,) in cursor.fetchall():
             suffix = eid[len(prefix):]
             if suffix.isdigit():
                 max_seq = max(max_seq, int(suffix))
-    else:
-        max_seq = 0
-    cursor.execute("SELECT COUNT(*) FROM employees")
-    total = cursor.fetchone()[0]
     cursor.close(); db.close()
-    seq = max(max_seq + 1, total + 1)
+    seq = max_seq + 1
     emp_id = f"{prefix}{seq:03d}"
     return jsonify({"emp_id": emp_id, "code": code, "seq": seq})
 
