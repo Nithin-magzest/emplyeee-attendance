@@ -61,9 +61,31 @@ export default function QRScannerModal({ visible, onClose }) {
   const handleCaptureFace = async () => {
     if (processing || !cameraRef.current) return;
     setProcessing(true);
-    try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.75 });
 
+    /* Step A: take photo */
+    let photo;
+    try {
+      photo = await cameraRef.current.takePictureAsync({ quality: 0.75 });
+    } catch (camErr) {
+      setProcessing(false);
+      Alert.alert('Camera Error', 'Failed to capture photo. Please try again.', [
+        { text: 'Retry', onPress: () => setProcessing(false) },
+        { text: 'Cancel', onPress: onClose },
+      ]);
+      return;
+    }
+
+    if (!photo?.uri) {
+      setProcessing(false);
+      Alert.alert('Camera Error', 'No photo was captured. Please try again.', [
+        { text: 'Retry', onPress: () => setProcessing(false) },
+        { text: 'Cancel', onPress: onClose },
+      ]);
+      return;
+    }
+
+    /* Step B: upload + mark attendance */
+    try {
       const formData = new FormData();
       formData.append('employee_id', employeeId);
       if (coords) {
@@ -92,7 +114,11 @@ export default function QRScannerModal({ visible, onClose }) {
         ]);
       }
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.msg || 'Cannot connect to server.', [
+      const msg =
+        e.response?.data?.msg ||
+        (e.response ? `Server error ${e.response.status}` : e.message) ||
+        'Cannot connect to server.';
+      Alert.alert('Server Error', msg, [
         { text: 'Retry', onPress: resetToQR },
         { text: 'Cancel', onPress: onClose },
       ]);
