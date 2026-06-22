@@ -1151,17 +1151,36 @@ def admin_login():
         return redirect("/setup")
     if session.get("admin_logged_in"):
         return redirect("/admin")
+    if session.get("employee_id"):
+        return redirect("/employee_portal")
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        identifier = request.form.get("identifier", "").strip()
+        password   = request.form.get("password", "").strip()
+        # Try admin credentials first
         with _db() as (cursor, db):
-            cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
-            result = cursor.fetchone()
-        if result and check_password_hash(result[0], password):
+            cursor.execute("SELECT password FROM admin_users WHERE username=%s", (identifier,))
+            admin_row = cursor.fetchone()
+        if admin_row and check_password_hash(admin_row[0], password):
             session["admin_logged_in"] = True
             session.permanent = True
             return redirect("/admin")
-        return render_template("admin_login.html", error="Invalid credentials")
+        # Try employee credentials
+        with _db() as (cursor, db):
+            cursor.execute(
+                "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
+                (identifier,)
+            )
+            emp_row = cursor.fetchone()
+        if emp_row:
+            stored_pwd = emp_row[3]
+            if stored_pwd and not check_password_hash(stored_pwd, password):
+                return render_template("admin_login.html", error="Incorrect password.")
+            session["employee_id"]   = emp_row[0]
+            session["employee_name"] = emp_row[1]
+            session["employee_role"] = emp_row[2] or ""
+            session.permanent = True
+            return redirect("/employee_portal")
+        return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
     return render_template("admin_login.html")
 
 # ---------------- LOGOUT ----------------
@@ -4028,30 +4047,8 @@ def attendance():
 # ================================================================
 
 @app.route("/employee_login", methods=["GET", "POST"])
-@limiter.limit("15 per minute")
 def employee_login():
-    if session.get("employee_id"):
-        return redirect("/employee_portal")
-    if request.method == "POST":
-        emp_id   = request.form["emp_id"].strip()
-        password = request.form.get("password", "").strip()
-        with _db() as (cursor, db):
-            cursor.execute(
-                "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
-                (emp_id,)
-            )
-            row = cursor.fetchone()
-        if not row:
-            return render_template("employee_login.html", error="Employee ID not found.")
-        stored_pwd = row[3]
-        if stored_pwd and not check_password_hash(stored_pwd, password):
-            return render_template("employee_login.html", error="Incorrect password.")
-        session["employee_id"]   = row[0]
-        session["employee_name"] = row[1]
-        session["employee_role"] = row[2] or ""
-        session.permanent = True
-        return redirect("/employee_portal")
-    return render_template("employee_login.html")
+    return redirect("/admin_login")
 
 
 @app.route("/employee_logout")
