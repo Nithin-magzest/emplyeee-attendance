@@ -1489,7 +1489,7 @@ def admin_action():
 
     if action == "register":
         name            = request.form["name"]
-        emp_id          = request.form["emp_id"]
+        emp_id          = request.form["emp_id"].strip()
         email           = request.form.get("email", "").strip() or None
         role            = request.form.get("role", "").strip() or None
         date_of_joining = request.form.get("date_of_joining", "").strip() or None
@@ -1498,6 +1498,21 @@ def admin_action():
         work_lon_raw    = request.form.get("work_lon", "").strip()
         work_lat        = float(work_lat_raw) if work_lat_raw else None
         work_lon        = float(work_lon_raw) if work_lon_raw else None
+        # Auto-increment emp_id if it's already taken
+        cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (emp_id,))
+        if cursor.fetchone():
+            prefix = ''.join(c for c in emp_id if not c.isdigit())
+            if prefix:
+                cursor.execute(
+                    "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
+                    (prefix + "%",)
+                )
+                max_seq = 0
+                for (eid,) in cursor.fetchall():
+                    sfx = eid[len(prefix):]
+                    if sfx.isdigit():
+                        max_seq = max(max_seq, int(sfx))
+                emp_id = f"{prefix}{max_seq + 1:03d}"
         file = request.files["face"]
         _img_ok, _img_err = _validate_image_file(file)
         if not _img_ok:
@@ -2445,11 +2460,21 @@ def add_employee_page():
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    # Auto-increment emp_id if already taken
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
-        flash(f"Employee ID '{emp_id}' already exists.", "error")
-        cursor.close(); db.close()
-        return redirect("/employees")
+        prefix = ''.join(c for c in emp_id if not c.isdigit())
+        if prefix:
+            cursor.execute(
+                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
+                (prefix + "%",)
+            )
+            max_seq = 0
+            for (eid,) in cursor.fetchall():
+                sfx = eid[len(prefix):]
+                if sfx.isdigit():
+                    max_seq = max(max_seq, int(sfx))
+            emp_id = f"{prefix}{max_seq + 1:03d}"
 
     file = request.files.get("face")
     if not file or not file.filename:
