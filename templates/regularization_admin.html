@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Regularization — Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+  <link rel="stylesheet" href="/static/shared.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#eff6ff;min-height:100vh;display:flex}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;
+      background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);
+      padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;
+      box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);
+      display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;
+      color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .sidebar-footer{margin-top:auto;font-size:11px;color:rgba(255,255,255,.4);padding-top:14px;
+      border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:7px}
+    .main{flex:1;padding:28px 30px;min-width:0}
+    .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+    .page-title{font-size:22px;font-weight:800;color:#1e293b}
+    .badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+    .badge-pending{background:#fef9c3;color:#92400e}
+    .badge-approved{background:#dcfce7;color:#166534}
+    .badge-rejected{background:#fee2e2;color:#991b1b}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;overflow:hidden;margin-bottom:24px}
+    .card-header{padding:16px 22px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px}
+    .card-header h2{font-size:15px;font-weight:700;color:#1e293b}
+    table{width:100%;border-collapse:collapse}
+    th{padding:11px 16px;text-align:left;font-size:12px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.5px;color:#64748b;background:#f8faff;border-bottom:2px solid #e2e8f0}
+    td{padding:12px 16px;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8faff}
+    .action-form{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+    .action-form textarea{padding:7px 10px;border:1px solid #dbeafe;border-radius:8px;font-size:12px;
+      resize:vertical;min-height:44px;width:180px;color:#334155}
+    .btn{padding:7px 14px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+    .btn-approve{background:#dcfce7;color:#166534}
+    .btn-approve:hover{background:#bbf7d0}
+    .btn-reject{background:#fee2e2;color:#991b1b}
+    .btn-reject:hover{background:#fecaca}
+    .empty-state{text-align:center;padding:48px 24px;color:#94a3b8}
+    .empty-state i{font-size:48px;display:block;margin-bottom:12px;opacity:.4}
+    @media(max-width:768px){body{flex-direction:column}.sidebar{width:100%;height:auto;position:static}}
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; breaks</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; payslips</a>
+  <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; tickets</a>
+  <a class="nav-item active" href="/admin/regularization"><span class="nav-icon"><i class="ti ti-clipboard-check"></i></span>Regularization</a>
+  <a class="nav-item" href="/announcements"><span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements</a>
+  <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+  <hr class="nav-sep" style="margin-top:12px">
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+  <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+  <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px"></i> {{ shift_start }} – {{ shift_end }}</div>
+</div>
+
+<div class="main">
+  <div class="page-header">
+    <div class="page-title">
+      <i class="ti ti-clipboard-check" style="font-size:20px;margin-right:8px;vertical-align:middle"></i>
+      Attendance Regularization
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <i class="ti ti-list-check" style="color:#3b82f6"></i>
+      <h2>Regularization Requests</h2>
+      {% set pending_count = requests | selectattr('7', 'equalto', 'Pending') | list | length %}
+      {% if pending_count > 0 %}
+      <span class="badge badge-pending" style="margin-left:auto">{{ pending_count }} pending</span>
+      {% endif %}
+    </div>
+
+    {% if requests %}
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date</th>
+          <th>Requested Times</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        {# r: id, employee_id, name, request_date, login_time, logout_time, reason, status, admin_note, created_at #}
+        <tr>
+          <td>
+            <a href="/employee_detail/{{ r[1] }}" style="color:#1e3a8a;font-weight:600;text-decoration:none">{{ r[2] }}</a>
+            <div style="font-size:11px;color:#94a3b8">{{ r[1] }}</div>
+          </td>
+          <td>
+            <strong>{{ r[3].strftime('%d %b %Y') if r[3] else r[3] }}</strong>
+            <div style="font-size:11px;color:#94a3b8">{{ r[9].strftime('%d %b, %H:%M') if r[9] else '' }}</div>
+          </td>
+          <td>
+            <div style="font-size:12px">
+              {% if r[4] %}<span style="background:#dbeafe;color:#1e3a8a;padding:2px 8px;border-radius:6px">In: {{ r[4]|fmt_time }}</span>{% endif %}
+              {% if r[5] %}<br><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;margin-top:4px;display:inline-block">Out: {{ r[5]|fmt_time }}</span>{% endif %}
+            </div>
+          </td>
+          <td style="max-width:200px">{{ r[6] }}</td>
+          <td>
+            {% if r[7] == 'Pending' %}
+              <span class="badge badge-pending">Pending</span>
+            {% elif r[7] == 'Approved' %}
+              <span class="badge badge-approved">Approved</span>
+              {% if r[8] %}<div style="font-size:11px;color:#64748b;margin-top:4px">{{ r[8] }}</div>{% endif %}
+            {% else %}
+              <span class="badge badge-rejected">Rejected</span>
+              {% if r[8] %}<div style="font-size:11px;color:#64748b;margin-top:4px">{{ r[8] }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if r[7] == 'Pending' %}
+            <form action="/admin/regularization/{{ r[0] }}/action" method="POST" class="action-form">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+              <textarea name="note" placeholder="Optional note…"></textarea>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <button type="submit" name="action" value="Approve" class="btn btn-approve">
+                  <i class="ti ti-check"></i> Approve
+                </button>
+                <button type="submit" name="action" value="Reject" class="btn btn-reject">
+                  <i class="ti ti-x"></i> Reject
+                </button>
+              </div>
+            </form>
+            {% else %}
+            <span style="font-size:12px;color:#94a3b8">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="ti ti-clipboard-off"></i>
+      No regularization requests yet.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script src="/static/darkmode.js"></script>
+</body>
+</html>
