@@ -7,15 +7,105 @@
   <link rel="stylesheet" href="/static/tabler-icons.min.css" />
   <link rel="stylesheet" href="/static/shared.css" />
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
-    body{background:#f1f5f9;min-height:100vh}
-    .top-bar{background:linear-gradient(135deg,#0f2460,#1a3a8f);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-    .top-bar-left{display:flex;align-items:center;gap:12px}
-    .top-bar h1{font-size:18px;font-weight:800}
-    .top-bar .sub{font-size:12px;color:rgba(255,255,255,0.6)}
-    .back-btn{color:rgba(255,255,255,0.8);text-decoration:none;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.1);padding:8px 14px;border-radius:9px;transition:0.2s}
-    .back-btn:hover{background:rgba(255,255,255,0.18);color:#fff}
-    .content{max-width:860px;margin:28px auto;padding:0 20px}
+
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      html, body { height: 100%; }
+      body { background: #f1f5f9; display: flex; flex-direction: row; min-height: 100dvh; }
+
+      .sidebar {
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        padding: 20px 14px; color: white;
+        display: flex; flex-direction: column; flex-shrink: 0;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.18); z-index: 300;
+        transition: transform 0.28s ease;
+      }
+      .sb-profile {
+        display: flex; align-items: center; gap: 12px;
+        padding-bottom: 18px; margin-bottom: 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .sb-avatar {
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        font-size: 18px; font-weight: 700; color: white;
+      }
+      .sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .sb-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
+      .sb-role { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+      .sb-id   { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+      .sb-nav-label {
+        font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 0 10px; margin: 12px 0 4px;
+      }
+      .sb-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 10px; margin: 1px 0;
+        color: rgba(255,255,255,0.75);
+        border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s;
+        position: relative; border: none; background: none; width: 100%;
+        text-align: left; cursor: pointer; font-family: inherit; text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sb-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+      .sb-item.active {
+        background: rgba(255,255,255,0.15); color: #fff; font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+      }
+      .sb-item.active::before {
+        content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+        width: 3px; border-radius: 2px; background: #60a5fa;
+      }
+      .sb-icon {
+        width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.08); font-size: 16px;
+      }
+      .sb-icon i { font-size: 16px; line-height: 1; }
+      .sb-item.active .sb-icon { background: rgba(96,165,250,0.2); }
+      .sb-item:hover .sb-icon  { background: rgba(255,255,255,0.12); }
+      .sb-item.danger { color: rgba(252,165,165,0.85); }
+      .sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+      .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .sb-footer {
+        margin-top: auto; padding-top: 14px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        font-size: 11px; color: rgba(255,255,255,0.4);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .main-area { flex: 1; min-width: 0; overflow-y: auto; }
+      .app-content { padding: 24px 28px; }
+
+.sb-avatar img{width:100%;height:100%;object-fit:cover}
+    
+    
+    
+    
+    
+    
+    .sb-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)}
+    .sb-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    
+    .sb-item.active 
+    
+    .sb-item.danger:hover{background:rgba(239,68,68,0.15);color:#fca5a5}
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
     .ob-selector{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
     .ob-chip{padding:8px 18px;border-radius:99px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:2px solid #e2e8f0;background:#fff;color:#475569;transition:0.2s}
     .ob-chip.active{border-color:#1e3a8a;background:#1e3a8a;color:#fff}
@@ -33,7 +123,7 @@
     .task-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:2px}
     .icon-done{background:#dcfce7;color:#16a34a}
     .icon-pending{background:#f1f5f9;color:#94a3b8}
-    .task-body{flex:1}
+    .task-
     .task-name{font-size:14px;font-weight:600;color:#0f172a}
     .task-desc{font-size:12px;color:#64748b;margin-top:3px}
     .task-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
@@ -68,20 +158,71 @@
 </head>
 <body>
 
-<div class="top-bar">
-  <div class="top-bar-left">
-    <div style="background:rgba(255,255,255,0.15);width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;">
-      <i class="ti ti-checklist" style="font-size:20px;"></i>
-    </div>
-    <div>
-      <div class="top-bar h1">My Onboarding</div>
-      <div class="top-bar sub">{{ emp[1] }} &bull; {{ emp[2] or 'Employee' }}</div>
-    </div>
-  </div>
-  <a href="/employee_portal" class="back-btn"><i class="ti ti-arrow-left"></i> Back to Portal</a>
-</div>
+    <nav class="sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar">
+          {% if emp[4] %}
+            <img src="/my_photo" alt="{{ emp[1] }}" onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+          {% else %}
+            {{ emp[1][0] | upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div class="sb-name">{{ emp[1] }}</div>
+          <div class="sb-role">{{ emp[2] or 'Employee' }}</div>
+          <div class="sb-id">ID: {{ emp[0] }}</div>
+        </div>
+      </div>
 
-<div class="content">
+      <div class="sb-nav-label">Main</div>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
+      </a>
+
+      <div class="sb-nav-label">Account</div>
+      <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
+      </a>
+      <a href="/my_performance" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
+      </a>
+      <a href="/my_onboarding" class="sb-item active" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
+      </a>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
+      </a>
+
+      <div class="sb-nav-label">Policies</div>
+      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
+      </a>
+
+      <hr class="sb-sep" />
+      <a href="/employee_logout" class="sb-item danger" style="text-decoration:none;">
+        <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
+      </a>
+
+      <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+      <div class="sb-footer">👤 {{ emp[0] }}</div>
+    </nav>
+  <div class="main-area">
+    <div class="app-content">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}<ul class="flash-list">{% for cat,msg in messages %}
       <li class="flash-msg flash-{{ cat }}"><i class="ti ti-{% if cat=='success' %}circle-check{% else %}alert-circle{% endif %}"></i>{{ msg }}</li>
@@ -170,7 +311,6 @@
   </div>
   {% endif %}
   {% endif %}
-</div>
 
 <!-- MODAL: Mark as Done -->
 <div class="modal" id="doneModal">
@@ -208,6 +348,8 @@ function openDoneModal(taskId, obId, reqDoc, title){
   openModal('doneModal');
 }
 </script>
+    </div><!-- /app-content -->
+  </div><!-- /main-area -->
 <script src="/static/darkmode.js"></script>
 </body>
 </html>

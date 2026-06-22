@@ -61,7 +61,9 @@ if _missing_env:
     )
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else "*"
+CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 
 _REDIS_URL = os.environ.get("REDIS_URL", "memory://")
 limiter = Limiter(
@@ -817,6 +819,25 @@ def init_db():
         if not cursor.fetchone():
             cursor.execute("UPDATE employees SET password=%s", (generate_password_hash('1234'),))
             cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('default_pin_1234')")
+            db.commit()
+    except Exception:
+        pass
+
+    # Migration: add force_pin_change column and flag employees on default PIN
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN force_pin_change TINYINT(1) DEFAULT 0")
+        db.commit()
+    except mysql.connector.errors.DatabaseError:
+        db.rollback()
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='force_pin_change_flag'")
+        if not cursor.fetchone():
+            default_hash = generate_password_hash('1234')
+            cursor.execute("SELECT employee_id, password FROM employees")
+            for eid, pwd_hash in cursor.fetchall():
+                if pwd_hash and check_password_hash(pwd_hash, '1234'):
+                    cursor.execute("UPDATE employees SET force_pin_change=1 WHERE employee_id=%s", (eid,))
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('force_pin_change_flag')")
             db.commit()
     except Exception:
         pass
@@ -1635,7 +1656,7 @@ def admin_login():
         # Try employee credentials
         with _db() as (cursor, db):
             cursor.execute(
-                "SELECT employee_id, name, role, password FROM employees WHERE employee_id=%s",
+                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0) FROM employees WHERE employee_id=%s",
                 (identifier,)
             )
             emp_row = cursor.fetchone()
@@ -1647,6 +1668,8 @@ def admin_login():
             session["employee_name"] = emp_row[1]
             session["employee_role"] = emp_row[2] or ""
             session.permanent = True
+            if emp_row[4]:
+                return redirect("/force_change_pin")
             return redirect("/employee_portal")
         return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
     return render_template("admin_login.html")
@@ -4613,6 +4636,33 @@ def change_password():
     return redirect("/employee_portal?pwd_ok=1#my-profile")
 
 
+@app.route("/force_change_pin", methods=["GET", "POST"])
+@employee_required
+def force_change_pin():
+    emp_id = session["employee_id"]
+    error  = None
+    if request.method == "POST":
+        new_pwd = request.form.get("new_password", "").strip()
+        confirm = request.form.get("confirm_password", "").strip()
+        if len(new_pwd) < 6:
+            error = "Password must be at least 6 characters."
+        elif new_pwd != confirm:
+            error = "Passwords do not match."
+        elif new_pwd == "1234":
+            error = "You cannot use '1234' as your password."
+        else:
+            db = get_db_connection()
+            cursor = db.cursor(buffered=True)
+            cursor.execute(
+                "UPDATE employees SET password=%s, force_pin_change=0 WHERE employee_id=%s",
+                (generate_password_hash(new_pwd), emp_id)
+            )
+            db.commit(); cursor.close(); db.close()
+            return redirect("/employee_portal")
+    return render_template("force_change_pin.html", error=error,
+                           emp_name=session.get("employee_name", ""))
+
+
 @app.route("/update_my_profile", methods=["POST"])
 @employee_required
 def update_my_profile():
@@ -6098,7 +6148,7 @@ def my_performance():
         kpis = cursor.fetchall()
         reviews_data.append({"review": rev, "kpis": kpis})
 
-    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()
     cursor.close(); db.close()
 
@@ -9119,7 +9169,7 @@ def my_compoff():
     lt_row = cursor.fetchone()
     compoff_lt_id = lt_row[0] if lt_row else None
 
-    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,'') FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()
     cursor.close(); db.close()
 
@@ -9619,11 +9669,11 @@ def my_onboarding():
                 selected_ob = ob
                 break
 
-    cursor.execute("SELECT employee_id, name, role, department FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT employee_id, name, role, department, face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
     cursor.close(); db.close()
     return render_template("my_onboarding.html",
-        emp=emp, onboardings=onboardings, tasks=tasks,
+        emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
         selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None
     )
 
@@ -9676,4 +9726,4 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     load_default_shift()
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
