@@ -2,12 +2,17 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import EmployeeDashboard   from '../screens/employee/EmployeeDashboard';
-import LeaveScreen         from '../screens/employee/LeaveScreen';
-import ResignScreen        from '../screens/employee/ResignScreen';
-import TicketsScreen       from '../screens/employee/TicketsScreen';
-import ChangePinScreen     from '../screens/employee/ChangePinScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
+
+import EmployeeDashboard       from '../screens/employee/EmployeeDashboard';
+import LeaveScreen             from '../screens/employee/LeaveScreen';
+import ResignScreen            from '../screens/employee/ResignScreen';
+import TicketsScreen           from '../screens/employee/TicketsScreen';
+import ChangePinScreen         from '../screens/employee/ChangePinScreen';
+import AttendanceHistoryScreen from '../screens/employee/AttendanceHistoryScreen';
+import PayslipsScreen          from '../screens/employee/PayslipsScreen';
+import HolidaysScreen          from '../screens/employee/HolidaysScreen';
+import ProfileScreen           from '../screens/employee/ProfileScreen';
+import NotificationsScreen     from '../screens/NotificationsScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -57,8 +62,12 @@ function EmployeeTabs() {
 export default function EmployeeNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="EmployeeTabs" component={EmployeeTabs} />
-      <Stack.Screen name="ChangePin"    component={ChangePinScreen} />
+      <Stack.Screen name="EmployeeTabs"       component={EmployeeTabs} />
+      <Stack.Screen name="ChangePin"          component={ChangePinScreen} />
+      <Stack.Screen name="AttendanceHistory"  component={AttendanceHistoryScreen} />
+      <Stack.Screen name="Payslips"           component={PayslipsScreen} />
+      <Stack.Screen name="Holidays"           component={HolidaysScreen} />
+      <Stack.Screen name="Profile"            component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

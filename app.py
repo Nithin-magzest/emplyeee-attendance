@@ -7508,6 +7508,13 @@ def api_employee_portal():
         (emp_id,)
     )
     unread_notifications = cursor.fetchone()[0]
+    cursor.execute("""
+        SELECT title, content, priority, created_at FROM announcements
+        ORDER BY created_at DESC LIMIT 5
+    """)
+    ann_rows = cursor.fetchall()
+    cursor.execute("SELECT role, department FROM employees WHERE employee_id=%s", (emp_id,))
+    emp_extra = cursor.fetchone()
     cursor.close(); db.close()
 
     return jsonify({
@@ -7540,6 +7547,12 @@ def api_employee_portal():
             "created_at": str(resign[3]),
         } if resign else None,
         "unread_notifications": unread_notifications,
+        "role": emp_extra[0] if emp_extra else None,
+        "department": emp_extra[1] if emp_extra else None,
+        "announcements": [
+            {"title": r[0], "content": r[1], "priority": r[2], "created_at": str(r[3])}
+            for r in ann_rows
+        ],
     })
 
 
@@ -7834,6 +7847,148 @@ def api_employee_salary():
             "late_days": late_days, "absent": absent, "leave_days": leave_days,
             "gross": gross, "deduction": deduction, "net": net,
         }
+    })
+
+
+# ---------------- API: EMPLOYEE — ATTENDANCE HISTORY ----------------
+
+@app.route("/api/employee/attendance", methods=["GET"])
+@employee_api_required
+def api_employee_attendance():
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    try:
+        year  = int(request.args.get("year",  datetime.date.today().year))
+        month = int(request.args.get("month", datetime.date.today().month))
+    except ValueError:
+        return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT date, login_time, logout_time, status, logout_status, attendance_type, worked_minutes
+        FROM attendance
+        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        ORDER BY date DESC
+    """, (emp_id, month, year))
+    rows = cursor.fetchall()
+    cursor.execute("""
+        SELECT COUNT(*), attendance_type FROM attendance
+        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        GROUP BY attendance_type
+    """, (emp_id, month, year))
+    type_counts = {r[1]: r[0] for r in cursor.fetchall()}
+    cursor.close(); db.close()
+    full = type_counts.get("Full Day", 0) + type_counts.get("Late - Full Day", 0)
+    half = type_counts.get("Half Day", 0) + type_counts.get("Late - Half Day", 0)
+    late = type_counts.get("Late - Full Day", 0) + type_counts.get("Late - Half Day", 0)
+    return jsonify({
+        "ok": True,
+        "year": year, "month": month,
+        "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
+        "summary": {"present": full + half, "full_days": full, "half_days": half, "late": late},
+        "records": [
+            {
+                "date": str(r[0]),
+                "login_time": _fmt_t(r[1]),
+                "logout_time": _fmt_t(r[2]),
+                "login_status": r[3],
+                "logout_status": r[4],
+                "attendance_type": r[5],
+                "worked_minutes": r[6],
+            }
+            for r in rows
+        ],
+    })
+
+
+# ---------------- API: EMPLOYEE — LEAVE HISTORY + BALANCE ----------------
+
+@app.route("/api/employee/leaves", methods=["GET"])
+@employee_api_required
+def api_employee_leaves():
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT id, leave_date, reason, status, created_at
+        FROM leave_requests WHERE employee_id=%s
+        ORDER BY created_at DESC LIMIT 50
+    """, (emp_id,))
+    leaves = cursor.fetchall()
+    approved = sum(1 for r in leaves if r[3] == "Approved")
+    pending  = sum(1 for r in leaves if r[3] == "Pending")
+    rejected = sum(1 for r in leaves if r[3] == "Rejected")
+    cursor.close(); db.close()
+    return jsonify({
+        "ok": True,
+        "summary": {"approved": approved, "pending": pending, "rejected": rejected, "total": len(leaves)},
+        "leaves": [
+            {"id": r[0], "leave_date": str(r[1]), "reason": r[2], "status": r[3], "created_at": str(r[4])}
+            for r in leaves
+        ],
+    })
+
+
+# ---------------- API: EMPLOYEE — HOLIDAYS ----------------
+
+@app.route("/api/employee/holidays", methods=["GET"])
+@employee_api_required
+def api_employee_holidays():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT date, name FROM holidays ORDER BY date")
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    today = datetime.date.today()
+    return jsonify({
+        "ok": True,
+        "holidays": [
+            {"date": str(r[0]), "name": r[1], "passed": r[0] < today}
+            for r in rows
+        ],
+    })
+
+
+# ---------------- API: EMPLOYEE — PROFILE ----------------
+
+@app.route("/api/employee/profile", methods=["GET"])
+@employee_api_required
+def api_employee_profile():
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.email, e.role, e.department,
+               e.phone, e.dob, e.gender, e.blood_group, e.address, e.city, e.state,
+               e.pincode, e.about_me, e.emergency_contact_name, e.emergency_contact_phone,
+               e.bank_name, e.bank_account, e.bank_ifsc, e.pan_number, e.aadhar_number,
+               COALESCE(s.salary_per_day, 0), COALESCE(e.joining_date, e.date_of_joining)
+        FROM employees e
+        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    return jsonify({
+        "ok": True,
+        "profile": {
+            "employee_id": row[0], "name": row[1], "email": row[2],
+            "role": row[3], "department": row[4],
+            "phone": row[5],
+            "dob": str(row[6]) if row[6] else None,
+            "gender": row[7], "blood_group": row[8],
+            "address": row[9], "city": row[10], "state": row[11], "pincode": row[12],
+            "about_me": row[13],
+            "emergency_contact_name": row[14], "emergency_contact_phone": row[15],
+            "bank_name": row[16], "bank_account": row[17], "bank_ifsc": row[18],
+            "pan_number": row[19], "aadhar_number": row[20],
+            "salary_per_day": float(row[21]),
+            "join_date": str(row[22]) if row[22] else None,
+        },
     })
 
 

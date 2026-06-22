@@ -126,7 +126,7 @@ export default function EmployeeDashboard({ navigation }) {
           attendance={attendance}
           checking={checking}
           onCheckIn={handleCheckIn}
-          onMenu={() => navigation.openDrawer()}
+          onMenu={undefined}
           onLogout={handleLogout}
         />
 

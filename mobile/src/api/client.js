@@ -69,6 +69,18 @@ export const fetchAllTickets = () => client.get('/api/tickets');
 export const ticketAction = (tid, status, admin_response) =>
   client.post(`/api/tickets/${tid}/action`, { status, admin_response });
 
+export const fetchEmployeeSalary = (year, month) =>
+  client.get('/api/employee/salary', { params: { year, month } });
+
+export const fetchEmployeeAttendance = (year, month) =>
+  client.get('/api/employee/attendance', { params: { year, month } });
+
+export const fetchEmployeeLeaves = () => client.get('/api/employee/leaves');
+
+export const fetchEmployeeHolidays = () => client.get('/api/employee/holidays');
+
+export const fetchEmployeeProfile = () => client.get('/api/employee/profile');
+
 // ── Notifications ──────────────────────────────────────────────────
 export const fetchNotifications = () => client.get('/api/notifications');
 export const markNotificationsRead = () => client.post('/api/notifications/mark_read');
