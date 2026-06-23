@@ -684,6 +684,31 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS hike_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            label VARCHAR(80) NOT NULL,
+            min_rating DECIMAL(3,1) NOT NULL,
+            max_rating DECIMAL(3,1) NOT NULL,
+            hike_pct DECIMAL(5,2) DEFAULT 0,
+            incentive_pct DECIMAL(5,2) DEFAULT 0,
+            color VARCHAR(20) DEFAULT '#1e3a8a'
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM hike_config")
+    if cursor.fetchone()[0] == 0:
+        for _lbl, _mn, _mx, _hp, _ip, _clr in [
+            ("Exceptional",          4.5, 5.0, 20.00, 15.00, "#15803d"),
+            ("Exceeds Expectations", 4.0, 4.4, 15.00, 10.00, "#2563eb"),
+            ("Meets Expectations",   3.0, 3.9, 10.00,  5.00, "#7c3aed"),
+            ("Needs Improvement",    2.0, 2.9,  5.00,  0.00, "#d97706"),
+            ("Below Expectations",   0.0, 1.9,  0.00,  0.00, "#dc2626"),
+        ]:
+            cursor.execute(
+                "INSERT INTO hike_config (label, min_rating, max_rating, hike_pct, incentive_pct, color) VALUES (%s,%s,%s,%s,%s,%s)",
+                (_lbl, _mn, _mx, _hp, _ip, _clr)
+            )
+        db.commit()
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS overtime_records (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
@@ -6646,6 +6671,42 @@ def performance():
     pending_tickets = cursor.fetchone()[0]
     cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
     co = cursor.fetchone()
+
+    cursor.execute("SELECT id, label, min_rating, max_rating, hike_pct, incentive_pct, color FROM hike_config ORDER BY min_rating DESC")
+    hike_bands = cursor.fetchall()
+
+    hike_employees = []
+    total_hike_cost = 0.0
+    total_bonus_pool = 0.0
+    hike_eligible_count = 0
+    if active_tab == 'hike':
+        cursor.execute("""
+            SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+                   COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
+                   COALESCE(sc.monthly_ctc,0)
+            FROM employees e
+            LEFT JOIN performance_reviews pr ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
+            LEFT JOIN salary_config sc ON sc.employee_id=e.employee_id
+            WHERE e.is_active=1
+            ORDER BY e.name
+        """, (yr, q))
+        for (h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc) in cursor.fetchall():
+            h_rating = float(h_rating or 0)
+            h_ctc    = float(h_ctc or 0)
+            band_label, band_color, hike_pct, inc_pct = "Not Rated", "#94a3b8", 0.0, 0.0
+            if h_rating > 0:
+                for (_, blabel, bmin, bmax, bhike, binc, bcolor) in hike_bands:
+                    if float(bmin) <= h_rating <= float(bmax):
+                        band_label, band_color, hike_pct, inc_pct = blabel, bcolor, float(bhike), float(binc)
+                        break
+                hike_eligible_count += 1
+            new_ctc = round(h_ctc * (1 + hike_pct / 100), 2) if h_ctc > 0 and hike_pct > 0 else h_ctc
+            bonus   = round(h_ctc * inc_pct / 100, 2) if h_ctc > 0 and inc_pct > 0 else 0.0
+            total_hike_cost  += max(0, new_ctc - h_ctc)
+            total_bonus_pool += bonus
+            hike_employees.append((h_eid, h_name, h_role, h_dept, h_rating, h_status,
+                                   h_ctc, band_label, band_color, hike_pct, new_ctc, inc_pct, bonus))
+
     cursor.close(); db.close()
 
     return render_template("performance.html",
@@ -6658,6 +6719,11 @@ def performance():
         today=today,
         ann_list=ann_list,
         active_tab=active_tab,
+        hike_bands=hike_bands,
+        hike_employees=hike_employees,
+        total_hike_cost=total_hike_cost,
+        total_bonus_pool=total_bonus_pool,
+        hike_eligible_count=hike_eligible_count,
     )
 
 
@@ -6898,6 +6964,515 @@ def performance_employee_comment():
     cursor.close(); db.close()
     flash("Comment submitted.", "success")
     return redirect("/my_performance")
+
+
+@app.route("/performance_export")
+@admin_required
+def performance_export():
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    today = datetime.date.today()
+    q  = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int(request.args.get("year", today.year))
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("""
+        SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
+               COALESCE(pr.overall_rating,0), COALESCE(pr.status,'Not Started'),
+               COALESCE(pr.reviewer_feedback,''), COALESCE(pr.employee_comment,''),
+               pr.id
+        FROM employees e
+        LEFT JOIN performance_reviews pr
+            ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
+        WHERE e.is_active=1
+        ORDER BY e.name
+    """, (yr, q))
+    employees = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT e.employee_id, e.name, pk.kpi_title, COALESCE(pk.description,''),
+               COALESCE(pk.target,''), COALESCE(pk.achievement,''),
+               pk.weight, COALESCE(pk.rating,0), COALESCE(pk.comments,'')
+        FROM employees e
+        JOIN performance_reviews pr ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
+        JOIN performance_kpis pk ON pk.review_id=pr.id
+        WHERE e.is_active=1
+        ORDER BY e.name, pk.id
+    """, (yr, q))
+    kpis = cursor.fetchall()
+    cursor.close(); db.close()
+
+    wb = openpyxl.Workbook()
+
+    # ── Styles ──
+    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
+    hdr_fill   = PatternFill("solid", fgColor="1E3A8A")
+    hdr_align  = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    alt_fill   = PatternFill("solid", fgColor="EFF6FF")
+    thin       = Side(style="thin", color="BFDBFE")
+    border     = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center     = Alignment(horizontal="center", vertical="center")
+
+    def style_header(ws, cols):
+        for col_idx, (title, width) in enumerate(cols, 1):
+            cell = ws.cell(row=1, column=col_idx, value=title)
+            cell.font      = hdr_font
+            cell.fill      = hdr_fill
+            cell.alignment = hdr_align
+            cell.border    = border
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+        ws.row_dimensions[1].height = 30
+
+    def style_data_cell(cell, row_idx):
+        cell.border    = border
+        cell.alignment = Alignment(vertical="center", wrap_text=True)
+        if row_idx % 2 == 0:
+            cell.fill = alt_fill
+
+    # ── Sheet 1: Summary ──
+    ws1 = wb.active
+    ws1.title = f"Q{q} {yr} Summary"
+    q_labels = {1:"Jan–Mar", 2:"Apr–Jun", 3:"Jul–Sep", 4:"Oct–Dec"}
+    ws1.append([])
+    ws1.merge_cells("A1:H1")
+    title_cell = ws1["A1"]
+    title_cell.value     = f"Performance Summary — Q{q} ({q_labels.get(q,'')}) {yr}"
+    title_cell.font      = Font(bold=True, size=14, color="1E3A8A")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws1.row_dimensions[1].height = 36
+
+    cols_s = [
+        ("Employee ID", 16), ("Employee Name", 24), ("Role", 18), ("Department", 18),
+        ("KPI Count", 12), ("Overall Rating (/ 5)", 20), ("Status", 16), ("Reviewer Feedback", 35),
+    ]
+    for col_idx, (title, width) in enumerate(cols_s, 1):
+        cell = ws1.cell(row=2, column=col_idx, value=title)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = hdr_align
+        cell.border    = border
+        ws1.column_dimensions[get_column_letter(col_idx)].width = width
+    ws1.row_dimensions[2].height = 28
+
+    kpi_counts = {}
+    for row in kpis:
+        kpi_counts[row[0]] = kpi_counts.get(row[0], 0) + 1
+
+    for r_idx, (emp_id, name, role, dept, rating, status, feedback, _, _rev_id) in enumerate(employees, 3):
+        row_data = [emp_id, name, role, dept, kpi_counts.get(emp_id, 0),
+                    rating if rating else "—", status, feedback]
+        for c_idx, val in enumerate(row_data, 1):
+            cell = ws1.cell(row=r_idx, column=c_idx, value=val)
+            style_data_cell(cell, r_idx)
+            if c_idx == 6 and isinstance(val, (int, float)) and val > 0:
+                if val >= 4:   cell.font = Font(color="15803D", bold=True)
+                elif val >= 3: cell.font = Font(color="1D4ED8", bold=True)
+                else:           cell.font = Font(color="DC2626", bold=True)
+        ws1.row_dimensions[r_idx].height = 22
+    ws1.freeze_panes = "A3"
+
+    # ── Sheet 2: KPI Details ──
+    ws2 = wb.create_sheet(f"Q{q} {yr} KPI Details")
+    cols_k = [
+        ("Employee ID", 16), ("Employee Name", 22), ("KPI Title", 28),
+        ("Description", 30), ("Target", 20), ("Achievement", 20),
+        ("Weight (%)", 13), ("Rating (1–5)", 14), ("Comments", 30),
+    ]
+    for col_idx, (title, width) in enumerate(cols_k, 1):
+        cell = ws2.cell(row=1, column=col_idx, value=title)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = hdr_align
+        cell.border    = border
+        ws2.column_dimensions[get_column_letter(col_idx)].width = width
+    ws2.row_dimensions[1].height = 28
+
+    for r_idx, (emp_id, name, title, desc, target, achievement, weight, rating, comments) in enumerate(kpis, 2):
+        for c_idx, val in enumerate([emp_id, name, title, desc, target, achievement, weight, rating or "—", comments], 1):
+            cell = ws2.cell(row=r_idx, column=c_idx, value=val)
+            style_data_cell(cell, r_idx)
+        ws2.row_dimensions[r_idx].height = 20
+    ws2.freeze_panes = "A2"
+
+    # ── Sheet 3: Import Template ──
+    ws3 = wb.create_sheet("Import Template")
+    note_fill = PatternFill("solid", fgColor="FFF9C4")
+    note_font = Font(italic=True, size=10, color="92400E")
+    ws3.merge_cells("A1:J1")
+    n = ws3["A1"]
+    n.value     = "Fill in the rows below and import this file. Required columns: employee_id, kpi_title, weight, rating. Quarter & Year are selected in the import dialog."
+    n.font      = note_font
+    n.fill      = note_fill
+    n.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    ws3.row_dimensions[1].height = 40
+
+    tpl_cols = [
+        ("employee_id*", 18), ("kpi_title*", 28), ("description", 28),
+        ("target", 20), ("achievement", 20), ("weight*", 12),
+        ("rating* (1-5)", 14), ("comments", 28), ("status", 16), ("reviewer_feedback", 35),
+    ]
+    for col_idx, (title, width) in enumerate(tpl_cols, 1):
+        cell = ws3.cell(row=2, column=col_idx, value=title)
+        req_fill = PatternFill("solid", fgColor="1E3A8A") if title.endswith("*") else PatternFill("solid", fgColor="475569")
+        cell.font      = Font(bold=True, color="FFFFFF", size=10)
+        cell.fill      = req_fill
+        cell.alignment = hdr_align
+        cell.border    = border
+        ws3.column_dimensions[get_column_letter(col_idx)].width = width
+    ws3.row_dimensions[2].height = 28
+
+    sample_rows = [
+        ["EMP001", "Code Quality", "Maintain clean, tested code", "95% coverage", "92%", 30, 4, "Good progress", "Submitted", ""],
+        ["EMP001", "Delivery Speed", "Complete tasks on time", "95% on-time", "90%", 30, 3, "", "", ""],
+        ["EMP001", "Team Collaboration", "Cross-team work", "4 collabs/qtr", "", 20, 5, "Excellent", "", ""],
+        ["EMP001", "Documentation", "Keep docs updated", "100% coverage", "80%", 20, 3, "", "", "Strong Q2 performance"],
+        ["EMP002", "Sales Target", "Hit monthly targets", "₹5L / month", "₹4.8L", 50, 4, "Near target", "Draft", ""],
+        ["EMP002", "Customer Satisfaction", "Maintain CSAT score", ">=4.5 / 5", "4.3", 50, 3, "Needs improvement", "", ""],
+    ]
+    for r_idx, row in enumerate(sample_rows, 3):
+        for c_idx, val in enumerate(row, 1):
+            cell = ws3.cell(row=r_idx, column=c_idx, value=val)
+            cell.border    = border
+            cell.alignment = Alignment(vertical="center")
+            if r_idx % 2 == 0:
+                cell.fill = PatternFill("solid", fgColor="F0F9FF")
+        ws3.row_dimensions[r_idx].height = 20
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"performance_Q{q}_{yr}.xlsx"
+    from flask import send_file
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/performance_import", methods=["POST"])
+@admin_required
+def performance_import():
+    import io
+    import openpyxl
+
+    q_raw  = request.form.get("quarter", "").strip()
+    yr_raw = request.form.get("year", "").strip()
+    if not q_raw.isdigit() or not yr_raw.isdigit():
+        flash("Invalid quarter or year.", "error")
+        return redirect("/performance")
+    q  = int(q_raw)
+    yr = int(yr_raw)
+
+    f = request.files.get("excel_file")
+    if not f or not f.filename.endswith((".xlsx", ".xls")):
+        flash("Please upload a valid Excel file (.xlsx or .xls).", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(f.read()), data_only=True)
+    except Exception:
+        flash("Could not read the Excel file. Make sure it is a valid .xlsx file.", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    # Find the data sheet — use first sheet that isn't "Import Template"
+    sheet = None
+    for ws in wb.worksheets:
+        if ws.title != "Import Template":
+            sheet = ws
+            break
+    if sheet is None:
+        sheet = wb.active
+
+    rows = list(sheet.iter_rows(values_only=True))
+    if len(rows) < 2:
+        flash("The Excel file has no data rows.", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    # Find header row (first row with 'employee_id' in it)
+    header_row_idx = None
+    headers = []
+    for idx, row in enumerate(rows):
+        cells = [str(c).strip().lower() if c is not None else "" for c in row]
+        if "employee_id" in cells:
+            header_row_idx = idx
+            headers = cells
+            break
+    if header_row_idx is None:
+        flash("Could not find header row. Make sure the file has an 'employee_id' column.", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    def col(name):
+        try: return headers.index(name)
+        except ValueError: return None
+
+    ci_emp      = col("employee_id")
+    ci_title    = col("kpi_title")
+    ci_desc     = col("description")
+    ci_target   = col("target")
+    ci_achieve  = col("achievement")
+    ci_weight   = col("weight") or col("weight*")
+    ci_rating   = next((col(x) for x in ["rating* (1-5)", "rating (1-5)", "rating"] if col(x) is not None), None)
+    ci_comments = col("comments")
+    ci_status   = col("status")
+    ci_feedback = col("reviewer_feedback")
+
+    if ci_emp is None or ci_title is None:
+        flash("Missing required columns: 'employee_id' and 'kpi_title'.", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    # Parse data rows
+    data_rows = rows[header_row_idx + 1:]
+    employees_data = {}  # emp_id → {feedback, status, kpis: [...]}
+    skipped = 0
+    for row in data_rows:
+        if not any(c for c in row if c is not None):
+            continue
+        emp_id = str(row[ci_emp]).strip() if row[ci_emp] is not None else ""
+        title  = str(row[ci_title]).strip() if ci_title is not None and row[ci_title] is not None else ""
+        if not emp_id or not title:
+            skipped += 1
+            continue
+
+        try:
+            weight = int(row[ci_weight]) if ci_weight is not None and row[ci_weight] not in (None, "") else 20
+        except (ValueError, TypeError):
+            weight = 20
+        weight = max(1, min(100, weight))
+
+        try:
+            rating = int(float(row[ci_rating])) if ci_rating is not None and row[ci_rating] not in (None, "") else 0
+        except (ValueError, TypeError):
+            rating = 0
+        rating = max(0, min(5, rating))
+
+        desc     = str(row[ci_desc]).strip()     if ci_desc    is not None and row[ci_desc]    not in (None,"") else ""
+        target   = str(row[ci_target]).strip()   if ci_target  is not None and row[ci_target]  not in (None,"") else ""
+        achieve  = str(row[ci_achieve]).strip()  if ci_achieve is not None and row[ci_achieve] not in (None,"") else ""
+        comments = str(row[ci_comments]).strip() if ci_comments is not None and row[ci_comments] not in (None,"") else ""
+        status   = str(row[ci_status]).strip()   if ci_status  is not None and row[ci_status]   not in (None,"") else "Draft"
+        feedback = str(row[ci_feedback]).strip() if ci_feedback is not None and row[ci_feedback] not in (None,"") else ""
+
+        if status not in ("Draft", "Submitted", "Acknowledged"):
+            status = "Draft"
+
+        if emp_id not in employees_data:
+            employees_data[emp_id] = {"status": status, "feedback": feedback, "kpis": []}
+        if feedback:
+            employees_data[emp_id]["feedback"] = feedback
+        if status in ("Submitted", "Acknowledged"):
+            employees_data[emp_id]["status"] = status
+
+        employees_data[emp_id]["kpis"].append({
+            "title": title, "description": desc, "target": target,
+            "achievement": achieve, "weight": weight, "rating": rating, "comments": comments,
+        })
+
+    if not employees_data:
+        flash("No valid data rows found in the file.", "error")
+        return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    # Validate employee IDs exist
+    cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
+    valid_ids = {r[0] for r in cursor.fetchall()}
+
+    imported = 0
+    unknown  = []
+    for emp_id, emp_data in employees_data.items():
+        if emp_id not in valid_ids:
+            unknown.append(emp_id)
+            continue
+
+        feedback = emp_data["feedback"]
+        status   = emp_data["status"]
+        kpis     = emp_data["kpis"]
+
+        # Upsert review
+        cursor.execute("""
+            INSERT INTO performance_reviews (employee_id, quarter, year, reviewer_feedback, status)
+            VALUES (%s,%s,%s,%s,%s)
+            ON DUPLICATE KEY UPDATE reviewer_feedback=VALUES(reviewer_feedback), status=VALUES(status), updated_at=NOW()
+        """, (emp_id, q, yr, feedback, status))
+        db.commit()
+
+        cursor.execute("SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s", (emp_id, q, yr))
+        rev_id = cursor.fetchone()[0]
+
+        # Replace KPIs
+        cursor.execute("DELETE FROM performance_kpis WHERE review_id=%s", (rev_id,))
+        for kpi in kpis:
+            cursor.execute("""
+                INSERT INTO performance_kpis (review_id, kpi_title, description, target, achievement, weight, rating, comments)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (rev_id, kpi["title"], kpi["description"], kpi["target"],
+                  kpi["achievement"], kpi["weight"], kpi["rating"], kpi["comments"]))
+        db.commit()
+
+        # Recalculate overall rating
+        cursor.execute("SELECT weight, rating FROM performance_kpis WHERE review_id=%s AND rating>0", (rev_id,))
+        rated = cursor.fetchall()
+        if rated:
+            total_w   = sum(r[0] for r in rated)
+            weighted  = sum(r[0] * r[1] for r in rated)
+            overall   = round(weighted / total_w, 1) if total_w else 0
+            cursor.execute("UPDATE performance_reviews SET overall_rating=%s WHERE id=%s", (overall, rev_id))
+            db.commit()
+        imported += 1
+
+    cursor.close(); db.close()
+
+    msg = f"✅ Imported {imported} employee(s) for Q{q} {yr}."
+    if skipped:   msg += f" {skipped} row(s) skipped (missing ID or KPI title)."
+    if unknown:   msg += f" Unknown employee IDs: {', '.join(unknown)}."
+    flash(msg, "success")
+    return redirect(f"/performance?tab=performance&quarter={q}&year={yr}")
+
+
+@app.route("/apply_hike", methods=["POST"])
+@admin_required
+def apply_hike():
+    q   = int(request.form.get("quarter", 1))
+    yr  = int(request.form.get("year", datetime.date.today().year))
+    emp_ids = request.form.getlist("emp_ids")
+    if not emp_ids:
+        flash("No employees selected.", "error")
+        return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT min_rating, max_rating, hike_pct FROM hike_config ORDER BY min_rating DESC")
+    bands = cursor.fetchall()
+
+    today = datetime.date.today()
+    updated = 0
+    for emp_id in emp_ids:
+        cursor.execute(
+            "SELECT COALESCE(overall_rating,0) FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s",
+            (emp_id, q, yr)
+        )
+        row = cursor.fetchone()
+        if not row or float(row[0]) == 0:
+            continue
+        rating = float(row[0])
+        hike_pct = 0.0
+        for (mn, mx, hp) in bands:
+            if float(mn) <= rating <= float(mx):
+                hike_pct = float(hp)
+                break
+        if hike_pct <= 0:
+            continue
+        cursor.execute("SELECT COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
+        sc = cursor.fetchone()
+        if not sc or float(sc[0]) == 0:
+            continue
+        current_ctc = float(sc[0])
+        new_ctc = round(current_ctc * (1 + hike_pct / 100), 2)
+        new_spd = round(new_ctc / 26, 2)
+        cursor.execute(
+            "UPDATE salary_config SET monthly_ctc=%s, salary_per_day=%s, last_revised=%s WHERE employee_id=%s",
+            (new_ctc, new_spd, today, emp_id)
+        )
+        updated += 1
+
+    db.commit()
+    cursor.close(); db.close()
+    flash(f"Hike applied to {updated} employee(s) successfully.", "success")
+    return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
+
+
+@app.route("/award_performance_bonus", methods=["POST"])
+@admin_required
+def award_performance_bonus():
+    q   = int(request.form.get("quarter", 1))
+    yr  = int(request.form.get("year", datetime.date.today().year))
+    emp_ids = request.form.getlist("emp_ids")
+    if not emp_ids:
+        flash("No employees selected.", "error")
+        return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT id FROM incentive_goals WHERE title='Performance Bonus' LIMIT 1")
+    row = cursor.fetchone()
+    if row:
+        goal_id = row[0]
+    else:
+        cursor.execute(
+            "INSERT INTO incentive_goals (title, description, incentive_amount, is_active) VALUES (%s,%s,%s,%s)",
+            ("Performance Bonus", "Quarterly performance-based incentive", 0, 1)
+        )
+        db.commit()
+        goal_id = cursor.lastrowid
+
+    cursor.execute("SELECT min_rating, max_rating, incentive_pct FROM hike_config ORDER BY min_rating DESC")
+    bands = cursor.fetchall()
+
+    bonus_month = {1: 3, 2: 6, 3: 9, 4: 12}.get(q, q * 3)
+    awarded = 0
+    for emp_id in emp_ids:
+        cursor.execute(
+            "SELECT COALESCE(overall_rating,0) FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s",
+            (emp_id, q, yr)
+        )
+        row = cursor.fetchone()
+        if not row or float(row[0]) == 0:
+            continue
+        rating = float(row[0])
+        inc_pct = 0.0
+        for (mn, mx, ip) in bands:
+            if float(mn) <= rating <= float(mx):
+                inc_pct = float(ip)
+                break
+        if inc_pct <= 0:
+            continue
+        cursor.execute("SELECT COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
+        sc = cursor.fetchone()
+        if not sc or float(sc[0]) == 0:
+            continue
+        bonus_amount = round(float(sc[0]) * inc_pct / 100, 2)
+        if bonus_amount <= 0:
+            continue
+        cursor.execute(
+            "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",
+            (emp_id, goal_id, bonus_month, yr, bonus_amount, f"Performance bonus Q{q} {yr} — Rating: {rating}/5")
+        )
+        awarded += 1
+
+    db.commit()
+    cursor.close(); db.close()
+    flash(f"Performance bonus awarded to {awarded} employee(s).", "success")
+    return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
+
+
+@app.route("/save_hike_config", methods=["POST"])
+@admin_required
+def save_hike_config():
+    q  = request.form.get("quarter", "1")
+    yr = request.form.get("year", str(datetime.date.today().year))
+    ids       = request.form.getlist("band_id")
+    labels    = request.form.getlist("band_label")
+    min_rats  = request.form.getlist("band_min")
+    max_rats  = request.form.getlist("band_max")
+    hike_pcts = request.form.getlist("band_hike")
+    inc_pcts  = request.form.getlist("band_inc")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    for i, band_id in enumerate(ids):
+        cursor.execute(
+            "UPDATE hike_config SET label=%s, min_rating=%s, max_rating=%s, hike_pct=%s, incentive_pct=%s WHERE id=%s",
+            (labels[i], min_rats[i], max_rats[i], hike_pcts[i], inc_pcts[i], band_id)
+        )
+    db.commit()
+    cursor.close(); db.close()
+    flash("Hike band configuration saved.", "success")
+    return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
 
 
 @app.route("/leave_requests")

@@ -159,12 +159,85 @@
       <h1><i class="ti ti-chart-line" style="color:#3b82f6;"></i> Performance &amp; Announcements</h1>
       <p>Quarterly KPI reviews, ratings, and company-wide communications</p>
     </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button type="button" onclick="openImportModal()" class="btn" style="background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;font-size:13px;padding:9px 16px;">
+        <i class="ti ti-file-import"></i> Import Excel
+      </button>
+      <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" class="btn" style="background:#eff6ff;color:#1e3a8a;border:1.5px solid #bfdbfe;font-size:13px;padding:9px 16px;" id="exportBtn">
+        <i class="ti ti-file-export"></i> Export Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Import Modal ── -->
+  <div id="importModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:18px;padding:30px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#1e293b;"><i class="ti ti-file-import" style="color:#16a34a;"></i> Import Performance Data</div>
+          <div style="font-size:12px;color:#64748b;margin-top:3px;">Upload an Excel file to bulk-import KPIs and ratings</div>
+        </div>
+        <button type="button" onclick="closeImportModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
+      </div>
+
+      <form action="/performance_import" method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Quarter</label>
+            <select name="quarter" id="importQuarter" style="width:100%;padding:9px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;">
+              <option value="1" {% if quarter==1 %}selected{% endif %}>Q1 Jan–Mar</option>
+              <option value="2" {% if quarter==2 %}selected{% endif %}>Q2 Apr–Jun</option>
+              <option value="3" {% if quarter==3 %}selected{% endif %}>Q3 Jul–Sep</option>
+              <option value="4" {% if quarter==4 %}selected{% endif %}>Q4 Oct–Dec</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Year</label>
+            <select name="year" id="importYear" style="width:100%;padding:9px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;">
+              {% for y in range(today.year - 2, today.year + 2) %}
+              <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Excel File <span style="color:#dc2626;">*</span></label>
+          <div id="dropZone" onclick="document.getElementById('importFile').click()"
+               style="border:2px dashed #93c5fd;border-radius:12px;padding:28px;text-align:center;cursor:pointer;background:#f8fafc;transition:.15s;"
+               ondragover="event.preventDefault();this.style.borderColor='#1e3a8a'" ondragleave="this.style.borderColor='#93c5fd'"
+               ondrop="handleDrop(event)">
+            <i class="ti ti-cloud-upload" style="font-size:28px;color:#3b82f6;display:block;margin-bottom:6px;"></i>
+            <div id="dropLabel" style="font-size:13px;color:#64748b;">Click to browse or drag &amp; drop .xlsx file here</div>
+          </div>
+          <input type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="onFileChosen(this)" required/>
+        </div>
+
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#15803d;line-height:1.7;">
+          <strong>Required columns:</strong> <code>employee_id</code>, <code>kpi_title</code>, <code>weight</code>, <code>rating (1–5)</code><br>
+          <strong>Optional:</strong> description, target, achievement, comments, status, reviewer_feedback<br>
+          <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" style="color:#1e3a8a;font-weight:700;text-decoration:none;">
+            <i class="ti ti-download"></i> Download template from current export
+          </a>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" onclick="closeImportModal()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">Cancel</button>
+          <button type="submit" style="padding:10px 24px;border:none;border-radius:9px;background:#1e3a8a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
+            <i class="ti ti-upload"></i> Import &amp; Calculate
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Module Tabs -->
   <div class="tab-bar">
     <div class="tab {% if active_tab == 'performance' %}active{% endif %}" onclick="switchTab('performance',this)">
       <i class="ti ti-chart-line"></i> Performance Reviews
+    </div>
+    <div class="tab {% if active_tab == 'hike' %}active{% endif %}" onclick="switchTab('hike',this)">
+      <i class="ti ti-trending-up"></i> Hike &amp; Incentives
     </div>
     <div class="tab {% if active_tab == 'announcements' %}active{% endif %}" onclick="switchTab('announcements',this)">
       <i class="ti ti-speakerphone"></i> Announcements
@@ -289,6 +362,194 @@
     </div>
   </div>
 
+  <!-- ═══════════════ TAB: HIKE & INCENTIVES ═══════════════ -->
+  <div class="tab-content {% if active_tab == 'hike' %}active{% endif %}" id="tab-hike">
+
+    <!-- Quarter + Year navigation -->
+    <div class="quarter-tabs">
+      {% for q_num, q_label in [(1,'Q1 Jan–Mar'),(2,'Q2 Apr–Jun'),(3,'Q3 Jul–Sep'),(4,'Q4 Oct–Dec')] %}
+      <a class="q-tab {% if q_num == quarter %}active{% endif %}"
+         href="/performance?tab=hike&quarter={{ q_num }}&year={{ year }}">{{ q_label }}</a>
+      {% endfor %}
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        {% for y in range(today.year - 1, today.year + 2) %}
+        <a class="q-tab {% if y == year %}active{% endif %}"
+           href="/performance?tab=hike&quarter={{ quarter }}&year={{ y }}">{{ y }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if active_tab == 'hike' %}
+
+    <!-- Band Configuration (collapsible) -->
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-pad" style="cursor:pointer;user-select:none;" onclick="toggleHikeCfg()">
+        <div class="sec-title" style="margin:0;display:flex;justify-content:space-between;align-items:center;">
+          <span><i class="ti ti-adjustments-horizontal"></i> Hike Band Configuration</span>
+          <i class="ti ti-chevron-down" id="hikeCfgChev" style="font-size:18px;transition:.2s;"></i>
+        </div>
+      </div>
+      <div id="hikeCfgBody" style="display:none;padding:0 20px 20px;">
+        <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Define the rating thresholds, salary hike %, and quarterly bonus % of monthly CTC for each performance band.</p>
+        <form action="/save_hike_config" method="POST">
+          <input type="hidden" name="quarter" value="{{ quarter }}">
+          <input type="hidden" name="year" value="{{ year }}">
+          <div style="overflow-x:auto;">
+            <table style="min-width:600px;">
+              <thead>
+                <tr>
+                  <th>Band Label</th>
+                  <th>Min Rating</th>
+                  <th>Max Rating</th>
+                  <th>Hike %</th>
+                  <th>Bonus % (of Monthly CTC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for bid, blabel, bmin, bmax, bhike, binc, bcolor in hike_bands %}
+                <tr>
+                  <input type="hidden" name="band_id" value="{{ bid }}">
+                  <td style="display:flex;align-items:center;gap:8px;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ bcolor }};flex-shrink:0;"></span>
+                    <input type="text" name="band_label" value="{{ blabel }}" style="width:170px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;">
+                  </td>
+                  <td><input type="number" name="band_min" value="{{ bmin }}" step="0.1" min="0" max="5" style="width:68px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"></td>
+                  <td><input type="number" name="band_max" value="{{ bmax }}" step="0.1" min="0" max="5" style="width:68px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"></td>
+                  <td><input type="number" name="band_hike" value="{{ bhike }}" step="0.5" min="0" max="100" style="width:75px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"> %</td>
+                  <td><input type="number" name="band_inc" value="{{ binc }}" step="0.5" min="0" max="100" style="width:75px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"> %</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" class="btn btn-primary" style="margin-top:14px;font-size:12px;">
+            <i class="ti ti-device-floppy"></i> Save Configuration
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-row" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="num" style="color:#1e3a8a;">{{ hike_employees|length }}</div><div class="lbl">Total Employees</div></div>
+      <div class="stat-card"><div class="num" style="color:#16a34a;">{{ hike_eligible_count }}</div><div class="lbl">Rated (Eligible)</div></div>
+      <div class="stat-card"><div class="num" style="color:#7c3aed;font-size:18px;">₹{{ "{:,.0f}".format(total_hike_cost) }}</div><div class="lbl">Extra Hike Cost / Mo</div></div>
+      <div class="stat-card"><div class="num" style="color:#d97706;font-size:18px;">₹{{ "{:,.0f}".format(total_bonus_pool) }}</div><div class="lbl">Total Bonus Pool</div></div>
+    </div>
+
+    <!-- Hidden submit form (populated by JS) -->
+    <form id="hikeForm" action="" method="POST" style="display:none;">
+      <input type="hidden" name="quarter" value="{{ quarter }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <div id="hikeEmpIds"></div>
+    </form>
+
+    <!-- Employee hike table -->
+    <div class="card">
+      <div class="card-pad" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div class="sec-title" style="margin:0;"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <label style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="hikeSelectAll" onchange="hikeSelectAll(this)"> Select all
+          </label>
+          <button type="button" class="btn" style="background:#dcfce7;color:#15803d;border:1.5px solid #86efac;font-size:12px;" onclick="submitHikeForm('/apply_hike')">
+            <i class="ti ti-arrow-up-circle"></i> Apply Hike to Selected
+          </button>
+          <button type="button" class="btn" style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde68a;font-size:12px;" onclick="submitHikeForm('/award_performance_bonus')">
+            <i class="ti ti-gift"></i> Award Bonus to Selected
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px;text-align:center;"></th>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Current CTC / Mo</th>
+              <th>Q{{ quarter }} Rating</th>
+              <th>Performance Band</th>
+              <th>Hike %</th>
+              <th>New CTC / Mo</th>
+              <th>Bonus %</th>
+              <th>Bonus Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc, band_label, band_color, hike_pct, new_ctc, inc_pct, bonus in hike_employees %}
+            <tr>
+              <td style="text-align:center;">
+                <input type="checkbox" class="hike-chk" value="{{ h_eid }}"
+                  {% if h_rating == 0 or h_ctc == 0 %}disabled title="Needs rating + salary configured"{% endif %}>
+              </td>
+              <td>
+                <div style="font-weight:600;font-size:13px;">{{ h_name }}</div>
+                <div style="font-size:11px;color:#64748b;">{{ h_eid }}{% if h_role %} · {{ h_role }}{% endif %}</div>
+              </td>
+              <td>{{ h_dept or '—' }}</td>
+              <td>
+                {% if h_ctc > 0 %}
+                <span style="font-weight:600;">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                {% else %}
+                <span style="color:#94a3b8;font-size:12px;">Not configured</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if h_rating > 0 %}
+                <span style="font-weight:700;color:{% if h_rating >= 4.5 %}#15803d{% elif h_rating >= 4.0 %}#2563eb{% elif h_rating >= 3.0 %}#7c3aed{% elif h_rating >= 2.0 %}#d97706{% else %}#dc2626{% endif %};">
+                  {{ "%.1f"|format(h_rating) }} / 5
+                </span>
+                {% else %}
+                <span style="color:#94a3b8;font-size:12px;">Not rated</span>
+                {% endif %}
+              </td>
+              <td>
+                <span style="background:{{ band_color }}22;color:{{ band_color }};border:1px solid {{ band_color }}44;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">
+                  {{ band_label }}
+                </span>
+              </td>
+              <td>
+                {% if hike_pct > 0 %}
+                <span style="color:#15803d;font-weight:700;">{{ hike_pct }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if new_ctc > h_ctc and h_ctc > 0 %}
+                <span style="font-weight:700;color:#15803d;">₹{{ "{:,.0f}".format(new_ctc) }}</span>
+                <span style="font-size:11px;color:#16a34a;white-space:nowrap;">+₹{{ "{:,.0f}".format(new_ctc - h_ctc) }}</span>
+                {% elif h_ctc > 0 %}
+                <span style="color:#64748b;">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if inc_pct > 0 %}
+                <span style="color:#d97706;font-weight:700;">{{ inc_pct }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if bonus > 0 %}
+                <span style="font-weight:700;color:#92400e;">₹{{ "{:,.0f}".format(bonus) }}</span>
+                {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="10" style="text-align:center;padding:30px;color:#94a3b8;">No employees found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 20px;font-size:12px;color:#64748b;border-top:1px solid #f1f5f9;line-height:1.6;">
+        <i class="ti ti-info-circle"></i>
+        <strong>Apply Hike</strong> — updates monthly CTC and salary/day in salary settings, with today as the revision date. &nbsp;|&nbsp;
+        <strong>Award Bonus</strong> — adds a one-time incentive to the employee's payroll record for Q{{ quarter }} {{ year }}.
+        Employees without a salary configured or without a rating cannot be selected.
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+
   <!-- ═══════════════ TAB: ANNOUNCEMENTS ═══════════════ -->
   <div class="tab-content {% if active_tab == 'announcements' %}active{% endif %}" id="tab-announcements">
 
@@ -371,6 +632,85 @@ function filterTable(q) {
   document.querySelectorAll('#empTable tbody tr').forEach(r => {
     r.style.display = (r.dataset.search || '').toLowerCase().includes(q) ? '' : 'none';
   });
+}
+
+/* ── Import modal ── */
+function openImportModal() {
+  document.getElementById('importModal').style.display = 'flex';
+}
+function closeImportModal() {
+  document.getElementById('importModal').style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeImportModal();
+});
+document.getElementById('importModal').addEventListener('click', function(e) {
+  if (e.target === this) closeImportModal();
+});
+
+function onFileChosen(input) {
+  var label = document.getElementById('dropLabel');
+  if (input.files && input.files[0]) {
+    label.textContent = '📄 ' + input.files[0].name;
+    label.style.color = '#15803d';
+    label.style.fontWeight = '700';
+  }
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = '#93c5fd';
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  var inp = document.getElementById('importFile');
+  var dt  = new DataTransfer();
+  dt.items.add(file);
+  inp.files = dt.files;
+  onFileChosen(inp);
+}
+
+/* Keep export link in sync with the quarter/year tabs */
+document.querySelectorAll('a.q-tab').forEach(function(a) {
+  a.addEventListener('click', function() {
+    var url   = new URL(this.href, window.location.origin);
+    var q     = url.searchParams.get('quarter');
+    var yr    = url.searchParams.get('year');
+    var exp   = document.getElementById('exportBtn');
+    if (exp && q && yr) {
+      var eu = new URL(exp.href, window.location.origin);
+      eu.searchParams.set('quarter', q);
+      eu.searchParams.set('year', yr);
+      exp.href = eu.toString();
+    }
+  });
+});
+
+/* ── Hike & Incentives tab ── */
+function toggleHikeCfg() {
+  var body = document.getElementById('hikeCfgBody');
+  var chev = document.getElementById('hikeCfgChev');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function submitHikeForm(action) {
+  var checked = Array.from(document.querySelectorAll('.hike-chk:checked')).map(function(c){ return c.value; });
+  if (!checked.length) { alert('Select at least one employee first.'); return; }
+  var form = document.getElementById('hikeForm');
+  form.action = action;
+  var cont = document.getElementById('hikeEmpIds');
+  cont.innerHTML = '';
+  checked.forEach(function(id) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'emp_ids'; inp.value = id;
+    cont.appendChild(inp);
+  });
+  form.submit();
+}
+
+function hikeSelectAll(cb) {
+  document.querySelectorAll('.hike-chk:not([disabled])').forEach(function(b){ b.checked = cb.checked; });
 }
 </script>
 <script src="/static/darkmode.js"></script>
