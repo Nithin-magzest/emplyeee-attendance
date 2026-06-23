@@ -958,6 +958,8 @@ def init_db():
         "ALTER TABLE overtime_records ADD COLUMN requested_by_employee TINYINT(1) DEFAULT 0",
         "ALTER TABLE overtime_records ADD COLUMN employee_reason VARCHAR(500) DEFAULT NULL",
         "ALTER TABLE leave_requests ADD COLUMN cancelled_at DATETIME DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN last_hike_quarter TINYINT DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -3338,11 +3340,19 @@ def add_employee_page():
     prefix = ''.join(c for c in emp_id if not c.isdigit())
     if not prefix:
         prefix = emp_id
+    original_filepath = filepath  # photo was already saved under initial emp_id
     registered = False
     for _attempt in range(5):
+        # Keep photo file in sync with the current emp_id on each retry attempt
+        new_filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        if new_filepath != original_filepath and os.path.exists(original_filepath):
+            try:
+                os.rename(original_filepath, new_filepath)
+                original_filepath = new_filepath
+            except OSError:
+                pass
+        filepath = new_filepath
         qr_path = generate_qr(emp_id)
-        # Update filepath in case emp_id changed on retry
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         try:
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
@@ -4871,16 +4881,19 @@ def send_all_salary_emails():
             errors.append(f"{name}: {str(ex)}")
 
     if sent > 0:
-        db2 = get_db_connection(); cur2 = db2.cursor()
-        actor = session.get("admin_username", "admin")
-        cur2.execute("""
-            INSERT INTO payroll_runs (year, month, processed_by, email_count)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s, email_count=%s
-        """, (year, month, actor, sent, actor, sent))
-        db2.commit(); cur2.close(); db2.close()
-        _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}",
-               f"Payroll locked for {year}-{month:02d} after sending {sent} payslips")
+        try:
+            db2 = get_db_connection(); cur2 = db2.cursor()
+            actor = session.get("admin_username", "admin")
+            cur2.execute("""
+                INSERT INTO payroll_runs (year, month, processed_by, email_count)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s, email_count=%s
+            """, (year, month, actor, sent, actor, sent))
+            db2.commit(); cur2.close(); db2.close()
+            _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}",
+                   f"Payroll locked for {year}-{month:02d} after sending {sent} payslips")
+        except Exception as _le:
+            app_log.warning("Could not record payroll lock for %d-%02d: %s", year, month, _le)
 
     msg = f"Sent: {sent}, Skipped (no email): {skipped}, Failed: {failed}"
     if errors:
@@ -7243,10 +7256,10 @@ def performance_import():
         weight = max(1, min(100, weight))
 
         try:
-            rating = int(float(row[ci_rating])) if ci_rating is not None and row[ci_rating] not in (None, "") else 0
+            rating = round(float(row[ci_rating]), 1) if ci_rating is not None and row[ci_rating] not in (None, "") else 0.0
         except (ValueError, TypeError):
-            rating = 0
-        rating = max(0, min(5, rating))
+            rating = 0.0
+        rating = max(0.0, min(5.0, rating))
 
         desc     = str(row[ci_desc]).strip()     if ci_desc    is not None and row[ci_desc]    not in (None,"") else ""
         target   = str(row[ci_target]).strip()   if ci_target  is not None and row[ci_target]  not in (None,"") else ""
@@ -7366,16 +7379,23 @@ def apply_hike():
                 break
         if hike_pct <= 0:
             continue
-        cursor.execute("SELECT COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
+        cursor.execute(
+            "SELECT COALESCE(monthly_ctc,0), last_hike_quarter, last_hike_year FROM salary_config WHERE employee_id=%s",
+            (emp_id,)
+        )
         sc = cursor.fetchone()
         if not sc or float(sc[0]) == 0:
+            continue
+        # Idempotency: skip if this quarter's hike was already applied
+        if sc[1] == q and sc[2] == yr:
             continue
         current_ctc = float(sc[0])
         new_ctc = round(current_ctc * (1 + hike_pct / 100), 2)
         new_spd = round(new_ctc / 26, 2)
         cursor.execute(
-            "UPDATE salary_config SET monthly_ctc=%s, salary_per_day=%s, last_revised=%s WHERE employee_id=%s",
-            (new_ctc, new_spd, today, emp_id)
+            "UPDATE salary_config SET monthly_ctc=%s, salary_per_day=%s, last_revised=%s, "
+            "last_hike_quarter=%s, last_hike_year=%s WHERE employee_id=%s",
+            (new_ctc, new_spd, today, q, yr, emp_id)
         )
         updated += 1
 
@@ -7438,6 +7458,13 @@ def award_performance_bonus():
         bonus_amount = round(float(sc[0]) * inc_pct / 100, 2)
         if bonus_amount <= 0:
             continue
+        # Skip if this bonus was already awarded for this employee/quarter/year
+        cursor.execute(
+            "SELECT id FROM employee_incentives WHERE employee_id=%s AND goal_id=%s AND month=%s AND year=%s",
+            (emp_id, goal_id, bonus_month, yr)
+        )
+        if cursor.fetchone():
+            continue
         cursor.execute(
             "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",
             (emp_id, goal_id, bonus_month, yr, bonus_amount, f"Performance bonus Q{q} {yr} — Rating: {rating}/5")
@@ -7462,13 +7489,21 @@ def save_hike_config():
     hike_pcts = request.form.getlist("band_hike")
     inc_pcts  = request.form.getlist("band_inc")
 
+    n = min(len(ids), len(labels), len(min_rats), len(max_rats), len(hike_pcts), len(inc_pcts))
+    if n == 0:
+        flash("No band data received.", "error")
+        return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
+
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    for i, band_id in enumerate(ids):
-        cursor.execute(
-            "UPDATE hike_config SET label=%s, min_rating=%s, max_rating=%s, hike_pct=%s, incentive_pct=%s WHERE id=%s",
-            (labels[i], min_rats[i], max_rats[i], hike_pcts[i], inc_pcts[i], band_id)
-        )
+    for i in range(n):
+        try:
+            cursor.execute(
+                "UPDATE hike_config SET label=%s, min_rating=%s, max_rating=%s, hike_pct=%s, incentive_pct=%s WHERE id=%s",
+                (labels[i], float(min_rats[i]), float(max_rats[i]), float(hike_pcts[i]), float(inc_pcts[i]), int(ids[i]))
+            )
+        except (ValueError, TypeError):
+            continue
     db.commit()
     cursor.close(); db.close()
     flash("Hike band configuration saved.", "success")
@@ -9039,6 +9074,13 @@ def api_employee_sync_punches():
     if not punches:
         return jsonify({"ok": True, "results": []})
 
+    db2  = get_db_connection()
+    cur2 = db2.cursor(buffered=True)
+    cur2.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+    if not cur2.fetchone():
+        cur2.close(); db2.close()
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+
     results = []
     for punch in punches:
         punched_at_str = punch.get("punched_at", "")
@@ -9047,20 +9089,16 @@ def api_employee_sync_punches():
         try:
             _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
             _pt = _pt.replace(tzinfo=None)
-            if (datetime.datetime.now() - _pt).total_seconds() > 86400:
+            _now = datetime.datetime.now()
+            age = (_now - _pt).total_seconds()
+            if age > 86400:
                 results.append({"id": punch.get("id"), "ok": False, "msg": "Too old (>24 h)"})
+                continue
+            if _pt > _now + datetime.timedelta(minutes=5):
+                results.append({"id": punch.get("id"), "ok": False, "msg": "Future timestamp rejected"})
                 continue
         except (ValueError, TypeError):
             results.append({"id": punch.get("id"), "ok": False, "msg": "Invalid timestamp"})
-            continue
-
-        db2     = get_db_connection()
-        cur2    = db2.cursor(buffered=True)
-        cur2.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
-        emp_row = cur2.fetchone()
-        if not emp_row:
-            cur2.close(); db2.close()
-            results.append({"id": punch.get("id"), "ok": False, "msg": "Employee not found"})
             continue
 
         punch_date = _pt.date()
@@ -9115,8 +9153,8 @@ def api_employee_sync_punches():
             results.append({"id": punch.get("id"), "ok": True, "action": "logout", "status": out_status})
         else:
             results.append({"id": punch.get("id"), "ok": False, "msg": "Duplicate — day already complete"})
-        cur2.close(); db2.close()
 
+    cur2.close(); db2.close()
     _audit("sync_punches", "attendance", emp_id, f"Synced {len([r for r in results if r['ok']])} offline punches")
     return jsonify({"ok": True, "results": results})
 
