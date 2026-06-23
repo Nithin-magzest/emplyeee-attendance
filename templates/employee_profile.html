@@ -240,6 +240,14 @@
       </div>
     </div>
     <div class="hero-actions">
+      <a href="/admin_id_card/{{ emp[0] }}?view=1" target="_blank" class="btn-edit"
+         style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);">
+        <i class="ti ti-id-badge"></i> View ID Card
+      </a>
+      <a href="/admin_id_card/{{ emp[0] }}" download="IDCard_{{ emp[0] }}.png" class="btn-edit"
+         style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);">
+        <i class="ti ti-download"></i> Download ID Card
+      </a>
       <a href="/edit_employee/{{ emp[0] }}" class="btn-edit"><i class="ti ti-pencil"></i> Edit</a>
     </div>
   </div>

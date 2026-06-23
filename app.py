@@ -5274,8 +5274,11 @@ def admin_id_card(emp_id):
     buf = _io2.BytesIO()
     total.save(buf, format="PNG", dpi=(200, 200))
     buf.seek(0)
-    return send_file(buf, as_attachment=True,
-                     download_name=f"IDCard_{emp_id}.png", mimetype="image/png")
+    view_mode = request.args.get("view") == "1"
+    return send_file(buf,
+                     as_attachment=not view_mode,
+                     download_name=f"IDCard_{emp_id}.png",
+                     mimetype="image/png")
 
 
 @app.route("/employee_portal")
