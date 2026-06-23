@@ -673,6 +673,33 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS offer_letters (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            onboarding_id INT NOT NULL,
+            employee_id VARCHAR(50) NOT NULL,
+            designation VARCHAR(150),
+            department VARCHAR(150),
+            work_location VARCHAR(200),
+            monthly_ctc DECIMAL(12,2) DEFAULT 0,
+            joining_date DATE,
+            offer_valid_until DATE,
+            probation_months INT DEFAULT 6,
+            reporting_to VARCHAR(150),
+            additional_notes TEXT,
+            generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sent_at DATETIME DEFAULT NULL,
+            status VARCHAR(20) DEFAULT 'draft',
+            notice_period_days INT DEFAULT 30,
+            candidate_address TEXT
+        )
+    """)
+    for _col, _sql in [
+        ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30"),
+        ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT"),
+    ]:
+        try: cursor.execute(_sql)
+        except Exception: pass
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS compoff_balance (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL UNIQUE,
@@ -9883,7 +9910,7 @@ def onboarding_assign():
     emp_id   = request.form.get("employee_id")
     tid      = request.form.get("template_id")
     due_date = request.form.get("due_date") or None
-    today    = date.today()
+    today    = datetime.date.today()
 
     # Check not already assigned same template
     cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'",
@@ -9980,6 +10007,163 @@ def onboarding_close():
     db.commit(); cursor.close(); db.close()
     flash("Onboarding marked as completed.", "success")
     return redirect("/onboarding?tab=active")
+
+# ── OFFER LETTER ──────────────────────────────────────────────────────────────
+@app.route("/offer_letter/<int:ob_id>")
+@admin_required
+def offer_letter(ob_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT eo.id, e.employee_id, e.name, e.role, e.department, e.email,
+               eo.assigned_date, e.date_of_joining
+        FROM employee_onboarding eo
+        JOIN employees e ON e.employee_id = eo.employee_id
+        WHERE eo.id = %s
+    """, (ob_id,))
+    ob = cursor.fetchone()
+    cursor.execute("SELECT COALESCE(monthly_ctc,0), COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (ob[1],))
+    sal = cursor.fetchone() or (0, 0)
+    monthly_ctc = float(sal[0]) or round(float(sal[1]) * 26, 2)
+    cursor.execute("SELECT * FROM offer_letters WHERE onboarding_id=%s ORDER BY id DESC LIMIT 1", (ob_id,))
+    existing = cursor.fetchone()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("offer_letter.html", ob=ob, monthly_ctc=monthly_ctc,
+                           existing=existing, co=co,
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0)
+
+@app.route("/offer_letter_save", methods=["POST"])
+@admin_required
+def offer_letter_save():
+    ob_id         = request.form.get("ob_id")
+    employee_id   = request.form.get("employee_id")
+    designation   = request.form.get("designation","")
+    department    = request.form.get("department","")
+    work_location = request.form.get("work_location","")
+    monthly_ctc   = request.form.get("monthly_ctc", 0) or 0
+    joining_date  = request.form.get("joining_date") or None
+    valid_until   = request.form.get("offer_valid_until") or None
+    probation     = int(request.form.get("probation_months", 6))
+    reporting_to  = request.form.get("reporting_to","")
+    notes         = request.form.get("additional_notes","")
+    notice_days   = int(request.form.get("notice_period_days", 30))
+    candidate_addr= request.form.get("candidate_address","")
+    db = get_db_connection(); cursor = db.cursor()
+    # add new columns if they don't exist yet (migration)
+    try:
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30")
+        db.commit()
+    except Exception: pass
+    try:
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT")
+        db.commit()
+    except Exception: pass
+    cursor.execute("SELECT id FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute("""UPDATE offer_letters SET designation=%s,department=%s,work_location=%s,
+            monthly_ctc=%s,joining_date=%s,offer_valid_until=%s,probation_months=%s,
+            reporting_to=%s,additional_notes=%s,notice_period_days=%s,candidate_address=%s,
+            generated_at=NOW(),status='draft',sent_at=NULL
+            WHERE id=%s""",
+            (designation,department,work_location,monthly_ctc,joining_date,valid_until,
+             probation,reporting_to,notes,notice_days,candidate_addr,existing[0]))
+        letter_id = existing[0]
+    else:
+        cursor.execute("""INSERT INTO offer_letters (onboarding_id,employee_id,designation,department,
+            work_location,monthly_ctc,joining_date,offer_valid_until,probation_months,
+            reporting_to,additional_notes,notice_period_days,candidate_address)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (ob_id,employee_id,designation,department,work_location,monthly_ctc,
+             joining_date,valid_until,probation,reporting_to,notes,notice_days,candidate_addr))
+        letter_id = cursor.lastrowid
+    db.commit(); cursor.close(); db.close()
+    return redirect(f"/offer_letter_view/{letter_id}")
+
+@app.route("/offer_letter_view/<int:letter_id>")
+@admin_required
+def offer_letter_view(letter_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
+               ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
+               ol.probation_months,ol.reporting_to,ol.additional_notes,ol.generated_at,
+               ol.sent_at,ol.status,
+               COALESCE(ol.notice_period_days,30),COALESCE(ol.candidate_address,''),
+               e.name, e.email
+        FROM offer_letters ol
+        JOIN employees e ON e.employee_id = ol.employee_id
+        WHERE ol.id = %s
+    """, (letter_id,))
+    letter = cursor.fetchone()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    if not letter:
+        flash("Offer letter not found.", "error")
+        return redirect("/onboarding")
+    return render_template("offer_letter_view.html", letter=letter, co=co)
+
+@app.route("/offer_letter_send/<int:letter_id>", methods=["POST"])
+@admin_required
+def offer_letter_send(letter_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
+               ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
+               ol.probation_months,ol.reporting_to,ol.additional_notes,ol.generated_at,
+               ol.sent_at,ol.status,
+               COALESCE(ol.notice_period_days,30),COALESCE(ol.candidate_address,''),
+               e.name, e.email
+        FROM offer_letters ol
+        JOIN employees e ON e.employee_id = ol.employee_id
+        WHERE ol.id = %s
+    """, (letter_id,))
+    letter = cursor.fetchone()
+    co = get_company_settings()
+    if not letter or not letter[18]:  # email at index 18
+        flash("Employee email not found.", "error")
+        cursor.close(); db.close()
+        return redirect(f"/offer_letter_view/{letter_id}")
+    cfg = get_email_config()
+    if not cfg:
+        flash("Email not configured. Go to Settings → Email.", "error")
+        cursor.close(); db.close()
+        return redirect(f"/offer_letter_view/{letter_id}")
+    try:
+        emp_name     = letter[17]
+        emp_email    = letter[18]
+        designation  = letter[3] or "the offered position"
+        joining_date = letter[7].strftime("%d %b %Y") if letter[7] else "—"
+        ctc          = f"₹{float(letter[6]):,.2f}" if letter[6] else "—"
+        company      = co.get("company_name","Company")
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Offer Letter — {company}"
+        msg["From"]    = f"{cfg['from_name']} <{cfg['from_email']}>"
+        msg["To"]      = emp_email
+        html_body = f"""
+        <div style="font-family:Segoe UI,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1e293b;">
+          <h2 style="color:#0f2460;margin-bottom:8px;">Congratulations, {emp_name}!</h2>
+          <p style="color:#64748b;margin-bottom:24px;">We are pleased to extend this offer of employment.</p>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Position</td><td style="font-weight:700;">{designation}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">CTC (Annual)</td><td style="font-weight:700;">{ctc}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Date of Joining</td><td style="font-weight:700;">{joining_date}</td></tr>
+          </table>
+          <p style="font-size:13px;color:#475569;">Please find your detailed offer letter attached. Contact HR for any queries.</p>
+          <p style="margin-top:32px;font-size:13px;color:#64748b;">Regards,<br><strong>{company} HR Team</strong></p>
+        </div>"""
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP(cfg["host"], cfg["port"]) as s:
+            s.starttls()
+            s.login(cfg["user"], cfg["password"])
+            s.sendmail(cfg["from_email"], emp_email, msg.as_string())
+        cursor.execute("UPDATE offer_letters SET sent_at=NOW(), status='sent' WHERE id=%s", (letter_id,))
+        db.commit()
+        flash(f"Offer letter emailed to {emp_email}.", "success")
+    except Exception as ex:
+        flash(f"Email failed: {ex}", "error")
+    cursor.close(); db.close()
+    return redirect(f"/offer_letter_view/{letter_id}")
 
 # Employee portal onboarding
 @app.route("/my_onboarding")
