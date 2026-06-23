@@ -1,29 +1,36 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
 export default function EmployeeHeroCard({
+
   employeeName,
+
   designation,
+
   employeeId,
+
   date,
+
   attendance,
+
   onCheckIn,
+
   checking,
+
   onMenu,
+
   onLogout,
   photoUrl,
   onScanQR,
   companyName,
 }) {
-  const [photoError, setPhotoError] = useState(false);
 
   const checkedIn =
     attendance?.login_time &&
@@ -71,13 +78,32 @@ export default function EmployeeHeroCard({
     <View style={styles.card}>
 
       {/* Top Row */}
+
       <View style={styles.topRow}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onScanQR}>
-          <Ionicons name="qr-code-outline" size={22} color="#173B8C" />
+
+        <TouchableOpacity
+  onPress={onMenu}
+  activeOpacity={0.7}
+  style={styles.menuButton}
+>
+  <Ionicons
+    name="menu"
+    size={24}
+    color="#173B8C"
+  />
+</TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={onLogout}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color="#173B8C"
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={onLogout}>
-          <Ionicons name="log-out-outline" size={21} color="#173B8C" />
-        </TouchableOpacity>
+
       </View>
 
       {/* User */}
@@ -85,16 +111,15 @@ export default function EmployeeHeroCard({
       <View style={styles.userRow}>
 
         <View style={styles.avatar}>
-          {photoUrl && !photoError ? (
-            <Image
-              source={{ uri: photoUrl }}
-              style={styles.avatarImg}
-              onError={() => setPhotoError(true)}
-            />
-          ) : (
-            <Ionicons name="person" size={32} color="#173B8C" />
-          )}
-          <View style={styles.onlineDot} />
+
+          <Ionicons
+            name="person"
+            size={32}
+            color="#173B8C"
+          />
+
+          <View style={styles.onlineDot}/>
+
         </View>
 
         <View style={{flex:1}}>
@@ -108,7 +133,7 @@ export default function EmployeeHeroCard({
           </Text>
 
           <Text style={styles.designation}>
-            {designation || "Software Engineer"}
+            {designation || "🟦 Software Engineer"}
           </Text>
 
           {!!companyName && (
@@ -128,147 +153,12 @@ export default function EmployeeHeroCard({
 
       {/* Info */}
 
-      <View style={styles.infoRow}>
+      
 
-        <View style={styles.badge}>
-
-          <Ionicons
-            name="card-outline"
-            size={13}
-            color="#173B8C"
-          />
-
-          <Text style={styles.badgeText}>
-            {employeeId}
-          </Text>
-
-        </View>
-
-        <View style={styles.dateRow}>
-
-          <Ionicons
-            name="calendar-outline"
-            size={14}
-            color="#94A3B8"
-          />
-
-          <Text style={styles.date}>
-            {date}
-          </Text>
-
-        </View>
-
-      </View>
-
-      {/* Attendance */}
-
-      <View style={styles.attendanceCard}>
-
-        <View style={styles.attRow}>
-
-          <View style={styles.attBox}>
-
-            <Ionicons
-              name="log-in-outline"
-              size={18}
-              color="#22C55E"
-            />
-
-            <Text style={styles.attLabel}>
-              Check In
-            </Text>
-
-            <Text style={styles.attTime}>
-              {checkIn}
-            </Text>
-
-          </View>
-
-          <View style={styles.attBox}>
-
-            <Ionicons
-              name="log-out-outline"
-              size={18}
-              color="#EF4444"
-            />
-
-            <Text style={styles.attLabel}>
-              Check Out
-            </Text>
-
-            <Text style={styles.attTime}>
-              {checkOut}
-            </Text>
-
-          </View>
-
-        </View>
-
-        <View style={styles.bottomRow}>
-
-          <View>
-
-            <Text style={styles.smallTitle}>
-              Status
-            </Text>
-
-            <Text style={styles.status}>
-              {status}
-            </Text>
-
-          </View>
-
-          <View>
-
-            <Text style={styles.smallTitle}>
-              Hours Today
-            </Text>
-
-            <Text style={styles.status}>
-              {workedHours}
-            </Text>
-
-          </View>
-
-        </View>
-
-      </View>
 
       {/* Button */}
 
-      {!completed && (
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            checkedIn && styles.checkout,
-          ]}
-          disabled={checking}
-          onPress={onCheckIn}
-        >
-
-          <Ionicons
-            name={
-              checkedIn
-              ? "log-out-outline"
-              : "log-in-outline"
-            }
-            size={20}
-            color="#FFF"
-          />
-
-          <Text style={styles.buttonText}>
-
-            {checkedIn
-              ? "Check Out"
-              : "Check In"}
-
-          </Text>
-
-        </TouchableOpacity>
-
-      )}
-
+      
     </View>
 
   );
@@ -288,12 +178,72 @@ const styles = StyleSheet.create({
     shadowOffset:{width:0,height:8},
     elevation:5,
   },
+  statusCard: {
+  marginTop: 6,
+  backgroundColor: "#F8FAFC",
+  borderRadius: 18,
+  padding: 18,
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
 
-  topRow:{
-    flexDirection:"row",
-    justifyContent:"space-between",
-    marginBottom:18,
+statusLeft: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+statusIndicator: {
+  width: 12,
+  height: 12,
+  borderRadius: 6,
+  marginRight: 12,
+},
+
+hoursBadge: {
+  backgroundColor: "#EEF4FF",
+  borderRadius: 14,
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  alignItems: "center",
+},
+
+hoursValue: {
+  fontSize: 18,
+  fontWeight: "800",
+  color: "#173B8C",
+},
+
+hoursLabel: {
+  marginTop: 2,
+  fontSize: 11,
+  color: "#64748B",
+},
+
+  topRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 22,
+},
+iconBtn: {
+  width: 46,
+  height: 46,
+  borderRadius: 16,
+  backgroundColor: "#FFFFFF",
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  shadowColor: "#000",
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  shadowOffset: {
+    width: 0,
+    height: 5,
   },
+  elevation: 5,
+},
 
   iconBtn:{
     width:42,
@@ -318,13 +268,6 @@ const styles = StyleSheet.create({
     alignItems:"center",
     marginRight:16,
     position:"relative",
-    overflow:"hidden",
-  },
-
-  avatarImg:{
-    width:72,
-    height:72,
-    borderRadius:36,
   },
 
   onlineDot:{
@@ -346,7 +289,7 @@ const styles = StyleSheet.create({
   },
 
   name:{
-    fontSize:28,
+    fontSize:22,
     fontWeight:"800",
     color:"#0F172A",
     marginTop:3,
@@ -486,5 +429,23 @@ const styles = StyleSheet.create({
     fontSize:16,
     marginLeft:8,
   },
+  menuButton: {
+  width: 46,
+  height: 46,
+  borderRadius: 16,
+  backgroundColor: "#FFFFFF",
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  shadowColor: "#000",
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  shadowOffset: {
+    width: 0,
+    height: 5,
+  },
+  elevation: 5,
+},
 
 });

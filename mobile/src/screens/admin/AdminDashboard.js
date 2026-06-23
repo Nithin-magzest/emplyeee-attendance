@@ -110,24 +110,23 @@ export default function AdminDashboard() {
                     pendingResignations={data?.pending_resignations}
                 />
 
-                <SectionHeader
-                    title="Today's Attendance"
-                    subtitle="Employees checked in today"
-                />
+                
 
-                {data?.today_rows?.length > 0
-                    ? data.today_rows.map(employee => (
-                        <AttendanceCard
-                            key={employee.employee_id}
-                            employee={employee}
-                        />
-                    ))
-                    : <EmptyState
-                        icon="people-outline"
-                        title="No Attendance"
-                        subtitle="No employees have checked in today."
-                    />
-                }
+{data?.today_rows?.length > 0
+  ? data.today_rows.map(employee => (
+      <AttendanceCard
+        key={employee.employee_id}
+        employee={employee}
+      />
+    ))
+  : (
+      <EmptyState
+        icon="people-outline"
+        title="No Attendance"
+        subtitle="No employees have checked in today."
+      />
+    )
+}
 
                 <DashboardActivity />
 

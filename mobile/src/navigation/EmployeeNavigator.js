@@ -1,73 +1,213 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
-import EmployeeDashboard       from '../screens/employee/EmployeeDashboard';
-import LeaveScreen             from '../screens/employee/LeaveScreen';
-import ResignScreen            from '../screens/employee/ResignScreen';
-import TicketsScreen           from '../screens/employee/TicketsScreen';
-import ChangePinScreen         from '../screens/employee/ChangePinScreen';
-import AttendanceHistoryScreen from '../screens/employee/AttendanceHistoryScreen';
-import PayslipsScreen          from '../screens/employee/PayslipsScreen';
-import HolidaysScreen          from '../screens/employee/HolidaysScreen';
-import ProfileScreen           from '../screens/employee/ProfileScreen';
-import NotificationsScreen     from '../screens/NotificationsScreen';
+import EmployeeDashboard from "../screens/employee/EmployeeDashboard";
+import LeaveScreen from "../screens/employee/LeaveScreen";
+import TicketsScreen from "../screens/employee/TicketsScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
 
-const Tab   = createBottomTabNavigator();
-const Stack = createStackNavigator();
+// Replace this with your actual QR screen
+import AttendanceScreen from "../screens/employee/AttendanceScreen";
 
-function EmployeeTabs() {
+const Tab = createBottomTabNavigator();
+
+export default function EmployeeNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0f3460',
-          borderTopColor: 'rgba(255,255,255,0.10)',
-          height: 62,
-          paddingBottom: 8,
+
+        tabBarHideOnKeyboard: true,
+
+      tabBarStyle: {
+  position: "absolute",
+
+  left: 24,
+  right: 24,
+  bottom: 24,
+
+  height: 78,
+
+  borderRadius: 28,
+
+  backgroundColor: "#173B8C",
+
+  borderTopWidth: 0,
+
+  elevation: 25,
+
+  shadowColor: "#000",
+  shadowOpacity: 0.18,
+  shadowRadius: 24,
+  shadowOffset: {
+    width: 0,
+    height: 12,
+  },
+
+  paddingBottom: 10,
+  paddingTop: 10,
+},
+
+       tabBarLabelStyle: {
+  fontSize: 10,
+  fontWeight: "700",
+  marginTop: 3,
+},
+
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.55)",
+
+        tabBarIcon: ({ focused, color, size }) => {
+          if (route.name === "Home") {
+            return (
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={22}
+                color={color}
+              />
+            );
+          }
+
+          if (route.name === "Leave") {
+            return (
+              <Ionicons
+                name={focused ? "document-text" : "document-text-outline"}
+                size={24}
+                color={color}
+              />
+            );
+          }
+
+          if (route.name === "Scan") {
+            return (
+              <Ionicons
+                name="qr-code"
+                size={30}
+                color="#FFFFFF"
+              />
+            );
+          }
+
+          if (route.name === "Tickets") {
+            return (
+              <Ionicons
+                name={focused ? "ticket" : "ticket-outline"}
+                size={24}
+                color={color}
+              />
+            );
+          }
+
+          return (
+            <Ionicons
+              name={
+                focused
+                  ? "notifications"
+                  : "notifications-outline"
+              }
+              size={24}
+              color={color}
+            />
+          );
         },
-        tabBarActiveTintColor:   '#fff',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.45)',
-        tabBarIcon: ({ focused, size }) => {
-          const map = {
-            Home:          focused ? 'home'              : 'home-outline',
-            Leave:         focused ? 'document-text'     : 'document-text-outline',
-            Tickets:       focused ? 'ticket'            : 'ticket-outline',
-            Resign:        focused ? 'exit'              : 'exit-outline',
-            Notifications: focused ? 'notifications'     : 'notifications-outline',
-          };
-          const colors = {
-            Home:          focused ? '#6ee56e' : 'rgba(255,255,255,0.45)',
-            Leave:         focused ? '#93c5fd' : 'rgba(255,255,255,0.45)',
-            Tickets:       focused ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
-            Resign:        focused ? '#fca5a5' : 'rgba(255,255,255,0.45)',
-            Notifications: focused ? '#fbbf24' : 'rgba(255,255,255,0.45)',
-          };
-          return <Ionicons name={map[route.name]} size={size} color={colors[route.name]} />;
-        },
-        tabBarActiveTintColor: undefined,
       })}
     >
-      <Tab.Screen name="Home"          component={EmployeeDashboard}   options={{ tabBarLabel: '🏠 Home',    tabBarActiveTintColor: '#6ee56e' }} />
-      <Tab.Screen name="Leave"         component={LeaveScreen}         options={{ tabBarLabel: '📋 Leave',   tabBarActiveTintColor: '#93c5fd' }} />
-      <Tab.Screen name="Tickets"       component={TicketsScreen}       options={{ tabBarLabel: '🎫 Tickets', tabBarActiveTintColor: '#a5b4fc' }} />
-      <Tab.Screen name="Resign"        component={ResignScreen}        options={{ tabBarLabel: '🚨 Resign',  tabBarActiveTintColor: '#fca5a5' }} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarLabel: '🔔 Alerts',  tabBarActiveTintColor: '#fbbf24' }} />
-    </Tab.Navigator>
-  );
-}
+      <Tab.Screen
+        name="Home"
+        component={EmployeeDashboard}
+        options={{
+          tabBarLabel: "Home",
+        }}
+      />
 
-export default function EmployeeNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="EmployeeTabs"       component={EmployeeTabs} />
-      <Stack.Screen name="ChangePin"          component={ChangePinScreen} />
-      <Stack.Screen name="AttendanceHistory"  component={AttendanceHistoryScreen} />
-      <Stack.Screen name="Payslips"           component={PayslipsScreen} />
-      <Stack.Screen name="Holidays"           component={HolidaysScreen} />
-      <Stack.Screen name="Profile"            component={ProfileScreen} />
-    </Stack.Navigator>
+      <Tab.Screen
+        name="Leave"
+        component={LeaveScreen}
+        options={{
+          tabBarLabel: "Leave",
+        }}
+      />
+
+      <Tab.Screen
+        name="Scan"
+        component={AttendanceScreen}
+        options={{
+          tabBarLabel: "Scan",
+
+          tabBarItemStyle: {
+            top: -18,
+          },
+
+          tabBarIcon: () => (
+            <View
+  style={{
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+
+    backgroundColor: "#22C55E",
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    borderWidth: 5,
+    borderColor: "#FFFFFF",
+
+    shadowColor: "#22C55E",
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    elevation: 16,
+  }}
+>
+  <Ionicons
+      name="qr-code"
+      size={30}
+      color="#FFFFFF"
+  />
+</View>
+          ),
+
+          tabBarIconStyle: {
+            backgroundColor: "#22C55E",
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+
+            justifyContent: "center",
+            alignItems: "center",
+
+            shadowColor: "#22C55E",
+            shadowOpacity: 0.35,
+            shadowRadius: 12,
+            shadowOffset: {
+              width: 0,
+              height: 6,
+            },
+            elevation: 10,
+          },
+        }}
+      />
+
+      <Tab.Screen
+        name="Tickets"
+        component={TicketsScreen}
+        options={{
+          tabBarLabel: "Tickets",
+        }}
+      />
+
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: "Alerts",
+        }}
+      />
+    </Tab.Navigator>
   );
 }

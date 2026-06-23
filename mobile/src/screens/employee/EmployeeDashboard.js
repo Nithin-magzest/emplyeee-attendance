@@ -10,7 +10,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
-
+import { DrawerActions } from "@react-navigation/native";
 import {
   fetchEmployeePortal,
   employeeCheckin,
@@ -182,6 +182,7 @@ export default function EmployeeDashboard({ navigation }) {
         }
       >
         <EmployeeHeroCard
+<<<<<<< HEAD
           employeeName={data?.name}
           designation={data?.role || data?.designation}
           employeeId={data?.employee_id}
@@ -194,6 +195,20 @@ export default function EmployeeDashboard({ navigation }) {
           onScanQR={() => setShowScanner(true)}
           companyName={data?.company_name}
         />
+=======
+  employeeName={data?.name}
+  designation={data?.role || data?.designation}
+  employeeId={data?.employee_id}
+  date={data?.today}
+  attendance={attendance}
+  checking={checking}
+  onCheckIn={handleCheckIn}
+  onLogout={handleLogout}
+  photoUrl={photoUrl}
+  onScanQR={() => setShowScanner(true)}
+  onMenu={() => navigation.dispatch(DrawerActions.openDrawer())}
+/>
+>>>>>>> 09e234b7 (Add employee drawer navigation and redesign mobile UI)
 
         <EmployeeAttendanceCard attendance={attendance} />
 
