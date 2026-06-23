@@ -46,34 +46,43 @@
 
     /* PROFILE HEADER */
     .profile-header{background:linear-gradient(135deg,#0f2460 0%,#1e40af 100%);
-      border-radius:20px;padding:28px 32px;display:flex;align-items:center;gap:28px;
+      border-radius:20px;padding:28px 32px 20px;display:flex;flex-direction:column;gap:20px;
       margin-bottom:22px;position:relative;overflow:hidden}
-    .profile-header::after{content:'';position:absolute;right:-40px;top:-40px;
-      width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.05)}
-    .avatar{width:96px;height:96px;border-radius:50%;border:4px solid rgba(255,255,255,.3);
+    .profile-header::after{content:'';position:absolute;right:-60px;top:-60px;
+      width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none}
+    .profile-header::before{content:'';position:absolute;left:-30px;bottom:-40px;
+      width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.03);pointer-events:none}
+    .profile-top{display:flex;align-items:center;gap:28px}
+    .avatar{width:88px;height:88px;border-radius:50%;border:3px solid rgba(255,255,255,.35);
       overflow:hidden;background:#1e3a8a;display:flex;align-items:center;
       justify-content:center;flex-shrink:0;cursor:pointer;transition:.2s}
-    .avatar:hover{border-color:rgba(255,255,255,.7)}
+    .avatar:hover{border-color:rgba(255,255,255,.75);transform:scale(1.04)}
     .avatar img{width:100%;height:100%;object-fit:cover}
-    .avatar-ph{font-size:40px;color:rgba(255,255,255,.4)}
+    .avatar-ph{font-size:38px;color:rgba(255,255,255,.4)}
     .profile-info{flex:1;min-width:0}
     .profile-name{font-size:24px;font-weight:800;color:#fff;margin-bottom:3px}
-    .profile-role{font-size:14px;color:rgba(255,255,255,.65);margin-bottom:12px}
+    .profile-role{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:10px}
     .profile-badges{display:flex;gap:8px;flex-wrap:wrap}
     .pbadge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
     .pb-id{background:rgba(255,255,255,.15);color:#fff}
     .pb-active{background:#dcfce7;color:#15803d}
     .pb-onleave{background:#fef9c3;color:#92400e}
     .pb-resigned{background:#fee2e2;color:#dc2626}
-    .pb-shift{background:rgba(255,255,255,.12);color:rgba(255,255,255,.9)}
-    .profile-actions{display:flex;gap:8px;flex-direction:column;flex-shrink:0}
-    .btn-act{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
-      border:none;border-radius:10px;font-size:13px;font-weight:700;
-      cursor:pointer;text-decoration:none;transition:.18s;justify-content:center}
-    .btn-edit{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)}
-    .btn-edit:hover{background:rgba(255,255,255,.25)}
-    .btn-del{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
-    .btn-del:hover{background:rgba(239,68,68,.35)}
+    .pb-shift{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+    /* ACTION BAR inside header */
+    .profile-actions{display:flex;align-items:center;gap:10px;
+      border-top:1px solid rgba(255,255,255,.12);padding-top:16px;flex-wrap:wrap}
+    .btn-act{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;
+      border-radius:10px;font-size:13px;font-weight:600;
+      cursor:pointer;text-decoration:none;transition:.18s;white-space:nowrap;border:none}
+    .btn-back{background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2)}
+    .btn-back:hover{background:rgba(255,255,255,.22);color:#fff}
+    .btn-view{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)}
+    .btn-view:hover{background:rgba(255,255,255,.25);color:#fff}
+    .btn-idcard-dl{background:#22c55e;color:#fff;border:1px solid #16a34a}
+    .btn-idcard-dl:hover{background:#16a34a}
+    .btn-del{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.35);margin-left:auto}
+    .btn-del:hover{background:rgba(239,68,68,.35);color:#fff}
 
     /* STATS */
     .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
@@ -151,15 +160,17 @@
       display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;cursor:pointer}
 
     @media(max-width:900px){
+      body{display:block!important}
+      .sidebar{width:100%!important;height:auto!important;position:static!important;
+               flex-direction:row!important;flex-wrap:wrap!important;overflow-x:auto!important}
+      .sidebar-footer{display:none!important}
+      .main{width:100%!important;padding:16px!important;box-sizing:border-box}
       .stats-row{grid-template-columns:repeat(2,1fr)}
       .grid2{grid-template-columns:1fr}
       .card.full{grid-column:1}
-      .profile-header{flex-direction:column;text-align:center}
-      .profile-actions{flex-direction:row}
-    }
-    @media(max-width:768px){
-      body{flex-direction:column}
-      .sidebar{width:100%;height:auto;position:static}
+      .profile-top{flex-direction:column;text-align:center}
+      .profile-actions{justify-content:center}
+      .btn-del{margin-left:0}
       .info-grid{grid-template-columns:1fr}
     }
   </style>
@@ -243,32 +254,37 @@
 
   <!-- HEADER -->
   <div class="profile-header">
-    <div class="avatar" onclick="openLb()" title="View photo">
-      {% if face_image %}
-        <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-             onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'>👤</span>'">
-      {% else %}
-        <span class="avatar-ph">👤</span>
-      {% endif %}
-    </div>
-    <div class="profile-info">
-      <div class="profile-name">{{ name }}</div>
-      <div class="profile-role">{{ role or 'No designation' }}{% if department %} · {{ department }}{% endif %}</div>
-      <div class="profile-badges">
-        <span class="pbadge pb-id">{{ emp_id }}</span>
-        <span class="pbadge {% if emp_status=='Active' %}pb-active{% elif emp_status=='On Leave' %}pb-onleave{% else %}pb-resigned{% endif %}">
-          {{ emp_status }}
-        </span>
-        {% if shift_name %}<span class="pbadge pb-shift">{{ shift_name }}</span>{% endif %}
+    <div class="profile-top">
+      <div class="avatar" onclick="openLb()" title="View photo">
+        {% if face_image %}
+          <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
+               onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'>👤</span>'">
+        {% else %}
+          <span class="avatar-ph">👤</span>
+        {% endif %}
+      </div>
+      <div class="profile-info">
+        <div class="profile-name">{{ name }}</div>
+        <div class="profile-role">{{ role or 'No designation' }}{% if department %} · {{ department }}{% endif %}</div>
+        <div class="profile-badges">
+          <span class="pbadge pb-id">{{ emp_id }}</span>
+          <span class="pbadge {% if emp_status=='Active' %}pb-active{% elif emp_status=='On Leave' %}pb-onleave{% else %}pb-resigned{% endif %}">
+            {{ emp_status }}
+          </span>
+          {% if shift_name %}<span class="pbadge pb-shift">{{ shift_name }}</span>{% endif %}
+        </div>
       </div>
     </div>
     <div class="profile-actions">
-      <a class="btn-act btn-edit" href="/employees">
-        <i class="ti ti-arrow-left"></i> Back to List
+      <a class="btn-act btn-view" href="/admin_view_id_card/{{ emp_id }}" target="_blank">
+        <i class="ti ti-id-badge"></i> View ID Card
+      </a>
+      <a class="btn-act btn-idcard-dl" href="/admin_id_card/{{ emp_id }}">
+        <i class="ti ti-download"></i> Download ID Card
       </a>
       <form action="/delete_employee/{{ emp_id }}" method="POST"
-            onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')">
-        <button type="submit" class="btn-act btn-del" style="width:100%">
+            onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')" style="margin-left:auto">
+        <button type="submit" class="btn-act btn-del">
           <i class="ti ti-trash"></i> Delete
         </button>
       </form>

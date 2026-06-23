@@ -109,6 +109,7 @@
       <p style="font-size:13px;color:#64748b;margin-top:4px;">{{ ob[5] }}</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
+      <a href="/offer_letter/{{ ob[0] }}" class="btn btn-navy"><i class="ti ti-file-text"></i> Offer Letter</a>
       {% if ob[8] != 'Completed' %}
       <form action="/onboarding_close" method="POST" style="display:inline" onsubmit="return confirm('Mark this onboarding as completed?')">
         <input type="hidden" name="ob_id" value="{{ ob[0] }}" />

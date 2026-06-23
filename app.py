@@ -240,6 +240,60 @@ def _inject_csrf_meta(response):
         pass
     return response
 
+# ---------------- AUDIT LOGGING ----------------
+def _audit(action, table=None, record_id=None, detail=None):
+    """Write one row to audit_logs. Never raises — audit must never break main flow."""
+    try:
+        actor      = session.get("admin_username") or session.get("employee_id") or "system"
+        actor_type = "admin" if session.get("admin_logged_in") else "employee"
+        ip         = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        db = get_db_connection(); cursor = db.cursor()
+        cursor.execute("""INSERT INTO audit_logs (actor, actor_type, action, target_table, target_id, detail, ip_address)
+                          VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                       (actor, actor_type, action, table, str(record_id) if record_id is not None else None, detail, ip))
+        db.commit(); cursor.close(); db.close()
+    except Exception:
+        pass
+
+# ---------------- FILE UPLOAD VALIDATION ----------------
+_ALLOWED_MIME_MAP = {
+    'pdf':  {'application/pdf'},
+    'jpg':  {'image/jpeg'},
+    'jpeg': {'image/jpeg'},
+    'png':  {'image/png'},
+    'doc':  {'application/msword'},
+    'docx': {'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
+    'xls':  {'application/vnd.ms-excel'},
+    'xlsx': {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+}
+_MAX_DOC_SIZE_MB = 10
+
+def _validate_upload(file_storage, allowed_exts=None):
+    """Returns (ok, error_message). Checks extension + MIME type + size."""
+    if not file_storage or not file_storage.filename:
+        return False, "No file selected."
+    ext = file_storage.filename.rsplit('.', 1)[-1].lower() if '.' in file_storage.filename else ''
+    if allowed_exts and ext not in allowed_exts:
+        return False, f"File type .{ext} not allowed. Allowed: {', '.join(sorted(allowed_exts))}"
+    ct = (file_storage.content_type or '').split(';')[0].strip().lower()
+    if ct and ext in _ALLOWED_MIME_MAP and ct not in _ALLOWED_MIME_MAP[ext]:
+        return False, f"File content does not match its extension."
+    # Check magic bytes for PDF and images
+    header = file_storage.stream.read(8)
+    file_storage.stream.seek(0)
+    if ext == 'pdf' and not header.startswith(b'%PDF'):
+        return False, "Invalid PDF file."
+    if ext == 'png' and not header.startswith(b'\x89PNG'):
+        return False, "Invalid PNG file."
+    if ext in ('jpg', 'jpeg') and not header.startswith(b'\xff\xd8'):
+        return False, "Invalid JPEG file."
+    file_storage.stream.seek(0, 2)
+    size_mb = file_storage.stream.tell() / (1024 * 1024)
+    file_storage.stream.seek(0)
+    if size_mb > _MAX_DOC_SIZE_MB:
+        return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
+    return True, None
+
 # ---------------- COMPANY SETTINGS ----------------
 def get_company_settings():
     try:
@@ -673,6 +727,49 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS offer_letters (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            onboarding_id INT NOT NULL,
+            employee_id VARCHAR(50) NOT NULL,
+            designation VARCHAR(150),
+            department VARCHAR(150),
+            work_location VARCHAR(200),
+            monthly_ctc DECIMAL(12,2) DEFAULT 0,
+            joining_date DATE,
+            offer_valid_until DATE,
+            probation_months INT DEFAULT 6,
+            reporting_to VARCHAR(150),
+            additional_notes TEXT,
+            generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sent_at DATETIME DEFAULT NULL,
+            status VARCHAR(20) DEFAULT 'draft',
+            notice_period_days INT DEFAULT 30,
+            candidate_address TEXT
+        )
+    """)
+    for _col, _sql in [
+        ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30"),
+        ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT"),
+    ]:
+        try: cursor.execute(_sql)
+        except Exception: pass
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            actor VARCHAR(100) NOT NULL,
+            actor_type VARCHAR(20) DEFAULT 'admin',
+            action VARCHAR(150) NOT NULL,
+            target_table VARCHAR(100),
+            target_id VARCHAR(100),
+            detail TEXT,
+            ip_address VARCHAR(45),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_actor (actor),
+            INDEX idx_action (action),
+            INDEX idx_created (created_at)
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS compoff_balance (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL UNIQUE,
@@ -974,10 +1071,11 @@ def _create_notification(recipient_type, title, message, employee_id=None):
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        # If both admin and employee keys exist, drop the employee key and continue as admin
         if session.get("admin_logged_in") and session.get("employee_id"):
-            session.clear()
-            return redirect(url_for("admin_login"))
+            session.pop("employee_id", None)
+            session.pop("employee_name", None)
+            session.pop("employee_role", None)
         if not session.get("admin_logged_in"):
             is_ajax = (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -994,10 +1092,12 @@ def admin_required(f):
 def employee_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        # If admin is also logged in, redirect to admin panel instead of clearing session
         if session.get("admin_logged_in") and session.get("employee_id"):
-            session.clear()
-            return redirect("/employee_login")
+            session.pop("employee_id", None)
+            session.pop("employee_name", None)
+            session.pop("employee_role", None)
+            return redirect("/admin")
         if not session.get("employee_id"):
             return redirect("/employee_login")
         return f(*args, **kwargs)
@@ -2689,6 +2789,7 @@ def delete_employee(emp_id):
         cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
         cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
         db.commit()
+        _audit("delete_employee", "employees", emp_id, f"Employee {emp_id} permanently deleted")
         flash(f"Employee '{emp_id}' deleted successfully.", "success")
     else:
         flash(f"Employee '{emp_id}' not found.", "error")
@@ -3430,6 +3531,92 @@ def admin_reset_password(token):
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
 
 
+@app.route("/employee_forgot_password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def employee_forgot_password():
+    if request.method == "GET":
+        return render_template("employee_forgot_password.html", sent=False, error=None)
+    emp_id = request.form.get("employee_id", "").strip()
+    email  = request.form.get("email", "").strip().lower()
+    if not emp_id or not email:
+        return render_template("employee_forgot_password.html", sent=False, error="Both Employee ID and email are required.")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, email FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    if not row or not row[1] or row[1].lower() != email:
+        cursor.close(); db.close()
+        return render_template("employee_forgot_password.html", sent=False,
+                               error="Employee ID and email do not match our records.")
+    token  = secrets.token_hex(32)
+    expiry = datetime.datetime.now() + datetime.timedelta(hours=1)
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
+        db.commit()
+    except Exception: pass
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME")
+        db.commit()
+    except Exception: pass
+    cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
+                   (token, expiry, emp_id))
+    db.commit(); cursor.close(); db.close()
+    cfg = get_email_config()
+    if not cfg:
+        return render_template("employee_forgot_password.html", sent=False,
+                               error="Email service not configured. Please contact HR.")
+    reset_url = f"{request.host_url}employee_reset_password/{token}"
+    html_body = f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">🔐 Password Reset</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Portal</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">You requested a password reset for Employee ID <strong>{emp_id}</strong>.</p>
+    <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
+      Reset My Password
+    </a>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, ignore this email.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy: {reset_url}</p>
+  </div>
+</div>"""
+    try:
+        send_email_smtp(email, "Password Reset — Employee Portal", html_body, cfg)
+    except Exception as ex:
+        return render_template("employee_forgot_password.html", sent=False, error=f"Failed to send email: {ex}")
+    return render_template("employee_forgot_password.html", sent=True, error=None)
+
+
+@app.route("/employee_reset_password/<token>", methods=["GET", "POST"])
+def employee_reset_password(token):
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
+                   (token, datetime.datetime.now()))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=False, done=False, token=token)
+    if request.method == "GET":
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
+    new_pw     = request.form.get("new_password", "").strip()
+    confirm_pw = request.form.get("confirm_password", "").strip()
+    if len(new_pw) < 6:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False,
+                               token=token, error="Password must be at least 6 characters.")
+    if new_pw != confirm_pw:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False,
+                               token=token, error="Passwords do not match.")
+    emp_id = row[0]
+    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE employee_id=%s",
+                   (generate_password_hash(new_pw), emp_id))
+    db.commit(); cursor.close(); db.close()
+    _audit("employee_password_reset", "employees", emp_id, "Password reset via email link")
+    return render_template("employee_reset_password.html", valid=True, done=True, token=token, error=None)
+
+
 @app.route("/view_qrcodes")
 @admin_required
 def view_qrcodes():
@@ -3796,6 +3983,7 @@ def update_salary():
     db.commit()
     cursor.close()
     db.close()
+    _audit("update_salary", "salary_config", emp_id, f"salary_per_day set to {salary}")
     return redirect("/settings?tab=salary")
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
@@ -5269,12 +5457,10 @@ def my_id_card():
                      download_name=f"IDCard_{emp_id}.png", mimetype="image/png")
 
 
-@app.route("/admin_id_card/<emp_id>")
-@admin_required
-def admin_id_card(emp_id):
+def _build_id_card_buf(emp_id):
+    """Generate the front+back ID card PNG and return a BytesIO buffer, or None if not found."""
     from PIL import Image, ImageDraw, ImageFont
     import io as _io2
-    from flask import send_file
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -5296,7 +5482,7 @@ def admin_id_card(emp_id):
     cursor.close(); db.close()
 
     if not row:
-        return "Employee not found", 404
+        return None
 
     DARK  = (15,  40, 100)
     BLUE  = (30,  58, 138)
@@ -5463,9 +5649,29 @@ def admin_id_card(emp_id):
     buf = _io2.BytesIO()
     total.save(buf, format="PNG", dpi=(200, 200))
     buf.seek(0)
-    view_mode = request.args.get("view") == "1"
-    return send_file(buf,
-                     as_attachment=not view_mode,
+    return buf
+
+
+@app.route("/admin_id_card/<emp_id>")
+@admin_required
+def admin_id_card(emp_id):
+    from flask import send_file
+    buf = _build_id_card_buf(emp_id)
+    if buf is None:
+        return "Employee not found", 404
+    return send_file(buf, as_attachment=True,
+                     download_name=f"IDCard_{emp_id}.png",
+                     mimetype="image/png")
+
+
+@app.route("/admin_view_id_card/<emp_id>")
+@admin_required
+def admin_view_id_card(emp_id):
+    from flask import send_file
+    buf = _build_id_card_buf(emp_id)
+    if buf is None:
+        return "Employee not found", 404
+    return send_file(buf, as_attachment=False,
                      download_name=f"IDCard_{emp_id}.png",
                      mimetype="image/png")
 
@@ -6704,6 +6910,9 @@ def leave_action(lid):
 
     db.commit()
     cursor.close(); db.close()
+    if leave_row:
+        _audit(f"leave_{action.lower()}", "leave_requests", lid,
+               f"Employee {leave_row[0]} leave on {leave_row[1]} — {action}")
 
     # Send email + in-app notification to employee
     if leave_row:
@@ -6918,6 +7127,9 @@ def resignation_action(rid):
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
     cursor.close(); db.close()
+    if resign_row:
+        _audit(f"resignation_{action.lower()}", "resignation_requests", rid,
+               f"Employee {resign_row[0]} resignation {action}")
 
     if resign_row:
         emp_id, lwd, reason, emp_name, emp_email = resign_row
@@ -7834,6 +8046,7 @@ def employee_api_required(f):
 
 
 @app.route("/api/employee/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def api_employee_login():
     data   = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
@@ -9234,10 +9447,7 @@ def analytics():
 #  FEATURE 2: DOCUMENT MANAGEMENT
 # ================================================================
 
-_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
-
-def _allowed_doc(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in _DOC_ALLOWED_EXT
+_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
 
 def _doc_admin_ctx(cursor):
     cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
@@ -9304,13 +9514,14 @@ def upload_document():
     if not emp_id or not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/documents')
-    if not _allowed_doc(f.filename):
-        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+    ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
+    if not ok:
+        flash(err, "danger")
         return redirect(f'/documents?emp_id={emp_id}')
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
-    orig_name    = f.filename
-    stored_name  = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
+    orig_name   = f.filename
+    stored_name = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
     f.save(os.path.join(folder, stored_name))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -9319,6 +9530,7 @@ def upload_document():
         (emp_id, doc_type, orig_name, stored_name)
     )
     db.commit(); cursor.close(); db.close()
+    _audit("upload_document", "employee_documents", emp_id, f"doc_type={doc_type} file={orig_name}")
     flash("Document uploaded successfully.", "success")
     redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
     return redirect(redirect_to)
@@ -9378,8 +9590,9 @@ def upload_my_document():
     if not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/employee_portal')
-    if not _allowed_doc(f.filename):
-        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+    ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
+    if not ok:
+        flash(err, "danger")
         return redirect('/employee_portal')
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
@@ -10052,7 +10265,7 @@ def onboarding_assign():
     emp_id   = request.form.get("employee_id")
     tid      = request.form.get("template_id")
     due_date = request.form.get("due_date") or None
-    today    = date.today()
+    today    = datetime.date.today()
 
     # Check not already assigned same template
     cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'",
@@ -10149,6 +10362,163 @@ def onboarding_close():
     db.commit(); cursor.close(); db.close()
     flash("Onboarding marked as completed.", "success")
     return redirect("/onboarding?tab=active")
+
+# ── OFFER LETTER ──────────────────────────────────────────────────────────────
+@app.route("/offer_letter/<int:ob_id>")
+@admin_required
+def offer_letter(ob_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT eo.id, e.employee_id, e.name, e.role, e.department, e.email,
+               eo.assigned_date, e.date_of_joining
+        FROM employee_onboarding eo
+        JOIN employees e ON e.employee_id = eo.employee_id
+        WHERE eo.id = %s
+    """, (ob_id,))
+    ob = cursor.fetchone()
+    cursor.execute("SELECT COALESCE(monthly_ctc,0), COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (ob[1],))
+    sal = cursor.fetchone() or (0, 0)
+    monthly_ctc = float(sal[0]) or round(float(sal[1]) * 26, 2)
+    cursor.execute("SELECT * FROM offer_letters WHERE onboarding_id=%s ORDER BY id DESC LIMIT 1", (ob_id,))
+    existing = cursor.fetchone()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("offer_letter.html", ob=ob, monthly_ctc=monthly_ctc,
+                           existing=existing, co=co,
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0)
+
+@app.route("/offer_letter_save", methods=["POST"])
+@admin_required
+def offer_letter_save():
+    ob_id         = request.form.get("ob_id")
+    employee_id   = request.form.get("employee_id")
+    designation   = request.form.get("designation","")
+    department    = request.form.get("department","")
+    work_location = request.form.get("work_location","")
+    monthly_ctc   = request.form.get("monthly_ctc", 0) or 0
+    joining_date  = request.form.get("joining_date") or None
+    valid_until   = request.form.get("offer_valid_until") or None
+    probation     = int(request.form.get("probation_months", 6))
+    reporting_to  = request.form.get("reporting_to","")
+    notes         = request.form.get("additional_notes","")
+    notice_days   = int(request.form.get("notice_period_days", 30))
+    candidate_addr= request.form.get("candidate_address","")
+    db = get_db_connection(); cursor = db.cursor()
+    # add new columns if they don't exist yet (migration)
+    try:
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30")
+        db.commit()
+    except Exception: pass
+    try:
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT")
+        db.commit()
+    except Exception: pass
+    cursor.execute("SELECT id FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute("""UPDATE offer_letters SET designation=%s,department=%s,work_location=%s,
+            monthly_ctc=%s,joining_date=%s,offer_valid_until=%s,probation_months=%s,
+            reporting_to=%s,additional_notes=%s,notice_period_days=%s,candidate_address=%s,
+            generated_at=NOW(),status='draft',sent_at=NULL
+            WHERE id=%s""",
+            (designation,department,work_location,monthly_ctc,joining_date,valid_until,
+             probation,reporting_to,notes,notice_days,candidate_addr,existing[0]))
+        letter_id = existing[0]
+    else:
+        cursor.execute("""INSERT INTO offer_letters (onboarding_id,employee_id,designation,department,
+            work_location,monthly_ctc,joining_date,offer_valid_until,probation_months,
+            reporting_to,additional_notes,notice_period_days,candidate_address)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (ob_id,employee_id,designation,department,work_location,monthly_ctc,
+             joining_date,valid_until,probation,reporting_to,notes,notice_days,candidate_addr))
+        letter_id = cursor.lastrowid
+    db.commit(); cursor.close(); db.close()
+    return redirect(f"/offer_letter_view/{letter_id}")
+
+@app.route("/offer_letter_view/<int:letter_id>")
+@admin_required
+def offer_letter_view(letter_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
+               ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
+               ol.probation_months,ol.reporting_to,ol.additional_notes,ol.generated_at,
+               ol.sent_at,ol.status,
+               COALESCE(ol.notice_period_days,30),COALESCE(ol.candidate_address,''),
+               e.name, e.email
+        FROM offer_letters ol
+        JOIN employees e ON e.employee_id = ol.employee_id
+        WHERE ol.id = %s
+    """, (letter_id,))
+    letter = cursor.fetchone()
+    co = get_company_settings()
+    cursor.close(); db.close()
+    if not letter:
+        flash("Offer letter not found.", "error")
+        return redirect("/onboarding")
+    return render_template("offer_letter_view.html", letter=letter, co=co)
+
+@app.route("/offer_letter_send/<int:letter_id>", methods=["POST"])
+@admin_required
+def offer_letter_send(letter_id):
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
+               ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
+               ol.probation_months,ol.reporting_to,ol.additional_notes,ol.generated_at,
+               ol.sent_at,ol.status,
+               COALESCE(ol.notice_period_days,30),COALESCE(ol.candidate_address,''),
+               e.name, e.email
+        FROM offer_letters ol
+        JOIN employees e ON e.employee_id = ol.employee_id
+        WHERE ol.id = %s
+    """, (letter_id,))
+    letter = cursor.fetchone()
+    co = get_company_settings()
+    if not letter or not letter[18]:  # email at index 18
+        flash("Employee email not found.", "error")
+        cursor.close(); db.close()
+        return redirect(f"/offer_letter_view/{letter_id}")
+    cfg = get_email_config()
+    if not cfg:
+        flash("Email not configured. Go to Settings → Email.", "error")
+        cursor.close(); db.close()
+        return redirect(f"/offer_letter_view/{letter_id}")
+    try:
+        emp_name     = letter[17]
+        emp_email    = letter[18]
+        designation  = letter[3] or "the offered position"
+        joining_date = letter[7].strftime("%d %b %Y") if letter[7] else "—"
+        ctc          = f"₹{float(letter[6]):,.2f}" if letter[6] else "—"
+        company      = co.get("company_name","Company")
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Offer Letter — {company}"
+        msg["From"]    = f"{cfg['from_name']} <{cfg['from_email']}>"
+        msg["To"]      = emp_email
+        html_body = f"""
+        <div style="font-family:Segoe UI,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1e293b;">
+          <h2 style="color:#0f2460;margin-bottom:8px;">Congratulations, {emp_name}!</h2>
+          <p style="color:#64748b;margin-bottom:24px;">We are pleased to extend this offer of employment.</p>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Position</td><td style="font-weight:700;">{designation}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">CTC (Annual)</td><td style="font-weight:700;">{ctc}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Date of Joining</td><td style="font-weight:700;">{joining_date}</td></tr>
+          </table>
+          <p style="font-size:13px;color:#475569;">Please find your detailed offer letter attached. Contact HR for any queries.</p>
+          <p style="margin-top:32px;font-size:13px;color:#64748b;">Regards,<br><strong>{company} HR Team</strong></p>
+        </div>"""
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP(cfg["host"], cfg["port"]) as s:
+            s.starttls()
+            s.login(cfg["user"], cfg["password"])
+            s.sendmail(cfg["from_email"], emp_email, msg.as_string())
+        cursor.execute("UPDATE offer_letters SET sent_at=NOW(), status='sent' WHERE id=%s", (letter_id,))
+        db.commit()
+        flash(f"Offer letter emailed to {emp_email}.", "success")
+    except Exception as ex:
+        flash(f"Email failed: {ex}", "error")
+    cursor.close(); db.close()
+    return redirect(f"/offer_letter_view/{letter_id}")
 
 # Employee portal onboarding
 @app.route("/my_onboarding")

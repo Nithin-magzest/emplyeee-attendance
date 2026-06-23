@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Offer Letter — {{ letter[17] }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #e5e7eb;
+      padding: 24px 16px 48px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      max-width: 740px; margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    }
+    .toolbar-info h2 { font-size: 13px; font-weight: 700; color: #111827; }
+    .toolbar-info p  { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .btn { padding: 8px 14px; border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+           cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+           transition: .13s; font-family: inherit; }
+    .btn:hover { opacity: .88; }
+    .btn-dark  { background: #111827; color: #fff; }
+    .btn-blue  { background: #2563eb; color: #fff; }
+    .btn-light { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .toolbar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .flash-list { list-style: none; max-width: 740px; margin: 0 auto 10px; }
+    .flash-msg  { padding: 10px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+                  display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+    .flash-success { background: #dcfce7; color: #15803d; }
+    .flash-error   { background: #fee2e2; color: #dc2626; }
+
+    /* Paper */
+    .paper {
+      max-width: 740px; margin: 0 auto;
+      background: #ffffff;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.13);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* Blue top line */
+    .top-line { height: 4px; background: #1d4ed8; }
+
+    /* Letterhead */
+    .lh {
+      padding: 36px 52px 20px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .co-name { font-size: 18px; font-weight: 800; color: #111827; letter-spacing: -.3px; }
+    .co-addr { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+    .lh-right { text-align: right; font-size: 11.5px; color: #6b7280; line-height: 1.7; }
+    .lh-right strong { color: #111827; }
+
+    /* Divider */
+    hr.line { border: none; border-top: 1.5px solid #e5e7eb; margin: 0 52px; }
+
+    /* Address + Subject block */
+    .addr-block { padding: 24px 52px 0; font-size: 13px; color: #374151; line-height: 1.8; }
+    .addr-block .to   { font-weight: 700; }
+    .subject { padding: 14px 52px 0; font-size: 13px; font-weight: 700; color: #111827;
+               text-decoration: underline; text-underline-offset: 3px; }
+
+    /* Letter body */
+    .body { padding: 18px 52px 40px; }
+    .para { font-size: 13px; color: #374151; line-height: 1.9; margin-bottom: 14px; }
+    .para strong { color: #111827; font-weight: 700; }
+
+    /* Section label */
+    .sec-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: #1d4ed8; margin: 22px 0 10px;
+    }
+
+    /* CTC table */
+    .ctc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 20px; }
+    .ctc-table thead th {
+      background: #f3f4f6; color: #6b7280; font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .8px; padding: 9px 14px; text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .ctc-table thead th:not(:first-child) { text-align: right; }
+    .ctc-table tbody td { padding: 10px 14px; color: #374151; border-bottom: 1px solid #f3f4f6; }
+    .ctc-table tbody td:not(:first-child) { text-align: right; font-weight: 600; color: #111827; }
+    .ctc-table tfoot td {
+      padding: 10px 14px; font-weight: 800; font-size: 13px;
+      background: #111827; color: #fff; border-top: 2px solid #111827;
+    }
+    .ctc-table tfoot td:not(:first-child) { text-align: right; }
+
+    /* T&C */
+    .tc-ol { padding-left: 18px; font-size: 12.5px; color: #4b5563; line-height: 1.85; }
+    .tc-ol li { margin-bottom: 7px; }
+    .tc-ol li strong { color: #111827; }
+
+    /* Notes */
+    .note-box {
+      background: #eff6ff; border-left: 3px solid #1d4ed8;
+      padding: 11px 16px; font-size: 12.5px; color: #1e40af;
+      border-radius: 0 6px 6px 0; margin-bottom: 16px; line-height: 1.7;
+    }
+
+    /* Signatures */
+    .sig-row { display: flex; gap: 48px; margin-top: 40px; }
+    .sig-col { flex: 1; }
+    .sig-accept-note { font-size: 11px; color: #9ca3af; margin-bottom: 10px; line-height: 1.5; }
+    .sig-line { border-top: 1.5px solid #374151; margin-top: 52px; padding-top: 8px; }
+    .sig-name  { font-size: 12.5px; font-weight: 700; color: #111827; }
+    .sig-title { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .seal {
+      width: 60px; height: 60px; border: 1.5px dashed #d1d5db; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #d1d5db; text-align: center; line-height: 1.4; margin-top: 10px;
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid #e5e7eb; padding: 10px 52px;
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: #9ca3af;
+    }
+    .bot-line { height: 4px; background: #111827; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar, .flash-list { display: none !important; }
+      .paper { box-shadow: none; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}<ul class="flash-list">{% for cat,msg in messages %}
+    <li class="flash-msg flash-{{ 'success' if cat=='success' else 'error' }}">{{ msg }}</li>
+  {% endfor %}</ul>{% endif %}
+{% endwith %}
+
+<div class="toolbar">
+  <div class="toolbar-info">
+    <h2>Offer Letter &nbsp;·&nbsp; {{ letter[17] }}</h2>
+    <p>
+      {% if letter[14]=='sent' %}Sent {{ letter[13].strftime('%d %b %Y') }}
+      {% else %}Draft — not yet sent{% endif %}
+      &nbsp;·&nbsp; Ref: OL/{{ letter[2]|upper }}/{{ letter[12].strftime('%Y') if letter[12] else '' }}/{{ '%04d'|format(letter[0]) }}
+    </p>
+  </div>
+  <div class="toolbar-btns">
+    <a href="/offer_letter/{{ letter[1] }}" class="btn btn-light"><i class="ti ti-edit"></i> Edit</a>
+    <button onclick="window.print()" class="btn btn-light"><i class="ti ti-printer"></i> Print / PDF</button>
+    <form action="/offer_letter_send/{{ letter[0] }}" method="POST" style="display:inline"
+          onsubmit="return confirm('Send to {{ letter[18] }}?')">
+      <button type="submit" class="btn btn-blue"><i class="ti ti-send"></i> Send Email</button>
+    </form>
+  </div>
+</div>
+
+<div class="paper">
+  <div class="top-line"></div>
+
+  <!-- Header -->
+  <div class="lh">
+    <div>
+      <div class="co-name">{{ co.company_name }}</div>
+      <div class="co-addr">{{ co.address or '' }}{% if co.email %} &nbsp;·&nbsp; {{ co.email }}{% endif %}</div>
+    </div>
+    <div class="lh-right">
+      <div><strong>Date:</strong> {{ letter[12].strftime('%d %B %Y') if letter[12] else '' }}</div>
+      <div><strong>Ref:</strong> OL/{{ letter[2]|upper }}/{{ letter[12].strftime('%Y') if letter[12] else '' }}/{{ '%04d'|format(letter[0]) }}</div>
+    </div>
+  </div>
+
+  <hr class="line"/>
+
+  <!-- To block -->
+  <div class="addr-block">
+    <div class="to">To,</div>
+    <div>{{ letter[17] }}</div>
+    <div>Employee ID: {{ letter[2] }}</div>
+    {% if letter[16] %}
+      {% for ln in letter[16].split('\n') %}<div>{{ ln }}</div>{% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Subject -->
+  <div class="subject">Sub: Offer of Employment — {{ letter[3] or 'Position' }}</div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <p class="para">Dear <strong>{{ letter[17] }}</strong>,</p>
+
+    <p class="para">
+      We are pleased to offer you the position of <strong>{{ letter[3] or 'the role' }}</strong>
+      {% if letter[4] %}in the <strong>{{ letter[4] }}</strong> department{% endif %}
+      at <strong>{{ co.company_name }}</strong>{% if letter[5] %}, located at <strong>{{ letter[5] }}</strong>{% endif %}.
+      You will be reporting to <strong>{{ letter[10] or 'the Department Head' }}</strong>.
+    </p>
+
+    <p class="para">
+      Your date of joining will be <strong>{{ letter[7].strftime('%d %B %Y') if letter[7] else '___________' }}</strong>.
+      Please report to the HR Department on the joining date with your original documents for verification.
+    </p>
+
+    <!-- CTC -->
+    {% if letter[6] and letter[6]|float > 0 %}
+    {% set m = letter[6]|float %}
+    {% set basic = (m * 0.40)|round(2) %}
+    {% set hra   = (m * 0.20)|round(2) %}
+    {% set sa    = (m * 0.33)|round(2) %}
+    {% set pf    = (m * 0.04)|round(2) %}
+    {% set gr    = (m * 0.03)|round(2) %}
+    <div class="sec-label">Compensation Details</div>
+    <table class="ctc-table">
+      <thead>
+        <tr>
+          <th>Salary Component</th>
+          <th>Monthly (₹)</th>
+          <th>Annual (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Basic Salary</td><td>{{ "{:,.2f}".format(basic) }}</td><td>{{ "{:,.2f}".format(basic*12) }}</td></tr>
+        <tr><td>House Rent Allowance (HRA)</td><td>{{ "{:,.2f}".format(hra) }}</td><td>{{ "{:,.2f}".format(hra*12) }}</td></tr>
+        <tr><td>Special Allowance</td><td>{{ "{:,.2f}".format(sa) }}</td><td>{{ "{:,.2f}".format(sa*12) }}</td></tr>
+        <tr><td>PF — Employer Contribution (12% of Basic)</td><td>{{ "{:,.2f}".format(pf) }}</td><td>{{ "{:,.2f}".format(pf*12) }}</td></tr>
+        <tr><td>Gratuity (4.81% of Basic)</td><td>{{ "{:,.2f}".format(gr) }}</td><td>{{ "{:,.2f}".format(gr*12) }}</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td>Gross CTC</td><td>{{ "{:,.2f}".format(m) }}</td><td>{{ "{:,.2f}".format(m*12) }}</td></tr>
+      </tfoot>
+    </table>
+    {% endif %}
+
+    {% if letter[11] %}
+    <div class="note-box"><strong>Note:</strong> {{ letter[11] }}</div>
+    {% endif %}
+
+    <!-- T&C -->
+    <div class="sec-label">Terms &amp; Conditions</div>
+    <ol class="tc-ol">
+      <li>This offer is subject to satisfactory verification of your educational qualifications, credentials, and prior employment history.</li>
+      <li>You will serve a probationary period of <strong>{{ letter[9] or 6 }} months</strong> from the date of joining. Confirmation of employment is subject to satisfactory performance during this period.</li>
+      <li>Post-confirmation, either party may terminate employment by providing <strong>{{ letter[15] or 30 }} days'</strong> written notice or salary in lieu thereof. During probation, 7 days' notice applies.</li>
+      <li>All compensation is subject to applicable statutory deductions (TDS, PF, ESI, Professional Tax) as per prevailing Indian law.</li>
+      <li>This offer is valid until <strong>{{ letter[8].strftime('%d %B %Y') if letter[8] else '7 days from date of issue' }}</strong>. Non-acceptance by this date shall render this offer null and void.</li>
+      <li>You shall maintain strict confidentiality of all proprietary and sensitive information of the Company during and after your employment.</li>
+      <li>You will abide by the Company's HR policies, Code of Conduct, and all applicable rules as amended from time to time.</li>
+      <li>A formal Appointment Letter will be issued upon joining. This offer letter does not constitute a contract of employment.</li>
+    </ol>
+
+    <p class="para" style="margin-top: 20px;">
+      We look forward to welcoming you to <strong>{{ co.company_name }}</strong>. Please sign and return one copy of
+      this letter to confirm your acceptance.
+    </p>
+
+    <p class="para">Warm regards,</p>
+
+    <!-- Signatures -->
+    <div class="sig-row">
+      <div class="sig-col">
+        <div class="sig-line"></div>
+        <div class="sig-name">Authorised Signatory</div>
+        <div class="sig-title">{{ co.company_name }}</div>
+        <div class="sig-title">Human Resources</div>
+        <div class="seal">Company<br>Seal</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-accept-note">
+          I hereby accept this offer and agree to all terms and conditions mentioned above.
+        </div>
+        <div class="sig-line"></div>
+        <div class="sig-name">{{ letter[17] }}</div>
+        <div class="sig-title">Candidate Signature</div>
+        <div class="sig-title">Date: _______________</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>{{ co.company_name }}{% if co.address %} · {{ co.address }}{% endif %}</span>
+    <span>Confidential — For addressee only</span>
+  </div>
+  <div class="bot-line"></div>
+</div>
+
+</body>
+</html>
