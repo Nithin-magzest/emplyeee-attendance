@@ -964,6 +964,10 @@ def _create_notification(recipient_type, title, message, employee_id=None):
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
+        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        if session.get("admin_logged_in") and session.get("employee_id"):
+            session.clear()
+            return redirect(url_for("admin_login"))
         if not session.get("admin_logged_in"):
             is_ajax = (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -980,6 +984,10 @@ def admin_required(f):
 def employee_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
+        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        if session.get("admin_logged_in") and session.get("employee_id"):
+            session.clear()
+            return redirect("/employee_login")
         if not session.get("employee_id"):
             return redirect("/employee_login")
         return f(*args, **kwargs)
@@ -1649,6 +1657,7 @@ def admin_login():
             cursor.execute("SELECT password, COALESCE(role,'admin') FROM admin_users WHERE username=%s", (identifier,))
             admin_row = cursor.fetchone()
         if admin_row and check_password_hash(admin_row[0], password):
+            session.clear()
             session["admin_logged_in"] = True
             session["admin_role"] = admin_row[1]
             session.permanent = True
@@ -1664,6 +1673,7 @@ def admin_login():
             stored_pwd = emp_row[3]
             if stored_pwd and not check_password_hash(stored_pwd, password):
                 return render_template("admin_login.html", error="Incorrect password.")
+            session.clear()
             session["employee_id"]   = emp_row[0]
             session["employee_name"] = emp_row[1]
             session["employee_role"] = emp_row[2] or ""
@@ -4602,9 +4612,7 @@ def employee_login():
 
 @app.route("/employee_logout")
 def employee_logout():
-    session.pop("employee_id", None)
-    session.pop("employee_name", None)
-    session.pop("employee_role", None)
+    session.clear()
     return redirect("/employee_login")
 
 
