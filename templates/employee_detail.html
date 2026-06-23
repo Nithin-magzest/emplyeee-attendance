@@ -266,6 +266,12 @@
       <a class="btn-act btn-edit" href="/employees">
         <i class="ti ti-arrow-left"></i> Back to List
       </a>
+      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}?view=1" target="_blank">
+        <i class="ti ti-id-badge"></i> View ID Card
+      </a>
+      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}" download="IDCard_{{ emp_id }}.png">
+        <i class="ti ti-download"></i> Download ID Card
+      </a>
       <form action="/delete_employee/{{ emp_id }}" method="POST"
             onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')">
         <button type="submit" class="btn-act btn-del" style="width:100%">
