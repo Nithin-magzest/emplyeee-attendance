@@ -138,6 +138,7 @@ export default function EmployeeDashboard({ navigation }) {
           onLogout={handleLogout}
           photoUrl={photoUrl}
           onScanQR={() => setShowScanner(true)}
+          companyName={data?.company_name}
         />
 
         <EmployeeAttendanceCard attendance={attendance} />

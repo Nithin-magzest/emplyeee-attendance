@@ -127,6 +127,12 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.heroName}>{p.name}</Text>
             <Text style={styles.heroRole}>{p.role || "Employee"}</Text>
             <Text style={styles.heroDept}>{p.department || ""}</Text>
+            {!!p.company_name && (
+              <View style={styles.heroCompanyBadge}>
+                <Ionicons name="business-outline" size={12} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.heroCompanyTxt}>{p.company_name}</Text>
+              </View>
+            )}
             <View style={styles.heroIdBadge}>
               <Ionicons name="card-outline" size={13} color="#FFFFFF" />
               <Text style={styles.heroId}>{p.employee_id}</Text>
@@ -147,6 +153,7 @@ export default function ProfileScreen({ navigation }) {
 
           {/* Work Info */}
           <Section title="Work Information" icon="briefcase-outline">
+            <Field label="Company"             value={p.company_name} />
             <Field label="Role / Designation" value={p.role} />
             <Field label="Department"          value={p.department} />
             <Field label="Daily Rate"          value={p.salary_per_day ? `₹ ${p.salary_per_day}` : null} />
@@ -219,7 +226,9 @@ const styles = StyleSheet.create({
   heroName:     { color: "#FFFFFF", fontSize: 22, fontWeight: "800" },
   heroRole:     { color: "rgba(255,255,255,0.85)", fontSize: 14, marginTop: 4 },
   heroDept:     { color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 2 },
-  heroIdBadge:  { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 12 },
+  heroCompanyBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, marginTop: 8 },
+  heroCompanyTxt:   { color: "rgba(255,255,255,0.92)", fontSize: 12, fontWeight: "700" },
+  heroIdBadge:  { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 8 },
   heroId:       { color: "#FFFFFF", fontWeight: "700", fontSize: 13, marginLeft: 5 },
   aboutText:    { fontSize: 14, color: "#475569", lineHeight: 22 },
 });

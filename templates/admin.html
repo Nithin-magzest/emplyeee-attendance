@@ -439,9 +439,18 @@
                   <input type="text" name="name" placeholder="e.g. Ravi Kumar" required />
                 </div>
                 <div class="field">
+                  <label>Company <span style="color:#dc2626;">*</span></label>
+                  <select name="company_id" id="dashCompanyId" required onchange="generateDashEmpId()" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#0f172a;background:#fff;">
+                    <option value="">-- Select Company --</option>
+                    {% for cid, cname, ccode in companies_list %}
+                    <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="field">
                   <label>Employee ID <span style="color:#dc2626;">*</span></label>
                   <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" name="emp_id" id="dashEmpId" placeholder="Generating…" required style="flex:1;font-weight:700;letter-spacing:1px;" />
+                    <input type="text" name="emp_id" id="dashEmpId" placeholder="Select company first" required style="flex:1;font-weight:700;letter-spacing:1px;" />
                     <button type="button" onclick="generateDashEmpId()" title="Re-generate" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:13px;cursor:pointer;white-space:nowrap;">🔄</button>
                   </div>
                   <div id="dashEmpIdHint" style="font-size:11px;margin-top:4px;"></div>
@@ -604,15 +613,15 @@
             <form action="/change_admin_password" method="POST" class="pwd-form">
               <div class="field">
                 <label>Current Password</label>
-                <input type="password" name="current_password" placeholder="Enter current password" required />
+                <input type="password" name="current_password" placeholder="Enter current password" autocomplete="current-password" required />
               </div>
               <div class="field">
                 <label>New Password</label>
-                <input type="password" name="new_password" placeholder="Enter new password" required />
+                <input type="password" name="new_password" placeholder="Enter new password" autocomplete="new-password" required />
               </div>
               <div class="field">
                 <label>Confirm New Password</label>
-                <input type="password" name="confirm_password" placeholder="Re-enter new password" required />
+                <input type="password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password" required />
               </div>
               <button type="submit" class="btn btn-navy" style="max-width:200px;">🔒 Update Password</button>
             </form>
@@ -846,12 +855,20 @@
 
       /* ── AUTO GENERATE EMPLOYEE ID ── */
       async function generateDashEmpId() {
-        var inp  = document.getElementById('dashEmpId');
-        var hint = document.getElementById('dashEmpIdHint');
+        var inp     = document.getElementById('dashEmpId');
+        var hint    = document.getElementById('dashEmpIdHint');
+        var compSel = document.getElementById('dashCompanyId');
         if (!inp) return;
+        var companyId = compSel ? compSel.value : '';
+        if (!companyId) {
+          inp.value = '';
+          inp.placeholder = 'Select company first';
+          if (hint) { hint.textContent = 'Select a company to auto-generate the Employee ID.'; hint.style.color = '#94a3b8'; }
+          return;
+        }
         inp.placeholder = 'Generating…';
         try {
-          var res  = await fetch('/api/generate_emp_id');
+          var res  = await fetch('/api/generate_emp_id?company_id=' + encodeURIComponent(companyId));
           if (!res.ok) throw new Error('HTTP ' + res.status);
           var data = await res.json();
           if (data.error) throw new Error(data.error);
@@ -859,10 +876,10 @@
           inp.placeholder = '';
           if (hint) {
             if (!data.code) {
-              hint.innerHTML = '⚠ <a href="/settings" target="_blank" style="color:#1e3a8a;">Set company code in Settings</a> first.';
+              hint.innerHTML = '⚠ No code set for this company. Go to <a href="/companies" style="color:#1e3a8a;">Companies</a> and add a short code.';
               hint.style.color = '#dc2626';
             } else {
-              hint.textContent = '✓ ID generated: ' + data.emp_id;
+              hint.textContent = '✓ ' + data.emp_id + ' — ' + data.company_name + ' employee #' + data.seq;
               hint.style.color = '#16a34a';
             }
           }
@@ -871,7 +888,6 @@
           if (hint) { hint.textContent = 'Could not auto-generate — enter manually.'; hint.style.color = '#dc2626'; }
         }
       }
-      generateDashEmpId();
 
       function updateRegMapPreview() {
         var lat = document.getElementById("reg_work_lat").value;
@@ -1005,8 +1021,10 @@
         document.body.appendChild(f); f.submit();
       }
       function updateLastUpdated() {
+        const el = document.getElementById("lastUpdated");
+        if (!el) return;
         const s = Math.round((Date.now()-lastRefresh)/1000);
-        document.getElementById("lastUpdated").textContent = s < 5 ? "Updated just now" : `Updated ${s}s ago`;
+        el.textContent = s < 5 ? "Updated just now" : `Updated ${s}s ago`;
       }
       async function refreshDashboard() {
         try {

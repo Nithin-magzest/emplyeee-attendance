@@ -738,6 +738,15 @@ def init_db():
             ]
         )
         db.commit()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS companies (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            code VARCHAR(20) DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
 
     # Migrations for existing installs
     for sql in [
@@ -790,6 +799,7 @@ def init_db():
         "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
         "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
         "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN company_id INT DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1742,6 +1752,9 @@ def admin():
     except Exception:
         pending_ot = 0
 
+    cursor.execute("SELECT id, name, COALESCE(code,'') FROM companies ORDER BY name")
+    companies_list = cursor.fetchall()
+
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
     break_rows = cursor.fetchall()
     breaks_display = []
@@ -1779,6 +1792,7 @@ def admin():
         now_month=today.month,
         now_year=today.year,
         breaks_display=breaks_display,
+        companies_list=companies_list,
     )
 
 # ---------------- LIVE DASHBOARD API ----------------
@@ -2002,6 +2016,8 @@ def admin_action():
         work_lon_raw    = request.form.get("work_lon", "").strip()
         work_lat        = float(work_lat_raw) if work_lat_raw else None
         work_lon        = float(work_lon_raw) if work_lon_raw else None
+        company_id_raw  = request.form.get("company_id", "").strip()
+        company_id      = int(company_id_raw) if company_id_raw.isdigit() else None
         # Auto-increment emp_id if it's already taken
         cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (emp_id,))
         if cursor.fetchone():
@@ -2041,10 +2057,10 @@ def admin_action():
         try:
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-                "date_of_joining, work_mode, work_lat, work_lon) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "date_of_joining, work_mode, work_lat, work_lon, company_id) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
-                 date_of_joining, work_mode, work_lat, work_lon)
+                 date_of_joining, work_mode, work_lat, work_lon, company_id)
             )
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -2235,11 +2251,22 @@ def settings_page():
     _cr = cursor.fetchone()
     company_code = _cr[0] if _cr else ""
 
+    cursor.execute("""
+        SELECT c.id, c.name, COALESCE(c.code,''), c.created_at,
+               COUNT(e.id) AS emp_count
+        FROM companies c
+        LEFT JOIN employees e ON e.company_id = c.id
+        GROUP BY c.id, c.name, c.code, c.created_at
+        ORDER BY c.name
+    """)
+    companies = cursor.fetchall()
+
     cursor.close(); db.close()
     return render_template("settings.html",
         tab=tab,
         email_config=email_config,
         company_code=company_code,
+        companies=companies,
         shifts=shift_rows,
         emp_list=emp_list,
         breaks=breaks,
@@ -2268,6 +2295,143 @@ def save_company_code():
     db.commit(); cursor.close(); db.close()
     flash(f"Company code set to '{code}'.", "success")
     return redirect("/settings?tab=email")
+
+
+# ---------------- COMPANIES ----------------
+
+@app.route("/companies")
+@admin_required
+def view_companies():
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT c.id, c.name, c.code, c.created_at,
+               COUNT(e.id) AS employee_count
+        FROM companies c
+        LEFT JOIN employees e ON e.company_id = c.id
+        GROUP BY c.id, c.name, c.code, c.created_at
+        ORDER BY c.name
+    """)
+    companies = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("companies.html", companies=companies)
+
+
+@app.route("/companies/add", methods=["POST"])
+@admin_required
+def add_company():
+    name        = request.form.get("name", "").strip()
+    code        = request.form.get("code", "").strip().upper()[:20] or None
+    redirect_to = request.form.get("redirect_to", "companies")
+    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+    if not name:
+        flash("Company name is required.", "error")
+        return redirect(dest)
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("INSERT INTO companies (name, code) VALUES (%s, %s)", (name, code))
+    db.commit(); cursor.close(); db.close()
+    flash(f"Company '{name}' added.", "success")
+    return redirect(dest)
+
+
+@app.route("/companies/<int:cid>/edit", methods=["POST"])
+@admin_required
+def edit_company(cid):
+    name        = request.form.get("name", "").strip()
+    new_code    = (request.form.get("code", "").strip().upper()[:20]) or None
+    redirect_to = request.form.get("redirect_to", "companies")
+    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+
+    if not name:
+        flash("Company name is required.", "error")
+        return redirect(dest)
+
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+
+    cursor.execute("SELECT COALESCE(code,'') FROM companies WHERE id=%s", (cid,))
+    row      = cursor.fetchone()
+    old_code = (row[0] or "").strip().upper() if row else ""
+
+    cursor.execute("UPDATE companies SET name=%s, code=%s WHERE id=%s", (name, new_code, cid))
+    db.commit()
+
+    renamed_count = 0
+    if old_code and new_code and old_code != new_code:
+        cursor.execute(
+            "SELECT employee_id FROM employees WHERE company_id=%s AND employee_id LIKE %s",
+            (cid, old_code + "%")
+        )
+        to_rename = [
+            (r[0], new_code + r[0][len(old_code):])
+            for r in cursor.fetchall() if r[0].startswith(old_code)
+        ]
+
+        related_tables = [
+            "attendance", "salary_config", "leave_requests", "notifications",
+            "resignation_requests", "tickets", "employee_incentives",
+            "employee_experience", "employee_education", "leave_balances",
+            "employee_documents", "performance_reviews", "overtime_records",
+            "regularization_requests", "compoff_balance", "employee_onboarding",
+        ]
+
+        for old_eid, new_eid in to_rename:
+            for tbl in related_tables:
+                try:
+                    cursor.execute(
+                        f"UPDATE `{tbl}` SET employee_id=%s WHERE employee_id=%s",
+                        (new_eid, old_eid)
+                    )
+                except Exception:
+                    pass
+
+            old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
+            new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
+            old_qr  = os.path.join("static", "qrcodes", old_eid + ".png")
+            new_qr  = os.path.join("static", "qrcodes", new_eid + ".png")
+
+            cursor.execute(
+                "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
+                "WHERE employee_id=%s AND company_id=%s",
+                (new_eid, new_img, new_qr, old_eid, cid)
+            )
+
+            if os.path.exists(old_img):
+                try: os.rename(old_img, new_img)
+                except Exception: pass
+            if os.path.exists(old_qr):
+                try: os.rename(old_qr, new_qr)
+                except Exception: pass
+
+            renamed_count += 1
+
+        db.commit()
+        flash(
+            f"Company updated. {renamed_count} employee ID(s) renamed: "
+            f"{old_code}xxx → {new_code}xxx.",
+            "success"
+        )
+    else:
+        flash("Company updated.", "success")
+
+    cursor.close(); db.close()
+    return redirect(dest)
+
+
+@app.route("/companies/<int:cid>/delete", methods=["POST"])
+@admin_required
+def delete_company(cid):
+    redirect_to = request.form.get("redirect_to", "companies")
+    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", (cid,))
+    count = cursor.fetchone()[0]
+    if count > 0:
+        cursor.close(); db.close()
+        flash(f"Cannot delete: {count} employee(s) are assigned to this company.", "error")
+        return redirect(dest)
+    cursor.execute("DELETE FROM companies WHERE id=%s", (cid,))
+    db.commit(); cursor.close(); db.close()
+    flash("Company deleted.", "success")
+    return redirect(dest)
 
 
 # ---------------- INCENTIVES ----------------
@@ -2800,12 +2964,15 @@ def view_employees():
     pending_resignations = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT id, name FROM companies ORDER BY name")
+    companies = cursor.fetchall()
     cursor.close()
     db.close()
     return render_template("employees.html",
         employees=employees,
         shifts=shifts,
         departments=departments,
+        companies=companies,
         total=total,
         active_count=active_count,
         on_leave_count=on_leave_count,
@@ -2954,6 +3121,8 @@ def add_employee_page():
     work_lon_raw    = request.form.get("work_lon", "").strip()
     work_lat        = float(work_lat_raw) if work_lat_raw else None
     work_lon        = float(work_lon_raw) if work_lon_raw else None
+    company_id_raw  = request.form.get("company_id", "").strip()
+    company_id      = int(company_id_raw) if company_id_raw.isdigit() else None
 
     if not name or not emp_id:
         flash("Name and Employee ID are required.", "error")
@@ -3005,10 +3174,10 @@ def add_employee_page():
     try:
         cursor.execute(
             "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-            "date_of_joining, work_mode, work_lat, work_lon) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "date_of_joining, work_mode, work_lat, work_lon, company_id) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
-             date_of_joining, work_mode, work_lat, work_lon)
+             date_of_joining, work_mode, work_lat, work_lon, company_id)
         )
         db.commit()
         assign_leave_balances_for_employee(cursor, emp_id)
@@ -3486,19 +3655,31 @@ def delete_holiday(hid):
 def generate_emp_id():
     if not session.get("admin_logged_in"):
         return jsonify({"error": "not logged in"}), 401
-    work_mode = request.args.get("work_mode", "office").strip().lower()
+    company_id_raw = request.args.get("company_id", "").strip()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
-    row = cursor.fetchone()
-    code = (row[0] or "").strip().upper() if row else ""
-    prefix = code
-    cursor.execute("SELECT COUNT(*) FROM employees")
-    total = cursor.fetchone()[0]
+
+    if company_id_raw.isdigit():
+        company_id = int(company_id_raw)
+        cursor.execute("SELECT COALESCE(code,''), name FROM companies WHERE id=%s", (company_id,))
+        row = cursor.fetchone()
+        code         = (row[0] or "").strip().upper() if row else ""
+        company_name = row[1] if row else ""
+        # Count only employees in this company to keep IDs unique per company
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", (company_id,))
+        total = cursor.fetchone()[0]
+    else:
+        cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
+        row = cursor.fetchone()
+        code         = (row[0] or "").strip().upper() if row else ""
+        company_name = ""
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id IS NULL")
+        total = cursor.fetchone()[0]
+
     cursor.close(); db.close()
-    seq = total + 1
-    emp_id = f"{prefix}{seq:03d}"
-    return jsonify({"emp_id": emp_id, "code": code, "seq": seq})
+    seq    = total + 1
+    emp_id = f"{code}{seq:03d}" if code else f"EMP{seq:03d}"
+    return jsonify({"emp_id": emp_id, "code": code, "seq": seq, "company_name": company_name})
 
 
 # ---------------- BREAK CONFIG ----------------
@@ -7735,7 +7916,12 @@ def api_employee_portal():
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
 
-    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("""
+        SELECT e.name, e.email, COALESCE(c.name, '') AS company_name
+        FROM employees e
+        LEFT JOIN companies c ON e.company_id = c.id
+        WHERE e.employee_id=%s
+    """, (emp_id,))
     emp = cursor.fetchone()
 
     cursor.execute(
@@ -7781,6 +7967,7 @@ def api_employee_portal():
         "employee_id": emp_id,
         "name": emp[0] if emp else emp_id,
         "email": emp[1] if emp else None,
+        "company_name": emp[2] if emp else "",
         "today": today.strftime("%d %b %Y"),
         "today_attendance": {
             "login_time": _fmt_t(att[0]),
@@ -8333,9 +8520,11 @@ def api_employee_profile():
                e.phone, e.dob, e.gender, e.blood_group, e.address, e.city, e.state,
                e.pincode, e.about_me, e.emergency_contact_name, e.emergency_contact_phone,
                e.bank_name, e.bank_account, e.bank_ifsc, e.pan_number, e.aadhar_number,
-               COALESCE(s.salary_per_day, 0), COALESCE(e.joining_date, e.date_of_joining)
+               COALESCE(s.salary_per_day, 0), COALESCE(e.joining_date, e.date_of_joining),
+               COALESCE(c.name, '')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+        LEFT JOIN companies c ON e.company_id = c.id
         WHERE e.employee_id = %s
     """, (emp_id,))
     row = cursor.fetchone()
@@ -8357,6 +8546,7 @@ def api_employee_profile():
             "pan_number": row[19], "aadhar_number": row[20],
             "salary_per_day": float(row[21]),
             "join_date": str(row[22]) if row[22] else None,
+            "company_name": row[23],
             "photo_url": f"/dataset/{row[0]}.jpg",
         },
     })

@@ -21,6 +21,7 @@ export default function EmployeeHeroCard({
   onLogout,
   photoUrl,
   onScanQR,
+  companyName,
 }) {
   const [photoError, setPhotoError] = useState(false);
 
@@ -109,6 +110,13 @@ export default function EmployeeHeroCard({
           <Text style={styles.designation}>
             {designation || "Software Engineer"}
           </Text>
+
+          {!!companyName && (
+            <View style={styles.companyBadge}>
+              <Ionicons name="business-outline" size={11} color="#1d4ed8" />
+              <Text style={styles.companyText}>{companyName}</Text>
+            </View>
+          )}
 
         </View>
 
@@ -348,6 +356,24 @@ const styles = StyleSheet.create({
     marginTop:4,
     color:"#64748B",
     fontSize:15,
+  },
+
+  companyBadge:{
+    flexDirection:"row",
+    alignItems:"center",
+    marginTop:6,
+    backgroundColor:"#eff6ff",
+    alignSelf:"flex-start",
+    paddingHorizontal:8,
+    paddingVertical:3,
+    borderRadius:10,
+    gap:4,
+  },
+
+  companyText:{
+    color:"#1d4ed8",
+    fontSize:11,
+    fontWeight:"700",
   },
 
   divider:{

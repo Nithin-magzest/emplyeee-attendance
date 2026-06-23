@@ -223,6 +223,7 @@
       </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item active" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+      <a class="nav-item" href="/companies"><span class="nav-icon"><i class="ti ti-building"></i></span>Companies</a>
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
@@ -511,9 +512,18 @@
               <input type="text" name="name" required placeholder="Ravi Kumar" />
             </div>
             <div class="field-group">
+              <label>Company <span style="color:#dc2626;">*</span></label>
+              <select name="company_id" id="addCompanyId" onchange="generateEmpId()" required>
+                <option value="">— Select Company —</option>
+                {% for cid, cname in companies %}
+                  <option value="{{ cid }}">{{ cname }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field-group">
               <label>Employee ID *</label>
               <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" name="emp_id" id="addEmpId" required placeholder="Auto-generated on work mode select"
+                <input type="text" name="emp_id" id="addEmpId" required placeholder="Select company to auto-generate"
                        style="flex:1;font-weight:700;letter-spacing:1px;" />
                 <button type="button" onclick="generateEmpId()" title="Re-generate ID"
                   style="padding:9px 12px;border:1px solid #dbeafe;border-radius:9px;background:#eff6ff;color:#1e3a8a;cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600;">
@@ -1133,12 +1143,20 @@
       }
 
       async function generateEmpId() {
-        var hint = document.getElementById('empIdHint');
-        var inp  = document.getElementById('addEmpId');
+        var hint      = document.getElementById('empIdHint');
+        var inp       = document.getElementById('addEmpId');
+        var compSel   = document.getElementById('addCompanyId');
         if (!inp) return;
+        var companyId = compSel ? compSel.value : '';
+        if (!companyId) {
+          inp.value = '';
+          inp.placeholder = 'Select company first';
+          if (hint) { hint.textContent = 'Select a company to auto-generate the Employee ID.'; hint.style.color = '#dc2626'; }
+          return;
+        }
         inp.placeholder = 'Generating…';
         try {
-          var res  = await fetch('/api/generate_emp_id');
+          var res  = await fetch('/api/generate_emp_id?company_id=' + encodeURIComponent(companyId));
           if (!res.ok) { throw new Error('HTTP ' + res.status); }
           var data = await res.json();
           if (data.error) { throw new Error(data.error); }
@@ -1146,10 +1164,10 @@
           inp.placeholder = '';
           if (hint) {
             if (!data.code) {
-              hint.innerHTML = '⚠ Set company code in <a href="/settings" target="_blank" style="color:#1e3a8a;">Settings</a> first, then click 🔄 Generate.';
+              hint.innerHTML = '⚠ No code set for this company. Go to <a href="/companies" target="_blank" style="color:#1e3a8a;">Companies</a> and add a short code, then click 🔄 Generate.';
               hint.style.color = '#dc2626';
             } else {
-              hint.textContent = '✓ ' + data.emp_id + ' (next after ' + (data.seq - 1) + ' existing employees)';
+              hint.textContent = '✓ ' + data.emp_id + ' — ' + data.company_name + ' employee #' + data.seq;
               hint.style.color = '#16a34a';
             }
           }
