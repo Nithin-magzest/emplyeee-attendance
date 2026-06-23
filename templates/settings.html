@@ -98,6 +98,14 @@
     .btn-cancel-sm { padding: 5px 12px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f1f5f9; color: #64748b; font-size: 12px; cursor: pointer; }
     .btn-test   { padding: 9px 18px; border: none; border-radius: 8px; background: #6366f1; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
 
+    /* ── DARK MODE TOGGLE SWITCH ── */
+    .dm-switch{position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0}
+    .dm-switch input{opacity:0;width:0;height:0}
+    .dm-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:28px;transition:0.3s}
+    .dm-slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+    .dm-switch input:checked + .dm-slider{background:#6366f1}
+    .dm-switch input:checked + .dm-slider:before{transform:translateX(24px)}
+
     /* ── TABLE ── */
     .table-wrap { overflow-x: auto; border-radius: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -226,6 +234,7 @@
       <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+  <a class="nav-item" href="/companies"><span class="nav-icon"><i class="ti ti-building"></i></span>Companies</a>
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
@@ -239,7 +248,6 @@
       <a class="nav-item active" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
-      <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
       <div class="sidebar-footer">⚙️ Admin Settings</div>
   </div>
 
@@ -265,6 +273,7 @@
       <button class="tab-btn {% if tab=='email' %}active{% endif %}" onclick="showTab('email')">✉️ Email</button>
       <button class="tab-btn {% if tab=='salary' %}active{% endif %}" onclick="showTab('salary')">💵 Salary</button>
       <button class="tab-btn {% if tab=='incentives' %}active{% endif %}" onclick="showTab('incentives')">🏆 Incentives</button>
+      <button class="tab-btn {% if tab=='appearance' %}active{% endif %}" onclick="showTab('appearance')">🎨 Appearance</button>
     </div>
 
     <!-- ══════════════════════════════════════
@@ -746,6 +755,25 @@
 
     </div><!-- /tab-incentives -->
 
+    <!-- ══════════════════════════════════════
+         TAB: APPEARANCE
+    ══════════════════════════════════════ -->
+    <div id="tab-appearance" class="tab-panel {% if tab=='appearance' %}active{% endif %}">
+      <div class="section" style="max-width:500px;">
+        <div class="section-title">🎨 Appearance</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid #f1f5f9;">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e293b;">Dark Mode</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px;">Switch between light and dark theme</div>
+          </div>
+          <label class="dm-switch" title="Toggle dark mode">
+            <input type="checkbox" id="dmToggleChk" onchange="toggleDarkMode(this.checked)">
+            <span class="dm-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div><!-- /tab-appearance -->
+
   </div><!-- /main -->
 
   <!-- ══ SHIFT EDIT MODAL ══ -->
@@ -1059,6 +1087,19 @@
     });
     document.getElementById('settingsEditModal').addEventListener('click', function(e) {
       if (e.target === this) closeSettingsEditCompany();
+    });
+
+    /* ── DARK MODE TOGGLE (settings page) ── */
+    function toggleDarkMode(on) {
+      document.body.classList.toggle('dark-mode', on);
+      localStorage.setItem('dm', on ? '1' : '0');
+    }
+    // Sync checkbox state on load
+    document.addEventListener('DOMContentLoaded', function() {
+      var saved = localStorage.getItem('dm');
+      var isDark = saved === '1' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var chk = document.getElementById('dmToggleChk');
+      if (chk) chk.checked = isDark;
     });
   </script>
 
