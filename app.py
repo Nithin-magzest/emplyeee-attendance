@@ -124,7 +124,7 @@ else:
         _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
-app.config["PERMANENT_SESSION_LIFETIME"] = 1800
+app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -155,6 +155,11 @@ def _enforce_csrf():
                  or request.headers.get("X-CSRF-Token")
                  or request.headers.get("X-CSRFToken"))
     if not token or not submitted or not secrets.compare_digest(str(token), str(submitted)):
+        # Browser form submissions: redirect to login so the user gets a fresh session+token
+        if request.accept_mimetypes.accept_html and not request.headers.get("X-Requested-With"):
+            flash("Your session expired. Please log in again.", "warning")
+            login_url = url_for("employee_login") if request.path.startswith("/employee") or "employee" in request.path else url_for("admin_login")
+            return redirect(login_url)
         return jsonify({"ok": False, "msg": "Session expired. Please refresh and try again."}), 403
 
 
