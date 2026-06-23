@@ -5091,12 +5091,10 @@ def my_id_card():
                      download_name=f"IDCard_{emp_id}.png", mimetype="image/png")
 
 
-@app.route("/admin_id_card/<emp_id>")
-@admin_required
-def admin_id_card(emp_id):
+def _build_id_card_buf(emp_id):
+    """Generate the front+back ID card PNG and return a BytesIO buffer, or None if not found."""
     from PIL import Image, ImageDraw, ImageFont
     import io as _io2
-    from flask import send_file
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -5118,7 +5116,7 @@ def admin_id_card(emp_id):
     cursor.close(); db.close()
 
     if not row:
-        return "Employee not found", 404
+        return None
 
     DARK  = (15,  40, 100)
     BLUE  = (30,  58, 138)
@@ -5285,9 +5283,29 @@ def admin_id_card(emp_id):
     buf = _io2.BytesIO()
     total.save(buf, format="PNG", dpi=(200, 200))
     buf.seek(0)
-    view_mode = request.args.get("view") == "1"
-    return send_file(buf,
-                     as_attachment=not view_mode,
+    return buf
+
+
+@app.route("/admin_id_card/<emp_id>")
+@admin_required
+def admin_id_card(emp_id):
+    from flask import send_file
+    buf = _build_id_card_buf(emp_id)
+    if buf is None:
+        return "Employee not found", 404
+    return send_file(buf, as_attachment=True,
+                     download_name=f"IDCard_{emp_id}.png",
+                     mimetype="image/png")
+
+
+@app.route("/admin_view_id_card/<emp_id>")
+@admin_required
+def admin_view_id_card(emp_id):
+    from flask import send_file
+    buf = _build_id_card_buf(emp_id)
+    if buf is None:
+        return "Employee not found", 404
+    return send_file(buf, as_attachment=False,
                      download_name=f"IDCard_{emp_id}.png",
                      mimetype="image/png")
 

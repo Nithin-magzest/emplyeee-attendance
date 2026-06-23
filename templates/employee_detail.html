@@ -266,10 +266,10 @@
       <a class="btn-act btn-edit" href="/employees">
         <i class="ti ti-arrow-left"></i> Back to List
       </a>
-      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}?view=1" target="_blank">
+      <a class="btn-act btn-edit" href="/admin_view_id_card/{{ emp_id }}" target="_blank">
         <i class="ti ti-id-badge"></i> View ID Card
       </a>
-      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}" download="IDCard_{{ emp_id }}.png">
+      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}">
         <i class="ti ti-download"></i> Download ID Card
       </a>
       <form action="/delete_employee/{{ emp_id }}" method="POST"
