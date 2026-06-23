@@ -181,21 +181,7 @@ export default function EmployeeDashboard({ navigation }) {
           />
         }
       >
-        <EmployeeHeroCard
-<<<<<<< HEAD
-          employeeName={data?.name}
-          designation={data?.role || data?.designation}
-          employeeId={data?.employee_id}
-          date={data?.today}
-          attendance={attendance}
-          checking={checking}
-          onCheckIn={handleCheckIn}
-          onLogout={handleLogout}
-          photoUrl={photoUrl}
-          onScanQR={() => setShowScanner(true)}
-          companyName={data?.company_name}
-        />
-=======
+       <EmployeeHeroCard
   employeeName={data?.name}
   designation={data?.role || data?.designation}
   employeeId={data?.employee_id}
@@ -207,10 +193,9 @@ export default function EmployeeDashboard({ navigation }) {
   photoUrl={photoUrl}
   onScanQR={() => setShowScanner(true)}
   onMenu={() => navigation.dispatch(DrawerActions.openDrawer())}
+  companyName={data?.company_name}
 />
->>>>>>> 09e234b7 (Add employee drawer navigation and redesign mobile UI)
-
-        <EmployeeAttendanceCard attendance={attendance} />
+  <EmployeeAttendanceCard attendance={attendance} />
 
         <EmployeeSummaryCards
           hours={data?.today_hours || "08h 20m"}
