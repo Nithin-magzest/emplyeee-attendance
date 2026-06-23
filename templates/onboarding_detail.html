@@ -84,14 +84,13 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
-  <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; Tickets</a>
-  <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
   <hr class="nav-sep" style="margin-top:12px;" />
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item active" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
+  <a class="nav-item active" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-  <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
   <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -163,20 +162,27 @@
   <div class="section">
     <div class="section-title"><i class="ti ti-list-check" style="color:#1e3a8a;"></i> Tasks</div>
     {% for t in tasks %}
-    <div class="task-item">
-      <div class="task-check {% if t[5]=='Done' %}check-done{% else %}check-pending{% endif %}">
-        <i class="ti ti-{% if t[5]=='Done' %}check{% else %}clock{% endif %}"></i>
+    {% set task_due = ob[6] + timedelta(days=t[4]) if ob[6] and t[4] else None %}
+    {% set is_overdue = task_due and task_due < today and t[5] != 'Done' %}
+    <div class="task-item" style="{% if is_overdue %}background:#fff5f5;border-radius:10px;padding:16px;margin:0 -8px;{% endif %}">
+      <div class="task-check {% if t[5]=='Done' %}check-done{% elif is_overdue %}{% else %}check-pending{% endif %}"
+           style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% endif %}">
+        <i class="ti ti-{% if t[5]=='Done' %}check{% elif is_overdue %}alert-circle{% else %}clock{% endif %}"></i>
       </div>
       <div class="task-body">
-        <div class="task-title">{{ t[1] }}</div>
+        <div class="task-title" style="{% if t[5]=='Done' %}color:#94a3b8;text-decoration:line-through;{% elif is_overdue %}color:#dc2626;{% endif %}">
+          {{ t[1] }}{% if is_overdue %} <span style="font-size:11px;background:#fee2e2;color:#dc2626;padding:2px 7px;border-radius:6px;font-weight:700;margin-left:6px;">OVERDUE</span>{% endif %}
+        </div>
         {% if t[2] %}<div class="task-desc">{{ t[2] }}</div>{% endif %}
         <div class="task-meta">
           <span class="task-tag {% if t[5]=='Done' %}done{% endif %}">{{ t[5] }}</span>
+          {% if task_due %}<span class="task-tag" style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% endif %}"><i class="ti ti-calendar" style="font-size:10px;"></i> Due {{ task_due.strftime('%d %b %Y') }}</span>{% endif %}
           {% if t[3] %}<span class="task-tag doc"><i class="ti ti-paperclip" style="font-size:10px;"></i> Doc required</span>{% endif %}
           {% if t[6] %}<span class="task-tag done"><i class="ti ti-calendar-check" style="font-size:10px;"></i> Done {{ t[6].strftime('%d %b') }}</span>{% endif %}
           {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="task-tag" style="color:#1e3a8a;background:#dbeafe;text-decoration:none;"><i class="ti ti-paperclip" style="font-size:10px;"></i> View Doc</a>{% endif %}
         </div>
-        {% if t[8] %}<div style="font-size:12px;color:#64748b;margin-top:6px;background:#f8fafc;padding:6px 10px;border-radius:6px;border-left:3px solid #93c5fd;">Note: {{ t[8] }}</div>{% endif %}
+        {% if t[8] %}<div style="font-size:12px;color:#64748b;margin-top:6px;background:#f8fafc;padding:6px 10px;border-radius:6px;border-left:3px solid #93c5fd;"><strong>Admin note:</strong> {{ t[8] }}</div>{% endif %}
+        {% if t[9] %}<div style="font-size:12px;color:#374151;margin-top:6px;background:#f0fdf4;padding:6px 10px;border-radius:6px;border-left:3px solid #86efac;"><strong>Employee note:</strong> {{ t[9] }}</div>{% endif %}
       </div>
       <div style="flex-shrink:0;">
         <button class="btn btn-gray btn-sm" onclick="openUpdateModal({{ t[0] }}, '{{ t[5] }}', '{{ (t[8] or '')|replace("'","\\'") }}')">

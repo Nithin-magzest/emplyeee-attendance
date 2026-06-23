@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Org Chart</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#f0f4ff;min-height:100vh;display:flex}
+
+    /* SIDEBAR */
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:white;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff}.brand-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,0.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:0.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:white;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .dm-toggle{padding:8px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:12px}
+
+    /* MAIN */
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden;height:100vh}
+
+    /* TOPBAR */
+    .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:18px 24px 14px;flex-shrink:0}
+    .topbar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .topbar-top h1{font-size:22px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
+    .topbar-top .sub{font-size:12px;color:#94a3b8;margin-top:2px}
+    .topbar-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .search-box{padding:8px 14px 8px 36px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;color:#374151;outline:none;width:220px;background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;transition:0.2s}
+    .search-box:focus{border-color:#6366f1;background-color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+    .dept-select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;color:#374151;outline:none;background:#f8fafc;transition:0.2s}
+    .dept-select:focus{border-color:#6366f1}
+    .btn{padding:8px 14px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:0.15s;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:linear-gradient(135deg,#1e3a8a,#6366f1);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,0.3)}
+    .btn-ghost{background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+    .stat-chip{background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1px solid #c7d2fe;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:#4f46e5;display:flex;align-items:center;gap:5px}
+
+    /* CANVAS */
+    #viewport{flex:1;overflow:auto;position:relative;cursor:grab;user-select:none}
+    #viewport:active{cursor:grabbing}
+    #scene{position:relative;display:inline-block;padding:60px}
+    #svgLayer{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+    #nodesLayer{position:absolute;top:0;left:0}
+
+    /* NODE CARD */
+    .node{position:absolute;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s}
+    .node-card{background:#fff;border-radius:18px;padding:18px 16px 14px;text-align:center;width:160px;border:2px solid #e2e8f0;box-shadow:0 4px 16px rgba(0,0,0,0.06);transition:0.2s;position:relative}
+    .node:hover .node-card{border-color:#6366f1;box-shadow:0 8px 28px rgba(99,102,241,0.2);transform:translateY(-3px)}
+    .node.root-node .node-card{border-color:#6366f1;background:linear-gradient(160deg,#f0f4ff 0%,#faf5ff 100%);box-shadow:0 6px 24px rgba(99,102,241,0.18)}
+    .node.highlighted .node-card{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.25),0 8px 24px rgba(245,158,11,0.15)}
+    .node.dimmed{opacity:0.25}
+
+    /* AVATAR */
+    .avatar-wrap{width:56px;height:56px;border-radius:50%;margin:0 auto 10px;position:relative}
+    .avatar-img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid #e0e7ff}
+    .avatar-placeholder{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;border:3px solid rgba(255,255,255,0.5)}
+    .avatar-ring{position:absolute;inset:-3px;border-radius:50%;border:2px solid transparent}
+    .node.root-node .avatar-img,.node.root-node .avatar-placeholder{border-color:#a5b4fc}
+
+    /* NAME / ROLE */
+    .node-name{font-size:13px;font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px;margin:0 auto}
+    .node-role{font-size:11px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px;margin:2px auto 0}
+    .node-dept{display:inline-flex;align-items:center;margin-top:7px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;color:#1e40af;max-width:128px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .node-id{font-size:10px;color:#94a3b8;margin-top:4px;font-weight:500}
+
+    /* REPORTS BADGE */
+    .reports-badge{position:absolute;top:-8px;right:-8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:800;box-shadow:0 2px 6px rgba(99,102,241,0.4);border:2px solid #fff}
+
+    /* SVG LINES */
+    .conn-line{stroke:#c7d2fe;stroke-width:2;fill:none;stroke-dasharray:none}
+    .conn-line.root-line{stroke:#a5b4fc;stroke-width:2.5}
+
+
+    /* LOADING */
+    .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#94a3b8}
+    .spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* EMPTY */
+    .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8}
+    .empty i{font-size:56px;color:#ddd}
+
+    /* LEGEND */
+    .legend{position:fixed;bottom:24px;left:260px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:flex;gap:14px;align-items:center;font-size:11px;font-weight:600;color:#64748b}
+    .legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep" style="margin-top:12px;" />
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+  <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-top">
+      <div>
+        <h1><i class="ti ti-hierarchy" style="color:#6366f1;"></i> Organisation Chart</h1>
+        <div class="sub">Visual hierarchy of your company structure</div>
+      </div>
+      <div class="stat-chip" id="statChip"><i class="ti ti-users" style="font-size:12px;"></i> —</div>
+    </div>
+    <div class="topbar-controls">
+      <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" oninput="doSearch(this.value)">
+      <select class="dept-select" id="deptFilter" onchange="loadChart()">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+        <option value="{{ d }}">{{ d }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-ghost" onclick="fitToScreen()"><i class="ti ti-maximize"></i> Fit to screen</button>
+      <button class="btn btn-ghost" onclick="zoom(0.15)"><i class="ti ti-zoom-in"></i></button>
+      <button class="btn btn-ghost" onclick="zoom(-0.15)"><i class="ti ti-zoom-out"></i></button>
+    </div>
+  </div>
+
+  <!-- VIEWPORT -->
+  <div id="viewport">
+    <div id="scene">
+      <svg id="svgLayer"></svg>
+      <div id="nodesLayer"></div>
+    </div>
+    <div class="loading" id="loadingEl">
+      <div class="spinner"></div>
+      <span style="font-size:14px;font-weight:600;">Building org chart…</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <span><span class="legend-dot" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);"></span>Root / Head</span>
+  <span><span class="legend-dot" style="background:#3b82f6;"></span>Manager</span>
+  <span><span class="legend-dot" style="background:#64748b;"></span>Employee</span>
+  <span style="color:#94a3b8;margin-left:4px;">Click card → Profile &nbsp;|&nbsp; Drag to pan</span>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────
+const NODE_W     = 160;
+const NODE_H     = 155;
+const H_GAP      = 40;   // horizontal gap between siblings
+const V_GAP      = 80;   // vertical gap between levels
+const COLORS     = ['#6366f1','#3b82f6','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
+
+// ─── STATE ────────────────────────────────────────────
+let scale       = 1;
+let treeData    = [];
+let allNodes    = [];   // flat list of positioned nodes
+let colorMap    = {};   // dept → color
+
+// ─── DRAG-TO-PAN ──────────────────────────────────────
+const vp = document.getElementById('viewport');
+let isPanning = false, startX, startY, scrollLeft, scrollTop;
+vp.addEventListener('mousedown', e => {
+  if (e.target.closest('.node')) return;
+  isPanning = true;
+  startX = e.pageX - vp.offsetLeft;
+  startY = e.pageY - vp.offsetTop;
+  scrollLeft = vp.scrollLeft;
+  scrollTop  = vp.scrollTop;
+});
+vp.addEventListener('mouseleave', () => isPanning = false);
+vp.addEventListener('mouseup',   () => isPanning = false);
+vp.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  e.preventDefault();
+  const x = e.pageX - vp.offsetLeft;
+  const y = e.pageY - vp.offsetTop;
+  vp.scrollLeft = scrollLeft - (x - startX);
+  vp.scrollTop  = scrollTop  - (y - startY);
+});
+vp.addEventListener('wheel', e => {
+  if (e.ctrlKey) { e.preventDefault(); zoom(e.deltaY < 0 ? 0.1 : -0.1); }
+}, { passive: false });
+
+// ─── ZOOM ─────────────────────────────────────────────
+function zoom(delta) {
+  scale = Math.max(0.25, Math.min(2, scale + delta));
+  document.getElementById('scene').style.transform = `scale(${scale})`;
+  document.getElementById('scene').style.transformOrigin = 'top left';
+}
+function fitToScreen() {
+  const scene = document.getElementById('scene');
+  const vp    = document.getElementById('viewport');
+  const sw    = scene.offsetWidth;
+  const sh    = scene.offsetHeight;
+  const vw    = vp.clientWidth;
+  const vh    = vp.clientHeight;
+  scale = Math.min(0.95, vw / sw, vh / sh);
+  scene.style.transform = `scale(${scale})`;
+  scene.style.transformOrigin = 'top left';
+  vp.scrollTop = 0; vp.scrollLeft = 0;
+}
+
+// ─── LAYOUT ───────────────────────────────────────────
+function subtreeWidth(node) {
+  if (!node.children || node.children.length === 0) return NODE_W + H_GAP;
+  return Math.max(NODE_W + H_GAP, node.children.reduce((s, c) => s + subtreeWidth(c), 0));
+}
+
+function assignPositions(node, x, y, isRoot) {
+  const sw = subtreeWidth(node);
+  node._x = x + sw / 2 - NODE_W / 2;
+  node._y = y;
+  node._isRoot = isRoot;
+  allNodes.push(node);
+  if (node.children && node.children.length > 0) {
+    let cx = x;
+    node.children.forEach(child => {
+      const csw = subtreeWidth(child);
+      assignPositions(child, cx, y + NODE_H + V_GAP, false);
+      cx += csw;
+    });
+  }
+}
+
+// ─── AVATAR COLOR ─────────────────────────────────────
+function getColor(dept, idx) {
+  if (!colorMap[dept]) colorMap[dept] = COLORS[Object.keys(colorMap).length % COLORS.length];
+  return colorMap[dept];
+}
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// ─── RENDER ───────────────────────────────────────────
+function render() {
+  const nodesLayer = document.getElementById('nodesLayer');
+  const svgLayer   = document.getElementById('svgLayer');
+  const scene      = document.getElementById('scene');
+  nodesLayer.innerHTML = '';
+  svgLayer.innerHTML   = '';
+
+  // Calculate total canvas size
+  let maxX = 0, maxY = 0;
+  allNodes.forEach(n => {
+    maxX = Math.max(maxX, n._x + NODE_W + 60);
+    maxY = Math.max(maxY, n._y + NODE_H + 60);
+  });
+  scene.style.width  = maxX + 'px';
+  scene.style.height = maxY + 'px';
+  svgLayer.setAttribute('width',  maxX);
+  svgLayer.setAttribute('height', maxY);
+
+  // Draw connector lines first
+  allNodes.forEach(n => {
+    if (!n.children) return;
+    n.children.forEach(child => {
+      const x1 = n._x + NODE_W / 2;
+      const y1 = n._y + NODE_H - 4;
+      const x2 = child._x + NODE_W / 2;
+      const y2 = child._y + 4;
+      const cy = (y1 + y2) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`);
+      path.setAttribute('class', 'conn-line' + (n._isRoot ? ' root-line' : ''));
+      svgLayer.appendChild(path);
+    });
+  });
+
+  // Draw nodes
+  allNodes.forEach((n, idx) => {
+    const color = getColor(n.department, idx);
+    const div = document.createElement('div');
+    div.className = 'node' + (n._isRoot ? ' root-node' : '');
+    div.dataset.searchKey = `${n.name} ${n.role} ${n.department}`.toLowerCase();
+    div.dataset.id = n.id;
+    div.style.left = n._x + 'px';
+    div.style.top  = n._y + 'px';
+    div.onclick = () => window.open(`/employee_detail/${n.id}`, '_blank');
+    div.title = `${n.name} — Click to view profile`;
+
+    const childCount = n.children ? n.children.length : 0;
+
+    div.innerHTML = `
+      <div class="node-card">
+        ${childCount > 0 ? `<div class="reports-badge">${childCount}</div>` : ''}
+        <div class="avatar-wrap">
+          ${n.has_photo
+            ? `<img class="avatar-img" src="/dataset/${n.id}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="avatar-placeholder" style="background:${color};display:none;">${initials(n.name)}</div>`
+            : `<div class="avatar-placeholder" style="background:${color};">${initials(n.name)}</div>`
+          }
+        </div>
+        <div class="node-name" title="${n.name}">${n.name}</div>
+        <div class="node-role" title="${n.role}">${n.role}</div>
+        ${n.department ? `<div class="node-dept">${n.department}</div>` : ''}
+        <div class="node-id">${n.id}</div>
+      </div>`;
+
+    nodesLayer.appendChild(div);
+  });
+}
+
+// ─── LOAD ─────────────────────────────────────────────
+async function loadChart() {
+  const loading = document.getElementById('loadingEl');
+  loading.style.display = 'flex';
+  document.getElementById('nodesLayer').innerHTML = '';
+  document.getElementById('svgLayer').innerHTML   = '';
+
+  const dept = document.getElementById('deptFilter').value;
+  try {
+    const res  = await fetch(`/api/org_chart_data?dept=${encodeURIComponent(dept)}`);
+    const data = await res.json();
+    treeData  = data.tree;
+    allNodes  = [];
+    colorMap  = {};
+
+    document.getElementById('statChip').innerHTML = `<i class="ti ti-users" style="font-size:12px;"></i> ${data.total} employee${data.total !== 1 ? 's' : ''}`;
+
+    if (!treeData.length) {
+      loading.innerHTML = `<div class="empty"><i class="ti ti-hierarchy"></i><p style="font-size:15px;font-weight:700;color:#475569;">No employees found</p><p style="font-size:12px;">Assign managers to employees to build the hierarchy.</p></div>`;
+      return;
+    }
+
+    // Lay out all root trees side by side with spacing
+    let offsetX = 60;
+    treeData.forEach((root, i) => {
+      const sw = subtreeWidth(root);
+      assignPositions(root, offsetX, 60, true);
+      offsetX += sw + 80;
+    });
+
+    render();
+    loading.style.display = 'none';
+
+    // Auto-fit after render
+    setTimeout(fitToScreen, 100);
+  } catch (e) {
+    loading.innerHTML = `<div class="empty"><i class="ti ti-alert-circle" style="color:#ef4444;"></i><p>Failed to load chart.</p></div>`;
+  }
+}
+
+// ─── SEARCH ───────────────────────────────────────────
+function doSearch(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.node').forEach(n => {
+    if (!q) {
+      n.classList.remove('highlighted', 'dimmed');
+    } else {
+      const match = n.dataset.searchKey.includes(q);
+      n.classList.toggle('highlighted', match);
+      n.classList.toggle('dimmed', !match);
+    }
+  });
+}
+
+loadChart();
+</script>
+<script src="/static/darkmode.js"></script>
+</body>
+</html>

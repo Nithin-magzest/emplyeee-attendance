@@ -240,12 +240,12 @@
         {% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
         {% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}
       </a>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
       <hr class="nav-sep" style="margin-top:12px;" />
       <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -350,12 +350,28 @@
       <!-- hidden dept value for JS -->
       <input type="hidden" id="filterDept" value="">
 
+      <!-- BULK ASSIGN TOOLBAR -->
+      <div id="bulkToolbar" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span id="bulkCount" style="font-size:13px;font-weight:700;color:#1e3a8a;">0 selected</span>
+        <select id="bulkTemplateSelect" style="padding:7px 10px;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;min-width:200px;">
+          <option value="">— Select Onboarding Template —</option>
+          {% for tpl in onboarding_templates %}
+          <option value="{{ tpl[0] }}">{{ tpl[1] }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" onclick="bulkAssignOnboarding()" style="background:#1e3a8a;color:#fff;padding:7px 14px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+          <i class="ti ti-checklist"></i> Assign Onboarding
+        </button>
+        <button type="button" onclick="clearSelection()" style="background:#f1f5f9;color:#64748b;padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;">Clear</button>
+      </div>
+
       <!-- TABLE -->
       <div class="section">
         <div class="table-wrap">
           <table id="empTable">
             <thead>
               <tr>
+                <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
                 <th>#</th>
                 <th>Photo</th>
                 <th>Employee ID</th>
@@ -381,6 +397,7 @@
                 data-status="{{ emp_status }}"
                 data-gender="{{ gender or '' }}"
               >
+                <td><input type="checkbox" class="emp-check" value="{{ emp_id }}" onchange="updateBulkToolbar()"></td>
                 <td class="muted">{{ loop.index }}</td>
                 <td>
                   {% if face_image %}
@@ -446,7 +463,7 @@
                 </td>
               </tr>
               {% else %}
-              <tr><td colspan="12" class="empty-cell">No employees yet. Click <strong>Add Employee</strong> to get started.</td></tr>
+              <tr><td colspan="13" class="empty-cell">No employees yet. Click <strong>Add Employee</strong> to get started.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -592,7 +609,14 @@
             </div>
             <div class="field-group">
               <label>Reporting Manager</label>
-              <input type="text" name="manager_name" placeholder="Srilatha" />
+              <select name="manager_id" onchange="syncManagerName(this, 'add')">
+                <option value="">— No Manager —</option>
+                {% for e in employees %}
+                {% set eid, ename = e[0], e[1] %}
+                <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
+                {% endfor %}
+              </select>
+              <input type="hidden" name="manager_name" id="add_manager_name" />
             </div>
 
             <div class="sec-title">Work Mode</div>
@@ -734,7 +758,14 @@
               </div>
               <div class="field-group">
                 <label>Reporting Manager</label>
-                <input name="manager_name" id="edit_manager_name" type="text" />
+                <select name="manager_id" id="edit_manager_id" onchange="syncManagerName(this, 'edit')">
+                  <option value="">— No Manager —</option>
+                  {% for e in employees %}
+                  {% set eid, ename = e[0], e[1] %}
+                  <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="manager_name" id="edit_manager_name" />
               </div>
             </div>
           </div>
@@ -1235,6 +1266,7 @@
           document.getElementById('edit_doj').value           = d.doj          || '';
           document.getElementById('edit_shift_id').value      = d.shift_id     || '';
           document.getElementById('edit_manager_name').value  = d.manager_name || '';
+          document.getElementById('edit_manager_id').value    = d.manager_id   || '';
           document.getElementById('edit_address').value       = d.address      || '';
           document.getElementById('edit_city').value          = d.city         || '';
           document.getElementById('edit_state').value         = d.state        || '';
@@ -1288,5 +1320,43 @@
     </script>
 
   <script src="/static/darkmode.js"></script>
+  <script>
+  function syncManagerName(sel, mode) {
+    const text = sel.options[sel.selectedIndex]?.text?.split(' (')[0] || '';
+    if (mode === 'add') document.getElementById('add_manager_name').value = text;
+    else document.getElementById('edit_manager_name').value = text;
+  }
+  function updateBulkToolbar(){
+    const checked = document.querySelectorAll('.emp-check:checked');
+    const bar = document.getElementById('bulkToolbar');
+    if(checked.length > 0){
+      bar.style.display='flex';
+      document.getElementById('bulkCount').textContent = checked.length + ' selected';
+    } else {
+      bar.style.display='none';
+    }
+  }
+  function toggleSelectAll(cb){
+    document.querySelectorAll('.emp-check').forEach(c=>{ c.checked=cb.checked; });
+    updateBulkToolbar();
+  }
+  function clearSelection(){
+    document.querySelectorAll('.emp-check').forEach(c=>{ c.checked=false; });
+    document.getElementById('selectAll').checked=false;
+    document.getElementById('bulkToolbar').style.display='none';
+  }
+  function bulkAssignOnboarding(){
+    const tplId = document.getElementById('bulkTemplateSelect').value;
+    if(!tplId){ alert('Please select an onboarding template.'); return; }
+    const ids = Array.from(document.querySelectorAll('.emp-check:checked')).map(c=>c.value);
+    if(!ids.length){ alert('Please select at least one employee.'); return; }
+    if(!confirm(`Assign this onboarding template to ${ids.length} employee(s)?`)) return;
+    const form = document.createElement('form');
+    form.method='POST'; form.action='/bulk_assign_onboarding';
+    const t=document.createElement('input'); t.type='hidden'; t.name='template_id'; t.value=tplId; form.appendChild(t);
+    ids.forEach(id=>{ const i=document.createElement('input'); i.type='hidden'; i.name='employee_ids'; i.value=id; form.appendChild(i); });
+    document.body.appendChild(form); form.submit();
+  }
+  </script>
 </body>
 </html>

@@ -288,17 +288,42 @@
     </div>
   </div>
 
+  <!-- Task stats mini-row -->
+  {% set overdue_tasks = tasks | selectattr(5, 'ne', 'Done') | list | selectattr(4, 'ne', None) | list %}
+  {% set pending_tasks = tasks | selectattr(5, 'ne', 'Done') | list %}
+  {% set done_tasks    = tasks | selectattr(5, 'equalto', 'Done') | list %}
+  <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <div style="flex:1;background:#fef9c3;border-radius:12px;padding:12px 14px;text-align:center;">
+      <div style="font-size:20px;font-weight:800;color:#854d0e;">{{ pending_tasks|length }}</div>
+      <div style="font-size:11px;color:#854d0e;font-weight:600;">Pending</div>
+    </div>
+    <div style="flex:1;background:#dcfce7;border-radius:12px;padding:12px 14px;text-align:center;">
+      <div style="font-size:20px;font-weight:800;color:#15803d;">{{ done_tasks|length }}</div>
+      <div style="font-size:11px;color:#15803d;font-weight:600;">Done</div>
+    </div>
+    <div style="flex:1;background:#dbeafe;border-radius:12px;padding:12px 14px;text-align:center;">
+      <div style="font-size:20px;font-weight:800;color:#1e3a8a;">{{ pct }}%</div>
+      <div style="font-size:11px;color:#1e3a8a;font-weight:600;">Complete</div>
+    </div>
+  </div>
+
   <!-- Task list -->
   <div class="card">
     <div class="card-title" style="margin-bottom:16px;"><i class="ti ti-list-check" style="color:#1e3a8a;"></i> Tasks</div>
     <ul class="task-list">
-      {% for t in tasks %}
-      <li class="task-item">
-        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %}">
-          <i class="ti ti-{% if t[5]=='Done' %}circle-check{% else %}circle-dashed{% endif %}"></i>
+      {% for t in tasks | sort(attribute=5) %}
+      {% set task_due = selected_ob[2] + timedelta(days=t[4]) if selected_ob[2] and t[4] else None %}
+      {% set is_overdue = task_due and task_due < today and t[5] != 'Done' %}
+      <li class="task-item" style="{% if is_overdue %}background:#fff5f5;border-radius:10px;padding:14px;margin:0 -6px 6px;border:1px solid #fecaca;{% endif %}">
+        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %}"
+             style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% endif %}">
+          <i class="ti ti-{% if t[5]=='Done' %}circle-check{% elif is_overdue %}alert-circle{% else %}circle-dashed{% endif %}"></i>
         </div>
-        <div class="task-body">
-          <div class="task-name" style="{% if t[5]=='Done' %}text-decoration:line-through;color:#94a3b8;{% endif %}">{{ t[1] }}</div>
+        <div class="task-body" style="flex:1;">
+          <div class="task-name" style="{% if t[5]=='Done' %}text-decoration:line-through;color:#94a3b8;{% elif is_overdue %}color:#dc2626;{% endif %}">
+            {{ t[1] }}
+            {% if is_overdue %}<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:5px;font-weight:700;margin-left:6px;">OVERDUE</span>{% endif %}
+          </div>
           {% if t[2] %}<div class="task-desc">{{ t[2] }}</div>{% endif %}
           <div class="task-meta">
             {% if t[5]=='Done' %}
@@ -306,6 +331,11 @@
               {% if t[6] %}<span class="tag tag-done">{{ t[6].strftime('%d %b %Y') }}</span>{% endif %}
             {% else %}
               <span class="tag tag-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>
+            {% endif %}
+            {% if task_due and t[5] != 'Done' %}
+              <span class="tag" style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% else %}background:#f1f5f9;color:#475569;{% endif %}">
+                <i class="ti ti-calendar" style="font-size:10px;"></i> Due {{ task_due.strftime('%d %b') }}
+              </span>
             {% endif %}
             {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip" style="font-size:10px;"></i> Doc required</span>{% endif %}
             {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="tag tag-doc" style="text-decoration:none;"><i class="ti ti-download" style="font-size:10px;"></i> View doc</a>{% endif %}
@@ -337,6 +367,10 @@
         <label>Upload Document *</label>
         <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
         <p style="font-size:11px;color:#64748b;margin-top:6px;">Accepted: PDF, JPG, PNG, DOC</p>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;color:#374151;">Your Note <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
+        <textarea name="employee_note" rows="2" maxlength="500" placeholder="Add a comment about how you completed this task…" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;margin-top:4px;box-sizing:border-box;"></textarea>
       </div>
       <p style="font-size:13px;color:#475569;margin-bottom:16px;">Confirm that you have completed this task.</p>
       <button type="submit" class="btn-submit"><i class="ti ti-circle-check"></i> Confirm — Mark as Done</button>

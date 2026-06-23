@@ -141,6 +141,24 @@ def _csrf_token():
     return session["_csrf"]
 
 app.jinja_env.globals["csrf_token"] = _csrf_token
+app.jinja_env.globals["timedelta"]  = datetime.timedelta
+
+@app.context_processor
+def inject_overdue_onboardings():
+    if not session.get("admin_logged_in"):
+        return {}
+    try:
+        db = get_db_connection(); cur = db.cursor()
+        today = datetime.date.today()
+        cur.execute("""
+            SELECT COUNT(*) FROM employee_onboarding
+            WHERE status != 'Completed' AND due_date < %s
+        """, (today,))
+        count = cur.fetchone()[0]
+        cur.close(); db.close()
+        return {"overdue_onboardings": count}
+    except Exception:
+        return {"overdue_onboardings": 0}
 
 @app.before_request
 def _enforce_csrf():
@@ -944,6 +962,7 @@ def init_db():
         "ALTER TABLE email_config ADD COLUMN from_email VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN about_me TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN manager_id VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN is_active TINYINT(1) DEFAULT 1",
         "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
@@ -965,6 +984,8 @@ def init_db():
         "ALTER TABLE leave_requests ADD COLUMN cancelled_at DATETIME DEFAULT NULL",
         "ALTER TABLE salary_config ADD COLUMN last_hike_quarter TINYINT DEFAULT NULL",
         "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN default_onboarding_template_id INT DEFAULT NULL",
+        "ALTER TABLE employee_onboarding_tasks ADD COLUMN employee_note VARCHAR(500) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1923,6 +1944,32 @@ def admin():
     cursor.execute("SELECT id, name, COALESCE(code,'') FROM companies ORDER BY name")
     companies_list = cursor.fetchall()
 
+    # Onboarding summary for dashboard widget
+    try:
+        cursor.execute("""
+            SELECT
+              SUM(CASE WHEN status != 'Completed' THEN 1 ELSE 0 END),
+              SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END),
+              SUM(CASE WHEN status != 'Completed' AND due_date < %s THEN 1 ELSE 0 END)
+            FROM employee_onboarding
+        """, (today,))
+        _ob = cursor.fetchone()
+        ob_active    = int(_ob[0] or 0)
+        ob_completed = int(_ob[1] or 0)
+        ob_overdue   = int(_ob[2] or 0)
+        cursor.execute("""
+            SELECT eo.id, e.name, ot.name, eo.due_date
+            FROM employee_onboarding eo
+            JOIN employees e ON eo.employee_id = e.employee_id
+            JOIN onboarding_templates ot ON eo.template_id = ot.id
+            WHERE eo.status != 'Completed' AND eo.due_date < %s
+            ORDER BY eo.due_date LIMIT 5
+        """, (today,))
+        ob_overdue_list = cursor.fetchall()
+    except Exception:
+        ob_active = ob_completed = ob_overdue = 0
+        ob_overdue_list = []
+
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
     break_rows = cursor.fetchall()
     breaks_display = []
@@ -1961,6 +2008,10 @@ def admin():
         now_year=today.year,
         breaks_display=breaks_display,
         companies_list=companies_list,
+        ob_active=ob_active,
+        ob_completed=ob_completed,
+        ob_overdue=ob_overdue,
+        ob_overdue_list=ob_overdue_list,
     )
 
 # ---------------- LIVE DASHBOARD API ----------------
@@ -2415,9 +2466,12 @@ def settings_page():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
     pending_tickets = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
+    cursor.execute("SELECT COALESCE(company_code,''), COALESCE(default_onboarding_template_id,0) FROM company_settings LIMIT 1")
     _cr = cursor.fetchone()
     company_code = _cr[0] if _cr else ""
+    default_onboarding_tpl = int(_cr[1]) if _cr and _cr[1] else 0
+    cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
+    onboarding_templates = cursor.fetchall()
 
     cursor.execute("""
         SELECT c.id, c.name, COALESCE(c.code,''), c.created_at,
@@ -2451,7 +2505,23 @@ def settings_page():
         default_end=SHIFT_END.strftime("%H:%M"),
         now_month=datetime.date.today().month,
         now_year=datetime.date.today().year,
+        default_onboarding_tpl=default_onboarding_tpl,
+        onboarding_templates=onboarding_templates,
     )
+
+# ---------------- SAVE DEFAULT ONBOARDING TEMPLATE ----------------
+@app.route("/save_default_onboarding_template", methods=["POST"])
+@admin_required
+def save_default_onboarding_template():
+    tpl_id = request.form.get("default_onboarding_template_id") or None
+    if tpl_id == "0" or tpl_id == "":
+        tpl_id = None
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET default_onboarding_template_id=%s", (tpl_id,))
+    db.commit(); cursor.close(); db.close()
+    flash("Default onboarding template saved.", "success")
+    return redirect("/onboarding?tab=templates")
+
 
 # ---------------- SAVE COMPANY CODE ----------------
 @app.route("/save_company_code", methods=["POST"])
@@ -2838,7 +2908,7 @@ def add_holiday():
         pass  # duplicate date — silently ignore
     cursor.close()
     db.close()
-    return redirect(f"/view_holidays?year={year}")
+    return redirect(f"/leave_holidays?tab=holidays&year={year}")
 
 @app.route("/delete_employee/<emp_id>", methods=["POST"])
 @admin_required
@@ -2984,6 +3054,7 @@ def edit_employee():
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
     department      = request.form.get("department",      "").strip() or None
     manager_name    = request.form.get("manager_name",    "").strip() or None
+    manager_id      = request.form.get("manager_id",      "").strip() or None
     phone           = request.form.get("phone",           "").strip() or None
     gender          = request.form.get("gender",          "").strip() or None
     dob             = request.form.get("dob",             "").strip() or None
@@ -3007,12 +3078,12 @@ def edit_employee():
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-        "department=%s, manager_name=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
+        "department=%s, manager_name=%s, manager_id=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
         "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
         "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
         "work_mode=%s, work_lat=%s, work_lon=%s "
         "WHERE employee_id=%s",
-        (name, email, role, date_of_joining, department, manager_name,
+        (name, email, role, date_of_joining, department, manager_name, manager_id,
          phone, gender, dob, blood_group, shift_id,
          address, city, state, pincode,
          ec_name, ec_phone, ec_rel,
@@ -3033,7 +3104,8 @@ def api_employee_info(emp_id):
         "work_mode, work_lat, work_lon, department, manager_name, face_image, qr_code, "
         "phone, gender, dob, blood_group, shift_id, "
         "address, city, state, pincode, "
-        "emergency_contact_name, emergency_contact_phone, emergency_contact_relation "
+        "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
+        "COALESCE(manager_id,'') "
         "FROM employees WHERE employee_id=%s", (emp_id,)
     )
     row = cursor.fetchone()
@@ -3043,7 +3115,7 @@ def api_employee_info(emp_id):
     (eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code,
      phone, gender, dob, blood_group, shift_id,
      address, city, state, pincode,
-     ec_name, ec_phone, ec_rel) = row
+     ec_name, ec_phone, ec_rel, mgr_id) = row
     return jsonify({
         "emp_id":          eid,
         "name":            name         or "",
@@ -3055,6 +3127,7 @@ def api_employee_info(emp_id):
         "work_lon":        str(wlon)    if wlon else "",
         "department":      dept         or "",
         "manager_name":    mgr          or "",
+        "manager_id":      mgr_id       or "",
         "has_photo":       bool(face_image and os.path.exists(face_image)),
         "has_qr":          bool(qr_code  and os.path.exists(qr_code)),
         "phone":           phone        or "",
@@ -3136,6 +3209,8 @@ def view_employees():
     pending_tickets = cursor.fetchone()[0]
     cursor.execute("SELECT id, name FROM companies ORDER BY name")
     companies = cursor.fetchall()
+    cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
+    onboarding_templates = cursor.fetchall()
     cursor.close()
     db.close()
     return render_template("employees.html",
@@ -3143,6 +3218,7 @@ def view_employees():
         shifts=shifts,
         departments=departments,
         companies=companies,
+        onboarding_templates=onboarding_templates,
         total=total,
         active_count=active_count,
         on_leave_count=on_leave_count,
@@ -3359,12 +3435,16 @@ def add_employee_page():
         filepath = new_filepath
         qr_path = generate_qr(emp_id)
         try:
+            _mgr_id   = request.form.get("manager_id", "").strip() or None
+            _mgr_name = request.form.get("manager_name", "").strip() or None
+            _dept     = request.form.get("department", "").strip() or None
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-                "date_of_joining, work_mode, work_lat, work_lon, company_id) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
-                 date_of_joining, work_mode, work_lat, work_lon, company_id)
+                 date_of_joining, work_mode, work_lat, work_lon, company_id,
+                 _mgr_id, _mgr_name, _dept)
             )
             db.commit()
             assign_leave_balances_for_employee(cursor, emp_id)
@@ -3387,6 +3467,38 @@ def add_employee_page():
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        # Auto-assign default onboarding template if configured
+        cursor.execute("SELECT default_onboarding_template_id FROM company_settings LIMIT 1")
+        _cs = cursor.fetchone()
+        _default_tpl = _cs[0] if _cs and _cs[0] else None
+        if _default_tpl:
+            cursor.execute("SELECT id FROM onboarding_templates WHERE id=%s AND is_active=1", (_default_tpl,))
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT id FROM employee_onboarding
+                    WHERE employee_id=%s AND template_id=%s
+                """, (emp_id, _default_tpl))
+                if not cursor.fetchone():
+                    _due = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
+                    cursor.execute("""
+                        INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status)
+                        VALUES (%s, %s, %s, %s, 'In Progress')
+                    """, (emp_id, _default_tpl, datetime.date.today().isoformat(), _due))
+                    db.commit()
+                    _ob_id = cursor.lastrowid
+                    cursor.execute("""
+                        SELECT id, task_title, task_description, requires_document, due_days, sort_order
+                        FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id
+                    """, (_default_tpl,))
+                    for _tt in cursor.fetchall():
+                        cursor.execute("""
+                            INSERT INTO employee_onboarding_tasks
+                            (onboarding_id, template_task_id, employee_id, task_title,
+                             task_description, requires_document, due_days, status)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')
+                        """, (_ob_id, _tt[0], emp_id, _tt[1], _tt[2], _tt[3], _tt[4]))
+                    db.commit()
+                    flash("Onboarding checklist auto-assigned.", "success")
         if email:
             _ecfg = get_email_config()
             if _ecfg:
@@ -3927,7 +4039,7 @@ def import_indian_holidays():
             pass
     db.commit()
     cursor.close(); db.close()
-    return redirect(f"/view_holidays?year={year}")
+    return redirect(f"/leave_holidays?tab=holidays&year={year}")
 
 @app.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
@@ -3939,7 +4051,7 @@ def delete_holiday(hid):
     db.commit()
     cursor.close()
     db.close()
-    return redirect(f"/view_holidays?year={year}")
+    return redirect(f"/leave_holidays?tab=holidays&year={year}")
 
 # ---------------- AUTO GENERATE EMPLOYEE ID ----------------
 @app.route("/api/generate_emp_id")
@@ -7516,13 +7628,23 @@ def save_hike_config():
 
 
 @app.route("/leave_requests")
-@admin_required
-def leave_requests_view():
-    today  = datetime.date.today()
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
+def leave_requests_redirect():
+    return redirect("/leave_holidays?tab=leaves")
 
-    # Leave requests with leave type name + half_day flag
+@app.route("/view_holidays")
+def view_holidays_redirect():
+    year = request.args.get("year", "")
+    return redirect(f"/leave_holidays?tab=holidays{'&year=' + year if year else ''}")
+
+@app.route("/leave_holidays")
+@admin_required
+def leave_holidays():
+    tab  = request.args.get("tab", "leaves")
+    year = int(request.args.get("year", datetime.date.today().year))
+    today = datetime.date.today()
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+
+    # Leaves data
     cursor.execute("""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
                COALESCE(lt.name, 'Leave Request') AS leave_type_name,
@@ -7534,41 +7656,27 @@ def leave_requests_view():
         ORDER BY FIELD(lr.status, 'Pending', 'Approved', 'Rejected'), lr.created_at DESC
     """)
     leaves = cursor.fetchall()
-
-    # Approved leave days used per employee this year (half-day = 0.5)
     cursor.execute("""
-        SELECT employee_id,
-               SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
-        FROM leave_requests
-        WHERE YEAR(leave_date) = YEAR(CURDATE()) AND status = 'Approved'
+        SELECT employee_id, SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
+        FROM leave_requests WHERE YEAR(leave_date)=YEAR(CURDATE()) AND status='Approved'
         GROUP BY employee_id
     """)
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
-
-    # Leave types for balance display
     cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
     leave_types_list = cursor.fetchall()
-
-    # All tickets
     cursor.execute("""
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
-        FROM tickets t
-        JOIN employees e ON t.employee_id = e.employee_id
+        FROM tickets t JOIN employees e ON t.employee_id = e.employee_id
         ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'), t.created_at DESC
     """)
     all_tickets = cursor.fetchall()
-
-    # Resignations
     cursor.execute("""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
-        FROM resignation_requests rr
-        JOIN employees e ON rr.employee_id = e.employee_id
+        FROM resignation_requests rr JOIN employees e ON rr.employee_id = e.employee_id
         ORDER BY FIELD(rr.status, 'Pending', 'Accepted', 'Declined'), rr.created_at DESC
     """)
     resignations = cursor.fetchall()
-
-    # Pending / open counts
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
@@ -7576,18 +7684,35 @@ def leave_requests_view():
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
     pending_resignations = cursor.fetchone()[0]
 
+    # Holidays data
+    cursor.execute("SELECT * FROM holidays ORDER BY date")
+    holidays_data = cursor.fetchall()
+    holiday_map = {}
+    for row in holidays_data:
+        date_val = row[1]
+        if isinstance(date_val, datetime.date):
+            holiday_map[date_val] = (row[0], row[2])
+    sun_cal = calendar.Calendar(firstweekday=6)
+    cal_data = []
+    for month in range(1, 13):
+        month_holidays = {}
+        for date_obj, (hid, hname) in holiday_map.items():
+            if date_obj.year == year and date_obj.month == month:
+                month_holidays[date_obj.day] = (hid, hname)
+        cal_data.append({'month_num': month, 'month_name': calendar.month_name[month],
+                         'weeks': sun_cal.monthdayscalendar(year, month), 'holidays': month_holidays})
+
+    co = get_company_settings()
     cursor.close(); db.close()
-    return render_template("leave_requests.html",
-        leaves=leaves,
-        leave_used=leave_used,
-        leave_types_list=leave_types_list,
-        all_tickets=all_tickets,
-        resignations=resignations,
-        pending_leaves=pending_leaves,
-        pending_tickets=pending_tickets,
+    return render_template("leave_holidays.html",
+        co=co, tab=tab,
+        leaves=leaves, leave_used=leave_used, leave_types_list=leave_types_list,
+        all_tickets=all_tickets, resignations=resignations,
+        pending_leaves=pending_leaves, pending_tickets=pending_tickets,
         pending_resignations=pending_resignations,
-        today=today,
+        holidays=holidays_data, cal_data=cal_data, year=year, today=today,
     )
+
 
 
 @app.route("/leave_action/<int:lid>", methods=["POST"])
@@ -7595,7 +7720,7 @@ def leave_requests_view():
 def leave_action(lid):
     action = request.form.get("action", "")
     if action not in ("Approved", "Rejected"):
-        return redirect("/leave_requests")
+        return redirect("/leave_holidays?tab=leaves")
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -7707,7 +7832,7 @@ def leave_action(lid):
                 except Exception as _e:
                     flash(f"Leave {action} but email failed: {_e}", "error")
 
-    return redirect("/leave_requests")
+    return redirect("/leave_holidays?tab=leaves")
 
 
 
@@ -7923,11 +8048,11 @@ def bulk_leave_action():
     action   = request.form.get("action", "")
     raw_ids  = request.form.getlist("leave_ids")
     if action not in ("Approved", "Rejected") or not raw_ids:
-        return redirect("/leave_requests")
+        return redirect("/leave_holidays?tab=leaves")
     try:
         ids = [int(i) for i in raw_ids]
     except ValueError:
-        return redirect("/leave_requests")
+        return redirect("/leave_holidays?tab=leaves")
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -7973,7 +8098,7 @@ def bulk_leave_action():
     db.commit()
     cursor.close(); db.close()
     flash(f"Bulk action: {action} applied to {done} leave request(s).", "success")
-    return redirect("/leave_requests")
+    return redirect("/leave_holidays?tab=leaves")
 
 
 # ================================================================
@@ -11189,6 +11314,15 @@ def onboarding():
     cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
     active_templates = cursor.fetchall()
 
+    today = datetime.date.today()
+    total_active    = sum(1 for o in active_onboardings if o[8] != 'Completed')
+    total_completed = sum(1 for o in active_onboardings if o[8] == 'Completed')
+    total_overdue   = sum(1 for o in active_onboardings if o[7] and o[7] < today and o[8] != 'Completed')
+
+    cursor.execute("SELECT COALESCE(default_onboarding_template_id, 0) FROM company_settings LIMIT 1")
+    _dtpl = cursor.fetchone()
+    default_onboarding_tpl = int(_dtpl[0]) if _dtpl and _dtpl[0] else 0
+
     co = get_company_settings()
     cursor.close(); db.close()
     return render_template("onboarding.html",
@@ -11198,6 +11332,11 @@ def onboarding():
         active_templates=active_templates,
         active_tab=active_tab,
         co=co,
+        today=today,
+        total_active=total_active,
+        total_completed=total_completed,
+        total_overdue=total_overdue,
+        default_onboarding_tpl=default_onboarding_tpl,
         pending_leaves=0, pending_resignations=0, pending_tickets=0
     )
 
@@ -11219,6 +11358,108 @@ def onboarding_template_save():
         flash("Template created.", "success")
     db.commit(); cursor.close(); db.close()
     return redirect("/onboarding?tab=templates")
+
+@app.route("/bulk_assign_onboarding", methods=["POST"])
+@admin_required
+def bulk_assign_onboarding():
+    db = get_db_connection(); cursor = db.cursor()
+    tid      = request.form.get("template_id")
+    emp_ids  = request.form.getlist("employee_ids")
+    today    = datetime.date.today()
+    due_date = (today + datetime.timedelta(days=30)).isoformat()
+    assigned = 0
+    for emp_id in emp_ids:
+        cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'", (emp_id, tid))
+        if cursor.fetchone():
+            continue
+        cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status) VALUES (%s,%s,%s,%s,'In Progress')",
+                       (emp_id, tid, today, due_date))
+        ob_id = cursor.lastrowid
+        cursor.execute("SELECT id, task_title, task_description, requires_document, due_days FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,))
+        for tt in cursor.fetchall():
+            cursor.execute("INSERT INTO employee_onboarding_tasks (onboarding_id, template_task_id, employee_id, task_title, task_description, requires_document, due_days, status) VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')",
+                           (ob_id, tt[0], emp_id, tt[1], tt[2], tt[3], tt[4]))
+        assigned += 1
+        # Email notification
+        try:
+            cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+            _er = cursor.fetchone()
+            cursor.execute("SELECT name FROM onboarding_templates WHERE id=%s", (tid,))
+            _tr = cursor.fetchone()
+            if _er and _er[1] and _tr:
+                _ecfg = get_email_config()
+                if _ecfg:
+                    _html = (f"<p>Hi <strong>{_er[0]}</strong>,</p>"
+                             f"<p>A new onboarding checklist <strong>'{_tr[0]}'</strong> has been assigned to you. Please complete all tasks by <strong>{due_date}</strong>.</p>")
+                    send_email_smtp(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
+        except Exception:
+            pass
+    db.commit(); cursor.close(); db.close()
+    flash(f"Onboarding assigned to {assigned} employee(s).", "success")
+    return redirect("/employees")
+
+
+@app.route("/export_onboarding_csv")
+@admin_required
+def export_onboarding_csv():
+    import csv, io
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.department, ot.name,
+               eo.assigned_date, eo.due_date, eo.status,
+               COUNT(eot.id) AS total_tasks,
+               SUM(CASE WHEN eot.status='Done' THEN 1 ELSE 0 END) AS done_tasks
+        FROM employee_onboarding eo
+        JOIN employees e ON eo.employee_id = e.employee_id
+        JOIN onboarding_templates ot ON eo.template_id = ot.id
+        LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id = eo.id
+        GROUP BY eo.id ORDER BY eo.assigned_date DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Employee ID","Name","Department","Template","Assigned Date","Due Date","Status","Total Tasks","Done Tasks","Progress %"])
+    for r in rows:
+        pct = round(int(r[8] or 0) / int(r[7] or 1) * 100) if r[7] else 0
+        writer.writerow([r[0], r[1], r[2] or "", r[3], r[4], r[5], r[6], r[7], r[8] or 0, f"{pct}%"])
+    output.seek(0)
+    from flask import Response
+    return Response(output.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment;filename=onboarding_export_{datetime.date.today()}.csv"})
+
+
+@app.route("/onboarding_template_duplicate", methods=["POST"])
+@admin_required
+def onboarding_template_duplicate():
+    db = get_db_connection(); cursor = db.cursor()
+    tid = request.form.get("template_id")
+    cursor.execute("SELECT name, description FROM onboarding_templates WHERE id=%s", (tid,))
+    tpl = cursor.fetchone()
+    if not tpl:
+        flash("Template not found.", "error")
+        cursor.close(); db.close()
+        return redirect("/onboarding?tab=templates")
+    cursor.execute(
+        "INSERT INTO onboarding_templates (name, description, is_active) VALUES (%s, %s, 1)",
+        (f"Copy of {tpl[0]}", tpl[1])
+    )
+    new_id = cursor.lastrowid
+    cursor.execute(
+        "SELECT task_title, task_description, requires_document, due_days, sort_order "
+        "FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,)
+    )
+    for task in cursor.fetchall():
+        cursor.execute(
+            "INSERT INTO onboarding_template_tasks "
+            "(template_id, task_title, task_description, requires_document, due_days, sort_order) "
+            "VALUES (%s,%s,%s,%s,%s,%s)",
+            (new_id, task[0], task[1], task[2], task[3], task[4])
+        )
+    db.commit(); cursor.close(); db.close()
+    flash(f"Template duplicated as 'Copy of {tpl[0]}'.", "success")
+    return redirect(f"/onboarding_template_detail/{new_id}")
+
 
 @app.route("/onboarding_template_delete", methods=["POST"])
 @admin_required
@@ -11330,8 +11571,20 @@ def onboarding_assign():
     except Exception:
         pass
 
-    cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
-    emp_name = cursor.fetchone()[0]
+    cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
+    _er = cursor.fetchone(); emp_name = _er[0]; emp_email = _er[1] if _er else None
+    # Email employee about new onboarding assignment
+    if emp_email:
+        _ecfg = get_email_config()
+        if _ecfg:
+            try:
+                _html = (f"<p>Hi <strong>{emp_name}</strong>,</p>"
+                         f"<p>A new onboarding checklist <strong>'{tname}'</strong> has been assigned to you.</p>"
+                         f"<p>Due date: <strong>{due_date or 'Not set'}</strong></p>"
+                         f"<p>Please log in to your employee portal and complete all tasks on time.</p>")
+                send_email_smtp(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
+            except Exception:
+                pass
     cursor.close(); db.close()
     flash(f"Onboarding assigned to {emp_name}.", "success")
     return redirect("/onboarding?tab=active")
@@ -11351,7 +11604,7 @@ def onboarding_detail(ob_id):
     ob = cursor.fetchone()
     cursor.execute("""
         SELECT id, task_title, task_description, requires_document, due_days,
-               status, completed_at, document_path, admin_notes
+               status, completed_at, document_path, admin_notes, employee_note
         FROM employee_onboarding_tasks WHERE onboarding_id=%s ORDER BY id
     """, (ob_id,))
     tasks = cursor.fetchall()
@@ -11359,6 +11612,7 @@ def onboarding_detail(ob_id):
     cursor.close(); db.close()
     return render_template("onboarding_detail.html",
         ob=ob, tasks=tasks, co=co,
+        today=datetime.date.today(),
         pending_leaves=0, pending_resignations=0, pending_tickets=0
     )
 
@@ -11370,7 +11624,7 @@ def onboarding_admin_task_update():
     new_status = request.form.get("status")
     notes      = request.form.get("admin_notes", "")
     ob_id      = request.form.get("ob_id")
-    completed  = datetime.now() if new_status == "Done" else None
+    completed  = datetime.datetime.now() if new_status == "Done" else None
     cursor.execute("""UPDATE employee_onboarding_tasks
                       SET status=%s, completed_at=%s, admin_notes=%s WHERE id=%s""",
                    (new_status, completed, notes, task_id))
@@ -11591,7 +11845,8 @@ def my_onboarding():
     cursor.close(); db.close()
     return render_template("my_onboarding.html",
         emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
-        selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None
+        selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None,
+        today=datetime.date.today(),
     )
 
 @app.route("/my_onboarding_task_done", methods=["POST"])
@@ -11599,8 +11854,9 @@ def my_onboarding():
 def my_onboarding_task_done():
     emp_id = session.get("employee_id")
     db = get_db_connection(); cursor = db.cursor()
-    task_id = request.form.get("task_id")
-    ob_id   = request.form.get("ob_id")
+    task_id      = request.form.get("task_id")
+    ob_id        = request.form.get("ob_id")
+    employee_note = request.form.get("employee_note", "").strip()[:500]
 
     cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
     row = cursor.fetchone()
@@ -11620,84 +11876,162 @@ def my_onboarding_task_done():
             f.save(_os.path.join(upload_dir, safe_name))
             doc_path = safe_name
 
-    update_args = [datetime.now(), task_id]
+    update_args = [datetime.datetime.now(), task_id]
     if doc_path:
-        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s WHERE id=%s",
-                       (datetime.now(), doc_path, task_id))
+        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",
+                       (datetime.datetime.now(), doc_path, employee_note or None, task_id))
     else:
-        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s WHERE id=%s",
-                       (datetime.now(), task_id))
+        cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, employee_note=%s WHERE id=%s",
+                       (datetime.datetime.now(), employee_note or None, task_id))
 
     # Auto-complete if all done
     cursor.execute("SELECT COUNT(*) FROM employee_onboarding_tasks WHERE onboarding_id=%s AND status!='Done'", (ob_id,))
-    if cursor.fetchone()[0] == 0:
+    remaining = cursor.fetchone()[0]
+    if remaining == 0:
         cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
+    db.commit()
 
-    db.commit(); cursor.close(); db.close()
+    # Email admin about task completion
+    try:
+        cursor.execute("SELECT task_title FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
+        _tt = cursor.fetchone()
+        task_title = _tt[0] if _tt else "Task"
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        _en = cursor.fetchone(); emp_name_ob = _en[0] if _en else emp_id
+        _ecfg = get_email_config()
+        admin_email = _ecfg.get("from_email") if _ecfg else None
+        if admin_email and _ecfg:
+            _msg = (f"<p><strong>{emp_name_ob}</strong> has completed the onboarding task:</p>"
+                    f"<p style='background:#f0fdf4;padding:10px;border-radius:8px;'><strong>{task_title}</strong></p>")
+            if remaining == 0:
+                _msg += "<p style='color:#16a34a;font-weight:700;'>🎉 All tasks completed — onboarding marked as Complete!</p>"
+            else:
+                _msg += f"<p>{remaining} task(s) remaining.</p>"
+            send_email_smtp(admin_email, f"Onboarding Task Done — {emp_name_ob}", _msg, _ecfg)
+    except Exception:
+        pass
+
+    cursor.close(); db.close()
     flash("Task marked as done!", "success")
     return redirect(f"/my_onboarding?ob_id={ob_id}")
 
 
-# ---------------- AUDIT LOGS ----------------
-@app.route("/audit_logs")
-@admin_required
-def audit_logs():
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
+# ---------------- ADMIN TOOLS (Org Chart + Audit Logs combined) ----------------
+@app.route("/org_chart")
+def org_chart_redirect():
+    return redirect("/admin_tools?tab=org_chart")
 
-    co_row = cursor.execute("SELECT company_name FROM company_settings LIMIT 1") or None
-    co_row = cursor.fetchone()
-    co = type('Co', (), {'company_name': co_row[0] if co_row else 'My Company'})()
+@app.route("/audit_logs")
+def audit_logs_redirect():
+    return redirect("/admin_tools?tab=audit_logs")
+
+@app.route("/admin_tools")
+@admin_required
+def admin_tools():
+    tab = request.args.get("tab", "org_chart")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
     pending_resignations = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
     pending_tickets = cursor.fetchone()[0]
+    cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
+    departments = [r[0] for r in cursor.fetchall()]
 
-    # Filters
+    # Audit logs data
     actor_f  = request.args.get("actor", "").strip()
     action_f = request.args.get("action", "").strip()
     date_f   = request.args.get("date", "").strip()
     page     = max(1, int(request.args.get("page", 1)))
     per_page = 50
-
     conditions, params = [], []
-    if actor_f:
-        conditions.append("actor LIKE %s"); params.append(f"%{actor_f}%")
-    if action_f:
-        conditions.append("action LIKE %s"); params.append(f"%{action_f}%")
-    if date_f:
-        conditions.append("DATE(created_at) = %s"); params.append(date_f)
-
+    if actor_f:  conditions.append("actor LIKE %s"); params.append(f"%{actor_f}%")
+    if action_f: conditions.append("action LIKE %s"); params.append(f"%{action_f}%")
+    if date_f:   conditions.append("DATE(created_at) = %s"); params.append(date_f)
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-
     cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where}", params)
     total = cursor.fetchone()[0]
     total_pages = max(1, (total + per_page - 1) // per_page)
     offset = (page - 1) * per_page
-
     cursor.execute(
         f"""SELECT id, actor, actor_type, action, target_table, target_id,
                    detail, ip_address, created_at
-            FROM audit_logs {where}
-            ORDER BY created_at DESC
-            LIMIT %s OFFSET %s""",
+            FROM audit_logs {where} ORDER BY created_at DESC LIMIT %s OFFSET %s""",
         params + [per_page, offset]
     )
     logs = cursor.fetchall()
-
-    # Distinct actors for filter dropdown
     cursor.execute("SELECT DISTINCT actor FROM audit_logs ORDER BY actor LIMIT 200")
     actors = [r[0] for r in cursor.fetchall()]
 
+    co = get_company_settings()
     cursor.close(); db.close()
-    return render_template("audit_logs.html",
-        co=co, logs=logs, total=total, page=page, total_pages=total_pages,
+    return render_template("admin_tools.html",
+        co=co, tab=tab, departments=departments,
+        logs=logs, total=total, page=page, total_pages=total_pages,
         actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
         pending_leaves=pending_leaves, pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets)
+        pending_tickets=pending_tickets,
+    )
+
+
+# old standalone routes kept for API
+
+
+@app.route("/api/org_chart_data")
+@admin_required
+def api_org_chart_data():
+    dept_filter = request.args.get("dept", "")
+    db = get_db_connection(); cursor = db.cursor()
+    query = """
+        SELECT e.employee_id, e.name, e.role, e.department,
+               e.manager_id, e.face_image,
+               COALESCE(e.manager_name, '') as manager_name
+        FROM employees e
+        WHERE COALESCE(e.is_active, 1) = 1
+    """
+    params = []
+    if dept_filter:
+        query += " AND e.department = %s"
+        params.append(dept_filter)
+    query += " ORDER BY e.name"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+
+    emp_map = {}
+    for r in rows:
+        emp_map[r[0]] = {
+            "id":         r[0],
+            "name":       r[1],
+            "role":       r[2] or "Employee",
+            "department": r[3] or "",
+            "manager_id": r[4],
+            "has_photo":  bool(r[5] and os.path.exists(r[5])),
+            "children":   []
+        }
+
+    roots = []
+    for emp in emp_map.values():
+        mid = emp["manager_id"]
+        if mid and mid in emp_map and mid != emp["id"]:
+            emp_map[mid]["children"].append(emp)
+        else:
+            roots.append(emp)
+
+    # Sort children alphabetically
+    def sort_tree(node):
+        node["children"].sort(key=lambda x: x["name"])
+        for child in node["children"]:
+            sort_tree(child)
+        return node
+
+    roots.sort(key=lambda x: x["name"])
+    tree = [sort_tree(r) for r in roots]
+    return jsonify({"ok": True, "tree": tree, "total": len(emp_map)})
+
+
 
 
 # ---------------- RUN ----------------
