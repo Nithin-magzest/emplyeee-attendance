@@ -45,11 +45,13 @@
     .back-btn:hover{background:#eff6ff;color:#1e3a8a;border-color:#93c5fd}
 
     /* PROFILE HEADER */
+    .header-wrap{display:flex;gap:16px;align-items:flex-start;margin-bottom:22px}
     .profile-header{background:linear-gradient(135deg,#0f2460 0%,#1e40af 100%);
       border-radius:20px;padding:28px 32px;display:flex;align-items:center;gap:28px;
-      margin-bottom:22px;position:relative;overflow:hidden}
+      flex:1;position:relative;overflow:hidden}
     .profile-header::after{content:'';position:absolute;right:-40px;top:-40px;
-      width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.05)}
+      width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.05);
+      pointer-events:none}
     .avatar{width:96px;height:96px;border-radius:50%;border:4px solid rgba(255,255,255,.3);
       overflow:hidden;background:#1e3a8a;display:flex;align-items:center;
       justify-content:center;flex-shrink:0;cursor:pointer;transition:.2s}
@@ -66,14 +68,14 @@
     .pb-onleave{background:#fef9c3;color:#92400e}
     .pb-resigned{background:#fee2e2;color:#dc2626}
     .pb-shift{background:rgba(255,255,255,.12);color:rgba(255,255,255,.9)}
-    .profile-actions{display:flex;gap:8px;flex-direction:column;flex-shrink:0}
+    .profile-actions{display:flex;gap:8px;flex-direction:column;flex-shrink:0;min-width:170px;position:relative;z-index:10}
     .btn-act{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
       border:none;border-radius:10px;font-size:13px;font-weight:700;
-      cursor:pointer;text-decoration:none;transition:.18s;justify-content:center}
-    .btn-edit{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)}
-    .btn-edit:hover{background:rgba(255,255,255,.25)}
-    .btn-del{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
-    .btn-del:hover{background:rgba(239,68,68,.35)}
+      cursor:pointer;text-decoration:none;transition:.18s;justify-content:center;white-space:nowrap}
+    .btn-edit{background:#1e3a8a;color:#fff;border:1px solid #1e40af}
+    .btn-edit:hover{background:#1e40af}
+    .btn-del{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .btn-del:hover{background:#fecaca}
 
     /* STATS */
     .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
@@ -154,8 +156,9 @@
       .stats-row{grid-template-columns:repeat(2,1fr)}
       .grid2{grid-template-columns:1fr}
       .card.full{grid-column:1}
+      .header-wrap{flex-direction:column}
       .profile-header{flex-direction:column;text-align:center}
-      .profile-actions{flex-direction:row}
+      .profile-actions{flex-direction:row;flex-wrap:wrap;min-width:unset}
     }
     @media(max-width:768px){
       body{flex-direction:column}
@@ -242,24 +245,26 @@
   <a class="back-btn" href="/employees"><i class="ti ti-arrow-left"></i> Back to Employees</a>
 
   <!-- HEADER -->
-  <div class="profile-header">
-    <div class="avatar" onclick="openLb()" title="View photo">
-      {% if face_image %}
-        <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-             onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'>👤</span>'">
-      {% else %}
-        <span class="avatar-ph">👤</span>
-      {% endif %}
-    </div>
-    <div class="profile-info">
-      <div class="profile-name">{{ name }}</div>
-      <div class="profile-role">{{ role or 'No designation' }}{% if department %} · {{ department }}{% endif %}</div>
-      <div class="profile-badges">
-        <span class="pbadge pb-id">{{ emp_id }}</span>
-        <span class="pbadge {% if emp_status=='Active' %}pb-active{% elif emp_status=='On Leave' %}pb-onleave{% else %}pb-resigned{% endif %}">
-          {{ emp_status }}
-        </span>
-        {% if shift_name %}<span class="pbadge pb-shift">{{ shift_name }}</span>{% endif %}
+  <div class="header-wrap">
+    <div class="profile-header">
+      <div class="avatar" onclick="openLb()" title="View photo">
+        {% if face_image %}
+          <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
+               onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'>👤</span>'">
+        {% else %}
+          <span class="avatar-ph">👤</span>
+        {% endif %}
+      </div>
+      <div class="profile-info">
+        <div class="profile-name">{{ name }}</div>
+        <div class="profile-role">{{ role or 'No designation' }}{% if department %} · {{ department }}{% endif %}</div>
+        <div class="profile-badges">
+          <span class="pbadge pb-id">{{ emp_id }}</span>
+          <span class="pbadge {% if emp_status=='Active' %}pb-active{% elif emp_status=='On Leave' %}pb-onleave{% else %}pb-resigned{% endif %}">
+            {{ emp_status }}
+          </span>
+          {% if shift_name %}<span class="pbadge pb-shift">{{ shift_name }}</span>{% endif %}
+        </div>
       </div>
     </div>
     <div class="profile-actions">
