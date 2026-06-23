@@ -68,14 +68,22 @@
     .pb-onleave{background:#fef9c3;color:#92400e}
     .pb-resigned{background:#fee2e2;color:#dc2626}
     .pb-shift{background:rgba(255,255,255,.12);color:rgba(255,255,255,.9)}
-    .profile-actions{display:flex;gap:8px;flex-direction:column;flex-shrink:0;min-width:170px;position:relative;z-index:10}
-    .btn-act{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;
-      border:none;border-radius:10px;font-size:13px;font-weight:700;
-      cursor:pointer;text-decoration:none;transition:.18s;justify-content:center;white-space:nowrap}
-    .btn-edit{background:#1e3a8a;color:#fff;border:1px solid #1e40af}
-    .btn-edit:hover{background:#1e40af}
-    .btn-del{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
-    .btn-del:hover{background:#fecaca}
+    .profile-actions{display:flex;gap:10px;flex-direction:column;flex-shrink:0;
+      width:190px;position:relative;z-index:10;
+      background:#fff;border:1px solid #dbeafe;border-radius:16px;
+      padding:14px;box-shadow:0 2px 12px rgba(30,58,138,.08)}
+    .btn-act{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;
+      border:none;border-radius:10px;font-size:13px;font-weight:600;
+      cursor:pointer;text-decoration:none;transition:.18s;width:100%;box-sizing:border-box;white-space:nowrap}
+    .btn-back{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+    .btn-back:hover{background:#e2e8f0;color:#1e293b}
+    .btn-view{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+    .btn-view:hover{background:#dbeafe;color:#1e3a8a}
+    .btn-dl{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+    .btn-dl:hover{background:#dcfce7;color:#166534}
+    .btn-del{background:#fff5f5;color:#dc2626;border:1px solid #fecaca;margin-top:4px}
+    .btn-del:hover{background:#fee2e2;color:#b91c1c}
+    .actions-divider{border:none;border-top:1px solid #f1f5f9;margin:4px 0}
 
     /* STATS */
     .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
@@ -158,7 +166,7 @@
       .card.full{grid-column:1}
       .header-wrap{flex-direction:column}
       .profile-header{flex-direction:column;text-align:center}
-      .profile-actions{flex-direction:row;flex-wrap:wrap;min-width:unset}
+      .profile-actions{flex-direction:row;flex-wrap:wrap;width:100%}
     }
     @media(max-width:768px){
       body{flex-direction:column}
@@ -268,19 +276,20 @@
       </div>
     </div>
     <div class="profile-actions">
-      <a class="btn-act btn-edit" href="/employees">
+      <a class="btn-act btn-back" href="/employees">
         <i class="ti ti-arrow-left"></i> Back to List
       </a>
-      <a class="btn-act btn-edit" href="/admin_view_id_card/{{ emp_id }}" target="_blank">
+      <a class="btn-act btn-view" href="/admin_view_id_card/{{ emp_id }}" target="_blank">
         <i class="ti ti-id-badge"></i> View ID Card
       </a>
-      <a class="btn-act btn-edit" href="/admin_id_card/{{ emp_id }}">
+      <a class="btn-act btn-dl" href="/admin_id_card/{{ emp_id }}">
         <i class="ti ti-download"></i> Download ID Card
       </a>
+      <hr class="actions-divider">
       <form action="/delete_employee/{{ emp_id }}" method="POST"
             onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')">
-        <button type="submit" class="btn-act btn-del" style="width:100%">
-          <i class="ti ti-trash"></i> Delete
+        <button type="submit" class="btn-act btn-del">
+          <i class="ti ti-trash"></i> Delete Employee
         </button>
       </form>
     </div>
