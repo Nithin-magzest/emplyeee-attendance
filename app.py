@@ -3054,8 +3054,9 @@ def view_employees():
     cursor.execute("SELECT id, name FROM shifts ORDER BY name")
     shifts = cursor.fetchall()
     cursor.execute(
-        "SELECT DISTINCT department FROM employees "
-        "WHERE department IS NOT NULL AND department != '' ORDER BY department"
+        "SELECT department FROM employees "
+        "WHERE department IS NOT NULL AND department != '' "
+        "GROUP BY department ORDER BY MIN(id) ASC"
     )
     departments = [r[0] for r in cursor.fetchall()]
 
@@ -6502,7 +6503,7 @@ def performance():
     """, params)
     employees = cursor.fetchall()
 
-    cursor.execute("SELECT DISTINCT COALESCE(department,'') FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' ORDER BY 1")
+    cursor.execute("SELECT department FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' GROUP BY department ORDER BY MIN(id) ASC")
     departments = [r[0] for r in cursor.fetchall()]
 
     # Announcements

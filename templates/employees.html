@@ -73,6 +73,15 @@
       .filter-select:focus { border-color: #93c5fd; }
       .btn-clear-filter { padding: 8px 12px; border: 1px solid #fee2e2; border-radius: 9px; background: #fff; color: #dc2626; font-size: 12px; font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 5px; }
       .btn-clear-filter:hover { background: #fee2e2; }
+      /* DEPT TABS */
+      .dept-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .dept-tab { padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #dbeafe; background: #f8fafc; color: #475569; transition: .18s; }
+      .dept-tab:hover { background: #eff6ff; border-color: #93c5fd; color: #1e3a8a; }
+      .dept-tab.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+      .dept-tab.all-tab.active { background: #1e3a8a; }
+      /* dept group header in table */
+      .dept-group-row td { background: #eff6ff; color: #1e3a8a; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; padding: 6px 14px; border-bottom: 1px solid #dbeafe; }
+      /* autocomplete datalist styling handled by browser */
 
       /* TABLE */
       .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 0; overflow: hidden; }
@@ -283,6 +292,16 @@
         </div>
       </div>
 
+      <!-- DEPARTMENT TABS -->
+      {% if departments %}
+      <div class="dept-tabs" id="deptTabs">
+        <button class="dept-tab all-tab active" onclick="filterByDept('')" data-dept="">All</button>
+        {% for dept in departments %}
+          <button class="dept-tab" onclick="filterByDept('{{ dept }}')" data-dept="{{ dept }}">{{ dept }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       <!-- TOOLBAR -->
       <div class="toolbar">
         <div class="toolbar-row1">
@@ -299,13 +318,6 @@
         </div>
         <div class="toolbar-row2">
           <span class="filter-label"><i class="ti ti-filter" style="font-size:12px;"></i> Filter:</span>
-
-          <select class="filter-select" id="filterDept" onchange="applyFilters()">
-            <option value="">All Departments</option>
-            {% for dept in departments %}
-              <option value="{{ dept }}">{{ dept }}</option>
-            {% endfor %}
-          </select>
 
           <select class="filter-select" id="filterShift" onchange="applyFilters()">
             <option value="">All Shifts</option>
@@ -333,6 +345,9 @@
           </button>
         </div>
       </div>
+
+      <!-- hidden dept value for JS -->
+      <input type="hidden" id="filterDept" value="">
 
       <!-- TABLE -->
       <div class="section">
@@ -546,7 +561,13 @@
             </div>
             <div class="field-group">
               <label>Department</label>
-              <input type="text" name="department" placeholder="Engineering" />
+              <input type="text" name="department" placeholder="e.g. Full Stack, Backend…"
+                     list="deptList" autocomplete="off" />
+              <datalist id="deptList">
+                {% for dept in departments %}
+                  <option value="{{ dept }}">
+                {% endfor %}
+              </datalist>
             </div>
             <div class="field-group">
               <label>Gender</label>
@@ -864,12 +885,19 @@
         activeStatusFilter = status;
         document.getElementById('filterStatus').value = status;
         applyFilters();
-        // highlight card
         ['card-all','card-active','card-onleave','card-resigned'].forEach(id => {
           document.getElementById(id).classList.remove('active-filter');
         });
         const map = {'':'card-all','Active':'card-active','On Leave':'card-onleave','Resigned':'card-resigned'};
         if (map[status]) document.getElementById(map[status]).classList.add('active-filter');
+      }
+
+      function filterByDept(dept) {
+        document.getElementById('filterDept').value = dept;
+        document.querySelectorAll('.dept-tab').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.dept === dept);
+        });
+        applyFilters();
       }
 
       // ── PAGINATION STATE ──
@@ -960,6 +988,8 @@
         activeStatusFilter = '';
         ['card-all','card-active','card-onleave','card-resigned'].forEach(id =>
           document.getElementById(id).classList.remove('active-filter'));
+        document.querySelectorAll('.dept-tab').forEach(btn =>
+          btn.classList.toggle('active', btn.dataset.dept === ''));
         applyFilters();
       }
 
