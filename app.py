@@ -964,10 +964,11 @@ def _create_notification(recipient_type, title, message, employee_id=None):
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        # If both admin and employee keys exist, drop the employee key and continue as admin
         if session.get("admin_logged_in") and session.get("employee_id"):
-            session.clear()
-            return redirect(url_for("admin_login"))
+            session.pop("employee_id", None)
+            session.pop("employee_name", None)
+            session.pop("employee_role", None)
         if not session.get("admin_logged_in"):
             is_ajax = (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -984,10 +985,12 @@ def admin_required(f):
 def employee_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        # If session has both admin and employee keys (tab conflict), clear and force re-login
+        # If admin is also logged in, redirect to admin panel instead of clearing session
         if session.get("admin_logged_in") and session.get("employee_id"):
-            session.clear()
-            return redirect("/employee_login")
+            session.pop("employee_id", None)
+            session.pop("employee_name", None)
+            session.pop("employee_role", None)
+            return redirect("/admin")
         if not session.get("employee_id"):
             return redirect("/employee_login")
         return f(*args, **kwargs)
