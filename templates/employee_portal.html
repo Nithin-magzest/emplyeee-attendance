@@ -1185,12 +1185,14 @@
                 <th>Reason</th>
                 <th>Status</th>
                 <th>Submitted On</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {% for lv in my_leaves %}
               {% set lv_date, lv_reason, lv_status, lv_created = lv[:4] %}
               {% set lv_type_name = lv[4] if lv|length > 4 else '' %}
+              {% set lv_id = lv[5] if lv|length > 5 else None %}
               <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ lv_date }}</td>
@@ -1201,6 +1203,8 @@
                     <span class="badge ls-approved">✅ Approved</span>
                   {% elif lv_status == 'Rejected' %}
                     <span class="badge ls-rejected">❌ Rejected</span>
+                  {% elif lv_status == 'Cancelled' %}
+                    <span class="badge" style="background:#f1f5f9;color:#64748b;">🚫 Cancelled</span>
                   {% else %}
                     <span class="badge ls-pending">⏳ Pending</span>
                   {% endif %}
@@ -1208,10 +1212,17 @@
                 <td class="td-date">
                   {{ lv_created.strftime('%d %b %Y') if lv_created else '—' }}
                 </td>
+                <td>
+                  {% if lv_status == 'Pending' and lv_id and lv_date > today_date %}
+                  <form action="/cancel_leave/{{ lv_id }}" method="POST" onsubmit="return confirm('Cancel your leave request for {{ lv_date }}?');" style="display:inline;">
+                    <button type="submit" style="padding:4px 10px;border:1px solid #fca5a5;background:#fee2e2;color:#dc2626;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">Cancel</button>
+                  </form>
+                  {% else %}—{% endif %}
+                </td>
               </tr>
               {% else %}
               <tr>
-                <td colspan="6" class="empty-cell">No leave requests submitted yet.</td>
+                <td colspan="7" class="empty-cell">No leave requests submitted yet.</td>
               </tr>
               {% endfor %}
             </tbody>

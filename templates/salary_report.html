@@ -134,7 +134,8 @@
       <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>      <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
       <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -188,7 +189,27 @@
         {% else %}
         <a href="/email_config" class="btn-action btn-setup-email">⚠️ Setup Email First</a>
         {% endif %}
+        {% if is_locked %}
+        <button type="button" onclick="unlockPayroll()"
+          style="padding:8px 14px;border:1px solid #fca5a5;border-radius:9px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">
+          🔓 Unlock Payroll
+        </button>
+        {% else %}
+        <button type="button" onclick="lockPayroll()"
+          style="padding:8px 14px;border:1px solid #bbf7d0;border-radius:9px;background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;cursor:pointer;">
+          🔒 Lock Payroll
+        </button>
+        {% endif %}
       </form>
+
+      {% if is_locked %}
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#1e40af;">
+        🔒 <strong>Payroll locked</strong> — processed by <strong>{{ lock_info.by }}</strong>
+        on {{ lock_info.at.strftime('%d %b %Y at %H:%M') }}
+        ({{ lock_info.count }} payslip{{ 's' if lock_info.count != 1 else '' }} sent).
+        Re-sending will overwrite this record.
+      </div>
+      {% endif %}
 
       <!-- SUMMARY TOTALS -->
       {% set total_gross     = salary_data | sum(attribute='gross') %}
@@ -407,6 +428,9 @@
       }
 
       function sendAllEmails() {
+        {% if is_locked %}
+        if (!confirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?')) return;
+        {% endif %}
         const btn = document.getElementById('sendAllBtn');
         btn.disabled = true;
         btn.textContent = '⏳ Sending all…';
@@ -423,12 +447,31 @@
             showToast((data.ok ? '✅ ' : '⚠️ ') + data.msg, data.ok ? 'success' : 'error');
             btn.disabled = false;
             btn.textContent = '📧 Send All Salary Slips';
+            if (data.locked) setTimeout(() => location.reload(), 1500);
           })
           .catch(() => {
             showToast('❌ Failed to reach server. Check your connection.', 'error');
             btn.disabled = false;
             btn.textContent = '📧 Send All Salary Slips';
           });
+      }
+
+      function lockPayroll() {
+        if (!confirm('Lock payroll for this month? You can unlock it later if needed.')) return;
+        const fd = new FormData();
+        fd.append('year', YEAR); fd.append('month', MONTH);
+        fetch('/lock_payroll', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
+      }
+
+      function unlockPayroll() {
+        if (!confirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.')) return;
+        const fd = new FormData();
+        fd.append('year', YEAR); fd.append('month', MONTH);
+        fetch('/unlock_payroll', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
       }
     </script>
   <script>

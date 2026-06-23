@@ -357,8 +357,17 @@ HALF_DAY_RATE       = 0.50   # 50% deduction for half day
 _ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
 _ALLOWED_IMG_MIME = {'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/gif'}
 
+_MAX_PHOTO_SIZE_MB = 5
+_IMG_MAGIC = {
+    '.jpg':  (b'\xff\xd8',),
+    '.jpeg': (b'\xff\xd8',),
+    '.png':  (b'\x89PNG',),
+    '.webp': (b'RIFF',),
+    '.bmp':  (b'BM',),
+}
+
 def _validate_image_file(file):
-    """Return (ok, error_msg). Checks extension and MIME type before saving."""
+    """Return (ok, error_msg). Checks extension, MIME type, magic bytes, and size."""
     if not file or not file.filename:
         return False, "No file selected."
     ext = os.path.splitext(file.filename)[1].lower()
@@ -367,6 +376,16 @@ def _validate_image_file(file):
     ct = (file.content_type or "").lower().split(";")[0].strip()
     if ct and ct not in _ALLOWED_IMG_MIME:
         return False, f"Invalid content type '{ct}'. Only image files accepted."
+    header = file.stream.read(8)
+    file.stream.seek(0)
+    for magic in _IMG_MAGIC.get(ext, ()):
+        if not header.startswith(magic):
+            return False, "File content does not match its extension. Upload a real image."
+    file.stream.seek(0, 2)
+    size_mb = file.stream.tell() / (1024 * 1024)
+    file.stream.seek(0)
+    if size_mb > _MAX_PHOTO_SIZE_MB:
+        return False, f"Photo too large ({size_mb:.1f} MB). Maximum: {_MAX_PHOTO_SIZE_MB} MB."
     return True, ""
 
 
@@ -408,9 +427,9 @@ def _db():
         yield cursor, conn
     finally:
         try:  cursor.close()
-        except Exception: pass
+        except Exception as _e: app_log.debug("cursor.close() failed: %s", _e)
         try:  conn.close()
-        except Exception: pass
+        except Exception as _e: app_log.debug("conn.close() failed: %s", _e)
 
 # ---------------- DB MIGRATION ----------------
 def init_db():
@@ -751,8 +770,10 @@ def init_db():
         ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30"),
         ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT"),
     ]:
-        try: cursor.execute(_sql)
-        except Exception: pass
+        try:
+            cursor.execute(_sql); db.commit()
+        except mysql.connector.errors.DatabaseError:
+            db.rollback()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS audit_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -767,6 +788,17 @@ def init_db():
             INDEX idx_actor (actor),
             INDEX idx_action (action),
             INDEX idx_created (created_at)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payroll_runs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            year INT NOT NULL,
+            month INT NOT NULL,
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            processed_by VARCHAR(100),
+            email_count INT DEFAULT 0,
+            UNIQUE KEY uq_ym (year, month)
         )
     """)
     cursor.execute("""
@@ -897,6 +929,10 @@ def init_db():
         "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
         "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN company_id INT DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN expiry_date DATE DEFAULT NULL",
+        "ALTER TABLE overtime_records ADD COLUMN requested_by_employee TINYINT(1) DEFAULT 0",
+        "ALTER TABLE overtime_records ADD COLUMN employee_reason VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE leave_requests ADD COLUMN cancelled_at DATETIME DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -3580,11 +3616,13 @@ def employee_forgot_password():
     try:
         cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
         db.commit()
-    except Exception: pass
+    except mysql.connector.errors.DatabaseError:
+        db.rollback()
     try:
         cursor.execute("ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME")
         db.commit()
-    except Exception: pass
+    except mysql.connector.errors.DatabaseError:
+        db.rollback()
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
                    (token, expiry, emp_id))
     db.commit(); cursor.close(); db.close()
@@ -3685,11 +3723,9 @@ def view_photos():
 @admin_required
 def update_photo(emp_id):
     file = request.files.get("photo")
-    if not file or not file.filename:
-        return jsonify({"ok": False, "msg": "No file selected"}), 400
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in (".jpg", ".jpeg", ".png"):
-        return jsonify({"ok": False, "msg": "Only JPG/PNG files are allowed"}), 400
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
     save_path = os.path.join("dataset", emp_id + ".jpg")
     file.save(save_path)
     db = get_db_connection()
@@ -4473,6 +4509,14 @@ def salary_report():
     for eid, ld in cursor.fetchall():
         leave_map.setdefault(eid, set()).add(ld)
 
+    cursor.execute(
+        "SELECT processed_at, processed_by, email_count FROM payroll_runs WHERE year=%s AND month=%s",
+        (year, month)
+    )
+    lock_row = cursor.fetchone()
+    is_locked = lock_row is not None
+    lock_info = {"at": lock_row[0], "by": lock_row[1], "count": lock_row[2]} if lock_row else None
+
     cursor.close()
     db.close()
 
@@ -4518,6 +4562,8 @@ def salary_report():
         late_rate=int(LATE_DEDUCTION_RATE * 100),
         half_rate=int(HALF_DAY_RATE * 100),
         email_configured=email_cfg is not None,
+        is_locked=is_locked,
+        lock_info=lock_info,
     )
 
 
@@ -4799,10 +4845,53 @@ def send_all_salary_emails():
             failed += 1
             errors.append(f"{name}: {str(ex)}")
 
+    if sent > 0:
+        db2 = get_db_connection(); cur2 = db2.cursor()
+        actor = session.get("admin_username", "admin")
+        cur2.execute("""
+            INSERT INTO payroll_runs (year, month, processed_by, email_count)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s, email_count=%s
+        """, (year, month, actor, sent, actor, sent))
+        db2.commit(); cur2.close(); db2.close()
+        _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}",
+               f"Payroll locked for {year}-{month:02d} after sending {sent} payslips")
+
     msg = f"Sent: {sent}, Skipped (no email): {skipped}, Failed: {failed}"
     if errors:
         msg += " | " + "; ".join(errors[:3])
-    return jsonify({"ok": failed == 0, "msg": msg})
+    return jsonify({"ok": failed == 0, "msg": msg, "locked": sent > 0})
+
+# ---------------- PAYROLL LOCK / UNLOCK ----------------
+@app.route("/lock_payroll", methods=["POST"])
+@admin_required
+def lock_payroll():
+    year  = int(request.form["year"])
+    month = int(request.form["month"])
+    actor = session.get("admin_username", "admin")
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("""
+        INSERT INTO payroll_runs (year, month, processed_by, email_count)
+        VALUES (%s, %s, %s, 0)
+        ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s
+    """, (year, month, actor, actor))
+    db.commit(); cursor.close(); db.close()
+    _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}", f"Manually locked by {actor}")
+    return jsonify({"ok": True, "msg": f"Payroll for {year}-{month:02d} locked."})
+
+
+@app.route("/unlock_payroll", methods=["POST"])
+@admin_required
+def unlock_payroll():
+    year  = int(request.form["year"])
+    month = int(request.form["month"])
+    actor = session.get("admin_username", "admin")
+    db = get_db_connection(); cursor = db.cursor()
+    cursor.execute("DELETE FROM payroll_runs WHERE year=%s AND month=%s", (year, month))
+    db.commit(); cursor.close(); db.close()
+    _audit("unlock_payroll", "payroll_runs", f"{year}-{month:02d}", f"Unlocked by {actor}")
+    return jsonify({"ok": True, "msg": f"Payroll for {year}-{month:02d} unlocked."})
+
 
 # ---------------- TEST EMAIL ----------------
 @app.route("/test_email", methods=["POST"])
@@ -5215,10 +5304,8 @@ def update_my_photo():
     import base64, io
     emp_id = session["employee_id"]
     file = request.files.get("photo")
-    if not file or not file.filename:
-        return redirect("/employee_portal?photo_error=no_file#my-profile")
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in (".jpg", ".jpeg", ".png"):
+    ok, err = _validate_image_file(file)
+    if not ok:
         return redirect("/employee_portal?photo_error=bad_format#my-profile")
     try:
         img = Image.open(file.stream).convert("RGB")
@@ -5835,7 +5922,7 @@ def employee_portal():
 
     cursor.execute("""
         SELECT lr.leave_date, lr.reason, lr.status, lr.created_at,
-               COALESCE(lt.name, '') AS leave_type_name
+               COALESCE(lt.name, '') AS leave_type_name, lr.id
         FROM leave_requests lr
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         WHERE lr.employee_id=%s
@@ -7635,7 +7722,7 @@ def api_delete_employee(emp_id):
     for path in row:
         if path and os.path.exists(path):
             try: os.remove(path)
-            except: pass
+            except Exception as _e: app_log.warning("Could not delete file %s: %s", path, _e)
     cursor.execute("DELETE FROM attendance WHERE employee_id=%s", (emp_id,))
     cursor.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
     cursor.execute("DELETE FROM leave_requests WHERE employee_id=%s", (emp_id,))
@@ -8286,7 +8373,20 @@ def api_employee_checkin():
                 cursor.close(); db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
-    now          = datetime.datetime.now()
+    punched_at_str = data.get("punched_at")
+    now = datetime.datetime.now()
+    if punched_at_str:
+        try:
+            _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
+            _pt = _pt.replace(tzinfo=None)
+            if (now - _pt).total_seconds() <= 86400:
+                now = _pt
+            else:
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
+        except (ValueError, TypeError):
+            pass
+
     today        = now.date()
     current_time = now.time()
 
@@ -8351,6 +8451,99 @@ def api_employee_checkin():
         db.commit(); cursor.close(); db.close()
         return jsonify({"ok": True, "action": "relogin", "name": employee_name,
                         "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
+
+
+@app.route("/api/employee/sync_punches", methods=["POST"])
+@employee_api_required
+def api_employee_sync_punches():
+    """Batch-submit offline punches queued on the device when there was no connectivity."""
+    from flask import g as _g
+    emp_id  = _g.api_emp_id
+    payload = request.get_json() or {}
+    punches = payload.get("punches", [])
+    if not punches:
+        return jsonify({"ok": True, "results": []})
+
+    results = []
+    for punch in punches:
+        punched_at_str = punch.get("punched_at", "")
+        lat = punch.get("lat")
+        lon = punch.get("lon")
+        try:
+            _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
+            _pt = _pt.replace(tzinfo=None)
+            if (datetime.datetime.now() - _pt).total_seconds() > 86400:
+                results.append({"id": punch.get("id"), "ok": False, "msg": "Too old (>24 h)"})
+                continue
+        except (ValueError, TypeError):
+            results.append({"id": punch.get("id"), "ok": False, "msg": "Invalid timestamp"})
+            continue
+
+        db2     = get_db_connection()
+        cur2    = db2.cursor(buffered=True)
+        cur2.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        emp_row = cur2.fetchone()
+        if not emp_row:
+            cur2.close(); db2.close()
+            results.append({"id": punch.get("id"), "ok": False, "msg": "Employee not found"})
+            continue
+
+        punch_date = _pt.date()
+        punch_time = _pt.time()
+        cur2.execute(
+            "SELECT login_time, logout_time, status, worked_minutes, last_relogin "
+            "FROM attendance WHERE employee_id=%s AND date=%s",
+            (emp_id, punch_date)
+        )
+        rec = cur2.fetchone()
+        login_time = rec[0] if rec else None
+        logout_time = rec[1] if rec else None
+        login_status = rec[2] if rec else None
+        worked_mins = (rec[3] or 0) if rec else 0
+        last_relogin = rec[4] if rec else None
+
+        if not login_time:
+            grace_time = (datetime.datetime.combine(punch_date, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+            if punch_time <= grace_time:
+                status = "Full Day Login"
+            elif punch_time <= SHIFT_HALF:
+                status = "Late Login"
+            else:
+                status = "Half Day Login"
+            cur2.execute(
+                "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
+                (emp_id, punch_date, punch_time, status)
+            )
+            db2.commit()
+            results.append({"id": punch.get("id"), "ok": True, "action": "login", "status": status})
+        elif not logout_time:
+            session_start = last_relogin if last_relogin else login_time
+            if not isinstance(session_start, datetime.time):
+                session_start = _td_to_time(session_start)
+            cur_dt    = datetime.datetime.combine(punch_date, punch_time)
+            start_dt  = datetime.datetime.combine(punch_date, session_start)
+            session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
+            total_m   = worked_mins + session_m
+            if punch_time < SHIFT_HALF:
+                out_status = "Half Day Logout"
+            elif punch_time < SHIFT_END:
+                out_status = "Early Logout"
+            else:
+                out_status = "Completed"
+            att_type = classify_by_worked_minutes(login_status, total_m, SHIFT_START, SHIFT_END)
+            cur2.execute(
+                "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
+                "WHERE employee_id=%s AND date=%s",
+                (punch_time, out_status, att_type, total_m, emp_id, punch_date)
+            )
+            db2.commit()
+            results.append({"id": punch.get("id"), "ok": True, "action": "logout", "status": out_status})
+        else:
+            results.append({"id": punch.get("id"), "ok": False, "msg": "Duplicate — day already complete"})
+        cur2.close(); db2.close()
+
+    _audit("sync_punches", "attendance", emp_id, f"Synced {len([r for r in results if r['ok']])} offline punches")
+    return jsonify({"ok": True, "results": results})
 
 
 @app.route("/api/employee/qr-face-checkin", methods=["POST"])
@@ -8741,6 +8934,160 @@ def api_employee_leaves():
     })
 
 
+# ---------------- API: EMPLOYEE — CANCEL LEAVE ----------------
+
+@app.route("/api/employee/cancel_leave/<int:lid>", methods=["POST"])
+@employee_api_required
+def api_employee_cancel_leave(lid):
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT status, leave_date FROM leave_requests WHERE id=%s AND employee_id=%s", (lid, emp_id))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Leave request not found."}), 404
+    if row[0] != "Pending":
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": f"Cannot cancel a leave that is already {row[0]}."}), 400
+    if row[1] <= datetime.date.today():
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "Cannot cancel a leave for today or a past date."}), 400
+    cursor.execute(
+        "UPDATE leave_requests SET status='Cancelled', cancelled_at=NOW() WHERE id=%s",
+        (lid,)
+    )
+    db.commit(); cursor.close(); db.close()
+    _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
+    return jsonify({"ok": True, "msg": "Leave request cancelled."})
+
+
+# ---------------- WEB: EMPLOYEE — CANCEL LEAVE ----------------
+
+@app.route("/cancel_leave/<int:lid>", methods=["POST"])
+@employee_required
+def cancel_leave_web(lid):
+    emp_id = session["employee_id"]
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT status, leave_date FROM leave_requests WHERE id=%s AND employee_id=%s", (lid, emp_id))
+    row = cursor.fetchone()
+    if not row:
+        flash("Leave request not found.", "error")
+    elif row[0] != "Pending":
+        flash(f"Cannot cancel a leave that is already {row[0]}.", "error")
+    elif row[1] <= datetime.date.today():
+        flash("Cannot cancel a leave for today or a past date.", "error")
+    else:
+        cursor.execute(
+            "UPDATE leave_requests SET status='Cancelled', cancelled_at=NOW() WHERE id=%s", (lid,)
+        )
+        db.commit()
+        flash("Leave request cancelled successfully.", "success")
+        _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
+    cursor.close(); db.close()
+    return redirect("/employee_portal?tab=leave#leave-history")
+
+
+# ---------------- API: EMPLOYEE — REQUEST OVERTIME ----------------
+
+@app.route("/api/employee/request_overtime", methods=["POST"])
+@employee_api_required
+def api_employee_request_overtime():
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    data   = request.get_json() or {}
+    ot_date = data.get("date", str(datetime.date.today()))
+    reason  = (data.get("reason") or "").strip()
+    if not reason:
+        return jsonify({"ok": False, "msg": "Reason is required."}), 400
+    try:
+        ot_date = datetime.date.fromisoformat(ot_date)
+    except ValueError:
+        return jsonify({"ok": False, "msg": "Invalid date."}), 400
+    if ot_date < datetime.date.today():
+        return jsonify({"ok": False, "msg": "Cannot request OT for a past date."}), 400
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT id FROM overtime_records WHERE employee_id=%s AND date=%s", (emp_id, ot_date))
+    if cursor.fetchone():
+        cursor.close(); db.close()
+        return jsonify({"ok": False, "msg": "An overtime record already exists for that date."}), 400
+
+    cursor.execute("SELECT shift_end FROM shifts s JOIN employees e ON e.shift_id=s.id WHERE e.employee_id=%s", (emp_id,))
+    shift_row = cursor.fetchone()
+    shift_end = shift_row[0] if shift_row else SHIFT_END
+
+    cursor.execute("""
+        INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay,
+                                      status, requested_by_employee, employee_reason)
+        VALUES (%s, %s, %s, %s, 0, 0, 'Pending', 1, %s)
+    """, (emp_id, ot_date, shift_end, shift_end, reason))
+    db.commit()
+    oid = cursor.lastrowid
+    cursor.close(); db.close()
+    _audit("request_overtime", "overtime_records", emp_id, f"Employee requested OT for {ot_date}: {reason}")
+    _create_notification("admin", None, "Overtime Request",
+                         f"Employee {emp_id} has requested overtime on {ot_date}.", f"/overtime")
+    return jsonify({"ok": True, "msg": "Overtime request submitted.", "id": oid})
+
+
+@app.route("/api/employee/my_overtime", methods=["GET"])
+@employee_api_required
+def api_employee_my_overtime():
+    from flask import g as _g
+    emp_id = _g.api_emp_id
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT id, date, ot_minutes, ot_pay, status, notes, requested_by_employee, employee_reason
+        FROM overtime_records WHERE employee_id=%s ORDER BY date DESC LIMIT 30
+    """, (emp_id,))
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({
+        "ok": True,
+        "records": [
+            {"id": r[0], "date": str(r[1]), "ot_minutes": r[2], "ot_pay": float(r[3]),
+             "status": r[4], "notes": r[5], "self_requested": bool(r[6]), "reason": r[7]}
+            for r in rows
+        ]
+    })
+
+
+# ---------------- API: ADMIN — DOCUMENT EXPIRY ALERTS ----------------
+
+@app.route("/api/admin/expiring_documents", methods=["GET"])
+@admin_required
+def api_expiring_documents():
+    days = int(request.args.get("days", 30))
+    db   = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.expiry_date,
+               DATEDIFF(d.expiry_date, CURDATE()) AS days_left
+        FROM employee_documents d
+        JOIN employees e ON e.employee_id = d.employee_id
+        WHERE d.expiry_date IS NOT NULL
+          AND d.expiry_date >= CURDATE()
+          AND d.expiry_date <= DATE_ADD(CURDATE(), INTERVAL %s DAY)
+        ORDER BY d.expiry_date ASC
+    """, (days,))
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({
+        "ok": True,
+        "documents": [
+            {"id": r[0], "employee_id": r[1], "employee_name": r[2],
+             "doc_type": r[3], "filename": r[4],
+             "expiry_date": str(r[5]), "days_left": r[6]}
+            for r in rows
+        ]
+    })
+
+
 # ---------------- API: EMPLOYEE — HOLIDAYS ----------------
 
 @app.route("/api/employee/holidays", methods=["GET"])
@@ -8797,8 +9144,8 @@ def api_employee_profile():
             "address": row[9], "city": row[10], "state": row[11], "pincode": row[12],
             "about_me": row[13],
             "emergency_contact_name": row[14], "emergency_contact_phone": row[15],
-            "bank_name": row[16], "bank_account": row[17], "bank_ifsc": row[18],
-            "pan_number": row[19], "aadhar_number": row[20],
+            "bank_name": row[16], "bank_account": decrypt_pii(row[17]), "bank_ifsc": decrypt_pii(row[18]),
+            "pan_number": decrypt_pii(row[19]), "aadhar_number": decrypt_pii(row[20]),
             "salary_per_day": float(row[21]),
             "join_date": str(row[22]) if row[22] else None,
             "company_name": row[23],
@@ -8814,11 +9161,9 @@ def api_employee_upload_photo():
     from PIL import Image
     emp_id = _g.api_emp_id
     file = request.files.get("photo")
-    if not file:
-        return jsonify({"ok": False, "msg": "No photo provided"}), 400
-    ext = os.path.splitext(file.filename.lower())[1] if file.filename else ""
-    if ext not in (".jpg", ".jpeg", ".png"):
-        return jsonify({"ok": False, "msg": "Only JPG/PNG files allowed"}), 400
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
     try:
         img = Image.open(file.stream).convert("RGB")
         save_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
@@ -8898,6 +9243,7 @@ def view_payslip(emp_id, year, month):
         cursor.close(); db.close()
         return "Employee not found", 404
     name, email, spd, monthly_ctc, basic_pct, designation, dept, pan, uan, bank_acct, bank_nm = row
+    pan = decrypt_pii(pan); uan = decrypt_pii(uan); bank_acct = decrypt_pii(bank_acct)
 
     # Payroll config
     cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
@@ -9329,7 +9675,9 @@ def analytics():
     for (doj,) in cursor.fetchall():
         if isinstance(doj, str):
             try: doj = datetime.date.fromisoformat(doj)
-            except: continue
+            except Exception as _e:
+                app_log.debug("Skipping bad date_of_joining value %r: %s", doj, _e)
+                continue
         months = (today.year - doj.year) * 12 + (today.month - doj.month)
         if months < 6:       retention['0-6m'] += 1
         elif months < 12:    retention['6-12m'] += 1
@@ -9451,6 +9799,23 @@ def analytics():
             'link': '/overtime'
         })
 
+    # 6. Documents expiring in next 30 days
+    cursor.execute("""
+        SELECT COUNT(*) FROM employee_documents
+        WHERE expiry_date IS NOT NULL
+          AND expiry_date >= CURDATE()
+          AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    """)
+    expiring_docs = cursor.fetchone()[0]
+    if expiring_docs > 0:
+        smart_alerts.append({
+            'level': 'warning',
+            'icon': 'ti-file-alert',
+            'title': f'{expiring_docs} employee document{"s" if expiring_docs > 1 else ""} expiring within 30 days',
+            'detail': 'Review and renew documents before they expire',
+            'link': '/documents'
+        })
+
     if not smart_alerts:
         smart_alerts.append({
             'level': 'success',
@@ -9523,14 +9888,14 @@ def documents():
         sel_emp_name = r[0] if r else sel_emp
         cursor.execute("""
             SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.stored_name,
-                   d.uploaded_by, d.uploaded_at
+                   d.uploaded_by, d.uploaded_at, d.expiry_date
             FROM employee_documents d JOIN employees e ON e.employee_id=d.employee_id
             WHERE d.employee_id=%s ORDER BY d.uploaded_at DESC
         """, (sel_emp,))
     else:
         cursor.execute("""
             SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.stored_name,
-                   d.uploaded_by, d.uploaded_at
+                   d.uploaded_by, d.uploaded_at, d.expiry_date
             FROM employee_documents d JOIN employees e ON e.employee_id=d.employee_id
             ORDER BY d.uploaded_at DESC
         """)
@@ -9544,6 +9909,7 @@ def documents():
         pending_tickets=pending_tickets,
         employees=employees, docs=docs,
         sel_emp=sel_emp, sel_emp_name=sel_emp_name,
+        today=datetime.date.today(),
     )
 
 
@@ -9567,12 +9933,16 @@ def upload_document():
     f.save(os.path.join(folder, stored_name))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    expiry_raw  = request.form.get("expiry_date", "").strip()
+    expiry_date = expiry_raw if expiry_raw else None
     cursor.execute(
-        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) VALUES (%s,%s,%s,%s,'admin')",
-        (emp_id, doc_type, orig_name, stored_name)
+        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
+        "VALUES (%s,%s,%s,%s,'admin',%s)",
+        (emp_id, doc_type, orig_name, stored_name, expiry_date)
     )
     db.commit(); cursor.close(); db.close()
-    _audit("upload_document", "employee_documents", emp_id, f"doc_type={doc_type} file={orig_name}")
+    _audit("upload_document", "employee_documents", emp_id,
+           f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'}")
     flash("Document uploaded successfully.", "success")
     redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
     return redirect(redirect_to)
@@ -10450,11 +10820,13 @@ def offer_letter_save():
     try:
         cursor.execute("ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30")
         db.commit()
-    except Exception: pass
+    except mysql.connector.errors.DatabaseError:
+        db.rollback()
     try:
         cursor.execute("ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT")
         db.commit()
-    except Exception: pass
+    except mysql.connector.errors.DatabaseError:
+        db.rollback()
     cursor.execute("SELECT id FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
     existing = cursor.fetchone()
     if existing:
@@ -10646,6 +11018,68 @@ def my_onboarding_task_done():
     db.commit(); cursor.close(); db.close()
     flash("Task marked as done!", "success")
     return redirect(f"/my_onboarding?ob_id={ob_id}")
+
+
+# ---------------- AUDIT LOGS ----------------
+@app.route("/audit_logs")
+@admin_required
+def audit_logs():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    co_row = cursor.execute("SELECT company_name FROM company_settings LIMIT 1") or None
+    co_row = cursor.fetchone()
+    co = type('Co', (), {'company_name': co_row[0] if co_row else 'My Company'})()
+
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    pending_tickets = cursor.fetchone()[0]
+
+    # Filters
+    actor_f  = request.args.get("actor", "").strip()
+    action_f = request.args.get("action", "").strip()
+    date_f   = request.args.get("date", "").strip()
+    page     = max(1, int(request.args.get("page", 1)))
+    per_page = 50
+
+    conditions, params = [], []
+    if actor_f:
+        conditions.append("actor LIKE %s"); params.append(f"%{actor_f}%")
+    if action_f:
+        conditions.append("action LIKE %s"); params.append(f"%{action_f}%")
+    if date_f:
+        conditions.append("DATE(created_at) = %s"); params.append(date_f)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where}", params)
+    total = cursor.fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    offset = (page - 1) * per_page
+
+    cursor.execute(
+        f"""SELECT id, actor, actor_type, action, target_table, target_id,
+                   detail, ip_address, created_at
+            FROM audit_logs {where}
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s""",
+        params + [per_page, offset]
+    )
+    logs = cursor.fetchall()
+
+    # Distinct actors for filter dropdown
+    cursor.execute("SELECT DISTINCT actor FROM audit_logs ORDER BY actor LIMIT 200")
+    actors = [r[0] for r in cursor.fetchall()]
+
+    cursor.close(); db.close()
+    return render_template("audit_logs.html",
+        co=co, logs=logs, total=total, page=page, total_pages=total_pages,
+        actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
+        pending_leaves=pending_leaves, pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets)
 
 
 # ---------------- RUN ----------------

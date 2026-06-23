@@ -88,6 +88,7 @@
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
   <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -149,6 +150,9 @@
           <label>File</label>
           <input type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"/>
           <div style="font-size:11px;color:#94a3b8;margin-top:-10px;margin-bottom:14px;">PDF, JPG, PNG, DOC, DOCX allowed</div>
+          <label>Expiry Date <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
+          <input type="date" name="expiry_date" style="margin-bottom:14px;"/>
+          <div style="font-size:11px;color:#94a3b8;margin-top:-10px;margin-bottom:14px;">Set if this document has an expiry (e.g. ID proof, contract, visa)</div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;"><i class="ti ti-upload"></i> Upload</button>
         </form>
       </div>
@@ -171,6 +175,7 @@
               <th>File Name</th>
               <th>Uploaded By</th>
               <th>Date</th>
+              <th>Expiry</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -187,6 +192,18 @@
                 <span class="badge badge-{{ 'emp' if d[6] == 'employee' else 'admin' }}">{{ d[6] }}</span>
               </td>
               <td style="color:#64748b;white-space:nowrap;">{{ d[7].strftime('%d %b %Y') if d[7] else '—' }}</td>
+              <td style="white-space:nowrap;">
+                {% if d[8] %}
+                  {% set days_left = (d[8] - today).days %}
+                  {% if days_left <= 7 %}
+                    <span style="color:#dc2626;font-weight:700;">{{ d[8].strftime('%d %b %Y') }} <span style="font-size:11px;">({{ days_left }}d)</span></span>
+                  {% elif days_left <= 30 %}
+                    <span style="color:#f59e0b;font-weight:600;">{{ d[8].strftime('%d %b %Y') }} <span style="font-size:11px;">({{ days_left }}d)</span></span>
+                  {% else %}
+                    <span style="color:#16a34a;">{{ d[8].strftime('%d %b %Y') }}</span>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
               <td>
                 <div style="display:flex;gap:6px;">
                   <a href="/download_document/{{ d[0] }}" class="btn btn-sm btn-dl"><i class="ti ti-download"></i></a>

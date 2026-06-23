@@ -6,7 +6,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { submitLeaveRequest, fetchEmployeeLeaves } from "../../api/client";
+import { submitLeaveRequest, fetchEmployeeLeaves, cancelLeaveRequest } from "../../api/client";
 
 const REASONS = [
   { label: "Sick Leave",       value: "Sick Leave",       icon: "medical-outline" },
@@ -47,8 +47,9 @@ export default function LeaveScreen() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const [history, setHistory]   = useState(null);
+  const [history, setHistory]       = useState(null);
   const [histLoading, setHistLoading] = useState(false);
+  const [cancelling, setCancelling]   = useState(null);
 
   const loadHistory = async () => {
     setHistLoading(true);
@@ -62,6 +63,34 @@ export default function LeaveScreen() {
   };
 
   useFocusEffect(useCallback(() => { loadHistory(); }, []));
+
+  const handleCancel = (lid, leaveDate) => {
+    Alert.alert(
+      "Cancel Leave Request",
+      `Cancel your leave request for ${fmtDate(leaveDate)}?`,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            setCancelling(lid);
+            try {
+              const res = await cancelLeaveRequest(lid);
+              if (res.data.ok) {
+                loadHistory();
+              } else {
+                Alert.alert("Error", res.data.msg || "Could not cancel.");
+              }
+            } catch (e) {
+              Alert.alert("Error", e.response?.data?.msg || "Failed to connect.");
+            }
+            setCancelling(null);
+          },
+        },
+      ]
+    );
+  };
 
   const handleSubmit = async () => {
     const finalReason = reason === null ? custom.trim() : reason;
@@ -232,6 +261,7 @@ export default function LeaveScreen() {
 
               {history.leaves.map(l => {
                 const st = STATUS_STYLE[l.status] || STATUS_STYLE.Pending;
+                const isFuture = new Date(l.leave_date) > new Date();
                 return (
                   <View key={l.id} style={styles.leaveRow}>
                     <View style={styles.leaveDateBox}>
@@ -244,8 +274,21 @@ export default function LeaveScreen() {
                       <Text style={styles.leaveReason}>{l.reason}</Text>
                       <Text style={styles.leaveSubmitted}>Submitted {fmtDate(l.created_at)}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                      <Text style={[styles.statusTxt, { color: st.text }]}>{l.status}</Text>
+                    <View style={{ alignItems: "flex-end", gap: 6 }}>
+                      <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                        <Text style={[styles.statusTxt, { color: st.text }]}>{l.status}</Text>
+                      </View>
+                      {l.status === "Pending" && isFuture && (
+                        <TouchableOpacity
+                          onPress={() => handleCancel(l.id, l.leave_date)}
+                          disabled={cancelling === l.id}
+                          style={styles.cancelBtn}
+                        >
+                          <Text style={styles.cancelBtnTxt}>
+                            {cancelling === l.id ? "…" : "Cancel"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 );
@@ -308,4 +351,6 @@ const styles = StyleSheet.create({
   leaveSubmitted:{ fontSize: 12, color: "#94A3B8", marginTop: 2 },
   statusBadge:  { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   statusTxt:    { fontSize: 11, fontWeight: "700" },
+  cancelBtn:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: "#FEE2E2", borderWidth: 1, borderColor: "#FECACA" },
+  cancelBtnTxt: { fontSize: 11, fontWeight: "700", color: "#DC2626" },
 });

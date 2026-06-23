@@ -60,6 +60,9 @@ export const fetchEmployeePortal = () => client.get('/api/employee/portal');
 export const employeeCheckin = (lat, lon) =>
   client.post('/api/employee/checkin', { lat, lon });
 
+export const syncOfflinePunches = (punches) =>
+  client.post('/api/employee/sync_punches', { punches });
+
 export const submitLeaveRequest = (leave_date, reason) =>
   client.post('/api/employee/leave_request', { leave_date, reason });
 
@@ -84,6 +87,14 @@ export const fetchEmployeeAttendance = (year, month) =>
   client.get('/api/employee/attendance', { params: { year, month } });
 
 export const fetchEmployeeLeaves = () => client.get('/api/employee/leaves');
+
+export const cancelLeaveRequest = (lid) =>
+  client.post(`/api/employee/cancel_leave/${lid}`);
+
+export const requestOvertime = (date, reason) =>
+  client.post('/api/employee/request_overtime', { date, reason });
+
+export const fetchMyOvertime = () => client.get('/api/employee/my_overtime');
 
 export const fetchEmployeeHolidays = () => client.get('/api/employee/holidays');
 

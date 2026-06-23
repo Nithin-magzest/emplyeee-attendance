@@ -5,6 +5,7 @@ import {
   RefreshControl,
   Alert,
   View,
+  Text,
 } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,8 +15,10 @@ import {
   fetchEmployeePortal,
   employeeCheckin,
   employeeLogout,
+  syncOfflinePunches,
   getPhotoUrl,
 } from "../../api/client";
+import { queuePunch, getPendingPunches, clearQueue } from "../../utils/offlineQueue";
 
 import { useAuth } from "../../store/AuthContext";
 
@@ -35,18 +38,18 @@ export default function EmployeeDashboard({ navigation }) {
 
   const { signOut } = useAuth();
 
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [checking, setChecking]     = useState(false);
-  const [data, setData]             = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [checking, setChecking]       = useState(false);
+  const [data, setData]               = useState(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [syncing, setSyncing]         = useState(false);
 
   const loadDashboard = async () => {
     try {
       const res = await fetchEmployeePortal();
-      if (res.data.ok) {
-        setData(res.data);
-      }
+      if (res.data.ok) setData(res.data);
     } catch {
       Alert.alert("Error", "Unable to load dashboard.");
     }
@@ -54,9 +57,33 @@ export default function EmployeeDashboard({ navigation }) {
     setRefreshing(false);
   };
 
+  const syncPending = async () => {
+    const punches = await getPendingPunches();
+    if (punches.length === 0) return;
+    setSyncing(true);
+    try {
+      const res = await syncOfflinePunches(punches);
+      if (res.data.ok) {
+        await clearQueue();
+        setPendingCount(0);
+        const synced  = res.data.results?.filter(r => r.ok).length ?? punches.length;
+        const failed  = res.data.results?.filter(r => !r.ok).length ?? 0;
+        const msg     = failed > 0
+          ? `${synced} punch(es) synced. ${failed} rejected (too old or duplicate).`
+          : `${synced} offline punch(es) synced successfully.`;
+        Alert.alert("Sync Complete", msg);
+        await loadDashboard();
+      }
+    } catch {
+      // Server still unreachable — keep punches in queue
+    }
+    setSyncing(false);
+  };
+
   useFocusEffect(
     useCallback(() => {
-      loadDashboard();
+      getPendingPunches().then(q => setPendingCount(q.length));
+      syncPending().then(() => loadDashboard());
     }, [])
   );
 
@@ -74,7 +101,18 @@ export default function EmployeeDashboard({ navigation }) {
         Alert.alert("Unable", res.data.msg);
       }
     } catch (e) {
-      Alert.alert("Error", e.response?.data?.msg || "Something went wrong.");
+      const isNetworkError = !e.response;
+      if (isNetworkError) {
+        await queuePunch();
+        const q = await getPendingPunches();
+        setPendingCount(q.length);
+        Alert.alert(
+          "Saved Offline",
+          "No internet connection. Your punch has been saved and will sync automatically when you're back online."
+        );
+      } else {
+        Alert.alert("Error", e.response?.data?.msg || "Something went wrong.");
+      }
     }
     setChecking(false);
   };
@@ -112,6 +150,22 @@ export default function EmployeeDashboard({ navigation }) {
         onClose={() => setShowScanner(false)}
         onSuccess={() => loadDashboard()}
       />
+
+      {pendingCount > 0 && (
+        <View style={styles.syncBanner}>
+          <Text style={styles.syncBannerText}>
+            {syncing
+              ? "⏳ Syncing offline punches…"
+              : `📶 ${pendingCount} offline punch${pendingCount > 1 ? "es" : ""} pending sync`}
+          </Text>
+          {!syncing && (
+            <Text style={styles.syncBannerLink} onPress={syncPending}>
+              Sync now
+            </Text>
+          )}
+        </View>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
@@ -190,5 +244,27 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 30,
+  },
+  syncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FEF3C7",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  syncBannerText: {
+    fontSize: 13,
+    color: "#92400E",
+    fontWeight: "500",
+    flex: 1,
+  },
+  syncBannerLink: {
+    fontSize: 13,
+    color: "#1D4ED8",
+    fontWeight: "700",
+    marginLeft: 12,
   },
 });
