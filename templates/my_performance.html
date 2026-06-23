@@ -13,7 +13,7 @@
       body { background: #f1f5f9; display: flex; flex-direction: row; min-height: 100dvh; }
 
       .sidebar {
-        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow: hidden;
         background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
         padding: 20px 14px; color: white;
         display: flex; flex-direction: column; flex-shrink: 0;
@@ -69,8 +69,12 @@
       .sb-item.danger { color: rgba(252,165,165,0.85); }
       .sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
       .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .sb-scroll-nav { flex: 1; overflow-y: auto; min-height: 0; }
+      .sb-scroll-nav::-webkit-scrollbar { width: 3px; }
+      .sb-scroll-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+      .sb-bottom { flex-shrink: 0; padding-top: 4px; }
       .sb-footer {
-        margin-top: auto; padding-top: 14px;
+        padding-top: 10px;
         border-top: 1px solid rgba(255,255,255,0.08);
         font-size: 11px; color: rgba(255,255,255,0.4);
         display: flex; align-items: center; gap: 6px;
@@ -152,21 +156,23 @@
           <div class="sb-id">ID: {{ emp_id }}</div>
         </div>
       </div>
+      <div class="sb-scroll-nav">
+
 
       <div class="sb-nav-label">Main</div>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#dashboard" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#attendance" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#apply-leave" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#earnings" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#holidays" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
       </a>
 
@@ -180,25 +186,30 @@
       <a href="/my_onboarding" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#tickets" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
       </a>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#my-profile" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
       </a>
 
       <div class="sb-nav-label">Policies</div>
-      <a href="/employee_portal" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#policies" class="sb-item" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
       </a>
+      </div>
 
-      <hr class="sb-sep" />
-      <a href="/employee_logout" class="sb-item danger" style="text-decoration:none;">
+      <div class="sb-bottom">
+        <hr class="sb-sep" />
+        <a href="/employee_portal#resign" class="sb-item danger" style="text-decoration:none;">
+          <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
+        </a>
+        <a href="/employee_logout" class="sb-item danger" style="text-decoration:none;">
         <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
       </a>
-
-      <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
-      <div class="sb-footer">👤 {{ emp_id }}</div>
+        <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+        <div class="sb-footer">👤 {{ emp_id }}</div>
+      </div>
     </nav>
   <div class="main-area">
     <div class="app-content">

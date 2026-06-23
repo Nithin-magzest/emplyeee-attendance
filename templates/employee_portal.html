@@ -12,7 +12,7 @@
 
       /* ── SIDEBAR ── */
       .sidebar {
-        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow: hidden;
         background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
         padding: 20px 14px; color: white;
         display: flex; flex-direction: column; flex-shrink: 0;
@@ -68,8 +68,16 @@
       .sb-item.danger { color: rgba(252,165,165,0.85); }
       .sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
       .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .sb-scroll-nav {
+        flex: 1; overflow-y: auto; min-height: 0;
+      }
+      .sb-scroll-nav::-webkit-scrollbar { width: 3px; }
+      .sb-scroll-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+      .sb-bottom {
+        flex-shrink: 0; padding-top: 4px;
+      }
       .sb-footer {
-        margin-top: auto; padding-top: 14px;
+        padding-top: 10px;
         border-top: 1px solid rgba(255,255,255,0.08);
         font-size: 11px; color: rgba(255,255,255,0.4);
         display: flex; align-items: center; gap: 6px;
@@ -502,62 +510,58 @@
         </div>
       </div>
 
-      <div class="sb-nav-label">Main</div>
-      <button type="button" class="sb-item" id="sbn-dashboard" onclick="showView('dashboard')">
-        <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
-      </button>
-      <button type="button" class="sb-item" id="sbn-attendance" onclick="showView('attendance')">
-        <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
-      </button>
-      <button type="button" class="sb-item" id="sbn-apply-leave" onclick="showView('apply-leave')">
-        <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
-      </button>
+      <div class="sb-scroll-nav">
+        <div class="sb-nav-label">Main</div>
+        <button type="button" class="sb-item" id="sbn-dashboard" onclick="showView('dashboard')">
+          <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
+        </button>
+        <button type="button" class="sb-item" id="sbn-attendance" onclick="showView('attendance')">
+          <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
+        </button>
+        <button type="button" class="sb-item" id="sbn-apply-leave" onclick="showView('apply-leave')">
+          <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
+        </button>
+        <button type="button" class="sb-item" id="sbn-earnings" onclick="showView('earnings')">
+          <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
+        </button>
+        <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')">
+          <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
+        </button>
 
-      </button>
-      <button type="button" class="sb-item" id="sbn-earnings" onclick="showView('earnings')">
-        <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
-      </button>
-      <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')">
-        <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
-      </button>
+        <div class="sb-nav-label">Account</div>
+        <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
+          <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
+        </a>
+        <a href="/my_performance" class="sb-item" style="text-decoration:none;">
+          <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
+        </a>
+        <a href="/my_onboarding" class="sb-item" style="text-decoration:none;">
+          <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
+        </a>
+        <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">
+          <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
+        </button>
+        <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')">
+          <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
+        </button>
 
+        <div class="sb-nav-label">Policies</div>
+        <button type="button" class="sb-item" id="sbn-policies" onclick="showView('policies')">
+          <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
+        </button>
+      </div><!-- /sb-scroll-nav -->
 
-      </button>
-
-      </button>
-
-      <div class="sb-nav-label">Account</div>
-      <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
-        <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
-      </a>
-      <a href="/my_performance" class="sb-item" style="text-decoration:none;">
-        <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
-      </a>
-      <a href="/my_onboarding" class="sb-item" style="text-decoration:none;">
-        <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
-      </a>
-      <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">
-        <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
-      </button>
-      <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')">
-        <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
-      </button>
-
-      <div class="sb-nav-label">Policies</div>
-      <button type="button" class="sb-item" id="sbn-policies" onclick="showView('policies')">
-        <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
-      </button>
-
-      <hr class="sb-sep" />
-      <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()">
-        <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
-      </button>
-      <a class="sb-item danger" href="/employee_logout">
-        <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
-      </a>
-
-      <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
-      <div class="sb-footer">👤 {{ emp[3] or emp[0] }}</div>
+      <div class="sb-bottom">
+        <hr class="sb-sep" />
+        <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()">
+          <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
+        </button>
+        <a class="sb-item danger" href="/employee_logout">
+          <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
+        </a>
+        <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
+        <div class="sb-footer">👤 {{ emp[3] or emp[0] }}</div>
+      </div>
     </nav>
 
     <!-- ══ MAIN AREA ══ -->
