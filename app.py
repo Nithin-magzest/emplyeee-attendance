@@ -3270,20 +3270,46 @@ def add_employee_page():
         cursor.close(); db.close()
         return redirect("/employees")
 
-    qr_path   = generate_qr(emp_id)
-    auto_pass = secrets.token_urlsafe(8)
+    auto_pass  = secrets.token_urlsafe(8)
     hashed_pwd = generate_password_hash(auto_pass)
-    try:
-        cursor.execute(
-            "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-            "date_of_joining, work_mode, work_lat, work_lon, company_id) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
-             date_of_joining, work_mode, work_lat, work_lon, company_id)
-        )
-        db.commit()
-        assign_leave_balances_for_employee(cursor, emp_id)
-        db.commit()
+
+    # Retry up to 5 times in case of duplicate ID collision
+    prefix = ''.join(c for c in emp_id if not c.isdigit())
+    if not prefix:
+        prefix = emp_id
+    registered = False
+    for _attempt in range(5):
+        qr_path = generate_qr(emp_id)
+        # Update filepath in case emp_id changed on retry
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        try:
+            cursor.execute(
+                "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
+                "date_of_joining, work_mode, work_lat, work_lon, company_id) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
+                 date_of_joining, work_mode, work_lat, work_lon, company_id)
+            )
+            db.commit()
+            assign_leave_balances_for_employee(cursor, emp_id)
+            db.commit()
+            registered = True
+            break
+        except mysql.connector.errors.IntegrityError:
+            db.rollback()
+            # Find next available ID and retry
+            cursor.execute(
+                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
+                (prefix + "%",)
+            )
+            max_seq = 0
+            for (eid,) in cursor.fetchall():
+                sfx = eid[len(prefix):]
+                if sfx.isdigit():
+                    max_seq = max(max_seq, int(sfx))
+            emp_id = f"{prefix}{max_seq + 1:03d}"
+
+    if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
         if email:
             _ecfg = get_email_config()
@@ -3296,9 +3322,10 @@ def add_employee_page():
                     flash(f"Credentials email sent to {email}", "success")
                 except Exception:
                     pass
-    except Exception as ex:
-        db.rollback()
-        flash(f"Registration failed: {ex}", "error")
+    else:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        flash("Registration failed. Please try again.", "error")
     cursor.close(); db.close()
     return redirect("/employees")
 
@@ -3853,20 +3880,34 @@ def generate_emp_id():
         row = cursor.fetchone()
         code         = (row[0] or "").strip().upper() if row else ""
         company_name = row[1] if row else ""
-        # Count only employees in this company to keep IDs unique per company
-        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", (company_id,))
-        total = cursor.fetchone()[0]
+        cursor.execute("SELECT employee_id FROM employees WHERE company_id=%s", (company_id,))
     else:
         cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
         row = cursor.fetchone()
         code         = (row[0] or "").strip().upper() if row else ""
         company_name = ""
-        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id IS NULL")
-        total = cursor.fetchone()[0]
+        cursor.execute("SELECT employee_id FROM employees WHERE company_id IS NULL")
+
+    # Find max existing sequence number to avoid collisions on deletions
+    prefix = code if code else "EMP"
+    max_seq = 0
+    for (eid,) in cursor.fetchall():
+        if eid and eid.upper().startswith(prefix):
+            suffix = eid[len(prefix):]
+            if suffix.isdigit():
+                max_seq = max(max_seq, int(suffix))
+
+    # Also check all employees globally in case company_id mismatch
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id LIKE %s", (f"{prefix}%",))
+    for (eid,) in cursor.fetchall():
+        if eid and eid.upper().startswith(prefix):
+            suffix = eid[len(prefix):]
+            if suffix.isdigit():
+                max_seq = max(max_seq, int(suffix))
 
     cursor.close(); db.close()
-    seq    = total + 1
-    emp_id = f"{code}{seq:03d}" if code else f"EMP{seq:03d}"
+    seq    = max_seq + 1
+    emp_id = f"{prefix}{seq:03d}"
     return jsonify({"emp_id": emp_id, "code": code, "seq": seq, "company_name": company_name})
 
 
