@@ -91,14 +91,13 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
-  <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; Tickets{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
   <hr class="nav-sep" style="margin-top:12px;" />
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item active" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
+  <a class="nav-item active" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-  <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
   <button type="button" class="dm-toggle"><i class="ti ti-moon dm-icon"></i> Dark mode</button>
@@ -111,6 +110,7 @@
       <p class="sub">Manage employee onboarding checklists and templates</p>
     </div>
     <div style="display:flex;gap:10px;">
+      <a href="/export_onboarding_csv" class="btn btn-gray"><i class="ti ti-file-spreadsheet"></i> Export CSV</a>
       <button class="btn btn-navy" onclick="openModal('assignModal')"><i class="ti ti-user-plus"></i> Assign Onboarding</button>
       <button class="btn btn-green" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> New Template</button>
     </div>
@@ -121,6 +121,22 @@
       <li class="flash-msg flash-{{ cat }}"><i class="ti ti-{% if cat=='success' %}circle-check{% else %}alert-circle{% endif %}"></i>{{ msg }}</li>
     {% endfor %}</ul>{% endif %}
   {% endwith %}
+
+  <!-- STATS ROW -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;">
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+      <div style="width:42px;height:42px;border-radius:11px;background:#dbeafe;display:flex;align-items:center;justify-content:center;"><i class="ti ti-users" style="color:#1e3a8a;font-size:20px;"></i></div>
+      <div><div style="font-size:22px;font-weight:800;color:#0f172a;">{{ total_active }}</div><div style="font-size:12px;color:#64748b;font-weight:600;">Active</div></div>
+    </div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+      <div style="width:42px;height:42px;border-radius:11px;background:#dcfce7;display:flex;align-items:center;justify-content:center;"><i class="ti ti-circle-check" style="color:#16a34a;font-size:20px;"></i></div>
+      <div><div style="font-size:22px;font-weight:800;color:#16a34a;">{{ total_completed }}</div><div style="font-size:12px;color:#64748b;font-weight:600;">Completed</div></div>
+    </div>
+    <div style="background:#fff;border:1px solid {% if total_overdue > 0 %}#fca5a5{% else %}#e2e8f0{% endif %};border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;">
+      <div style="width:42px;height:42px;border-radius:11px;background:{% if total_overdue > 0 %}#fee2e2{% else %}#f1f5f9{% endif %};display:flex;align-items:center;justify-content:center;"><i class="ti ti-clock-exclamation" style="color:{% if total_overdue > 0 %}#dc2626{% else %}#94a3b8{% endif %};font-size:20px;"></i></div>
+      <div><div style="font-size:22px;font-weight:800;color:{% if total_overdue > 0 %}#dc2626{% else %}#0f172a{% endif %};">{{ total_overdue }}</div><div style="font-size:12px;color:#64748b;font-weight:600;">Overdue</div></div>
+    </div>
+  </div>
 
   <!-- TABS -->
   <div class="tabs">
@@ -154,25 +170,32 @@
             {% set total = ob[9] or 0 %}
             {% set done = ob[10] or 0 %}
             {% set pct = ((done / total * 100) | int) if total > 0 else 0 %}
-            <tr>
+            {% set is_overdue = ob[7] and ob[7] < today and ob[8] != 'Completed' %}
+            <tr style="{% if is_overdue %}background:#fff8f8;{% endif %}">
               <td>
                 <div style="font-weight:600;color:#0f172a;">{{ ob[2] }}</div>
                 <div style="font-size:11px;color:#64748b;">{{ ob[3] }} &bull; {{ ob[4] or '—' }}</div>
               </td>
               <td>{{ ob[5] }}</td>
               <td>{{ ob[6] }}</td>
-              <td>{{ ob[7] or '—' }}</td>
+              <td>
+                {% if ob[7] %}
+                  <span style="color:{% if is_overdue %}#dc2626{% else %}#374151{% endif %};font-weight:{% if is_overdue %}700{% else %}400{% endif %};">
+                    {{ ob[7] }}{% if is_overdue %} ⚠️{% endif %}
+                  </span>
+                {% else %}—{% endif %}
+              </td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%;{% if pct==100 %}background:#16a34a;{% endif %}"></div></div>
-                  <span style="font-size:12px;font-weight:700;color:{% if pct==100 %}#16a34a{% else %}#1e3a8a{% endif %};">{{ done }}/{{ total }}</span>
+                  <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%;{% if pct==100 %}background:#16a34a;{% elif is_overdue %}background:#ef4444;{% endif %}"></div></div>
+                  <span style="font-size:12px;font-weight:700;color:{% if pct==100 %}#16a34a{% elif is_overdue %}#dc2626{% else %}#1e3a8a{% endif %};">{{ done }}/{{ total }}</span>
                 </div>
               </td>
               <td>
                 {% if ob[8]=='Completed' %}
-                  <span class="badge badge-green">Completed</span>
-                {% elif ob[8]=='Overdue' %}
-                  <span class="badge badge-red">Overdue</span>
+                  <span class="badge badge-green">✓ Completed</span>
+                {% elif is_overdue %}
+                  <span class="badge badge-red">⚠ Overdue</span>
                 {% else %}
                   <span class="badge badge-blue">In Progress</span>
                 {% endif %}
@@ -193,6 +216,24 @@
 
   <!-- TAB: TEMPLATES -->
   <div class="tab-content {% if active_tab=='templates' %}active{% endif %}" id="tab-templates">
+
+    <!-- DEFAULT TEMPLATE SETTING -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 22px;margin-bottom:22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:2px;"><i class="ti ti-bolt" style="color:#1e3a8a;"></i> Auto-Assign Default Template</div>
+        <div style="font-size:11px;color:#64748b;">Automatically assigned to every new employee when they are added.</div>
+      </div>
+      <form method="POST" action="/save_default_onboarding_template" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select name="default_onboarding_template_id" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;min-width:220px;">
+          <option value="0">— No default —</option>
+          {% for tpl in templates %}
+          <option value="{{ tpl[0] }}" {% if default_onboarding_tpl == tpl[0] %}selected{% endif %}>{{ tpl[1] }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" style="background:#1e3a8a;color:#fff;padding:8px 16px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button>
+      </form>
+    </div>
+
     {% if templates %}
     <div class="grid-3" style="margin-bottom:20px;">
       {% for t in templates %}
@@ -209,6 +250,10 @@
           <span style="font-size:12px;color:#64748b;"><i class="ti ti-list-check"></i> {{ t[4] }} tasks</span>
           <div style="display:flex;gap:6px;">
             <a href="/onboarding_template_detail/{{ t[0] }}" class="btn btn-gray btn-sm"><i class="ti ti-pencil"></i> Edit</a>
+            <form action="/onboarding_template_duplicate" method="POST" style="display:inline">
+              <input type="hidden" name="template_id" value="{{ t[0] }}" />
+              <button type="submit" class="btn btn-gray btn-sm" title="Duplicate template"><i class="ti ti-copy"></i></button>
+            </form>
             <form action="/onboarding_template_delete" method="POST" style="display:inline"
                   onsubmit="return confirm('Delete this template?')">
               <input type="hidden" name="template_id" value="{{ t[0] }}" />
@@ -226,8 +271,8 @@
       <button class="btn btn-navy" style="margin-top:16px;" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> Create Template</button>
     </div>
     {% endif %}
+
   </div>
-</div>
 
 <!-- MODAL: New Template -->
 <div class="modal" id="templateModal">
