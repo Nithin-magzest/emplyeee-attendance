@@ -160,16 +160,17 @@
       display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;cursor:pointer}
 
     @media(max-width:900px){
+      body{display:block!important}
+      .sidebar{width:100%!important;height:auto!important;position:static!important;
+               flex-direction:row!important;flex-wrap:wrap!important;overflow-x:auto!important}
+      .sidebar-footer{display:none!important}
+      .main{width:100%!important;padding:16px!important;box-sizing:border-box}
       .stats-row{grid-template-columns:repeat(2,1fr)}
       .grid2{grid-template-columns:1fr}
       .card.full{grid-column:1}
       .profile-top{flex-direction:column;text-align:center}
       .profile-actions{justify-content:center}
       .btn-del{margin-left:0}
-    }
-    @media(max-width:768px){
-      body{flex-direction:column}
-      .sidebar{width:100%;height:auto;position:static}
       .info-grid{grid-template-columns:1fr}
     }
   </style>

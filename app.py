@@ -240,6 +240,60 @@ def _inject_csrf_meta(response):
         pass
     return response
 
+# ---------------- AUDIT LOGGING ----------------
+def _audit(action, table=None, record_id=None, detail=None):
+    """Write one row to audit_logs. Never raises — audit must never break main flow."""
+    try:
+        actor      = session.get("admin_username") or session.get("employee_id") or "system"
+        actor_type = "admin" if session.get("admin_logged_in") else "employee"
+        ip         = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        db = get_db_connection(); cursor = db.cursor()
+        cursor.execute("""INSERT INTO audit_logs (actor, actor_type, action, target_table, target_id, detail, ip_address)
+                          VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                       (actor, actor_type, action, table, str(record_id) if record_id is not None else None, detail, ip))
+        db.commit(); cursor.close(); db.close()
+    except Exception:
+        pass
+
+# ---------------- FILE UPLOAD VALIDATION ----------------
+_ALLOWED_MIME_MAP = {
+    'pdf':  {'application/pdf'},
+    'jpg':  {'image/jpeg'},
+    'jpeg': {'image/jpeg'},
+    'png':  {'image/png'},
+    'doc':  {'application/msword'},
+    'docx': {'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
+    'xls':  {'application/vnd.ms-excel'},
+    'xlsx': {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+}
+_MAX_DOC_SIZE_MB = 10
+
+def _validate_upload(file_storage, allowed_exts=None):
+    """Returns (ok, error_message). Checks extension + MIME type + size."""
+    if not file_storage or not file_storage.filename:
+        return False, "No file selected."
+    ext = file_storage.filename.rsplit('.', 1)[-1].lower() if '.' in file_storage.filename else ''
+    if allowed_exts and ext not in allowed_exts:
+        return False, f"File type .{ext} not allowed. Allowed: {', '.join(sorted(allowed_exts))}"
+    ct = (file_storage.content_type or '').split(';')[0].strip().lower()
+    if ct and ext in _ALLOWED_MIME_MAP and ct not in _ALLOWED_MIME_MAP[ext]:
+        return False, f"File content does not match its extension."
+    # Check magic bytes for PDF and images
+    header = file_storage.stream.read(8)
+    file_storage.stream.seek(0)
+    if ext == 'pdf' and not header.startswith(b'%PDF'):
+        return False, "Invalid PDF file."
+    if ext == 'png' and not header.startswith(b'\x89PNG'):
+        return False, "Invalid PNG file."
+    if ext in ('jpg', 'jpeg') and not header.startswith(b'\xff\xd8'):
+        return False, "Invalid JPEG file."
+    file_storage.stream.seek(0, 2)
+    size_mb = file_storage.stream.tell() / (1024 * 1024)
+    file_storage.stream.seek(0)
+    if size_mb > _MAX_DOC_SIZE_MB:
+        return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
+    return True, None
+
 # ---------------- COMPANY SETTINGS ----------------
 def get_company_settings():
     try:
@@ -699,6 +753,22 @@ def init_db():
     ]:
         try: cursor.execute(_sql)
         except Exception: pass
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            actor VARCHAR(100) NOT NULL,
+            actor_type VARCHAR(20) DEFAULT 'admin',
+            action VARCHAR(150) NOT NULL,
+            target_table VARCHAR(100),
+            target_id VARCHAR(100),
+            detail TEXT,
+            ip_address VARCHAR(45),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_actor (actor),
+            INDEX idx_action (action),
+            INDEX idx_created (created_at)
+        )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS compoff_balance (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2555,6 +2625,7 @@ def delete_employee(emp_id):
         cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
         cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
         db.commit()
+        _audit("delete_employee", "employees", emp_id, f"Employee {emp_id} permanently deleted")
         flash(f"Employee '{emp_id}' deleted successfully.", "success")
     else:
         flash(f"Employee '{emp_id}' not found.", "error")
@@ -3291,6 +3362,92 @@ def admin_reset_password(token):
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
 
 
+@app.route("/employee_forgot_password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def employee_forgot_password():
+    if request.method == "GET":
+        return render_template("employee_forgot_password.html", sent=False, error=None)
+    emp_id = request.form.get("employee_id", "").strip()
+    email  = request.form.get("email", "").strip().lower()
+    if not emp_id or not email:
+        return render_template("employee_forgot_password.html", sent=False, error="Both Employee ID and email are required.")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id, email FROM employees WHERE employee_id=%s", (emp_id,))
+    row = cursor.fetchone()
+    if not row or not row[1] or row[1].lower() != email:
+        cursor.close(); db.close()
+        return render_template("employee_forgot_password.html", sent=False,
+                               error="Employee ID and email do not match our records.")
+    token  = secrets.token_hex(32)
+    expiry = datetime.datetime.now() + datetime.timedelta(hours=1)
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
+        db.commit()
+    except Exception: pass
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME")
+        db.commit()
+    except Exception: pass
+    cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
+                   (token, expiry, emp_id))
+    db.commit(); cursor.close(); db.close()
+    cfg = get_email_config()
+    if not cfg:
+        return render_template("employee_forgot_password.html", sent=False,
+                               error="Email service not configured. Please contact HR.")
+    reset_url = f"{request.host_url}employee_reset_password/{token}"
+    html_body = f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">🔐 Password Reset</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Portal</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">You requested a password reset for Employee ID <strong>{emp_id}</strong>.</p>
+    <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
+      Reset My Password
+    </a>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, ignore this email.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy: {reset_url}</p>
+  </div>
+</div>"""
+    try:
+        send_email_smtp(email, "Password Reset — Employee Portal", html_body, cfg)
+    except Exception as ex:
+        return render_template("employee_forgot_password.html", sent=False, error=f"Failed to send email: {ex}")
+    return render_template("employee_forgot_password.html", sent=True, error=None)
+
+
+@app.route("/employee_reset_password/<token>", methods=["GET", "POST"])
+def employee_reset_password(token):
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
+                   (token, datetime.datetime.now()))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=False, done=False, token=token)
+    if request.method == "GET":
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
+    new_pw     = request.form.get("new_password", "").strip()
+    confirm_pw = request.form.get("confirm_password", "").strip()
+    if len(new_pw) < 6:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False,
+                               token=token, error="Password must be at least 6 characters.")
+    if new_pw != confirm_pw:
+        cursor.close(); db.close()
+        return render_template("employee_reset_password.html", valid=True, done=False,
+                               token=token, error="Passwords do not match.")
+    emp_id = row[0]
+    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE employee_id=%s",
+                   (generate_password_hash(new_pw), emp_id))
+    db.commit(); cursor.close(); db.close()
+    _audit("employee_password_reset", "employees", emp_id, "Password reset via email link")
+    return render_template("employee_reset_password.html", valid=True, done=True, token=token, error=None)
+
+
 @app.route("/view_qrcodes")
 @admin_required
 def view_qrcodes():
@@ -3645,6 +3802,7 @@ def update_salary():
     db.commit()
     cursor.close()
     db.close()
+    _audit("update_salary", "salary_config", emp_id, f"salary_per_day set to {salary}")
     return redirect("/settings?tab=salary")
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
@@ -6571,6 +6729,9 @@ def leave_action(lid):
 
     db.commit()
     cursor.close(); db.close()
+    if leave_row:
+        _audit(f"leave_{action.lower()}", "leave_requests", lid,
+               f"Employee {leave_row[0]} leave on {leave_row[1]} — {action}")
 
     # Send email + in-app notification to employee
     if leave_row:
@@ -6785,6 +6946,9 @@ def resignation_action(rid):
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
     cursor.close(); db.close()
+    if resign_row:
+        _audit(f"resignation_{action.lower()}", "resignation_requests", rid,
+               f"Employee {resign_row[0]} resignation {action}")
 
     if resign_row:
         emp_id, lwd, reason, emp_name, emp_email = resign_row
@@ -7701,6 +7865,7 @@ def employee_api_required(f):
 
 
 @app.route("/api/employee/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def api_employee_login():
     data   = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
@@ -9092,10 +9257,7 @@ def analytics():
 #  FEATURE 2: DOCUMENT MANAGEMENT
 # ================================================================
 
-_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
-
-def _allowed_doc(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in _DOC_ALLOWED_EXT
+_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
 
 def _doc_admin_ctx(cursor):
     cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
@@ -9162,13 +9324,14 @@ def upload_document():
     if not emp_id or not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/documents')
-    if not _allowed_doc(f.filename):
-        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+    ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
+    if not ok:
+        flash(err, "danger")
         return redirect(f'/documents?emp_id={emp_id}')
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
-    orig_name    = f.filename
-    stored_name  = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
+    orig_name   = f.filename
+    stored_name = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
     f.save(os.path.join(folder, stored_name))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -9177,6 +9340,7 @@ def upload_document():
         (emp_id, doc_type, orig_name, stored_name)
     )
     db.commit(); cursor.close(); db.close()
+    _audit("upload_document", "employee_documents", emp_id, f"doc_type={doc_type} file={orig_name}")
     flash("Document uploaded successfully.", "success")
     redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
     return redirect(redirect_to)
@@ -9236,8 +9400,9 @@ def upload_my_document():
     if not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/employee_portal')
-    if not _allowed_doc(f.filename):
-        flash("Invalid file type. Allowed: pdf, jpg, jpeg, png, doc, docx", "danger")
+    ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
+    if not ok:
+        flash(err, "danger")
         return redirect('/employee_portal')
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
