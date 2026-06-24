@@ -2546,6 +2546,16 @@ def settings_page():
     _cr = cursor.fetchone()
     company_code = _cr[0] if _cr else ""
     default_onboarding_tpl = int(_cr[1]) if _cr and _cr[1] else 0
+
+    # Company stats
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total_employees = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM employees WHERE status='Active'")
+    active_employees = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(DISTINCT department) FROM employees WHERE department IS NOT NULL AND department != ''")
+    total_departments = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM shifts")
+    total_shifts = cursor.fetchone()[0]
     cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
     onboarding_templates = cursor.fetchall()
 
@@ -2592,6 +2602,10 @@ def settings_page():
         tab=tab,
         email_config=email_config,
         company_code=company_code,
+        total_employees=total_employees,
+        active_employees=active_employees,
+        total_departments=total_departments,
+        total_shifts=total_shifts,
         companies=companies,
         shifts=shift_rows,
         emp_list=emp_list,

@@ -439,21 +439,81 @@
               <div><div class="sec-title">Company</div><div class="sec-sub">Organisation details, timezone and working schedule</div></div>
             </div>
           {% if saved and tab=='company' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
-          <form method="POST" action="/save_company_info">
-            <div class="section" style="margin-bottom:16px;">
-              <div class="section-title">🏢 Organisation Info</div>
-              <div class="two-col">
-                <div class="field"><label>Company Name</label><input type="text" name="company_name" value="{{ features.company_name }}" placeholder="e.g. Magzest Solutions" /></div>
-                <div class="field"><label>Company Code</label><input type="text" name="company_code" value="{{ company_code }}" placeholder="MGZ" maxlength="10" /></div>
-              </div>
-              <div class="field"><label>Timezone</label>
-                <select name="timezone">
-                  {% for tz in ['Asia/Kolkata','Asia/Dubai','Asia/Singapore','Asia/Tokyo','Europe/London','America/New_York','UTC'] %}
-                  <option value="{{ tz }}" {% if features.timezone==tz %}selected{% endif %}>{{ tz }}</option>
-                  {% endfor %}
-                </select>
-              </div>
+
+          <!-- Stats row -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-users" style="font-size:20px;color:#1e3a8a;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Total Employees</div></div>
             </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-user-check" style="font-size:20px;color:#16a34a;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ active_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Active</div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-sitemap" style="font-size:20px;color:#ea580c;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_departments }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Departments</div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#fefce8;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="font-size:20px;color:#ca8a04;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_shifts }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Shifts</div></div>
+            </div>
+          </div>
+
+          <!-- Company Name & Code cards with inline edit -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+
+            <!-- Company Name card -->
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="color:#1e3a8a;font-size:17px;"></i></div>
+                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Name</span>
+                </div>
+                <button type="button" onclick="toggleEdit('cn')" id="cn-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
+              </div>
+              <!-- View mode -->
+              <div id="cn-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">{{ features.company_name or '—' }}</div>
+              <!-- Edit mode -->
+              <form id="cn-edit" method="POST" action="/save_company_info" style="display:none;">
+                <input type="hidden" name="company_code" value="{{ company_code }}" />
+                <input type="text" name="company_name" value="{{ features.company_name }}" placeholder="e.g. Magzest Solutions" style="width:100%;padding:9px 12px;border:1.5px solid #bfdbfe;border-radius:9px;font-size:14px;font-weight:600;margin-bottom:10px;outline:none;" />
+                <div style="display:flex;gap:8px;">
+                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
+                  <button type="button" onclick="toggleEdit('cn')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Company Code card -->
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:36px;height:36px;border-radius:10px;background:#fefce8;display:flex;align-items:center;justify-content:center;"><i class="ti ti-hash" style="color:#ca8a04;font-size:17px;"></i></div>
+                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Code</span>
+                </div>
+                <button type="button" onclick="toggleEdit('cc')" id="cc-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
+              </div>
+              <!-- View mode -->
+              <div id="cc-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">
+                {% if company_code %}<span style="font-family:monospace;background:#fefce8;border:1.5px solid #fde68a;padding:4px 14px;border-radius:8px;letter-spacing:2px;">{{ company_code }}</span>{% else %}<span style="color:#94a3b8;font-size:14px;">Not set</span>{% endif %}
+              </div>
+              <!-- Edit mode -->
+              <form id="cc-edit" method="POST" action="/save_company_info" style="display:none;">
+                <input type="hidden" name="company_name" value="{{ features.company_name }}" />
+                <input type="text" name="company_code" value="{{ company_code }}" placeholder="e.g. MGZ" maxlength="10" style="width:100%;padding:9px 12px;border:1.5px solid #fde68a;border-radius:9px;font-size:14px;font-weight:700;font-family:monospace;letter-spacing:2px;margin-bottom:10px;outline:none;" />
+                <div style="display:flex;gap:8px;">
+                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#ca8a04;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
+                  <button type="button" onclick="toggleEdit('cc')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+
+          <form method="POST" action="/save_company_info">
+            <input type="hidden" name="company_name" value="{{ features.company_name }}" />
+            <input type="hidden" name="company_code" value="{{ company_code }}" />
             <div class="section" style="margin-bottom:16px;">
               <div class="section-title">📅 Working Days</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px;">
@@ -477,27 +537,83 @@
               <div><div class="sec-title">Attendance Methods</div><div class="sec-sub">Enable or disable each punch-in method</div></div>
             </div>
             {% if saved and tab=='attendance' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <div class="feat-card"><div class="feat-icon">🤳</div><div class="feat-body"><div class="feat-name">Face Authentication</div><div class="feat-desc">Employees selfie-punch via the mobile app</div></div><label class="toggle"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label></div>
-              <div class="feat-card">
-                <div class="feat-icon">📍</div>
-                <div class="feat-body">
-                  <div class="feat-name">Geo-fencing</div><div class="feat-desc">Restrict punch-in to a GPS radius from office</div>
-                  <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:10px;margin-top:10px;padding:10px;background:#f0f9ff;border-radius:8px;">
-                    <form method="POST" action="/save_geo_radius" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                      <label style="font-size:12px;font-weight:700;color:#0369a1;">Radius</label>
-                      <input type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" style="width:80px;padding:6px 10px;border:1px solid #bae6fd;border-radius:8px;font-size:13px;" />
-                      <span style="font-size:12px;color:#64748b;">metres</span>
-                      <button type="submit" style="padding:6px 14px;border:none;border-radius:8px;background:#0284c7;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
-                    </form>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+              <!-- Face Auth -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-face-id" style="font-size:22px;color:#d97706;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Face Authentication</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Selfie punch-in via mobile app</div></div>
                   </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
-                <label class="toggle"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
               </div>
-              <div class="feat-card"><div class="feat-icon">📱</div><div class="feat-body"><div class="feat-name">QR Code</div><div class="feat-desc">Employee scans a unique QR code to mark attendance</div></div><label class="toggle"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label></div>
-              <div class="feat-card"><div class="feat-icon">🔢</div><div class="feat-body"><div class="feat-name">PIN</div><div class="feat-desc">Employee punches in using a 4-digit PIN code</div></div><label class="toggle"><input type="checkbox" {% if features.pin %}checked{% endif %} onchange="saveToggle('pin_enabled',this.checked)" /><span class="toggle-slider"></span></label></div>
-              <div class="feat-card"><div class="feat-icon">🖐</div><div class="feat-body"><div class="feat-name">Fingerprint</div><div class="feat-desc">Physical fingerprint reader — requires hardware device</div></div><label class="toggle"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label></div>
-              <div class="feat-card"><div class="feat-icon">🔬</div><div class="feat-body"><div class="feat-name">Biometric Device</div><div class="feat-desc">Connect a biometric time-attendance machine</div></div><label class="toggle"><input type="checkbox" {% if features.biometric %}checked{% endif %} onchange="saveToggle('biometric_enabled',this.checked)" /><span class="toggle-slider"></span></label></div>
+
+              <!-- Geo-fencing -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-map-pin" style="font-size:22px;color:#16a34a;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Geo-fencing</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Restrict punch-in by GPS radius</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
+                </div>
+                <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+                  <form method="POST" action="/save_geo_radius" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;">
+                    <i class="ti ti-current-location" style="color:#16a34a;font-size:15px;"></i>
+                    <label style="font-size:12px;font-weight:700;color:#15803d;">Radius</label>
+                    <input type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" style="width:72px;padding:5px 9px;border:1px solid #86efac;border-radius:7px;font-size:13px;font-weight:600;" />
+                    <span style="font-size:12px;color:#64748b;">metres</span>
+                    <button type="submit" style="margin-left:auto;padding:5px 14px;border:none;border-radius:7px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- QR Code -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-qrcode" style="font-size:22px;color:#7c3aed;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">QR Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Scan unique QR code to punch in</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- PIN -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-password" style="font-size:22px;color:#2563eb;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">PIN Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">4-digit PIN punch-in</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.pin %}checked{% endif %} onchange="saveToggle('pin_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- Fingerprint -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-fingerprint" style="font-size:22px;color:#dc2626;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Fingerprint</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Physical fingerprint reader device</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- Biometric -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-device-desktop-analytics" style="font-size:22px;color:#475569;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Biometric Device</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Biometric time-attendance machine</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.biometric %}checked{% endif %} onchange="saveToggle('biometric_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -571,43 +687,160 @@
               <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;font-size:20px;"></i></div>
               <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
             </div>
-            {% if saved and tab=='salary-rules' %}<div class="flash flash-green">✅ Salary rules saved!</div>{% endif %}
+            {% if saved and tab=='salary-rules' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
             <form method="POST" action="/save_salary_rules">
-              <div class="section" style="margin-bottom:14px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">
-                  <div style="width:26px;height:26px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:#fff;font-size:11px;font-weight:800;">1</span></div>
-                  <div><div style="font-size:13px;font-weight:800;color:#0f172a;">Shift Time Thresholds</div><div style="font-size:11px;color:#94a3b8;">These 3 times classify each day</div></div>
+
+              <!-- Section 1: Shift Timings -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-clock" style="font-size:18px;color:#1e3a8a;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Shift Timings</div>
+                    <div style="font-size:12px;color:#94a3b8;">Define when a day is classified as On Time, Late, or Absent</div>
+                  </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
-                  <div class="field" style="margin-bottom:0;"><label style="color:#16a34a;">Login Cutoff</label><input type="time" name="shift_start" id="inp_start" value="{{ default_start }}" onchange="updatePreviews()" required /></div>
-                  <div class="field" style="margin-bottom:0;"><label style="color:#f59e0b;">Late Boundary</label><input type="time" name="shift_half" id="inp_half" value="{{ default_half }}" onchange="updatePreviews()" required /></div>
-                  <div class="field" style="margin-bottom:0;"><label style="color:#ea580c;">Logout Cutoff</label><input type="time" name="shift_end" id="inp_end" value="{{ default_end }}" onchange="updatePreviews()" required /></div>
-                  <div class="field" style="margin-bottom:0;"><label>Grace (mins)</label><input type="number" name="grace_minutes" value="{{ grace_minutes }}" min="0" max="60" /></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                  <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Login Cutoff</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time if before this</div>
+                    <input type="time" name="shift_start" id="inp_start" value="{{ default_start }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #86efac;border-radius:8px;font-size:14px;font-weight:700;color:#15803d;background:#fff;" />
+                  </div>
+                  <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#ca8a04;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Late Boundary</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Late if between cutoff & this</div>
+                    <input type="time" name="shift_half" id="inp_half" value="{{ default_half }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fcd34d;border-radius:8px;font-size:14px;font-weight:700;color:#92400e;background:#fff;" />
+                  </div>
+                  <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#ea580c;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Logout Cutoff</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Must log out before this</div>
+                    <input type="time" name="shift_end" id="inp_end" value="{{ default_end }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fb923c;border-radius:8px;font-size:14px;font-weight:700;color:#9a3412;background:#fff;" />
+                  </div>
+                  <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Grace Period</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Forgiven late minutes</div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <input type="number" name="grace_minutes" value="{{ grace_minutes }}" min="0" max="60" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:700;color:#0f172a;background:#fff;" />
+                      <span style="font-size:12px;color:#64748b;white-space:nowrap;">mins</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="section" style="margin-bottom:14px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">
-                  <div style="width:26px;height:26px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:#fff;font-size:11px;font-weight:800;">2</span></div>
-                  <div><div style="font-size:13px;font-weight:800;color:#0f172a;">Attendance → Deductions</div><div style="font-size:11px;color:#94a3b8;">Deduction % per attendance type</div></div>
+
+              <!-- Section 2: Deduction Rules -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-percent" style="font-size:18px;color:#dc2626;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Salary Deductions</div>
+                    <div style="font-size:12px;color:#94a3b8;">What percentage is deducted based on attendance status</div>
+                  </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-                  <div style="border:1.5px solid #bbf7d0;border-top:4px solid #16a34a;border-radius:10px;padding:12px;background:#f0fdf4;text-align:center;"><div style="font-size:11px;font-weight:800;color:#15803d;margin-bottom:6px;">✅ Full Day</div><div style="font-size:10px;color:#166534;margin-bottom:8px;">On time, full hours</div><div style="background:#dcfce7;border-radius:6px;padding:8px;"><div style="font-size:20px;font-weight:900;color:#15803d;">0%</div><div style="font-size:10px;color:#16a34a;font-weight:700;">No deduction</div></div></div>
-                  <div style="border:1.5px solid #fde68a;border-top:4px solid #f59e0b;border-radius:10px;padding:12px;background:#fffbeb;text-align:center;"><div style="font-size:11px;font-weight:800;color:#92400e;margin-bottom:6px;">⚠️ Late Full</div><div style="font-size:10px;color:#78350f;margin-bottom:8px;">Late login, full hours</div><div style="background:#fef9c3;border-radius:6px;padding:8px;"><div style="display:flex;align-items:center;justify-content:center;"><input type="number" name="late_deduction_pct" id="inp_late_pct" value="{{ late_deduction_pct }}" min="0" max="100" step="0.1" style="width:42px;font-size:18px;font-weight:900;color:#92400e;border:none;background:transparent;outline:none;text-align:center;" /><span style="font-size:18px;font-weight:900;color:#92400e;">%</span></div><div style="font-size:10px;color:#b45309;font-weight:700;">Deduction</div></div></div>
-                  <div style="border:1.5px solid #fed7aa;border-top:4px solid #ea580c;border-radius:10px;padding:12px;background:#fff7ed;text-align:center;"><div style="font-size:11px;font-weight:800;color:#9a3412;margin-bottom:6px;">⚠️ Half Day</div><div style="font-size:10px;color:#7c2d12;margin-bottom:8px;">Very late or early logout</div><div style="background:#ffedd5;border-radius:6px;padding:8px;"><div style="display:flex;align-items:center;justify-content:center;"><input type="number" name="half_day_deduction_pct" id="inp_half_pct" value="{{ half_day_deduction_pct }}" min="0" max="100" step="0.1" style="width:42px;font-size:18px;font-weight:900;color:#9a3412;border:none;background:transparent;outline:none;text-align:center;" /><span style="font-size:18px;font-weight:900;color:#9a3412;">%</span></div><div style="font-size:10px;color:#ea580c;font-weight:700;">Deduction</div></div></div>
-                  <div style="border:1.5px solid #fca5a5;border-top:4px solid #dc2626;border-radius:10px;padding:12px;background:#fef2f2;text-align:center;"><div style="font-size:11px;font-weight:800;color:#991b1b;margin-bottom:6px;">❌ Absent</div><div style="font-size:10px;color:#7f1d1d;margin-bottom:8px;">No attendance recorded</div><div style="background:#fee2e2;border-radius:6px;padding:8px;"><div style="font-size:20px;font-weight:900;color:#991b1b;">100%</div><div style="font-size:10px;color:#dc2626;font-weight:700;">Full deduction</div></div></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                  <!-- Full Day -->
+                  <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;overflow:hidden;">
+                    <div style="background:#16a34a;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-circle-check" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Full Day</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time, worked full hours</div>
+                      <div style="font-size:30px;font-weight:900;color:#16a34a;">0%</div>
+                      <div style="font-size:11px;font-weight:700;color:#16a34a;margin-top:4px;">No deduction</div>
+                    </div>
+                  </div>
+                  <!-- Late Full -->
+                  <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f59e0b;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clock-exclamation" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Late — Full Day</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Arrived late, worked full hours</div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
+                        <input type="number" name="late_deduction_pct" id="inp_late_pct" value="{{ late_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#92400e;border:none;border-bottom:2px solid #fcd34d;background:transparent;outline:none;text-align:center;" />
+                        <span style="font-size:28px;font-weight:900;color:#92400e;">%</span>
+                      </div>
+                      <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:6px;">Deducted from salary</div>
+                    </div>
+                  </div>
+                  <!-- Half Day -->
+                  <div style="background:#fff;border:1.5px solid #fed7aa;border-radius:12px;overflow:hidden;">
+                    <div style="background:#ea580c;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clock-half-2" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Half Day</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Very late or left early</div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
+                        <input type="number" name="half_day_deduction_pct" id="inp_half_pct" value="{{ half_day_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#9a3412;border:none;border-bottom:2px solid #fb923c;background:transparent;outline:none;text-align:center;" />
+                        <span style="font-size:28px;font-weight:900;color:#9a3412;">%</span>
+                      </div>
+                      <div style="font-size:11px;font-weight:700;color:#ea580c;margin-top:6px;">Deducted from salary</div>
+                    </div>
+                  </div>
+                  <!-- Absent -->
+                  <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:12px;overflow:hidden;">
+                    <div style="background:#dc2626;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-x" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Absent</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">No attendance recorded</div>
+                      <div style="font-size:30px;font-weight:900;color:#dc2626;">100%</div>
+                      <div style="font-size:11px;font-weight:700;color:#dc2626;margin-top:4px;">Full day deducted</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="section" style="margin-bottom:14px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">
-                  <div style="width:26px;height:26px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:#fff;font-size:11px;font-weight:800;">3</span></div>
-                  <div><div style="font-size:13px;font-weight:800;color:#0f172a;">Special Day Policies</div><div style="font-size:11px;color:#94a3b8;">Holidays and approved leave pay rules</div></div>
+
+              <!-- Section 3: Special Policies -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-calendar-event" style="font-size:18px;color:#7c3aed;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Special Day Policies</div>
+                    <div style="font-size:12px;color:#94a3b8;">How holidays and approved leaves are treated in payroll</div>
+                  </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-                  <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;"><div style="padding:10px 14px;background:#f0f9ff;border-bottom:1px solid #bae6fd;font-size:12px;font-weight:800;color:#075985;">🏖 Holiday Pay</div><div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;"><label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;cursor:pointer;"><input type="radio" name="holiday_pay" value="paid" {% if holiday_pay=='paid' %}checked{% endif %} style="accent-color:#0284c7;width:15px;height:15px;" /><div><div style="font-size:12px;font-weight:700;">Paid Holiday</div><div style="font-size:11px;color:#64748b;">Full day salary</div></div></label><label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;cursor:pointer;"><input type="radio" name="holiday_pay" value="unpaid" {% if holiday_pay=='unpaid' %}checked{% endif %} style="accent-color:#dc2626;width:15px;height:15px;" /><div><div style="font-size:12px;font-weight:700;">Unpaid Holiday</div><div style="font-size:11px;color:#64748b;">No salary on holidays</div></div></label></div></div>
-                  <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;"><div style="padding:10px 14px;background:#f5f3ff;border-bottom:1px solid #ddd6fe;font-size:12px;font-weight:800;color:#5b21b6;">📋 Approved Leave</div><div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;"><label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;cursor:pointer;"><input type="radio" name="leave_pay" value="exclude" {% if leave_pay=='exclude' %}checked{% endif %} style="accent-color:#7c3aed;width:15px;height:15px;" /><div><div style="font-size:12px;font-weight:700;">Exclude</div><div style="font-size:11px;color:#64748b;">No pay, no deduction</div></div></label><label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;cursor:pointer;"><input type="radio" name="leave_pay" value="absent" {% if leave_pay=='absent' %}checked{% endif %} style="accent-color:#dc2626;width:15px;height:15px;" /><div><div style="font-size:12px;font-weight:700;">Count as Absent</div><div style="font-size:11px;color:#64748b;">Full day deducted</div></div></label></div></div>
+                  <!-- Holiday Pay -->
+                  <div style="background:#fff;border:1.5px solid #bae6fd;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f0f9ff;padding:12px 16px;border-bottom:1px solid #bae6fd;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-beach" style="color:#0284c7;font-size:16px;"></i>
+                      <span style="font-size:13px;font-weight:800;color:#075985;">Holiday Pay</span>
+                    </div>
+                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="holiday_pay" value="paid" {% if holiday_pay=='paid' %}checked{% endif %} style="accent-color:#0284c7;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Paid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Employees receive full salary on holidays</div></div>
+                      </label>
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="holiday_pay" value="unpaid" {% if holiday_pay=='unpaid' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Unpaid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No salary paid on public holidays</div></div>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- Approved Leave -->
+                  <div style="background:#fff;border:1.5px solid #ddd6fe;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f5f3ff;padding:12px 16px;border-bottom:1px solid #ddd6fe;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clipboard-check" style="color:#7c3aed;font-size:16px;"></i>
+                      <span style="font-size:13px;font-weight:800;color:#5b21b6;">Approved Leave</span>
+                    </div>
+                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="leave_pay" value="exclude" {% if leave_pay=='exclude' %}checked{% endif %} style="accent-color:#7c3aed;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Exclude from Payroll</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No pay, no deduction — day is skipped</div></div>
+                      </label>
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="leave_pay" value="absent" {% if leave_pay=='absent' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Count as Absent</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Full day salary is deducted</div></div>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button type="submit" class="btn-submit">Save Payroll Rules</button>
+
+              <button type="submit" class="btn-submit" style="width:100%;padding:13px;">Save Payroll Rules</button>
             </form>
           </div>
 
@@ -842,6 +1075,25 @@
       email:      { icon:'<i class="ti ti-mail" style="color:#0284c7;"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
       security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
     };
+
+    function toggleEdit(key) {
+      var view = document.getElementById(key + '-view');
+      var edit = document.getElementById(key + '-edit');
+      var btn  = document.getElementById(key + '-editbtn');
+      if (!view || !edit) return;
+      var isEditing = edit.style.display !== 'none';
+      if (isEditing) {
+        edit.style.display = 'none';
+        view.style.display = '';
+        btn.innerHTML = '<i class="ti ti-pencil" style="font-size:13px;"></i> Edit';
+      } else {
+        view.style.display = 'none';
+        edit.style.display = '';
+        btn.innerHTML = '<i class="ti ti-x" style="font-size:13px;"></i> Cancel';
+        var inp = edit.querySelector('input[type=text]');
+        if (inp) inp.focus();
+      }
+    }
 
     function toggleDd(id) {
       var menu = document.getElementById(id);
