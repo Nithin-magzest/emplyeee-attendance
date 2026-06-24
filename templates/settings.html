@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -213,15 +213,133 @@
     .modal-title { font-size: 17px; font-weight: 700; color: #1e293b; margin-bottom: 18px; }
     .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
 
-    @media (max-width: 900px) {
-      .two-col { grid-template-columns: 1fr; }
-      .time-row { grid-template-columns: 1fr; }
+    /* ── TOGGLE SWITCH ── */
+    .toggle { position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0; }
+    .toggle input { opacity:0;width:0;height:0; }
+    .toggle-slider { position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:24px;transition:.22s; }
+    .toggle-slider:before { content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.22s;box-shadow:0 1px 3px rgba(0,0,0,.18); }
+    .toggle input:checked + .toggle-slider { background:#1e3a8a; }
+    .toggle input:checked + .toggle-slider:before { transform:translateX(20px); }
+    .toggle input:disabled + .toggle-slider { opacity:.45;cursor:not-allowed; }
+
+    /* ══ SETTINGS 3-TAB NAV ══ */
+    .s3-nav {
+      display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+      margin-bottom:22px;
     }
-    @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; }
-      .main { padding: 16px; }
+    .s3-tab {
+      display:flex;align-items:center;gap:14px;
+      padding:16px 20px;
+      background:#fff;border:2px solid #e2e8f0;border-radius:16px;
+      cursor:pointer;font-family:inherit;text-align:left;
+      transition:all .18s;position:relative;overflow:hidden;
     }
+    .s3-tab::before {
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(135deg,rgba(30,58,138,.04),transparent);
+      opacity:0;transition:opacity .18s;
+    }
+    .s3-tab:hover { border-color:#bfdbfe;box-shadow:0 4px 14px rgba(30,58,138,.08); }
+    .s3-tab:hover::before { opacity:1; }
+    .s3-tab.active {
+      border-color:#1e3a8a;background:#1e3a8a;
+      box-shadow:0 6px 20px rgba(30,58,138,.25);
+    }
+    .s3-tab-icon {
+      width:44px;height:44px;border-radius:12px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      transition:all .18s;
+    }
+    .s3-tab-icon i { font-size:20px; }
+    .s3-tab.active .s3-tab-icon { background:rgba(255,255,255,.15); }
+    .s3-tab-icon i { transition:color .18s; }
+    .s3-tab-text { flex:1;min-width:0; }
+    .s3-tab-title { font-size:14px;font-weight:800;color:#0f172a;transition:color .18s; }
+    .s3-tab-sub   { font-size:11px;color:#94a3b8;margin-top:2px;transition:color .18s; }
+    .s3-tab.active .s3-tab-title { color:#fff; }
+    .s3-tab.active .s3-tab-sub   { color:rgba(255,255,255,.65); }
+    .s3-tab-count {
+      font-size:11px;font-weight:700;padding:3px 9px;
+      border-radius:20px;background:#f1f5f9;color:#64748b;
+      border:1px solid #e2e8f0;flex-shrink:0;
+      transition:all .18s;
+    }
+    .s3-tab.active .s3-tab-count { background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3); }
+
+    /* ══ TAB PANELS ══ */
+    .s3-panel { display:none; }
+    .s3-panel.active { display:block; }
+    .s3-section { display:none; }
+    .s3-section.active { display:block; }
+
+    /* ── SUB-NAV DROPDOWN (≡ button top-right) ── */
+    .subnav-bar {
+      display:flex;align-items:center;justify-content:flex-end;
+      margin-bottom:6px;
+    }
+
+    .subnav-dd-wrap { position:relative; }
+    .subnav-dd-btn {
+      display:flex;align-items:center;gap:7px;
+      padding:8px 14px;border-radius:10px;
+      border:1.5px solid #e2e8f0;background:#fff;
+      color:#475569;font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;
+      transition:all .15s;box-shadow:0 1px 4px rgba(15,23,42,.05);
+    }
+    .subnav-dd-btn:hover { border-color:#bfdbfe;color:#1e3a8a;background:#f0f7ff; }
+    .subnav-dd-btn .lines { display:flex;flex-direction:column;gap:3px; }
+    .subnav-dd-btn .lines span {
+      display:block;height:2px;background:currentColor;border-radius:2px;
+      transition:width .15s;
+    }
+    .subnav-dd-btn .lines span:nth-child(1) { width:14px; }
+    .subnav-dd-btn .lines span:nth-child(2) { width:10px; }
+    .subnav-dd-btn .lines span:nth-child(3) { width:14px; }
+
+    .subnav-dd-menu {
+      display:none;position:absolute;top:calc(100% + 8px);right:0;
+      background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;
+      box-shadow:0 8px 28px rgba(15,23,42,.12);
+      min-width:200px;z-index:200;overflow:hidden;
+      animation:ddFade .15s ease;
+    }
+    @keyframes ddFade { from { opacity:0;transform:translateY(-6px); } to { opacity:1;transform:translateY(0); } }
+    .subnav-dd-menu.open { display:block; }
+    .subnav-dd-item {
+      display:flex;align-items:center;gap:10px;
+      padding:11px 16px;width:100%;text-align:left;
+      border:none;background:transparent;font-family:inherit;
+      font-size:13px;font-weight:600;color:#475569;cursor:pointer;
+      transition:all .12s;border-bottom:1px solid #f8fafc;
+    }
+    .subnav-dd-item:last-child { border-bottom:none; }
+    .subnav-dd-item i { font-size:15px;color:#94a3b8;flex-shrink:0;transition:color .12s; }
+    .subnav-dd-item:hover { background:#f0f7ff;color:#1e3a8a; }
+    .subnav-dd-item:hover i { color:#2563eb; }
+    .subnav-dd-item.active { background:#eff6ff;color:#1e3a8a;font-weight:700; }
+    .subnav-dd-item.active i { color:#2563eb; }
+    .subnav-dd-item.active::after { content:'✓';margin-left:auto;font-size:12px;color:#2563eb;font-weight:800; }
+
+    /* Section header — visible title card at top of each section */
+    .sec-header {
+      display:flex;align-items:center;gap:14px;
+      padding:16px 20px;margin-bottom:20px;
+      background:#fff;border:1px solid #e2e8f0;border-radius:14px;
+      box-shadow:0 1px 4px rgba(15,23,42,.05);
+    }
+    .sec-icon { width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .sec-title { font-size:16px;font-weight:800;color:#0f172a; }
+    .sec-sub   { font-size:12px;color:#94a3b8;margin-top:2px; }
+    .feat-card { display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px; }
+    .feat-icon { width:38px;height:38px;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1px solid #f1f5f9; }
+    .feat-body { flex:1;min-width:0; }
+    .feat-name { font-size:13px;font-weight:700;color:#1e293b; }
+    .feat-desc { font-size:12px;color:#64748b;margin-top:2px; }
+
+    @media (max-width:900px) { .s3-nav { grid-template-columns:1fr; } .two-col { grid-template-columns:1fr; } .time-row { grid-template-columns:1fr; } }
+    @media (max-width:768px) { body { flex-direction:column; } .sidebar { width:100%;height:auto;position:static; } .main { padding:16px; } }
+    @media (max-width:768px)  { body { flex-direction:column; } .sidebar { width:100%;height:auto;position:static; } .main { padding:16px; } }
   </style>
 <link rel="stylesheet" href="/static/shared.css" />
   </head>
@@ -268,511 +386,689 @@
       <div class="flash flash-green">✅ Settings saved successfully!</div>
     {% endif %}
 
-    <!-- ── TAB BAR ── -->
-    <div class="tab-bar">
-      <button class="tab-btn {% if tab=='email' %}active{% endif %}" onclick="showTab('email')">✉️ Email</button>
-      <button class="tab-btn {% if tab=='salary' %}active{% endif %}" onclick="showTab('salary')">💵 Salary</button>
-      <button class="tab-btn {% if tab=='incentives' %}active{% endif %}" onclick="showTab('incentives')">🏆 Incentives</button>
-      <button class="tab-btn {% if tab=='appearance' %}active{% endif %}" onclick="showTab('appearance')">🎨 Appearance</button>
+    <!-- ══ 3-TAB SETTINGS NAV ══ -->
+    <div class="s3-nav">
+      <button class="s3-tab active" id="s3tab-org" onclick="switchGroup('org')">
+        <div class="s3-tab-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;"></i></div>
+        <div class="s3-tab-text">
+          <div class="s3-tab-title">Organisation</div>
+          <div class="s3-tab-sub">Company · Attendance · Shifts</div>
+        </div>
+        <span class="s3-tab-count">4</span>
+      </button>
+      <button class="s3-tab" id="s3tab-fin" onclick="switchGroup('fin')">
+        <div class="s3-tab-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;"></i></div>
+        <div class="s3-tab-text">
+          <div class="s3-tab-title">Finances</div>
+          <div class="s3-tab-sub">Payroll · Salary · Incentives</div>
+        </div>
+        <span class="s3-tab-count">3</span>
+      </button>
+      <button class="s3-tab" id="s3tab-sys" onclick="switchGroup('sys')">
+        <div class="s3-tab-icon" style="background:#f0f9ff;"><i class="ti ti-settings" style="color:#0284c7;"></i></div>
+        <div class="s3-tab-text">
+          <div class="s3-tab-title">System</div>
+          <div class="s3-tab-sub">Email · Security</div>
+        </div>
+        <span class="s3-tab-count">2</span>
+      </button>
     </div>
 
-    <!-- ══════════════════════════════════════
-         TAB: EMAIL
-    ══════════════════════════════════════ -->
-    <div id="tab-email" class="tab-panel {% if tab=='email' %}active{% endif %}">
+    <!-- ══ GROUP PANELS ══ -->
 
-      <!-- COMPANIES & CODES -->
-      <div class="section" style="margin-bottom:22px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <div class="section-title" style="margin:0;">🏢 Companies &amp; Employee ID Codes</div>
-          <button type="button" onclick="openSettingsAddCompany()"
-            style="display:flex;align-items:center;gap:6px;padding:9px 18px;background:#1e3a8a;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">
-            + New Company
-          </button>
+    <!-- ── ORGANISATION PANEL ── -->
+    <div class="s3-panel active" id="s3panel-org">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" onclick="toggleDd('dd-org')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-org">
+          <button class="subnav-dd-item active" id="ddi-company"    onclick="switchSub('org','company')">   <i class="ti ti-building"></i>   Company</button>
+          <button class="subnav-dd-item"        id="ddi-attendance" onclick="switchSub('org','attendance')"><i class="ti ti-fingerprint"></i> Attendance</button>
+          <button class="subnav-dd-item"        id="ddi-shifts"     onclick="switchSub('org','shifts')">    <i class="ti ti-clock"></i>      Shifts &amp; Breaks</button>
         </div>
-
-        {% if companies %}
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr style="background:#f8fafc;">
-              <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">Company</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">Code</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">ID Format</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">Employees</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for cid, cname, ccode, created_at, emp_count in companies %}
-            <tr style="border-bottom:1px solid #f1f5f9;">
-              <td style="padding:12px 12px;font-weight:700;color:#1e293b;">{{ cname }}</td>
-              <td style="padding:12px 12px;">
-                {% if ccode %}
-                  <span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;">{{ ccode }}</span>
-                {% else %}
-                  <span style="color:#cbd5e1;font-size:12px;">— no code —</span>
-                {% endif %}
-              </td>
-              <td style="padding:12px 12px;color:#64748b;font-size:12px;">
-                {% if ccode %}<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ ccode }}001</code>, <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ ccode }}002</code> …
-                {% else %}<span style="color:#94a3b8;">Set a code first</span>{% endif %}
-              </td>
-              <td style="padding:12px 12px;">
-                <span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">{{ emp_count }}</span>
-              </td>
-              <td style="padding:12px 12px;">
-                <button type="button"
-                  onclick="openSettingsEditCompany({{ cid }}, '{{ cname|replace("'","\\'") }}', '{{ ccode }}', {{ emp_count }})"
-                  style="padding:5px 12px;background:#eff6ff;color:#1d4ed8;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;margin-right:6px;">
-                  ✏ Edit
-                </button>
-                <form action="/companies/{{ cid }}/delete" method="POST" style="display:inline"
-                      onsubmit="return confirm('Delete {{ cname }}? This cannot be undone.')">
-                  <input type="hidden" name="redirect_to" value="settings" />
-                  <button type="submit"
-                    style="padding:5px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;">
-                    🗑 Delete
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div style="text-align:center;padding:32px;color:#94a3b8;font-size:14px;">
-          No companies yet. Click <strong>+ New Company</strong> to add one.
-        </div>
-        {% endif %}
-
-        <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-radius:10px;font-size:12px;color:#64748b;line-height:1.7;">
-          💡 <strong>How it works:</strong> Set a short code per company (e.g. <code>MGZ</code>, <code>TCS</code>).
-          When adding employees, select their company — IDs auto-generate as <code>MGZ001</code>, <code>MGZ002</code>…
-          Editing a code will <strong>rename all existing employee IDs</strong> of that company automatically.
-        </div>
-      </div>
-
-      <!-- Add Company Modal -->
-      <div id="settingsAddModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:18px;padding:28px;width:400px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-          <h3 style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:20px;">🏢 Add New Company</h3>
-          <form action="/companies/add" method="POST">
-            <input type="hidden" name="redirect_to" value="settings" />
-            <div style="margin-bottom:14px;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;">Company Name <span style="color:#dc2626;">*</span></label>
-              <input type="text" name="name" required placeholder="e.g. Magzest Technologies"
-                style="width:100%;padding:10px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;box-sizing:border-box;" />
-            </div>
-            <div style="margin-bottom:20px;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;">Short Code <span style="color:#94a3b8;">(used in Employee IDs)</span></label>
-              <input type="text" name="code" maxlength="10" placeholder="e.g. MGZ"
-                style="width:100%;padding:10px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;outline:none;box-sizing:border-box;" />
-              <div style="font-size:11px;color:#64748b;margin-top:4px;">Employees will get IDs like MGZ001, MGZ002…</div>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-              <button type="button" onclick="closeSettingsAddCompany()"
-                style="padding:9px 18px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
-              <button type="submit"
-                style="padding:9px 20px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Add Company</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Edit Company Modal -->
-      <div id="settingsEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:18px;padding:28px;width:440px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-          <h3 style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:20px;">✏ Edit Company</h3>
-          <form id="settingsEditForm" method="POST">
-            <input type="hidden" name="redirect_to" value="settings" />
-            <div style="margin-bottom:14px;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;">Company Name <span style="color:#dc2626;">*</span></label>
-              <input type="text" name="name" id="settingsEditName" required
-                style="width:100%;padding:10px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;box-sizing:border-box;" />
-            </div>
-            <div style="margin-bottom:14px;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;">Short Code</label>
-              <input type="text" name="code" id="settingsEditCode" maxlength="10"
-                style="width:100%;padding:10px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;outline:none;box-sizing:border-box;"
-                oninput="showSettingsCodeWarning(this)" />
-            </div>
-            <div id="settingsCodeWarning" style="display:none;margin-bottom:14px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#92400e;line-height:1.6;">
-              ⚠️ <strong>Warning:</strong> Changing the code from <strong id="settingsOldCodeLabel"></strong> to <strong id="settingsNewCodeLabel"></strong>
-              will <strong>rename all <span id="settingsEmpCountLabel">0</span> existing employee ID(s)</strong> of this company
-              (e.g. <span id="settingsOldIdExample"></span> → <span id="settingsNewIdExample"></span>).
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;">
-              <button type="button" onclick="closeSettingsEditCompany()"
-                style="padding:9px 18px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
-              <button type="submit"
-                style="padding:9px 20px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Changes</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="two-col">
-
-        <!-- SMTP form -->
-        <div class="section">
-          <div class="section-title">📡 SMTP Configuration</div>
-          <form method="POST" action="/email_config">
-            <div class="field">
-              <label>SMTP Host</label>
-              <input type="text" name="smtp_host" placeholder="e.g. smtp.gmail.com" required
-                value="{{ email_config.host if email_config else '' }}" />
-            </div>
-            <div class="field">
-              <label>Port</label>
-              <input type="number" name="smtp_port" placeholder="587" required
-                value="{{ email_config.port if email_config else 587 }}" />
-            </div>
-            <div class="field">
-              <label>SMTP Username (Email)</label>
-              <input type="email" name="smtp_user" placeholder="you@gmail.com" required
-                value="{{ email_config.user if email_config else '' }}" />
-            </div>
-            <div class="field">
-              <label>SMTP Password / App Password</label>
-              <input type="password" name="smtp_pass" placeholder="••••••••••••" required
-                value="{{ email_config.password if email_config else '' }}" />
-            </div>
-            <div class="field">
-              <label>From Name <span style="font-weight:400;text-transform:none;color:#94a3b8;">(shown in email)</span></label>
-              <input type="text" name="from_name" placeholder="Attendance System"
-                value="{{ email_config.from_name if email_config else 'Attendance System' }}" />
-            </div>
-            <div class="field">
-              <label>From Email <span style="font-weight:400;text-transform:none;color:#94a3b8;">(sender address)</span></label>
-              <input type="email" name="from_email" placeholder="e.g. noreply@yourdomain.com"
-                value="{{ email_config.from_email if email_config else '' }}" />
-              <div class="field-note">For Brevo: use your verified sender email, not the SMTP login.</div>
-            </div>
-            <button type="submit" class="btn-submit">💾 Save Email Settings</button>
-          </form>
-        </div>
-
-        <!-- Test email -->
-        <div class="section">
-          <div class="section-title">🧪 Test Email</div>
-          {% if email_config %}
-          <div style="font-size:13px;color:#64748b;margin-bottom:14px;">
-            Current config: <strong>{{ email_config.user }}</strong> via <strong>{{ email_config.host }}:{{ email_config.port }}</strong>
-          </div>
-          <div class="test-row">
-            <input type="email" id="testEmail" placeholder="Recipient email to test…" />
-            <button type="button" class="btn-test" onclick="sendTestEmail()">📤 Send Test</button>
-          </div>
-          <div id="testResult"></div>
-          {% else %}
-          <div style="color:#94a3b8;font-size:13px;padding:20px 0;">Save SMTP settings first to enable test emails.</div>
-          {% endif %}
-
-          <div style="margin-top:20px;padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;font-size:12px;color:#0369a1;line-height:1.6;">
-            <strong>Gmail:</strong> Use smtp.gmail.com, port 587, and an App Password (not your regular password).<br>
-            <strong>Brevo:</strong> Use smtp-relay.brevo.com, port 587, Brevo SMTP key as password.
-          </div>
-        </div>
-
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════
-         TAB: SALARY
-    ══════════════════════════════════════ -->
-    <div id="tab-salary" class="tab-panel {% if tab=='salary' %}active{% endif %}">
-      <div class="section">
-        <div class="section-header">
-          <div class="section-title" style="margin:0;">💵 Employee Salary Configuration</div>
-          <div class="search-wrap">
-            <input type="text" id="salSearch" placeholder="Search employee…" oninput="filterSalTable(this.value)" autocomplete="off" />
+          <!-- COMPANY -->
+          <div class="s3-section active" id="ss-company">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i></div>
+              <div><div class="sec-title">Company</div><div class="sec-sub">Organisation details, timezone and working schedule</div></div>
+            </div>
+          {% if saved and tab=='company' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
+
+          <!-- Stats row -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-users" style="font-size:20px;color:#1e3a8a;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Total Employees</div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-user-check" style="font-size:20px;color:#16a34a;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ active_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Active</div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-sitemap" style="font-size:20px;color:#ea580c;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_departments }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Departments</div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:12px;background:#fefce8;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="font-size:20px;color:#ca8a04;"></i></div>
+              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_shifts }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Shifts</div></div>
+            </div>
           </div>
+
+          <!-- Company Name & Code cards with inline edit -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+
+            <!-- Company Name card -->
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="color:#1e3a8a;font-size:17px;"></i></div>
+                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Name</span>
+                </div>
+                <button type="button" onclick="toggleEdit('cn')" id="cn-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
+              </div>
+              <!-- View mode -->
+              <div id="cn-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">{{ features.company_name or '—' }}</div>
+              <!-- Edit mode -->
+              <form id="cn-edit" method="POST" action="/save_company_info" style="display:none;">
+                <input type="hidden" name="company_code" value="{{ company_code }}" />
+                <input type="text" name="company_name" value="{{ features.company_name }}" placeholder="e.g. Magzest Solutions" style="width:100%;padding:9px 12px;border:1.5px solid #bfdbfe;border-radius:9px;font-size:14px;font-weight:600;margin-bottom:10px;outline:none;" />
+                <div style="display:flex;gap:8px;">
+                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
+                  <button type="button" onclick="toggleEdit('cn')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Company Code card -->
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:36px;height:36px;border-radius:10px;background:#fefce8;display:flex;align-items:center;justify-content:center;"><i class="ti ti-hash" style="color:#ca8a04;font-size:17px;"></i></div>
+                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Code</span>
+                </div>
+                <button type="button" onclick="toggleEdit('cc')" id="cc-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
+              </div>
+              <!-- View mode -->
+              <div id="cc-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">
+                {% if company_code %}<span style="font-family:monospace;background:#fefce8;border:1.5px solid #fde68a;padding:4px 14px;border-radius:8px;letter-spacing:2px;">{{ company_code }}</span>{% else %}<span style="color:#94a3b8;font-size:14px;">Not set</span>{% endif %}
+              </div>
+              <!-- Edit mode -->
+              <form id="cc-edit" method="POST" action="/save_company_info" style="display:none;">
+                <input type="hidden" name="company_name" value="{{ features.company_name }}" />
+                <input type="text" name="company_code" value="{{ company_code }}" placeholder="e.g. MGZ" maxlength="10" style="width:100%;padding:9px 12px;border:1.5px solid #fde68a;border-radius:9px;font-size:14px;font-weight:700;font-family:monospace;letter-spacing:2px;margin-bottom:10px;outline:none;" />
+                <div style="display:flex;gap:8px;">
+                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#ca8a04;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
+                  <button type="button" onclick="toggleEdit('cc')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+
+          <form method="POST" action="/save_company_info">
+            <input type="hidden" name="company_name" value="{{ features.company_name }}" />
+            <input type="hidden" name="company_code" value="{{ company_code }}" />
+            <div class="section" style="margin-bottom:16px;">
+              <div class="section-title">📅 Working Days</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                <label style="cursor:pointer;" id="wdlbl_{{ d }}">
+                  <input type="checkbox" name="working_days" value="{{ d }}" {% if d in features.working_days %}checked{% endif %} style="display:none;" onchange="styleWd(this,'{{ d }}')" />
+                  <span style="display:inline-block;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1.5px solid {% if d in features.working_days %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if d in features.working_days %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if d in features.working_days %}#1e3a8a{% else %}#64748b{% endif %};" id="wdspan_{{ d }}">{{ d }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="field-note" style="margin-top:10px;">Click to toggle working days. Affects payroll calculation.</div>
+            </div>
+            <button type="submit" class="btn-submit">Save Company Info</button>
+          </form>
+          </div><!-- /ss-company -->
+
+          <!-- ATTENDANCE -->
+          <div class="s3-section" id="ss-attendance">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#f0fdf4;"><i class="ti ti-fingerprint" style="color:#16a34a;font-size:20px;"></i></div>
+              <div><div class="sec-title">Attendance Methods</div><div class="sec-sub">Enable or disable each punch-in method</div></div>
+            </div>
+            {% if saved and tab=='attendance' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+              <!-- Face Auth -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-face-id" style="font-size:22px;color:#d97706;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Face Authentication</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Selfie punch-in via mobile app</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- Geo-fencing -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-map-pin" style="font-size:22px;color:#16a34a;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Geo-fencing</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Restrict punch-in by GPS radius</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
+                </div>
+                <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+                  <form method="POST" action="/save_geo_radius" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;">
+                    <i class="ti ti-current-location" style="color:#16a34a;font-size:15px;"></i>
+                    <label style="font-size:12px;font-weight:700;color:#15803d;">Radius</label>
+                    <input type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" style="width:72px;padding:5px 9px;border:1px solid #86efac;border-radius:7px;font-size:13px;font-weight:600;" />
+                    <span style="font-size:12px;color:#64748b;">metres</span>
+                    <button type="submit" style="margin-left:auto;padding:5px 14px;border:none;border-radius:7px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- QR Code -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-qrcode" style="font-size:22px;color:#7c3aed;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">QR Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Scan unique QR code to punch in</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- PIN -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-password" style="font-size:22px;color:#2563eb;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">PIN Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">4-digit PIN punch-in</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.pin %}checked{% endif %} onchange="saveToggle('pin_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- Fingerprint -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-fingerprint" style="font-size:22px;color:#dc2626;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Fingerprint</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Physical fingerprint reader device</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              <!-- Biometric -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-device-desktop-analytics" style="font-size:22px;color:#475569;"></i></div>
+                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Biometric Device</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Biometric time-attendance machine</div></div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.biometric %}checked{% endif %} onchange="saveToggle('biometric_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- SHIFTS & BREAKS -->
+          <div class="s3-section" id="ss-shifts">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#fff7ed;"><i class="ti ti-clock" style="color:#ea580c;font-size:20px;"></i></div>
+              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Manage shift timings and daily break schedule</div></div>
+            </div>
+            <div class="section" style="margin-bottom:16px;">
+              <div class="section-header">
+                <div class="section-title" style="margin-bottom:0;">Work Shifts</div>
+                <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addShiftModal').classList.add('open')">+ Add Shift</button>
+              </div>
+              <div class="shift-list" style="margin-top:14px;">
+                {% for s in shifts %}
+                <div class="shift-item {% if loop.first %}default-shift{% endif %}">
+                  <div><div class="shift-name">{{ s.name }}{% if loop.first %}<span class="emp-badge">Default</span>{% endif %}</div><div class="shift-times"><span><span class="dot dot-green"></span>Start {{ s.start }}</span><span><span class="dot dot-yellow"></span>Half {{ s.half }}</span><span><span class="dot dot-red"></span>End {{ s.end }}</span></div></div>
+                  <div class="shift-actions">
+                    <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}')">Edit</button>
+                    <form method="POST" action="/delete_shift" style="display:inline;" onsubmit="return confirm('Delete shift?')"><input type="hidden" name="shift_id" value="{{ s.id }}" /><button type="submit" class="btn-del">Delete</button></form>
+                  </div>
+                </div>
+                {% else %}<div class="empty-row">No shifts yet.</div>{% endfor %}
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-header">
+                <div><div class="section-title" style="margin-bottom:2px;">Breaks</div><div style="font-size:12px;color:#64748b;">☕ Coffee &amp; 🍽 Lunch breaks</div></div>
+                <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addBreakModal').classList.add('open')">+ Add Break</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+                {% for b in breaks %}{% set bid,bname,btime,bdur,bactive = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
+                <div class="feat-card" style="opacity:{% if bactive %}1{% else %}.55{% endif %};">
+                  <div class="feat-icon" style="font-size:20px;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
+                  <div class="feat-body">
+                    <div style="display:flex;align-items:center;gap:8px;"><span class="feat-name">{{ bname }}</span><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
+                    <div class="feat-desc">🕐 {{ btime|string|truncate(5,True,'') }} &nbsp;·&nbsp; ⏱ {{ bdur }} mins</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }})">Edit</button>
+                    <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
+                  </div>
+                </div>
+                {% else %}<div class="empty-row">No breaks configured.</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+
+    </div>
+
+    <!-- FINANCES PANEL -->
+    <div class="s3-panel" id="s3panel-fin">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" onclick="toggleDd('dd-fin')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-fin">
+          <button class="subnav-dd-item active" id="ddi-payroll"    onclick="switchSub('fin','payroll')">   <i class="ti ti-coin"></i>   Payroll</button>
+          <button class="subnav-dd-item"        id="ddi-salary"     onclick="switchSub('fin','salary')">    <i class="ti ti-cash"></i>   Salary</button>
+          <button class="subnav-dd-item"        id="ddi-incentives" onclick="switchSub('fin','incentives')"><i class="ti ti-trophy"></i> Incentives</button>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Employee ID</th><th>Name</th><th>Role</th><th>CTC Breakdown</th><th>Action</th></tr>
-            </thead>
-            <tbody id="salTbody">
-              {% for s in salaries %}
-              {% set emp_id, name, spd, role, last_revised, phone, email = s %}
-              {% set mon = (spd * 26) if spd else 0 %}
-              {% set yr  = (spd * 312) if spd else 0 %}
-              <tr data-search="{{ emp_id }} {{ name }} {{ role }} {{ phone }} {{ email }}">
-                <td style="color:#94a3b8;font-size:12px;">{{ emp_id }}</td>
-                <td><strong>{{ name }}</strong></td>
-                <td>
-                  {% if role %}<span class="badge b-blue">{{ role }}</span>
-                  {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
-                </td>
-                <td>
-                  <div id="sal-disp-{{ loop.index }}">
-                    {% if spd and spd > 0 %}
-                    <div class="salary-stack">
-                      <div class="s-row"><span class="lbl">Per Day</span><span class="s-day">₹{{ "%.2f"|format(spd) }}</span></div>
-                      <div class="s-row"><span class="lbl">Monthly</span><span class="s-mon">₹{{ "{:,.2f}".format(mon) }}</span></div>
-                      <div class="s-row">
-                        <span class="lbl">Yearly</span>
-                        <span class="s-yr">{{ "%.3g"|format(yr / 100000) }} LPA</span>
-                        <span class="lpa-txt">(₹{{ "{:,.0f}".format(yr) }})</span>
+      </div>
+    </div>
+
+          <!-- PAYROLL -->
+          <div class="s3-section active" id="ss-payroll">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;font-size:20px;"></i></div>
+              <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
+            </div>
+            {% if saved and tab=='salary-rules' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
+            <form method="POST" action="/save_salary_rules">
+
+              <!-- Section 1: Shift Timings -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-clock" style="font-size:18px;color:#1e3a8a;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Shift Timings</div>
+                    <div style="font-size:12px;color:#94a3b8;">Define when a day is classified as On Time, Late, or Absent</div>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                  <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Login Cutoff</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time if before this</div>
+                    <input type="time" name="shift_start" id="inp_start" value="{{ default_start }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #86efac;border-radius:8px;font-size:14px;font-weight:700;color:#15803d;background:#fff;" />
+                  </div>
+                  <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#ca8a04;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Late Boundary</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Late if between cutoff & this</div>
+                    <input type="time" name="shift_half" id="inp_half" value="{{ default_half }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fcd34d;border-radius:8px;font-size:14px;font-weight:700;color:#92400e;background:#fff;" />
+                  </div>
+                  <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#ea580c;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Logout Cutoff</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Must log out before this</div>
+                    <input type="time" name="shift_end" id="inp_end" value="{{ default_end }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fb923c;border-radius:8px;font-size:14px;font-weight:700;color:#9a3412;background:#fff;" />
+                  </div>
+                  <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">
+                    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Grace Period</div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Forgiven late minutes</div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <input type="number" name="grace_minutes" value="{{ grace_minutes }}" min="0" max="60" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:700;color:#0f172a;background:#fff;" />
+                      <span style="font-size:12px;color:#64748b;white-space:nowrap;">mins</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 2: Deduction Rules -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-percent" style="font-size:18px;color:#dc2626;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Salary Deductions</div>
+                    <div style="font-size:12px;color:#94a3b8;">What percentage is deducted based on attendance status</div>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                  <!-- Full Day -->
+                  <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;overflow:hidden;">
+                    <div style="background:#16a34a;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-circle-check" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Full Day</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time, worked full hours</div>
+                      <div style="font-size:30px;font-weight:900;color:#16a34a;">0%</div>
+                      <div style="font-size:11px;font-weight:700;color:#16a34a;margin-top:4px;">No deduction</div>
+                    </div>
+                  </div>
+                  <!-- Late Full -->
+                  <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f59e0b;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clock-exclamation" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Late — Full Day</span>
+                    </div>
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Arrived late, worked full hours</div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
+                        <input type="number" name="late_deduction_pct" id="inp_late_pct" value="{{ late_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#92400e;border:none;border-bottom:2px solid #fcd34d;background:transparent;outline:none;text-align:center;" />
+                        <span style="font-size:28px;font-weight:900;color:#92400e;">%</span>
                       </div>
-                      {% if last_revised %}
-                        <span class="rev-badge">🗓 {{ last_revised.strftime('%d %b %Y') }}</span>
-                      {% else %}
-                        <span class="rev-badge muted">🗓 Never revised</span>
-                      {% endif %}
+                      <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:6px;">Deducted from salary</div>
                     </div>
-                    {% else %}
-                    <span style="color:#94a3b8;font-style:italic;font-size:13px;">Not set</span>
-                    {% endif %}
                   </div>
-                  <form action="/update_salary" method="POST" id="sal-form-{{ loop.index }}"
-                        class="edit-form" onsubmit="prepSalSubmit({{ loop.index }})">
-                    <input type="hidden" name="emp_id" value="{{ emp_id }}" />
-                    <input type="hidden" name="salary" id="sal-hidden-{{ loop.index }}" />
-                    <div class="ef-row">
-                      <span class="ef-lbl">Per Day (₹)</span>
-                      <input type="number" id="sal-day-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
-                        value="{{ '%.2f'|format(spd) if spd else '' }}" placeholder="0.00"
-                        oninput="salFromDay({{ loop.index }})" />
+                  <!-- Half Day -->
+                  <div style="background:#fff;border:1.5px solid #fed7aa;border-radius:12px;overflow:hidden;">
+                    <div style="background:#ea580c;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clock-half-2" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Half Day</span>
                     </div>
-                    <div class="ef-row">
-                      <span class="ef-lbl">Monthly (₹)</span>
-                      <input type="number" id="sal-mon-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
-                        value="{{ '%.2f'|format(mon) if spd else '' }}" placeholder="0.00"
-                        oninput="salFromMon({{ loop.index }})" />
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Very late or left early</div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
+                        <input type="number" name="half_day_deduction_pct" id="inp_half_pct" value="{{ half_day_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#9a3412;border:none;border-bottom:2px solid #fb923c;background:transparent;outline:none;text-align:center;" />
+                        <span style="font-size:28px;font-weight:900;color:#9a3412;">%</span>
+                      </div>
+                      <div style="font-size:11px;font-weight:700;color:#ea580c;margin-top:6px;">Deducted from salary</div>
                     </div>
-                    <div class="ef-row">
-                      <span class="ef-lbl">Yearly (₹)</span>
-                      <input type="number" id="sal-yr-{{ loop.index }}" class="ef-inp" step="0.01" min="0"
-                        value="{{ '%.2f'|format(yr) if spd else '' }}" placeholder="0.00"
-                        oninput="salFromYr({{ loop.index }})" />
-                      <span id="sal-lpa-{{ loop.index }}" style="font-size:10px;color:#7c3aed;font-weight:700;white-space:nowrap;">
-                        {%- if yr > 0 -%}{{ "%.3g"|format(yr / 100000) }} LPA{%- endif -%}
-                      </span>
+                  </div>
+                  <!-- Absent -->
+                  <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:12px;overflow:hidden;">
+                    <div style="background:#dc2626;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-x" style="color:#fff;font-size:16px;"></i>
+                      <span style="color:#fff;font-size:12px;font-weight:800;">Absent</span>
                     </div>
-                    <div class="ef-row">
-                      <span class="ef-lbl">Revised On</span>
-                      <input type="date" name="hike_date" class="ef-inp"
-                        value="{{ last_revised.strftime('%Y-%m-%d') if last_revised else '' }}" />
+                    <div style="padding:14px;text-align:center;">
+                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">No attendance recorded</div>
+                      <div style="font-size:30px;font-weight:900;color:#dc2626;">100%</div>
+                      <div style="font-size:11px;font-weight:700;color:#dc2626;margin-top:4px;">Full day deducted</div>
                     </div>
-                    <div class="ef-hint">Based on 26 working days/month · Leave date blank to use today</div>
-                    <div class="ef-btns">
-                      <button type="submit" class="btn-save">✅ Update</button>
-                      <button type="button" class="btn-cancel-sm" data-idx="{{ loop.index }}">Cancel</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 3: Special Policies -->
+              <div class="section" style="margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                  <i class="ti ti-calendar-event" style="font-size:18px;color:#7c3aed;"></i>
+                  <div>
+                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Special Day Policies</div>
+                    <div style="font-size:12px;color:#94a3b8;">How holidays and approved leaves are treated in payroll</div>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                  <!-- Holiday Pay -->
+                  <div style="background:#fff;border:1.5px solid #bae6fd;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f0f9ff;padding:12px 16px;border-bottom:1px solid #bae6fd;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-beach" style="color:#0284c7;font-size:16px;"></i>
+                      <span style="font-size:13px;font-weight:800;color:#075985;">Holiday Pay</span>
                     </div>
-                  </form>
-                </td>
-                <td>
-                  <button type="button" class="btn-edit" id="sal-editbtn-{{ loop.index }}"
-                          data-idx="{{ loop.index }}">✏️ Edit</button>
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="5" class="empty-row">No employees found.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="holiday_pay" value="paid" {% if holiday_pay=='paid' %}checked{% endif %} style="accent-color:#0284c7;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Paid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Employees receive full salary on holidays</div></div>
+                      </label>
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="holiday_pay" value="unpaid" {% if holiday_pay=='unpaid' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Unpaid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No salary paid on public holidays</div></div>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- Approved Leave -->
+                  <div style="background:#fff;border:1.5px solid #ddd6fe;border-radius:12px;overflow:hidden;">
+                    <div style="background:#f5f3ff;padding:12px 16px;border-bottom:1px solid #ddd6fe;display:flex;align-items:center;gap:8px;">
+                      <i class="ti ti-clipboard-check" style="color:#7c3aed;font-size:16px;"></i>
+                      <span style="font-size:13px;font-weight:800;color:#5b21b6;">Approved Leave</span>
+                    </div>
+                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="leave_pay" value="exclude" {% if leave_pay=='exclude' %}checked{% endif %} style="accent-color:#7c3aed;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Exclude from Payroll</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No pay, no deduction — day is skipped</div></div>
+                      </label>
+                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
+                        <input type="radio" name="leave_pay" value="absent" {% if leave_pay=='absent' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
+                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Count as Absent</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Full day salary is deducted</div></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-submit" style="width:100%;padding:13px;">Save Payroll Rules</button>
+            </form>
+          </div>
+
+          <!-- SALARY -->
+          <div class="s3-section" id="ss-salary">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#f0fdf4;"><i class="ti ti-cash" style="color:#16a34a;font-size:20px;"></i></div>
+              <div><div class="sec-title">Salary</div><div class="sec-sub">Per-employee daily rate configuration</div></div>
+            </div>
+            <div class="section">
+              <div class="section-title">💵 Employee Salary Configuration</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Employee</th><th>Role</th><th>Daily Rate</th><th>Monthly (26 days)</th><th>Last Revised</th><th>Action</th></tr></thead>
+                  <tbody>
+                  {% for s in salaries %}{% set eid,ename,spd,role,rev,phone,email = s %}
+                  <tr>
+                    <td><strong>{{ ename }}</strong><br><span style="font-size:11px;color:#94a3b8;">{{ eid }}</span></td>
+                    <td>{% if role %}<span class="badge b-blue">{{ role }}</span>{% else %}<span class="badge b-gray">—</span>{% endif %}</td>
+                    <td style="font-weight:800;color:#16a34a;">&#8377;{{ "%.2f"|format(spd) }}</td>
+                    <td style="font-weight:700;color:#2563eb;">&#8377;{{ "%.0f"|format(spd*26) }}</td>
+                    <td>{% if rev %}<span class="rev-badge">{{ rev.strftime('%d %b %Y') }}</span>{% else %}<span class="rev-badge muted">Not set</span>{% endif %}</td>
+                    <td>
+                      <button class="btn-edit" onclick="openSalaryEdit('{{ eid }}')">Edit</button>
+                      <div class="edit-form" id="ef_{{ eid }}">
+                        <form method="POST" action="/update_salary">
+                          <input type="hidden" name="emp_id" value="{{ eid }}" />
+                          <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary_per_day" step="0.01" value="{{ spd }}" /></div>
+                          <div class="ef-btns" style="margin-top:6px;"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" onclick="document.getElementById('ef_{{ eid }}').classList.remove('open')">Cancel</button></div>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- INCENTIVES -->
+          <div class="s3-section" id="ss-incentives">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-trophy" style="color:#ca8a04;font-size:20px;"></i></div>
+              <div><div class="sec-title">Incentives</div><div class="sec-sub">Manage incentive goals and employee awards</div></div>
+            </div>
+            {% if saved and tab=='incentives' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
+            <div class="section" style="margin-bottom:16px;">
+              <div class="section-title">🎯 Add Incentive Goal</div>
+              <form method="POST" action="/add_incentive_goal">
+                <div class="two-col"><div class="field"><label>Goal Title</label><input type="text" name="title" placeholder="e.g. Perfect Attendance" required /></div><div class="field"><label>Incentive Amount (&#8377;)</label><input type="number" name="incentive_amount" placeholder="500" step="0.01" /></div></div>
+                <div class="field"><label>Description</label><textarea name="description" placeholder="Describe the goal criteria..."></textarea></div>
+                <button type="submit" class="btn-submit">Add Goal</button>
+              </form>
+            </div>
+            <div class="section">
+              <div class="section-title">📋 Active Goals</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                {% for g in incentive_goals %}{% set gid,gtitle,gdesc,gamount,gactive = g %}
+                <div class="feat-card">
+                  <div class="feat-icon" style="background:#fefce8;font-size:18px;">🏆</div>
+                  <div class="feat-body"><div class="feat-name">{{ gtitle }}{% if gamount %} <span style="color:#ca8a04;font-size:12px;font-weight:700;">&#8377;{{ "%.0f"|format(gamount) }}</span>{% endif %}</div><div class="feat-desc">{{ gdesc or '—' }}</div></div>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn-edit" onclick="openGoalEdit({{ gid }},'{{ gtitle|replace("'","\\'") }}','{{ gdesc|replace("'","\\'") if gdesc else "" }}',{{ gamount or 0 }},{{ 1 if gactive else 0 }})">Edit</button>
+                    <form method="POST" action="/delete_incentive_goal" style="display:inline;" onsubmit="return confirm('Delete goal?')"><input type="hidden" name="goal_id" value="{{ gid }}" /><button type="submit" class="btn-del">Del</button></form>
+                  </div>
+                </div>
+                {% else %}<div class="empty-row">No incentive goals yet.</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+
+    </div>
+
+    <!-- SYSTEM PANEL -->
+    <div class="s3-panel" id="s3panel-sys">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" onclick="toggleDd('dd-sys')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-sys">
+          <button class="subnav-dd-item active" id="ddi-email"      onclick="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
+          <button class="subnav-dd-item"        id="ddi-security"   onclick="switchSub('sys','security')">   <i class="ti ti-shield-lock"></i> Security</button>
+          <button class="subnav-dd-item"        id="ddi-appearance" onclick="switchSub('sys','appearance')"> <i class="ti ti-palette"></i>    Appearance</button>
         </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════
-         TAB: INCENTIVES
-    ══════════════════════════════════════ -->
-    <div id="tab-incentives" class="tab-panel {% if tab=='incentives' %}active{% endif %}">
-
-      <div class="two-col">
-
-        <!-- Define Goals -->
-        <div class="section">
-          <div class="section-title">➕ Define New Goal / Task</div>
-          <form method="POST" action="/add_incentive_goal">
-            <div class="field">
-              <label>Goal Title</label>
-              <input type="text" name="title" placeholder="e.g. Monthly Sales Target" required maxlength="150" />
+          <!-- EMAIL -->
+          <div class="s3-section active" id="ss-email">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#f0f9ff;"><i class="ti ti-mail" style="color:#0284c7;font-size:20px;"></i></div>
+              <div><div class="sec-title">Email</div><div class="sec-sub">SMTP configuration and notification preferences</div></div>
             </div>
-            <div class="field">
-              <label>Description</label>
-              <textarea name="description" rows="2" placeholder="Describe the task or goal…"></textarea>
-            </div>
-            <div class="field">
-              <label>Default Incentive Amount (₹)</label>
-              <input type="number" name="incentive_amount" placeholder="500" min="0" step="0.01" required />
-            </div>
-            <button type="submit" class="btn-add">🏆 Add Goal</button>
-          </form>
-        </div>
-
-        <!-- Goal List -->
-        <div class="section">
-          <div class="section-title">📋 Defined Goals ({{ incentive_goals | length }})</div>
-          {% if incentive_goals %}
-          <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-              <thead>
-                <tr style="background:#dbeafe;">
-                  <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Goal</th>
-                  <th style="padding:9px 12px;text-align:right;color:#1e3a8a;">Default ₹</th>
-                  <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Status</th>
-                  <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-              {% for gid, gtitle, gdesc, gamount, gactive in incentive_goals %}
-              <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:10px 12px;">
-                  <div style="font-weight:700;color:#1e293b;">{{ gtitle }}</div>
-                  {% if gdesc %}<div style="font-size:11px;color:#94a3b8;margin-top:2px;">{{ gdesc }}</div>{% endif %}
-                </td>
-                <td style="padding:10px 12px;text-align:right;font-weight:700;color:#16a34a;">₹{{ "%.2f"|format(gamount) }}</td>
-                <td style="padding:10px 12px;text-align:center;">
-                  {% if gactive %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">Active</span>
-                  {% else %}<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">Inactive</span>{% endif %}
-                </td>
-                <td style="padding:10px 12px;text-align:center;">
-                  <div style="display:flex;gap:6px;justify-content:center;">
-                  <button type="button" onclick="openGoalEdit({{ gid }},'{{ gtitle|replace("'","\\'") }}','{{ (gdesc or '')|replace("'","\\'") }}',{{ gamount }},{{ gactive }})"
-                    style="padding:4px 10px;border:none;border-radius:6px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:600;cursor:pointer;">✏️ Edit</button>
-                  <form method="POST" action="/delete_incentive_goal" style="display:inline;">
-                    <input type="hidden" name="goal_id" value="{{ gid }}" />
-                    <button type="submit" onclick="return confirm('Delete this goal? All awards for this goal will also be deleted.')"
-                      style="padding:4px 10px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">🗑</button>
-                  </form>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <div style="text-align:center;padding:30px;color:#94a3b8;">No goals defined yet.</div>
-          {% endif %}
-        </div>
-
-      </div><!-- /two-col -->
-
-      <!-- Award Incentive -->
-      <div class="section">
-        <div class="section-title">🎁 Award Incentive to Employee</div>
-        <form method="POST" action="/award_incentive" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;align-items:end;">
-          <div class="field" style="margin:0;">
-            <label>Employee</label>
-            <select name="employee_id" required>
-              <option value="">— Select Employee —</option>
-              {% for e in emp_list %}
-              <option value="{{ e.emp_id }}">{{ e.name }} ({{ e.emp_id }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Goal / Task Completed</label>
-            <select name="goal_id" required id="awardGoalSel" onchange="prefillAwardAmount(this)">
-              <option value="">— Select Goal —</option>
-              {% for gid, gtitle, gdesc, gamount, gactive in incentive_goals %}
-              {% if gactive %}
-              <option value="{{ gid }}" data-amount="{{ gamount }}">{{ gtitle }}</option>
-              {% endif %}
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Month</label>
-            <select name="month">
-              {% set cur_month = now_month|default(6) %}
-              {% for mn in range(1,13) %}
-              <option value="{{ mn }}" {% if mn == cur_month %}selected{% endif %}>
-                {{ ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mn] }}
-              </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Year</label>
-            <select name="year">
-              {% set cur_year = now_year|default(2026) %}
-              {% for y in range(cur_year - 1, cur_year + 2) %}
-              <option value="{{ y }}" {% if y == cur_year %}selected{% endif %}>{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Amount ₹ <span style="font-size:10px;color:#94a3b8;">(blank = goal default)</span></label>
-            <input type="number" name="amount" id="awardAmount" placeholder="Auto" min="0" step="0.01" />
-          </div>
-          <div class="field" style="margin:0;">
-            <label>Notes (optional)</label>
-            <input type="text" name="notes" placeholder="e.g. Exceeded monthly target" maxlength="255" />
-          </div>
-          <div>
-            <button type="submit" class="btn-add" style="width:100%;margin-top:2px;">🎁 Award Incentive</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Recent Awards -->
-      <div class="section">
-        <div class="section-title">📊 Recent Incentive Awards ({{ recent_incentives | length }})</div>
-        {% if recent_incentives %}
-        <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px;">
-            <thead>
-              <tr style="background:#dbeafe;">
-                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Employee</th>
-                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Goal / Task</th>
-                <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Period</th>
-                <th style="padding:9px 12px;text-align:right;color:#1e3a8a;">Amount</th>
-                <th style="padding:9px 12px;text-align:left;color:#1e3a8a;">Notes</th>
-                <th style="padding:9px 12px;text-align:center;color:#1e3a8a;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-            {% set mnames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
-            {% for iid, iname, igoal, imon, iyr, iamt, inotes, idate in recent_incentives %}
-            <tr style="border-bottom:1px solid #e2e8f0;">
-              <td style="padding:10px 12px;font-weight:600;color:#1e293b;">{{ iname }}</td>
-              <td style="padding:10px 12px;color:#1e3a8a;">{{ igoal }}</td>
-              <td style="padding:10px 12px;text-align:center;color:#475569;">{{ mnames[imon] }} {{ iyr }}</td>
-              <td style="padding:10px 12px;text-align:right;font-weight:700;color:#16a34a;">₹{{ "%.2f"|format(iamt) }}</td>
-              <td style="padding:10px 12px;font-size:12px;color:#64748b;">{{ inotes or '—' }}</td>
-              <td style="padding:10px 12px;text-align:center;">
-                <form method="POST" action="/delete_incentive" style="display:inline;">
-                  <input type="hidden" name="incentive_id" value="{{ iid }}" />
-                  <button type="submit" onclick="return confirm('Remove this incentive award?')"
-                    style="padding:4px 10px;border:none;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">🗑 Remove</button>
+            <div class="two-col">
+              <div class="section">
+                <div class="section-title">📡 SMTP Configuration</div>
+                <form method="POST" action="/email_config">
+                  <div class="field"><label>SMTP Host</label><input type="text" name="smtp_host" placeholder="smtp.gmail.com" value="{{ email_config.host if email_config else '' }}" /></div>
+                  <div class="field"><label>Port</label><input type="number" name="smtp_port" placeholder="587" value="{{ email_config.port if email_config else 587 }}" /></div>
+                  <div class="field"><label>Username</label><input type="email" name="smtp_user" placeholder="you@gmail.com" value="{{ email_config.user if email_config else '' }}" /></div>
+                  <div class="field"><label>Password / App Password</label><input type="password" name="smtp_pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" value="{{ email_config.password if email_config else '' }}" /></div>
+                  <div class="field"><label>From Name</label><input type="text" name="from_name" placeholder="HR Team" value="{{ email_config.from_name if email_config else '' }}" /></div>
+                  <div class="field"><label>From Email</label><input type="email" name="from_email" placeholder="hr@company.com" value="{{ email_config.from_email if email_config else '' }}" /></div>
+                  <button type="submit" class="btn-submit">Save SMTP</button>
                 </form>
-              </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div style="text-align:center;padding:30px;color:#94a3b8;">No incentives awarded yet. Award incentives above after employees complete their goals.</div>
-        {% endif %}
-      </div>
+                <div class="test-card" style="margin-top:14px;">
+                  <div style="font-size:13px;font-weight:700;color:#1e293b;">Test Connection</div>
+                  <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" onclick="sendTestEmail()">Send Test</button></div>
+                  <div id="testResult"></div>
+                </div>
+              </div>
+              <div class="section">
+                <div class="section-title">🔔 Notification Triggers</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Choose which events send an email to admins.</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  {% for key,label,desc in [('notify_leave','New Leave Request','When an employee submits a leave'),('notify_payslip','Payslip Sent','Confirmation when payslip is emailed'),('notify_resignation','Resignation Submitted','New resignation request received'),('notify_doc_expiry','Document Expiry Alert','Before employee documents expire')] %}
+                  <div class="feat-card"><div class="feat-body"><div class="feat-name">{{ label }}</div><div class="feat-desc">{{ desc }}</div></div><label class="toggle"><input type="checkbox" {% if features[key] %}checked{% endif %} onchange="saveToggle('{{ key }}',this.checked)" /><span class="toggle-slider"></span></label></div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
 
-    </div><!-- /tab-incentives -->
+          <!-- SECURITY -->
+          <div class="s3-section" id="ss-security">
+            <div class="sec-header">
+              <div class="sec-icon" style="background:#fef2f2;"><i class="ti ti-shield-lock" style="color:#dc2626;font-size:20px;"></i></div>
+              <div><div class="sec-title">Security</div><div class="sec-sub">Session management and access control</div></div>
+            </div>
+            {% if saved and tab=='security' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
+            <div class="section">
+              <form method="POST" action="/save_security_settings">
+                <div class="two-col">
+                  <div class="field"><label>Session Timeout</label><select name="session_timeout">{% for t in [15,30,60,120,240] %}<option value="{{ t }}" {% if features.session_timeout==t %}selected{% endif %}>{{ t }} minutes</option>{% endfor %}</select><div class="field-note">Auto-logout inactive admins after this duration.</div></div>
+                  <div class="field"><label>Audit Log</label><a href="/admin_tools?tab=audit" class="btn-submit" style="display:inline-block;text-decoration:none;">View Audit Log &#8594;</a></div>
+                </div>
+                <div class="feat-card" style="margin-bottom:16px;">
+                  <div class="feat-icon">🔐</div>
+                  <div class="feat-body"><div class="feat-name">Two-Factor Authentication</div><div class="feat-desc">Extra login security for admin accounts (coming soon)</div></div>
+                  <label class="toggle"><input type="checkbox" disabled /><span class="toggle-slider" style="opacity:.45;cursor:not-allowed;"></span></label>
+                </div>
+                <button type="submit" class="btn-submit">Save Security Settings</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- APPEARANCE -->
+          <div class="s3-section" id="ss-appearance">
+            <div class="section">
+              <div class="section-title">🌙 Theme</div>
+              <div class="feat-card">
+                <div class="feat-icon" style="background:#fef9c3;font-size:20px;">🌙</div>
+                <div class="feat-body"><div class="feat-name">Dark Mode</div><div class="feat-desc">Switch the admin panel between light and dark theme</div></div>
+                <label class="toggle"><input type="checkbox" id="dmToggle" onchange="toggleDarkMode(this.checked)" /><span class="toggle-slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+    </div>
+
 
     <!-- ══════════════════════════════════════
-         TAB: APPEARANCE
+         TAB: AUTH
     ══════════════════════════════════════ -->
-    <div id="tab-appearance" class="tab-panel {% if tab=='appearance' %}active{% endif %}">
-      <div class="section" style="max-width:500px;">
-        <div class="section-title">🎨 Appearance</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid #f1f5f9;">
-          <div>
-            <div style="font-size:15px;font-weight:700;color:#1e293b;">Dark Mode</div>
-            <div style="font-size:12px;color:#64748b;margin-top:3px;">Switch between light and dark theme</div>
+    <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
+      <div class="section" style="max-width:600px;">
+        <div class="section-title">🔐 Attendance Authentication</div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;line-height:1.7;">
+          Enable or disable each authentication factor independently. Attendance marking requires any
+          <strong>two active factors</strong>. Password controls employee login to the mobile app.
+        </p>
+
+        {% set methods = [
+          ("qr",          "📷", "QR Code Scan",              "qr_enabled",            "Employees scan their personal QR code to identify themselves."),
+          ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
+          ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
+          ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password.")
+        ] %}
+
+        {% for key, icon, label, cfg_key, desc in methods %}
+        {% set is_on = auth_config[cfg_key] %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:#f8fafc;border:1px solid {% if is_on %}#bbf7d0{% else %}#fecaca{% endif %};border-radius:12px;margin-bottom:12px;transition:border-color .2s;">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <span style="font-size:26px;line-height:1;margin-top:2px;">{{ icon }}</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#1e293b;">{{ label }}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:3px;line-height:1.5;">{{ desc }}</div>
+              <div style="margin-top:8px;">
+                {% if is_on %}
+                <span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">✅ Enabled</span>
+                {% else %}
+                <span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">❌ Disabled</span>
+                {% endif %}
+              </div>
+            </div>
           </div>
-          <label class="dm-switch" title="Toggle dark mode">
-            <input type="checkbox" id="dmToggleChk" onchange="toggleDarkMode(this.checked)">
+          <label class="dm-switch" title="Toggle {{ label }}" style="flex-shrink:0;margin-left:20px;">
+            <input type="checkbox" {% if is_on %}checked{% endif %}
+                   onchange="toggleAuthMethod('{{ key }}', this.checked)">
             <span class="dm-slider"></span>
           </label>
         </div>
+        {% endfor %}
+
+        <!-- Combo info card -->
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-top:8px;">
+          <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:10px;">Available attendance combinations:</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:#1e293b;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">📷🤳</span>
+              <div><strong>QR + Face</strong> — requires QR and Face both enabled</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">📷👆</span>
+              <div><strong>QR + Fingerprint</strong> — requires QR and Fingerprint both enabled</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">🤳👆</span>
+              <div><strong>Face + Fingerprint</strong> — requires Face and Fingerprint both enabled (no QR)</div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div><!-- /tab-appearance -->
+    </div><!-- /tab-auth -->
 
   </div><!-- /main -->
 
@@ -830,34 +1126,170 @@
   </div>
 
   <script>
-    /* ── TAB SWITCHING ── */
-    function showTab(id) {
-      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-      var panel = document.getElementById('tab-' + id);
-      if (panel) panel.classList.add('active');
-      document.querySelectorAll('.tab-btn').forEach(function(b) {
-        if (b.textContent.toLowerCase().includes(id.replace('email','email').replace('shifts','shift').replace('breaks','break').replace('salary','salary').replace('announcements','announcement'))) {
-          b.classList.add('active');
-        }
-      });
-      history.replaceState(null, '', '?tab=' + id);
+    /* ── 3-TAB + DROPDOWN SUB-NAV ── */
+    var groupMap  = { company:'org',attendance:'org',shifts:'org',payroll:'fin',salary:'fin',incentives:'fin',email:'sys',security:'sys',appearance:'sys' };
+    var firstSub  = { org:'company', fin:'payroll', sys:'email' };
+    var crumbData = {
+      company:    { icon:'<i class="ti ti-building" style="color:#1e3a8a;"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
+      appearance: { icon:'<i class="ti ti-palette" style="color:#7c3aed;"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
+      attendance: { icon:'<i class="ti ti-fingerprint" style="color:#16a34a;"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
+      shifts:     { icon:'<i class="ti ti-clock" style="color:#ea580c;"></i>',       bg:'#fff7ed', title:'Shifts & Breaks',sub:'Timings and breaks' },
+      payroll:    { icon:'<i class="ti ti-coin" style="color:#ca8a04;"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
+      salary:     { icon:'<i class="ti ti-cash" style="color:#16a34a;"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
+      incentives: { icon:'<i class="ti ti-trophy" style="color:#ca8a04;"></i>',      bg:'#fefce8', title:'Incentives',     sub:'Goals and awards' },
+      email:      { icon:'<i class="ti ti-mail" style="color:#0284c7;"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
+      security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
+    };
+
+    function toggleEdit(key) {
+      var view = document.getElementById(key + '-view');
+      var edit = document.getElementById(key + '-edit');
+      var btn  = document.getElementById(key + '-editbtn');
+      if (!view || !edit) return;
+      var isEditing = edit.style.display !== 'none';
+      if (isEditing) {
+        edit.style.display = 'none';
+        view.style.display = '';
+        btn.innerHTML = '<i class="ti ti-pencil" style="font-size:13px;"></i> Edit';
+      } else {
+        view.style.display = 'none';
+        edit.style.display = '';
+        btn.innerHTML = '<i class="ti ti-x" style="font-size:13px;"></i> Cancel';
+        var inp = edit.querySelector('input[type=text]');
+        if (inp) inp.focus();
+      }
     }
-    /* Fix tab button matching */
+
+    function toggleDd(id) {
+      var menu = document.getElementById(id);
+      if (!menu) return;
+      var isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      if (!isOpen) menu.classList.add('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.subnav-dd-wrap')) {
+        document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      }
+    });
+
+    function switchGroup(grp) {
+      document.querySelectorAll('.s3-tab').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.s3-panel').forEach(function(p){ p.classList.remove('active'); });
+      var btn = document.getElementById('s3tab-' + grp);
+      if (btn) btn.classList.add('active');
+      var panel = document.getElementById('s3panel-' + grp);
+      if (panel) panel.classList.add('active');
+      history.replaceState(null, '', '?tab=' + (firstSub[grp] || grp));
+    }
+
+    function switchSub(grp, sec) {
+      var panel = document.getElementById('s3panel-' + grp);
+      if (!panel) return;
+      panel.querySelectorAll('.s3-section').forEach(function(s){ s.classList.remove('active'); });
+      panel.querySelectorAll('.subnav-dd-item').forEach(function(b){ b.classList.remove('active'); });
+      var s = document.getElementById('ss-' + sec);
+      if (s) s.classList.add('active');
+      var ddi = document.getElementById('ddi-' + sec);
+      if (ddi) ddi.classList.add('active');
+      var d = crumbData[sec];
+      if (d) {
+        var ci = document.getElementById('crumb-icon-' + grp);
+        if (ci) { ci.innerHTML = d.icon; ci.style.background = d.bg; }
+        var ct = document.getElementById('crumb-text-' + grp);
+        if (ct) ct.textContent = d.title;
+        var cs = document.getElementById('crumb-sub-' + grp);
+        if (cs) cs.textContent = d.sub;
+      }
+      document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      history.replaceState(null, '', '?tab=' + sec);
+    }
+
+    /* Init from URL */
     (function() {
-      var btns = document.querySelectorAll('.tab-btn');
-      ['email','salary','incentives'].forEach(function(id, i) {
-        if (!btns[i]) return;
-        btns[i].onclick = function() {
-          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-          btns.forEach(function(b) { b.classList.remove('active'); });
-          var panel = document.getElementById('tab-' + id);
-          if (panel) panel.classList.add('active');
-          btns[i].classList.add('active');
-          history.replaceState(null, '', '?tab=' + id);
-        };
-      });
+      var tab = new URLSearchParams(window.location.search).get('tab') || 'company';
+      var grp = groupMap[tab] || 'org';
+      switchGroup(grp);
+      if (document.getElementById('ss-' + tab)) switchSub(grp, tab);
     })();
+
+    /* ── FEATURE TOGGLE (AJAX) ── */
+    function saveToggle(feature, value, extraId) {
+      fetch('/toggle_feature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feature: feature, value: value })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { alert('Could not save: ' + (d.error || 'unknown error')); }
+        if (extraId) {
+          var el = document.getElementById(extraId);
+          if (el) el.style.display = value ? 'flex' : 'none';
+        }
+      })
+      .catch(function() { alert('Network error saving setting.'); });
+    }
+
+    /* ── WORKING DAYS PILL STYLING ── */
+    function styleWd(cb, day) {
+      var span = document.getElementById('wdspan_' + day);
+      if (!span) return;
+      if (cb.checked) {
+        span.style.borderColor = '#1e3a8a'; span.style.background = '#eff6ff'; span.style.color = '#1e3a8a';
+      } else {
+        span.style.borderColor = '#e2e8f0'; span.style.background = '#f8fafc'; span.style.color = '#64748b';
+      }
+    }
+
+    /* ── SALARY EDIT INLINE OPEN ── */
+    function openSalaryEdit(eid) {
+      var form = document.getElementById('ef_' + eid);
+      if (form) form.classList.toggle('open');
+    }
+
+    /* ── SALARY RULES LIVE PREVIEW ── */
+    function fmt(t) { // "HH:MM" → "HH:MM AM/PM"
+      if (!t) return t;
+      var p = t.split(':'); var h = parseInt(p[0]); var m = p[1];
+      var s = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+      return h + ':' + m + ' ' + s;
+    }
+    function updatePreviews() {
+      var s = document.getElementById('inp_start') ? document.getElementById('inp_start').value : '';
+      var h = document.getElementById('inp_half')  ? document.getElementById('inp_half').value  : '';
+      var e = document.getElementById('inp_end')   ? document.getElementById('inp_end').value   : '';
+      var fs = fmt(s), fh = fmt(h), fe = fmt(e);
+      ['preview_start','preview_start2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fs;});
+      ['preview_half','preview_half2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fh;});
+      ['preview_end','preview_end2','preview_half3','preview_half4','preview_end3'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fe;});
+      var tl=document.getElementById('tl_start'); if(tl)tl.textContent=fs;
+      var th=document.getElementById('tl_half');  if(th)th.textContent=fh;
+      var te=document.getElementById('tl_end');   if(te)te.textContent=fe;
+    }
+    function updateHolidayPreview(v) {
+      var b = document.getElementById('preview_holiday_badge');
+      if (b) {
+        b.textContent = v === 'paid' ? '0% deducted' : '100% deducted';
+        b.style.background = v === 'paid' ? '#e0f2fe' : '#fee2e2';
+        b.style.color = v === 'paid' ? '#075985' : '#991b1b';
+      }
+      var pl = document.getElementById('hp_paid_lbl'), ul = document.getElementById('hp_unpaid_lbl');
+      if (pl) { pl.style.borderColor = v==='paid'?'#bae6fd':'#e2e8f0'; pl.style.background = v==='paid'?'#f0f9ff':'#fafafa'; }
+      if (ul) { ul.style.borderColor = v==='unpaid'?'#fca5a5':'#e2e8f0'; ul.style.background = v==='unpaid'?'#fff8f8':'#fafafa'; }
+    }
+    function updateLeavePreview(v) {
+      var b = document.getElementById('preview_leave_badge');
+      if (b) {
+        b.textContent = v === 'exclude' ? 'No deduction' : '100% deducted';
+        b.style.background = v === 'exclude' ? '#ede9fe' : '#fee2e2';
+        b.style.color = v === 'exclude' ? '#5b21b6' : '#991b1b';
+      }
+      var el = document.getElementById('lp_excl_lbl'), al = document.getElementById('lp_abs_lbl');
+      if (el) { el.style.borderColor = v==='exclude'?'#ddd6fe':'#e2e8f0'; el.style.background = v==='exclude'?'#f5f3ff':'#fafafa'; }
+      if (al) { al.style.borderColor = v==='absent'?'#fca5a5':'#e2e8f0'; al.style.background = v==='absent'?'#fff8f8':'#fafafa'; }
+    }
+    document.addEventListener('DOMContentLoaded', updatePreviews);
 
     /* ── INCENTIVE GOAL EDIT ── */
     function openGoalEdit(id, title, desc, amount, active) {
@@ -1042,65 +1474,34 @@
     }
 
     // ── Settings page company modals ──
-    var _settingsEditOldCode = '';
-    var _settingsEditEmpCount = 0;
-
-    function openSettingsAddCompany() {
-      var m = document.getElementById('settingsAddModal');
-      m.style.display = 'flex';
-    }
-    function closeSettingsAddCompany() {
-      document.getElementById('settingsAddModal').style.display = 'none';
-    }
-
-    function openSettingsEditCompany(cid, name, code, empCount) {
-      _settingsEditOldCode  = (code || '').toUpperCase();
-      _settingsEditEmpCount = empCount;
-      document.getElementById('settingsEditForm').action = '/companies/' + cid + '/edit';
-      document.getElementById('settingsEditName').value  = name;
-      document.getElementById('settingsEditCode').value  = code || '';
-      document.getElementById('settingsCodeWarning').style.display = 'none';
-      document.getElementById('settingsEditModal').style.display   = 'flex';
-    }
-    function closeSettingsEditCompany() {
-      document.getElementById('settingsEditModal').style.display = 'none';
-    }
-
-    function showSettingsCodeWarning(input) {
-      var newCode  = (input.value || '').toUpperCase();
-      var warning  = document.getElementById('settingsCodeWarning');
-      if (_settingsEditOldCode && newCode && newCode !== _settingsEditOldCode) {
-        document.getElementById('settingsOldCodeLabel').textContent = _settingsEditOldCode;
-        document.getElementById('settingsNewCodeLabel').textContent = newCode;
-        document.getElementById('settingsEmpCountLabel').textContent = _settingsEditEmpCount;
-        document.getElementById('settingsOldIdExample').textContent = _settingsEditOldCode + '001';
-        document.getElementById('settingsNewIdExample').textContent = newCode + '001';
-        warning.style.display = 'block';
-      } else {
-        warning.style.display = 'none';
-      }
-    }
-
-    // Close modals on backdrop click
-    document.getElementById('settingsAddModal').addEventListener('click', function(e) {
-      if (e.target === this) closeSettingsAddCompany();
-    });
-    document.getElementById('settingsEditModal').addEventListener('click', function(e) {
-      if (e.target === this) closeSettingsEditCompany();
-    });
-
     /* ── DARK MODE TOGGLE (settings page) ── */
     function toggleDarkMode(on) {
       document.body.classList.toggle('dark-mode', on);
       localStorage.setItem('dm', on ? '1' : '0');
     }
-    // Sync checkbox state on load
     document.addEventListener('DOMContentLoaded', function() {
       var saved = localStorage.getItem('dm');
       var isDark = saved === '1' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      var chk = document.getElementById('dmToggleChk');
+      var chk = document.getElementById('dmToggle');
       if (chk) chk.checked = isDark;
+      if (isDark) document.body.classList.add('dark-mode');
     });
+
+    function toggleAuthMethod(method, on) {
+      var csrf = document.querySelector('meta[name="csrf-token"]');
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/toggle_auth_method';
+      [['_csrf_token', csrf ? csrf.content : ''], ['method', method], ['enabled', on ? '1' : '0']].forEach(function(pair) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = pair[0]; inp.value = pair[1];
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function toggleFingerprint(on) { toggleAuthMethod('fingerprint', on); }
   </script>
 
   <!-- ══ GOAL EDIT MODAL ══ -->

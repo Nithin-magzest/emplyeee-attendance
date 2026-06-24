@@ -31,6 +31,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import threading
 import io as _io
+import hashlib
 from werkzeug.exceptions import HTTPException
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -124,6 +125,7 @@ else:
         _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
@@ -165,9 +167,12 @@ def _enforce_csrf():
     if request.method != "POST":
         return
     if request.path.startswith("/api/"):
-        return  # API routes use Bearer-token auth
-    if request.is_json:
-        return  # JSON fetch requests can't be forged cross-site (CORS blocks custom headers)
+        return  # API routes use Bearer-token auth — no session/CSRF needed
+    # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject
+    # script (_inject_csrf_meta) adds X-CSRF-Token to every fetch() call, so
+    # legitimate JSON POSTs from the web UI already carry the token.
+    # Skipping CSRF for is_json would allow XSS payloads to forge state-changing
+    # JSON requests without a token.
     token = session.get("_csrf")
     submitted = (request.form.get("_csrf_token")
                  or request.headers.get("X-CSRF-Token")
@@ -336,6 +341,43 @@ def get_company_settings():
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": ""}
 
+_AUTH_CONFIG_DEFAULTS = {
+    "fingerprint_enabled": False,
+    "qr_enabled": True,
+    "face_enabled": True,
+    "location_enabled": True,
+    "employee_password_auth": True,
+}
+
+def get_auth_config():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("""
+            SELECT COALESCE(fingerprint_enabled, 0),
+                   COALESCE(qr_enabled, 1),
+                   COALESCE(face_enabled, 1),
+                   COALESCE(location_enabled, 1),
+                   COALESCE(employee_password_auth, 1)
+            FROM company_settings LIMIT 1
+        """)
+        row = cursor.fetchone()
+        cursor.close(); db.close()
+        if row:
+            return {
+                "fingerprint_enabled": bool(row[0]),
+                "qr_enabled":          bool(row[1]),
+                "face_enabled":        bool(row[2]),
+                "location_enabled":    bool(row[3]),
+                "employee_password_auth": bool(row[4]),
+            }
+        return dict(_AUTH_CONFIG_DEFAULTS)
+    except Exception:
+        return dict(_AUTH_CONFIG_DEFAULTS)
+
+def get_fingerprint_enabled():
+    return get_auth_config()["fingerprint_enabled"]
+
 @app.context_processor
 def inject_company():
     return {"co": get_company_settings()}
@@ -372,9 +414,36 @@ def load_default_shift():
     except Exception:
         pass
 
-# Deduction rates
-LATE_DEDUCTION_RATE = 0.10   # 10% deduction for late login
-HALF_DAY_RATE       = 0.50   # 50% deduction for half day
+# Deduction rates and salary rules (loaded from DB on startup)
+LATE_DEDUCTION_RATE = 0.10
+HALF_DAY_RATE       = 0.50
+GRACE_MINUTES       = 15       # grace period after shift start for full-day login
+HOLIDAY_PAY         = 'paid'   # 'paid' = full day pay | 'unpaid' = no pay
+LEAVE_PAY           = 'exclude' # 'exclude' = not a working day | 'absent' = count as absent
+
+def load_salary_rules():
+    global LATE_DEDUCTION_RATE, HALF_DAY_RATE, GRACE_MINUTES, HOLIDAY_PAY, LEAVE_PAY
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "SELECT COALESCE(late_deduction_pct,10), COALESCE(half_day_deduction_pct,50), "
+            "       COALESCE(grace_minutes,15), COALESCE(holiday_pay,'paid'), COALESCE(leave_pay,'exclude') "
+            "FROM company_settings LIMIT 1"
+        )
+        row = cursor.fetchone()
+        cursor.close(); db.close()
+        if row:
+            LATE_DEDUCTION_RATE = float(row[0]) / 100.0
+            HALF_DAY_RATE       = float(row[1]) / 100.0
+            GRACE_MINUTES       = int(row[2])
+            HOLIDAY_PAY         = str(row[3])
+            LEAVE_PAY           = str(row[4])
+    except Exception:
+        pass
+
+def load_deduction_rates():
+    load_salary_rules()
 
 # ---------------- IMAGE UPLOAD VALIDATION ----------------
 _ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
@@ -924,6 +993,22 @@ def init_db():
         )
     """)
     db.commit()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shift_swap_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            requester_id VARCHAR(50) NOT NULL,
+            target_id VARCHAR(50) NOT NULL,
+            requester_shift_id INT NOT NULL,
+            target_shift_id INT NOT NULL,
+            reason TEXT,
+            status ENUM('Pending_Target','Pending_Admin','Approved','Rejected','Rejected_Admin') DEFAULT 'Pending_Target',
+            target_response TEXT,
+            admin_response TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
 
     # Migrations for existing installs
     for sql in [
@@ -976,6 +1061,11 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
         "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
         "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
+        "ALTER TABLE company_settings ADD COLUMN late_deduction_pct DECIMAL(5,2) DEFAULT 10.00",
+        "ALTER TABLE company_settings ADD COLUMN half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00",
+        "ALTER TABLE company_settings ADD COLUMN grace_minutes INT DEFAULT 15",
+        "ALTER TABLE company_settings ADD COLUMN holiday_pay ENUM('paid','unpaid') DEFAULT 'paid'",
+        "ALTER TABLE company_settings ADD COLUMN leave_pay ENUM('exclude','absent') DEFAULT 'exclude'",
         "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN company_id INT DEFAULT NULL",
         "ALTER TABLE employee_documents ADD COLUMN expiry_date DATE DEFAULT NULL",
@@ -986,6 +1076,24 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN default_onboarding_template_id INT DEFAULT NULL",
         "ALTER TABLE employee_onboarding_tasks ADD COLUMN employee_note VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN fingerprint_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN qr_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN face_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN location_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN employee_password_auth TINYINT(1) DEFAULT 1",
+        "ALTER TABLE employees ADD COLUMN fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN face_auth_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_radius INT DEFAULT 100",
+        "ALTER TABLE company_settings ADD COLUMN pin_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN biometric_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN notify_leave TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_payslip TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_resignation TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_doc_expiry TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN session_timeout INT DEFAULT 30",
+        "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
     ]:
         try:
             cursor.execute(sql)
@@ -1267,8 +1375,14 @@ def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
 
 def calculate_deduction(salary_per_day, attendance_type):
     spd = float(salary_per_day)
-    if attendance_type in ("Full Day", "Approved Leave"):
+    if attendance_type == "Full Day":
         return 0.0
+    if attendance_type == "Approved Leave":
+        # If leave is configured as 'absent', deduct full day; else no deduction
+        return spd if LEAVE_PAY == 'absent' else 0.0
+    if attendance_type == "Holiday":
+        # If holiday is unpaid, deduct full day
+        return spd if HOLIDAY_PAY == 'unpaid' else 0.0
     if attendance_type == "Late - Full Day":
         return round(spd * LATE_DEDUCTION_RATE, 2)
     if attendance_type in ("Half Day", "Present"):
@@ -1675,12 +1789,16 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
 
     for d in billable_past:
         if d in holidays_set:
-            # Holiday → paid as full day, no attendance required
-            full_days += 1
+            if HOLIDAY_PAY == 'paid':
+                full_days += 1
+            else:
+                absent_days += 1   # unpaid holiday = counts as absent deduction
             holiday_days += 1
         elif d in leave_dates:
-            # Approved leave → not a working day, no pay and no absent deduction
-            leave_days_count += 1
+            if LEAVE_PAY == 'absent':
+                absent_days += 1   # count approved leave as absent
+            else:
+                leave_days_count += 1  # exclude from working days, no pay/no deduction
         else:
             row = emp_att.get(d)
             if row:
@@ -1821,8 +1939,8 @@ def setup_wizard():
             error = "Company name is required."
         elif not admin_user:
             error = "Admin username is required."
-        elif len(admin_pass) < 6:
-            error = "Password must be at least 6 characters."
+        elif len(admin_pass) < 8:
+            error = "Password must be at least 8 characters."
         elif admin_pass != admin_pass2:
             error = "Passwords do not match."
         else:
@@ -1858,6 +1976,7 @@ def admin_login():
         if admin_row and check_password_hash(admin_row[0], password):
             session.clear()
             session["admin_logged_in"] = True
+            session["admin_username"] = identifier
             session["admin_role"] = admin_row[1]
             session.permanent = True
             return redirect("/admin")
@@ -1871,7 +1990,7 @@ def admin_login():
         if emp_row:
             stored_pwd = emp_row[3]
             if stored_pwd and not check_password_hash(stored_pwd, password):
-                return render_template("admin_login.html", error="Incorrect password.")
+                return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
             session.clear()
             session["employee_id"]   = emp_row[0]
             session["employee_name"] = emp_row[1]
@@ -2403,7 +2522,7 @@ def admin_action():
 @app.route("/settings")
 @admin_required
 def settings_page():
-    tab    = request.args.get("tab", "email")
+    tab    = request.args.get("tab", "company")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -2470,6 +2589,16 @@ def settings_page():
     _cr = cursor.fetchone()
     company_code = _cr[0] if _cr else ""
     default_onboarding_tpl = int(_cr[1]) if _cr and _cr[1] else 0
+
+    # Company stats
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total_employees = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM employees WHERE status='Active'")
+    active_employees = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(DISTINCT department) FROM employees WHERE department IS NOT NULL AND department != ''")
+    total_departments = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM shifts")
+    total_shifts = cursor.fetchone()[0]
     cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
     onboarding_templates = cursor.fetchall()
 
@@ -2483,11 +2612,43 @@ def settings_page():
     """)
     companies = cursor.fetchall()
 
+    # Feature flags
+    cursor.execute("""
+        SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled, pin_enabled,
+               fingerprint_enabled, biometric_enabled, notify_leave, notify_payslip,
+               notify_resignation, notify_doc_expiry, session_timeout,
+               COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'),
+               COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata')
+        FROM company_settings LIMIT 1
+    """)
+    fr = cursor.fetchone()
+    features = {
+        "face_auth":    bool(fr[0]) if fr else False,
+        "geo":          bool(fr[1]) if fr else False,
+        "geo_radius":   fr[2] if fr else 100,
+        "qr":           bool(fr[3]) if fr else False,
+        "pin":          bool(fr[4]) if fr else True,
+        "fingerprint":  bool(fr[5]) if fr else False,
+        "biometric":    bool(fr[6]) if fr else False,
+        "notify_leave": bool(fr[7]) if fr else True,
+        "notify_payslip": bool(fr[8]) if fr else True,
+        "notify_resignation": bool(fr[9]) if fr else True,
+        "notify_doc_expiry":  bool(fr[10]) if fr else True,
+        "session_timeout": fr[11] if fr else 30,
+        "working_days": (fr[12] if fr else "Mon,Tue,Wed,Thu,Fri").split(","),
+        "company_name": fr[13] if fr else "",
+        "timezone":     fr[14] if fr else "Asia/Kolkata",
+    }
+
     cursor.close(); db.close()
     return render_template("settings.html",
         tab=tab,
         email_config=email_config,
         company_code=company_code,
+        total_employees=total_employees,
+        active_employees=active_employees,
+        total_departments=total_departments,
+        total_shifts=total_shifts,
         companies=companies,
         shifts=shift_rows,
         emp_list=emp_list,
@@ -2507,6 +2668,13 @@ def settings_page():
         now_year=datetime.date.today().year,
         default_onboarding_tpl=default_onboarding_tpl,
         onboarding_templates=onboarding_templates,
+        late_deduction_pct=round(LATE_DEDUCTION_RATE * 100, 1),
+        half_day_deduction_pct=round(HALF_DAY_RATE * 100, 1),
+        grace_minutes=GRACE_MINUTES,
+        holiday_pay=HOLIDAY_PAY,
+        leave_pay=LEAVE_PAY,
+        auth_config=get_auth_config(),
+        features=features,
     )
 
 # ---------------- SAVE DEFAULT ONBOARDING TEMPLATE ----------------
@@ -2522,6 +2690,87 @@ def save_default_onboarding_template():
     flash("Default onboarding template saved.", "success")
     return redirect("/onboarding?tab=templates")
 
+# ---------------- SAVE SALARY RULES ----------------
+@app.route("/save_salary_rules", methods=["POST"])
+@admin_required
+def save_salary_rules():
+    try:
+        late_pct  = max(0.0, min(100.0, float(request.form.get("late_deduction_pct",  10))))
+        half_pct  = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
+        grace_min = max(0,   min(120,   int(request.form.get("grace_minutes", 15))))
+    except (ValueError, TypeError):
+        return redirect("/settings?tab=salary-rules&saved=0")
+    holiday_pay = request.form.get("holiday_pay", "paid")
+    leave_pay   = request.form.get("leave_pay",   "exclude")
+    if holiday_pay not in ("paid", "unpaid"):
+        holiday_pay = "paid"
+    if leave_pay not in ("exclude", "absent"):
+        leave_pay = "exclude"
+    # Optional shift time thresholds
+    shift_start_raw = request.form.get("shift_start", "").strip()
+    shift_half_raw  = request.form.get("shift_half",  "").strip()
+    shift_end_raw   = request.form.get("shift_end",   "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
+        "grace_minutes=%s, holiday_pay=%s, leave_pay=%s",
+        (late_pct, half_pct, grace_min, holiday_pay, leave_pay)
+    )
+    if shift_start_raw and shift_half_raw and shift_end_raw:
+        cursor.execute(
+            "UPDATE company_settings SET shift_start=%s, shift_half=%s, shift_end=%s",
+            (shift_start_raw, shift_half_raw, shift_end_raw)
+        )
+    db.commit()
+    cursor.close(); db.close()
+    load_salary_rules()
+    load_default_shift()
+    return redirect("/settings?tab=salary-rules&saved=1")
+
+# ---------------- TOGGLE AUTH METHOD ----------------
+_TOGGLE_COLUMN_MAP = {
+    "fingerprint": "fingerprint_enabled",
+    "qr":          "qr_enabled",
+    "face":        "face_enabled",
+    "location":    "location_enabled",
+    "password":    "employee_password_auth",
+}
+_TOGGLE_LABEL_MAP = {
+    "fingerprint": "Fingerprint / Biometric",
+    "qr":          "QR Code",
+    "face":        "Face Recognition",
+    "location":    "Location Verification",
+    "password":    "Password Login",
+}
+
+@app.route("/toggle_auth_method", methods=["POST"])
+@admin_required
+def toggle_auth_method():
+    method  = request.form.get("method", "")
+    enabled = request.form.get("enabled", "0") == "1"
+    if method not in _TOGGLE_COLUMN_MAP:
+        flash("Invalid authentication method.", "danger")
+        return redirect("/settings?tab=auth")
+    column = _TOGGLE_COLUMN_MAP[method]
+    label  = _TOGGLE_LABEL_MAP[method]
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
+    db.commit(); cursor.close(); db.close()
+    state = "enabled" if enabled else "disabled"
+    flash(f"{label} authentication {state}.", "success")
+    return redirect("/settings?tab=auth")
+
+@app.route("/toggle_fingerprint", methods=["POST"])
+@admin_required
+def toggle_fingerprint():
+    enabled = request.form.get("enabled", "0") == "1"
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET fingerprint_enabled=%s", (1 if enabled else 0,))
+    db.commit(); cursor.close(); db.close()
+    state = "enabled" if enabled else "disabled"
+    flash(f"Fingerprint authentication {state}.", "success")
+    return redirect("/settings?tab=auth")
 
 # ---------------- SAVE COMPANY CODE ----------------
 @app.route("/save_company_code", methods=["POST"])
@@ -2533,6 +2782,62 @@ def save_company_code():
     db.commit(); cursor.close(); db.close()
     flash(f"Company code set to '{code}'.", "success")
     return redirect("/settings?tab=email")
+
+# ---------------- SAVE COMPANY INFO ----------------
+@app.route("/save_company_info", methods=["POST"])
+@admin_required
+def save_company_info():
+    name     = request.form.get("company_name", "").strip()
+    code     = request.form.get("company_code", "").strip().upper()[:10]
+    timezone = request.form.get("timezone", "Asia/Kolkata").strip()
+    w_days   = ",".join(request.form.getlist("working_days"))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
+        (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=company&saved=1")
+
+# ---------------- TOGGLE FEATURE (AJAX) ----------------
+@app.route("/toggle_feature", methods=["POST"])
+@admin_required
+def toggle_feature():
+    from flask import jsonify
+    allowed = {
+        "face_auth_enabled","geo_enabled","qr_enabled","pin_enabled",
+        "fingerprint_enabled","biometric_enabled",
+        "notify_leave","notify_payslip","notify_resignation","notify_doc_expiry",
+    }
+    data    = request.get_json(force=True) or {}
+    feature = data.get("feature", "")
+    value   = 1 if data.get("value") else 0
+    if feature not in allowed:
+        return jsonify({"ok": False, "error": "unknown feature"}), 400
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+# ---------------- SAVE GEO RADIUS ----------------
+@app.route("/save_geo_radius", methods=["POST"])
+@admin_required
+def save_geo_radius():
+    radius = int(request.form.get("geo_radius", 100))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=attendance&saved=1")
+
+# ---------------- SAVE SECURITY SETTINGS ----------------
+@app.route("/save_security_settings", methods=["POST"])
+@admin_required
+def save_security_settings():
+    timeout = int(request.form.get("session_timeout", 30))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=security&saved=1")
 
 
 # ---------------- COMPANIES ----------------
@@ -3447,6 +3752,13 @@ def add_employee_page():
                  _mgr_id, _mgr_name, _dept)
             )
             db.commit()
+            _fp_cred = request.form.get("fingerprint_credential_id", "").strip() or None
+            if _fp_cred:
+                cursor.execute(
+                    "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
+                    (_fp_cred, emp_id)
+                )
+                db.commit()
             assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             registered = True
@@ -3628,21 +3940,25 @@ def admin_leave_types():
 @app.route("/change_admin_password", methods=["POST"])
 @admin_required
 def change_admin_password():
-    current_pw = request.form.get("current_password", "")
-    new_pw     = request.form.get("new_password", "")
-    confirm_pw = request.form.get("confirm_password", "")
+    current_pw   = request.form.get("current_password", "")
+    new_pw       = request.form.get("new_password", "")
+    confirm_pw   = request.form.get("confirm_password", "")
+    # Use the logged-in admin's username, not a hardcoded 'admin' string.
+    # A hardcoded value lets any admin account change the 'admin' password
+    # if they know its current value — a cross-account privilege escalation.
+    logged_in_as = session.get("admin_username", "admin")
     if not new_pw or new_pw != confirm_pw:
         return redirect("/admin?pwd_error=mismatch")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT password FROM admin_users WHERE username='admin'")
+    cursor.execute("SELECT password FROM admin_users WHERE username=%s", (logged_in_as,))
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
         cursor.close(); db.close()
         return redirect("/admin?pwd_error=wrong")
     cursor.execute(
-        "UPDATE admin_users SET password=%s WHERE username='admin'",
-        (generate_password_hash(new_pw),)
+        "UPDATE admin_users SET password=%s WHERE username=%s",
+        (generate_password_hash(new_pw), logged_in_as)
     )
     db.commit(); cursor.close(); db.close()
     return redirect("/admin?pwd_ok=1")
@@ -3651,39 +3967,39 @@ def change_admin_password():
 @app.route("/admin_set_recovery_email", methods=["POST"])
 @admin_required
 def admin_set_recovery_email():
-    email = request.form.get("recovery_email", "").strip()
+    email    = request.form.get("recovery_email", "").strip()
+    username = session.get("admin_username", "admin")
     if email:
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute("UPDATE admin_users SET email=%s WHERE username='admin'", (email,))
+        cursor.execute("UPDATE admin_users SET email=%s WHERE username=%s", (email, username))
         db.commit(); cursor.close(); db.close()
     return redirect("/admin?email_ok=1#password-management")
 
 
 
 @app.route("/admin_forgot_password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def admin_forgot_password():
     if request.method == "GET":
         return render_template("admin_forgot_password.html",
                                sent=False, error=None)
-    admin_email = request.form.get("email", "").strip()
+    admin_email = request.form.get("email", "").strip().lower()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT id, email FROM admin_users WHERE username='admin'")
+    cursor.execute("SELECT id FROM admin_users WHERE LOWER(email)=%s", (admin_email,))
     row = cursor.fetchone()
-    if not row or not row[1]:
+    if not row:
         cursor.close(); db.close()
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="No email is set for the admin account. Contact your system administrator.")
-    if row[1].lower() != admin_email.lower():
-        cursor.close(); db.close()
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="Email address does not match the admin account.")
-    token   = secrets.token_hex(32)
-    expiry  = datetime.datetime.now() + datetime.timedelta(hours=1)
+        # Return the same message whether the email exists or not (no account enumeration)
+        return render_template("admin_forgot_password.html", sent=True, error=None)
+    token       = secrets.token_hex(32)
+    token_hash  = hashlib.sha256(token.encode()).hexdigest()
+    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
+    admin_id    = row[0]
     cursor.execute(
-        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE username='admin'",
-        (token, expiry)
+        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
+        (token_hash, expiry, admin_id)
     )
     db.commit(); cursor.close(); db.close()
     cfg = get_email_config()
@@ -3715,12 +4031,14 @@ def admin_forgot_password():
 
 
 @app.route("/admin_reset_password/<token>", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def admin_reset_password(token):
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
         "SELECT id FROM admin_users WHERE reset_token=%s AND reset_token_expiry > %s",
-        (token, datetime.datetime.now())
+        (token_hash, datetime.datetime.now())
     )
     row = cursor.fetchone()
     if not row:
@@ -3731,17 +4049,18 @@ def admin_reset_password(token):
         return render_template("admin_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw     = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    if len(new_pw) < 6:
+    if len(new_pw) < 8:
         cursor.close(); db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
-                               token=token, error="Password must be at least 6 characters.")
+                               token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
         cursor.close(); db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
+    admin_id = row[0]
     cursor.execute(
-        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE username='admin'",
-        (generate_password_hash(new_pw),)
+        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
+        (generate_password_hash(new_pw), admin_id)
     )
     db.commit(); cursor.close(); db.close()
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
@@ -3763,8 +4082,9 @@ def employee_forgot_password():
         cursor.close(); db.close()
         return render_template("employee_forgot_password.html", sent=False,
                                error="Employee ID and email do not match our records.")
-    token  = secrets.token_hex(32)
-    expiry = datetime.datetime.now() + datetime.timedelta(hours=1)
+    token       = secrets.token_hex(32)
+    token_hash  = hashlib.sha256(token.encode()).hexdigest()
+    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
     try:
         cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
         db.commit()
@@ -3776,7 +4096,7 @@ def employee_forgot_password():
     except mysql.connector.errors.DatabaseError:
         db.rollback()
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
-                   (token, expiry, emp_id))
+                   (token_hash, expiry, emp_id))
     db.commit(); cursor.close(); db.close()
     cfg = get_email_config()
     if not cfg:
@@ -3806,10 +4126,12 @@ def employee_forgot_password():
 
 
 @app.route("/employee_reset_password/<token>", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def employee_reset_password(token):
     db = get_db_connection(); cursor = db.cursor(buffered=True)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
-                   (token, datetime.datetime.now()))
+                   (token_hash, datetime.datetime.now()))
     row = cursor.fetchone()
     if not row:
         cursor.close(); db.close()
@@ -3819,10 +4141,10 @@ def employee_reset_password(token):
         return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw     = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    if len(new_pw) < 6:
+    if len(new_pw) < 8:
         cursor.close(); db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
-                               token=token, error="Password must be at least 6 characters.")
+                               token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
         cursor.close(); db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
@@ -4020,6 +4342,131 @@ def assign_shift():
     db.commit()
     cursor.close(); db.close()
     return jsonify({"ok": True})
+
+
+# ──────────────────────── SHIFT SWAP REQUESTS ────────────────────────
+
+@app.route("/submit_shift_swap", methods=["POST"])
+@employee_required
+def submit_shift_swap():
+    requester_id = session["employee_id"]
+    target_id    = request.form.get("target_id", "").strip()
+    reason       = request.form.get("reason", "").strip()
+    if not target_id or target_id == requester_id:
+        return redirect("/employee_portal?swap_error=invalid_target#shift-swap")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    # Fetch both employees' current shift_id (must both have shifts assigned)
+    cursor.execute("SELECT shift_id FROM employees WHERE employee_id=%s", (requester_id,))
+    row_r = cursor.fetchone()
+    cursor.execute("SELECT shift_id FROM employees WHERE employee_id=%s", (target_id,))
+    row_t = cursor.fetchone()
+    if not row_r or not row_t or row_r[0] is None or row_t[0] is None:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=no_shift#shift-swap")
+    if row_r[0] == row_t[0]:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=same_shift#shift-swap")
+    # Check no open request already exists between them
+    cursor.execute("""
+        SELECT id FROM shift_swap_requests
+        WHERE requester_id=%s AND target_id=%s
+          AND status IN ('Pending_Target','Pending_Admin')
+    """, (requester_id, target_id))
+    if cursor.fetchone():
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=duplicate#shift-swap")
+    cursor.execute("""
+        INSERT INTO shift_swap_requests
+            (requester_id, target_id, requester_shift_id, target_shift_id, reason)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (requester_id, target_id, row_r[0], row_t[0], reason))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/employee_portal?swap_sent=1#shift-swap")
+
+
+@app.route("/respond_shift_swap/<int:req_id>", methods=["POST"])
+@employee_required
+def respond_shift_swap(req_id):
+    emp_id   = session["employee_id"]
+    action   = request.form.get("action", "")
+    response = request.form.get("response", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT id, requester_id, target_id, status
+        FROM shift_swap_requests WHERE id=%s AND target_id=%s AND status='Pending_Target'
+    """, (req_id, emp_id))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=not_found#shift-swap")
+    if action == "accept":
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Pending_Admin', target_response=%s WHERE id=%s
+        """, (response or "Accepted", req_id))
+    else:
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Rejected', target_response=%s WHERE id=%s
+        """, (response or "Rejected by employee", req_id))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/employee_portal?swap_responded=1#shift-swap")
+
+
+@app.route("/admin_shift_swap/<int:req_id>", methods=["POST"])
+@admin_required
+def admin_shift_swap(req_id):
+    action   = request.form.get("action", "")
+    response = request.form.get("admin_response", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT requester_id, target_id, requester_shift_id, target_shift_id
+        FROM shift_swap_requests WHERE id=%s AND status='Pending_Admin'
+    """, (req_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return redirect("/admin_shift_swaps?error=not_found")
+    requester_id, target_id, req_shift, tgt_shift = row
+    if action == "approve":
+        # Swap actual shift assignments
+        cursor.execute("UPDATE employees SET shift_id=%s WHERE employee_id=%s", (tgt_shift, requester_id))
+        cursor.execute("UPDATE employees SET shift_id=%s WHERE employee_id=%s", (req_shift, target_id))
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Approved', admin_response=%s WHERE id=%s
+        """, (response or "Approved by admin", req_id))
+    else:
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Rejected_Admin', admin_response=%s WHERE id=%s
+        """, (response or "Rejected by admin", req_id))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/admin_shift_swaps?ok=1")
+
+
+@app.route("/admin_shift_swaps")
+@admin_required
+def admin_shift_swaps():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT ssr.id, ssr.requester_id, er.name, ssr.target_id, et.name,
+               sr.name AS req_shift, st.name AS tgt_shift,
+               ssr.reason, ssr.status, ssr.target_response, ssr.admin_response, ssr.created_at
+        FROM shift_swap_requests ssr
+        JOIN employees er ON er.employee_id = ssr.requester_id
+        JOIN employees et ON et.employee_id = ssr.target_id
+        JOIN shifts sr ON sr.id = ssr.requester_shift_id
+        JOIN shifts st ON st.id = ssr.target_shift_id
+        ORDER BY ssr.created_at DESC LIMIT 100
+    """)
+    swap_rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("admin_shift_swaps.html", swap_rows=swap_rows,
+                           ok=request.args.get("ok"), error=request.args.get("error"))
 
 
 @app.route("/import_indian_holidays", methods=["POST"])
@@ -5103,18 +5550,36 @@ def attendance():
     face_b64   = data.get("face_image", "")
     user_lat   = data.get("lat")
     user_lon   = data.get("lon")
+    auth_combo = data.get("auth_combo", "qr_face")
+    fingerprint_verified = bool(data.get("fingerprint_verified", False))
+
+    if auth_combo not in ("qr_face", "qr_only", "qr_fingerprint", "fingerprint_only"):
+        return jsonify({"ok": False, "msg": "Invalid auth combination."})
+
+    cfg = get_auth_config()
+
+    if auth_combo in ("qr_fingerprint", "fingerprint_only"):
+        if not cfg["fingerprint_enabled"]:
+            return jsonify({"ok": False, "msg": "Fingerprint not enabled. Ask your admin to enable it in Settings."}), 403
+        if not fingerprint_verified:
+            return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
 
     if not emp_id:
-        return jsonify({"ok": False, "msg": "No QR code data received."})
-    if not face_b64:
+        err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
+        return jsonify({"ok": False, "msg": err_msg})
+
+    needs_face = (auth_combo == "qr_face")
+    if needs_face and not face_b64:
         return jsonify({"ok": False, "msg": "Face photo not captured."})
 
-    try:
-        img_bytes = base64.b64decode(face_b64)
-        pil_img   = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        frame     = np.array(pil_img)
-    except Exception:
-        return jsonify({"ok": False, "msg": "Invalid face image data."})
+    frame = None
+    if needs_face:
+        try:
+            img_bytes = base64.b64decode(face_b64)
+            pil_img   = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame     = np.array(pil_img)
+        except Exception:
+            return jsonify({"ok": False, "msg": "Invalid face image data."})
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -5125,49 +5590,54 @@ def attendance():
 
     if not result:
         cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Employee not found. Please check your QR code."})
+        not_found_msg = ("Employee ID not found. Please check your ID and try again."
+                         if auth_combo == "fingerprint_only"
+                         else "Employee not found. Please check your QR code.")
+        return jsonify({"ok": False, "msg": not_found_msg})
 
     face_path, employee_name, employee_email, emp_work_mode, emp_work_lat, emp_work_lon = result
 
-    # Location check: WFH → must be within 300 m of home; Office → must be within 300 m of office
-    if not user_lat or not user_lon:
+    # Location check
+    if cfg["location_enabled"] and (not user_lat or not user_lon):
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
-    if emp_work_mode == 'wfh':
-        if emp_work_lat and emp_work_lon:
-            if not is_within_range(float(user_lat), float(user_lon), float(emp_work_lat), float(emp_work_lon)):
+    if cfg["location_enabled"] and user_lat and user_lon:
+        if emp_work_mode == 'wfh':
+            if emp_work_lat and emp_work_lon:
+                if not is_within_range(float(user_lat), float(user_lon), float(emp_work_lat), float(emp_work_lon)):
+                    cursor.close(); db.close()
+                    return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+        else:
+            if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
                 cursor.close(); db.close()
-                return jsonify({"ok": False, "msg": "You are outside your registered home location."})
-        # no home location set → allow (admin can set it later)
-    else:
-        if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
+                return jsonify({"ok": False, "msg": "You are outside the office premises."})
+
+    # Face recognition (only for qr_face combo)
+    known_encoding = None
+    if needs_face:
+        if not os.path.exists(face_path):
             cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": "You are outside the office premises."})
+            return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
+        known_image = face_recognition.load_image_file(face_path)
+        known_encs  = face_recognition.face_encodings(known_image)
+        if not known_encs:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
+        known_encoding = known_encs[0]
 
-    if not os.path.exists(face_path):
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
-
-    known_image    = face_recognition.load_image_file(face_path)
-    known_encs     = face_recognition.face_encodings(known_image)
-    if not known_encs:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
-    known_encoding = known_encs[0]
-
-    locs = face_recognition.face_locations(frame)
-    encs = face_recognition.face_encodings(frame, locs)
-    if not encs:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "No face detected in photo. Look directly at the camera."})
-
-    matched = any(
-        True in face_recognition.compare_faces([known_encoding], enc)
-        for enc in encs
-    )
-    if not matched:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
+    if needs_face:
+        locs = face_recognition.face_locations(frame)
+        encs = face_recognition.face_encodings(frame, locs)
+        if not encs:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "No face detected in photo. Look directly at the camera."})
+        matched = any(
+            True in face_recognition.compare_faces([known_encoding], enc)
+            for enc in encs
+        )
+        if not matched:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
 
     now          = datetime.datetime.now()
     today        = now.date()
@@ -5189,7 +5659,7 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= s_half:
@@ -5285,7 +5755,7 @@ def change_password():
     if not row or not check_password_hash(row[0], current):
         cursor.close(); db.close()
         return redirect("/employee_portal?pwd_error=wrong#my-profile")
-    if len(new_pwd) < 6:
+    if len(new_pwd) < 8:
         cursor.close(); db.close()
         return redirect("/employee_portal?pwd_error=short#my-profile")
     if new_pwd != confirm:
@@ -5307,12 +5777,12 @@ def force_change_pin():
     if request.method == "POST":
         new_pwd = request.form.get("new_password", "").strip()
         confirm = request.form.get("confirm_password", "").strip()
-        if len(new_pwd) < 6:
-            error = "Password must be at least 6 characters."
+        if len(new_pwd) < 8:
+            error = "Password must be at least 8 characters."
         elif new_pwd != confirm:
             error = "Passwords do not match."
-        elif new_pwd == "1234":
-            error = "You cannot use '1234' as your password."
+        elif new_pwd in ("1234", "12345678", "password", "admin123"):
+            error = "That password is too common. Please choose a stronger one."
         else:
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
@@ -6348,6 +6818,37 @@ def employee_portal():
             'present': p_full + p_late + p_half, 'absent': p_absent,
         })
 
+    # Shift swap data
+    try:
+        cursor.execute("""
+            SELECT ssr.id, ssr.target_id, et.name, ts.name AS tgt_shift,
+                   ssr.reason, ssr.status, ssr.created_at
+            FROM shift_swap_requests ssr
+            JOIN employees et ON et.employee_id = ssr.target_id
+            JOIN shifts ts ON ts.id = ssr.target_shift_id
+            WHERE ssr.requester_id=%s ORDER BY ssr.created_at DESC LIMIT 20
+        """, (emp_id,))
+        my_swap_requests = cursor.fetchall()
+        cursor.execute("""
+            SELECT ssr.id, ssr.requester_id, er.name, rs.name AS req_shift,
+                   ssr.reason, ssr.status, ssr.created_at
+            FROM shift_swap_requests ssr
+            JOIN employees er ON er.employee_id = ssr.requester_id
+            JOIN shifts rs ON rs.id = ssr.requester_shift_id
+            WHERE ssr.target_id=%s AND ssr.status='Pending_Target' ORDER BY ssr.created_at DESC
+        """, (emp_id,))
+        incoming_swap_requests = cursor.fetchall()
+        cursor.execute("""
+            SELECT employee_id, name FROM employees
+            WHERE employee_id != %s AND shift_id IS NOT NULL AND is_active=1
+            ORDER BY name
+        """, (emp_id,))
+        swap_eligible_employees = cursor.fetchall()
+    except Exception:
+        my_swap_requests = []
+        incoming_swap_requests = []
+        swap_eligible_employees = []
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -6418,6 +6919,12 @@ def employee_portal():
         ot_pay_this_month=ot_pay_this_month,
         net_this_month=net_this_month,
         recent_payslips=recent_payslips,
+        my_swap_requests=my_swap_requests,
+        incoming_swap_requests=incoming_swap_requests,
+        swap_eligible_employees=swap_eligible_employees,
+        swap_sent=request.args.get("swap_sent") == "1",
+        swap_responded=request.args.get("swap_responded") == "1",
+        swap_error=request.args.get("swap_error", ""),
     )
 
 
@@ -8381,6 +8888,10 @@ def api_register_employee():
     file   = request.files.get("face")
     if not name or not emp_id or not file:
         return jsonify({"ok": False, "msg": "name, emp_id and face image required"}), 400
+    # Validate extension, MIME type, magic bytes and size before writing to disk.
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
     test_img = face_recognition.load_image_file(filepath)
@@ -8630,7 +9141,10 @@ def api_salary_report():
 @api_required
 def api_get_email_config():
     cfg = get_email_config()
-    return jsonify({"ok": True, "config": cfg})
+    # Never return the SMTP password to clients — they only need to know config exists.
+    safe_cfg = {k: v for k, v in cfg.items() if k != "password"}
+    safe_cfg["password_set"] = bool(cfg.get("password"))
+    return jsonify({"ok": True, "config": safe_cfg})
 
 
 @app.route("/api/email_config", methods=["POST"])
@@ -8744,7 +9258,7 @@ def api_checkin():
     worked_mins_stored  = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -8963,8 +9477,8 @@ def api_employee_change_password():
     new_password     = data.get("new_password", "").strip()
     if not current_password or not new_password:
         return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
-    if len(new_password) < 4:
-        return jsonify({"ok": False, "msg": "New password must be at least 4 characters"}), 400
+    if len(new_password) < 8:
+        return jsonify({"ok": False, "msg": "New password must be at least 8 characters"}), 400
     from flask import g as _g
     emp_id = _g.api_emp_id
     with _db() as (cursor, conn):
@@ -9143,7 +9657,7 @@ def api_employee_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -9246,7 +9760,7 @@ def api_employee_sync_punches():
         last_relogin = rec[4] if rec else None
 
         if not login_time:
-            grace_time = (datetime.datetime.combine(punch_date, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+            grace_time = (datetime.datetime.combine(punch_date, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
             if punch_time <= grace_time:
                 status = "Full Day Login"
             elif punch_time <= SHIFT_HALF:
@@ -9289,13 +9803,61 @@ def api_employee_sync_punches():
     return jsonify({"ok": True, "results": results})
 
 
+@app.route("/api/employee/auth-config", methods=["GET"])
+def api_employee_auth_config():
+    """Return all authentication method flags (public, no token required)."""
+    return jsonify({"ok": True, **get_auth_config()})
+
+
+@app.route("/webauthn/challenge", methods=["GET"])
+def webauthn_challenge():
+    """Return a fresh random base64url challenge for WebAuthn registration or assertion."""
+    import base64 as _b64
+    raw = secrets.token_bytes(32)
+    b64 = _b64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    return jsonify({"challenge": b64})
+
+
+@app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
+def get_employee_webauthn_credential(emp_id):
+    """Return the stored WebAuthn credential_id for an employee (public, used by kiosk)."""
+    emp_id = emp_id.strip().upper()
+    try:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s LIMIT 1",
+            (emp_id,)
+        )
+        row = cursor.fetchone(); cursor.close(); db.close()
+        return jsonify({"ok": True, "credential_id": row[0] if row else None})
+    except Exception:
+        return jsonify({"ok": True, "credential_id": None})
+
+
 @app.route("/api/employee/qr-face-checkin", methods=["POST"])
 def api_employee_qr_face_checkin():
-    """Public kiosk endpoint: QR code + face photo attendance marking (no auth token required)."""
-    employee_id = request.form.get("employee_id", "").strip().upper()
-    lat         = request.form.get("lat")
-    lon         = request.form.get("lon")
-    face_photo  = request.files.get("face_photo")
+    """Public kiosk endpoint — supports auth_combo: qr_face | qr_fingerprint | face_fingerprint."""
+    employee_id        = request.form.get("employee_id", "").strip().upper()
+    lat                = request.form.get("lat")
+    lon                = request.form.get("lon")
+    face_photo         = request.files.get("face_photo")
+    auth_combo         = request.form.get("auth_combo", "qr_face")
+    fingerprint_verified = request.form.get("fingerprint_verified", "false").lower() == "true"
+
+    if auth_combo not in ("qr_face", "qr_fingerprint", "face_fingerprint"):
+        return jsonify({"ok": False, "msg": "Invalid auth_combo"}), 400
+
+    cfg = get_auth_config()
+
+    if auth_combo in ("qr_face", "qr_fingerprint") and not cfg["qr_enabled"]:
+        return jsonify({"ok": False, "msg": "QR code authentication is not enabled"}), 403
+    if auth_combo in ("qr_face", "face_fingerprint") and not cfg["face_enabled"]:
+        return jsonify({"ok": False, "msg": "Face recognition authentication is not enabled"}), 403
+    if auth_combo in ("qr_fingerprint", "face_fingerprint"):
+        if not cfg["fingerprint_enabled"]:
+            return jsonify({"ok": False, "msg": "Fingerprint authentication is not enabled"}), 403
+        if not fingerprint_verified:
+            return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
 
     if not employee_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
@@ -9355,7 +9917,7 @@ def api_employee_qr_face_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -10040,6 +10602,20 @@ def view_payslip(emp_id, year, month):
     )
 
 
+@app.route("/download_payslip/<emp_id>/<int:year>/<int:month>")
+def download_payslip(emp_id, year, month):
+    html = view_payslip(emp_id, year, month)
+    if not isinstance(html, str):
+        return html  # redirect or error response
+    from flask import Response
+    filename = f"payslip_{emp_id}_{year}_{month:02d}.html"
+    return Response(
+        html,
+        mimetype="text/html",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @app.route("/admin_payslips")
 @admin_required
 def admin_payslips():
@@ -10687,8 +11263,13 @@ def upload_document():
     _audit("upload_document", "employee_documents", emp_id,
            f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'}")
     flash("Document uploaded successfully.", "success")
-    redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
-    return redirect(redirect_to)
+    raw_redirect = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
+    # Reject any redirect that leaves this origin (open-redirect prevention).
+    # Only allow relative URLs (no scheme, no netloc).
+    from urllib.parse import urlparse as _urlparse
+    _p = _urlparse(raw_redirect)
+    safe_redirect = raw_redirect if (not _p.scheme and not _p.netloc) else f'/documents?emp_id={emp_id}'
+    return redirect(safe_redirect)
 
 
 @app.route("/delete_document/<int:did>", methods=["POST"])
@@ -11170,15 +11751,30 @@ def web_employee_notifications_list():
 
 # ── Tenant Provisioning ──────────────────────────────────────────────────────
 
-_SUBDOMAIN_RE = re.compile(r'^[a-z0-9\-]+$')
+_SUBDOMAIN_RE  = re.compile(r'^[a-z0-9\-]+$')
+# Set SIGNUP_SECRET in .env to restrict who can create new organisations.
+# Anyone who knows this token can provision a new tenant; keep it private.
+_SIGNUP_SECRET = os.environ.get("SIGNUP_SECRET", "").strip()
 
 @app.route("/create_org", methods=["GET"])
 def create_org_page():
-    return render_template("create_org.html")
+    if not _SIGNUP_SECRET:
+        # Provisioning disabled: no SIGNUP_SECRET configured in .env
+        return render_template("create_org.html", signup_disabled=True)
+    return render_template("create_org.html", signup_disabled=False)
 
 
 @app.route("/create_org", methods=["POST"])
 def create_org():
+    # Require a server-side secret token to prevent anonymous tenant creation.
+    if not _SIGNUP_SECRET:
+        flash("Organisation self-registration is disabled on this server.", "error")
+        return redirect("/create_org")
+    submitted_secret = request.form.get("signup_secret", "").strip()
+    if not secrets.compare_digest(_SIGNUP_SECRET, submitted_secret):
+        flash("Invalid signup code. Contact your administrator.", "error")
+        return redirect("/create_org")
+
     company_name    = request.form.get("company_name", "").strip()
     subdomain       = request.form.get("subdomain", "").strip().lower()
     admin_username  = request.form.get("admin_username", "").strip()
@@ -12039,4 +12635,5 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     load_default_shift()
+    load_salary_rules()
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

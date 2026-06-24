@@ -118,6 +118,38 @@
 
       @media (max-width: 1100px) { .top-grid { grid-template-columns: 1fr; } }
       @media (max-width: 768px)  { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } }
+
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
+      body.dark-mode .page-header h1 { color: #cdd9e5 !important; }
+      body.dark-mode .page-header p { color: #768390 !important; }
+      body.dark-mode .card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .card-title { color: #cdd9e5 !important; }
+      body.dark-mode .section { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .section-title { color: #cdd9e5 !important; }
+      body.dark-mode .field label { color: #768390 !important; }
+      body.dark-mode .field input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .shift-item { background: #1c2128 !important; border-color: #30363d !important; border-left-color: #4d9de0 !important; }
+      body.dark-mode .shift-item.default-shift { background: #162012 !important; border-color: #1a4731 !important; border-left-color: #4ade80 !important; }
+      body.dark-mode .shift-name { color: #4d9de0 !important; }
+      body.dark-mode .shift-time { color: #768390 !important; }
+      body.dark-mode .emp-badge { background: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode .btn-edit-shift { background: #1e3a8a !important; border-color: #30363d !important; color: #93c5fd !important; }
+      body.dark-mode .btn-del-shift { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+      body.dark-mode .table-wrap { border-color: #30363d !important; }
+      body.dark-mode .bulk-bar { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .bulk-bar label { color: #768390 !important; }
+      body.dark-mode .bulk-select-shift { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .btn-select-all { background: #1e3a8a !important; border-color: #30363d !important; color: #93c5fd !important; }
+      body.dark-mode .search-wrap input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .shift-select { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .modal { background: #161b22 !important; }
+      body.dark-mode .modal-title { color: #cdd9e5 !important; }
+      body.dark-mode .flash-green { background: #14532d !important; border-color: #166534 !important; color: #4ade80 !important; }
+      body.dark-mode .flash-red { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+      body.dark-mode div[style*="background:#f0f9ff"] { background: #0f1f3d !important; border-color: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode div[style*="background:#f8fafc"] { background: #1c2128 !important; border-color: #30363d !important; }
     </style>
   <link rel="stylesheet" href="/static/shared.css" />
   </head>
@@ -133,6 +165,7 @@
   <a class="nav-item" href="/companies"><span class="nav-icon"><i class="ti ti-building"></i></span>Companies</a>
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item active" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
+      <a class="nav-item" href="/admin_shift_swaps" style="padding-left:22px;font-size:12px;"><span class="nav-icon"><i class="ti ti-switch-horizontal"></i></span>Shift Swaps</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
       <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
       <hr class="nav-sep" style="margin-top:12px;" />

@@ -51,6 +51,12 @@ export const uploadEmployeePhoto = (formData) =>
 export const qrFaceCheckin = (formData) =>
   client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
+export const getAuthConfig = () =>
+  client.get('/api/employee/auth-config');
+
+export const attendanceCheckin = (formData) =>
+  client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
 export const getPhotoUrl = (empId) => `${API_BASE_URL}/dataset/${empId}.jpg`;
 
 export const employeeLogout = () => client.post('/api/employee/logout');
