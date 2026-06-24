@@ -2,202 +2,97 @@ import React from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 export default function AttendanceSummaryCard({
-  month,
-  year,
-  percentage = 96,
-  present = 22,
-  late = 1,
+  percentage = 0,
+  present = 0,
   absent = 0,
-  onPrevious,
-  onNext,
+  late = 0,
 }) {
   return (
-    <View style={styles.card}>
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Attendance % */}
 
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.month}>
-            {MONTHS[month - 1]} {year}
+      <View style={styles.leftCard}>
+        <View style={styles.circle}>
+          <Text style={styles.percent}>
+            {percentage}%
           </Text>
 
-          <Text style={styles.caption}>
-            Attendance Dashboard
+          <Text style={styles.percentLabel}>
+            Attendance
           </Text>
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.iconButton}
-            onPress={onPrevious}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={18}
-              color="#173B8C"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.iconButton}
-            onPress={onNext}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color="#173B8C"
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Attendance Score */}
+      {/* Right Stats */}
 
-      <View style={styles.scoreSection}>
-        <View style={styles.scoreHeader}>
-          <Text style={styles.scoreTitle}>
-            Attendance Score
-          </Text>
+      <View style={styles.rightCard}>
+        <View style={styles.row}>
+          <View style={[styles.iconBox, { backgroundColor: "#DCFCE7" }]}>
+            <Ionicons
+              name="checkmark-circle"
+              size={18}
+              color="#22C55E"
+            />
+          </View>
 
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
+          <View style={styles.textContainer}>
+            <Text style={styles.value}>
+              {present}
+            </Text>
 
-            <Text style={styles.liveText}>
-              LIVE
+            <Text style={styles.label}>
+              Present
             </Text>
           </View>
         </View>
 
-        <Text style={styles.score}>
-          {percentage}%
-        </Text>
+        <View style={styles.divider} />
 
-        <Text style={styles.scoreDescription}>
-          Based on this month's attendance
-        </Text>
-
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${Math.max(
-                  0,
-                  Math.min(percentage, 100)
-                )}%`,
-              },
-            ]}
-          />
-        </View>
-      </View>
-
-      {/* Divider */}
-
-      <View style={styles.divider} />
-
-      {/* Analytics */}
-
-      <View style={styles.analyticsRow}>
-        <View style={styles.metric}>
-          <View
-            style={[
-              styles.metricIcon,
-              {
-                backgroundColor: "#ECFDF5",
-              },
-            ]}
-          >
+        <View style={styles.row}>
+          <View style={[styles.iconBox, { backgroundColor: "#FEF3C7" }]}>
             <Ionicons
-              name="checkmark-circle"
+              name="time"
               size={18}
-              color="#16A34A"
+              color="#F59E0B"
             />
           </View>
 
-          <Text style={styles.metricValue}>
-            {present}
-          </Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.value}>
+              {late}
+            </Text>
 
-          <Text style={styles.metricLabel}>
-            Present
-          </Text>
-        </View>
-
-        <View style={styles.verticalDivider} />
-
-        <View style={styles.metric}>
-          <View
-            style={[
-              styles.metricIcon,
-              {
-                backgroundColor: "#FFF7ED",
-              },
-            ]}
-          >
-            <Ionicons
-              name="time-outline"
-              size={18}
-              color="#EA580C"
-            />
+            <Text style={styles.label}>
+              Late
+            </Text>
           </View>
-
-          <Text style={styles.metricValue}>
-            {late}
-          </Text>
-
-          <Text style={styles.metricLabel}>
-            Late
-          </Text>
         </View>
 
-        <View style={styles.verticalDivider} />
+        <View style={styles.divider} />
 
-        <View style={styles.metric}>
-          <View
-            style={[
-              styles.metricIcon,
-              {
-                backgroundColor: "#FEF2F2",
-              },
-            ]}
-          >
+        <View style={styles.row}>
+          <View style={[styles.iconBox, { backgroundColor: "#FEE2E2" }]}>
             <Ionicons
               name="close-circle"
               size={18}
-              color="#DC2626"
+              color="#EF4444"
             />
           </View>
 
-          <Text style={styles.metricValue}>
-            {absent}
-          </Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.value}>
+              {absent}
+            </Text>
 
-          <Text style={styles.metricLabel}>
-            Absent
-          </Text>
+            <Text style={styles.label}>
+              Absent
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -205,241 +100,113 @@ export default function AttendanceSummaryCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#FFFFFF",
-
+  container: {
+    flexDirection: "row",
     marginBottom: 22,
-
-    borderRadius: 20,
-
-    padding: 22,
-
-    borderWidth: 1,
-
-    borderColor: "#EDF2F7",
-
-    shadowColor: "#0F172A",
-
-    shadowOpacity: 0.05,
-
-    shadowRadius: 18,
-
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-
-    elevation: 5,
   },
 
-  header: {
-    flexDirection: "row",
-
-    justifyContent: "space-between",
-
-    alignItems: "center",
-  },
-
-  month: {
-    fontSize: 26,
-
-    fontWeight: "800",
-
-    color: "#0F172A",
-
-    letterSpacing: -0.6,
-  },
-
-  caption: {
-    marginTop: 4,
-
-    fontSize: 13,
-
-    color: "#64748B",
-
-    fontWeight: "600",
-  },
-
-  actions: {
-    flexDirection: "row",
-  },
-
-  iconButton: {
-    width: 42,
-
-    height: 42,
-
-    borderRadius: 12,
-
-    backgroundColor: "#F8FAFC",
-
-    borderWidth: 1,
-
-    borderColor: "#E2E8F0",
-
-    justifyContent: "center",
-
-    alignItems: "center",
-
-    marginLeft: 10,
-  },
-
-  scoreSection: {
-    marginTop: 26,
-  },
-
-  scoreHeader: {
-    flexDirection: "row",
-
-    justifyContent: "space-between",
-
-    alignItems: "center",
-  },
-
-  scoreTitle: {
-    fontSize: 15,
-
-    fontWeight: "700",
-
-    color: "#475569",
-  },
-
-  liveBadge: {
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    backgroundColor: "#ECFDF5",
-
-    paddingHorizontal: 10,
-
-    paddingVertical: 5,
-
-    borderRadius: 30,
-  },
-
-  liveDot: {
-    width: 7,
-
-    height: 7,
-
-    borderRadius: 4,
-
-    backgroundColor: "#22C55E",
-
-    marginRight: 6,
-  },
-
-  liveText: {
-    color: "#15803D",
-
-    fontWeight: "700",
-
-    fontSize: 11,
-  },
-
-  score: {
-    marginTop: 12,
-
-    fontSize: 52,
-
-    fontWeight: "900",
-
-    color: "#173B8C",
-
-    letterSpacing: -2,
-  },
-
-  scoreDescription: {
-    marginTop: 4,
-
-    fontSize: 13,
-
-    color: "#64748B",
-  },
-
-  progressTrack: {
-    marginTop: 20,
-
-    height: 6,
-
-    backgroundColor: "#E2E8F0",
-
-    borderRadius: 20,
-
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    height: "100%",
+  leftCard: {
+    flex: 1,
 
     backgroundColor: "#173B8C",
 
-    borderRadius: 20,
+    borderRadius: 24,
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    marginRight: 12,
+
+    paddingVertical: 24,
+
+    shadowColor: "#173B8C",
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+
+    elevation: 6,
+  },
+
+  circle: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+
+    borderWidth: 8,
+    borderColor: "rgba(255,255,255,0.18)",
+
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  percent: {
+    color: "#FFFFFF",
+    fontSize: 32,
+    fontWeight: "800",
+  },
+
+  percentLabel: {
+    color: "rgba(255,255,255,.75)",
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  rightCard: {
+    flex: 1,
+
+    backgroundColor: "#FFFFFF",
+
+    borderRadius: 24,
+
+    padding: 18,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+
+    elevation: 4,
+  },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  iconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  textContainer: {
+    marginLeft: 12,
+  },
+
+  value: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  label: {
+    marginTop: 2,
+    color: "#64748B",
+    fontWeight: "600",
   },
 
   divider: {
-    marginVertical: 24,
-
     height: 1,
-
     backgroundColor: "#EEF2F7",
-  },
-
-  analyticsRow: {
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    justifyContent: "space-between",
-  },
-
-  metric: {
-    flex: 1,
-
-    alignItems: "center",
-  },
-    metricIcon: {
-    width: 44,
-
-    height: 44,
-
-    borderRadius: 14,
-
-    justifyContent: "center",
-
-    alignItems: "center",
-
-    marginBottom: 12,
-  },
-
-  metricValue: {
-    fontSize: 28,
-
-    fontWeight: "800",
-
-    color: "#0F172A",
-
-    letterSpacing: -0.5,
-  },
-
-  metricLabel: {
-    marginTop: 4,
-
-    fontSize: 13,
-
-    fontWeight: "600",
-
-    color: "#64748B",
-  },
-
-  verticalDivider: {
-    width: 1,
-
-    alignSelf: "stretch",
-
-    backgroundColor: "#EEF2F7",
-
-    marginHorizontal: 8,
+    marginVertical: 16,
   },
 });

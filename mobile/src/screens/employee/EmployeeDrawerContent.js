@@ -21,9 +21,27 @@ export default function EmployeeDrawerContent(props) {
 
 const drawerRoute = state.routes[state.index];
 
-const activeRoute =
+let activeRoute =
   getFocusedRouteNameFromRoute(drawerRoute) ??
   drawerRoute.name;
+
+// HomeStack nested screens
+if (
+  drawerRoute.state &&
+  drawerRoute.state.routes
+) {
+  const homeRoute =
+    drawerRoute.state.routes[drawerRoute.state.index];
+
+  if (homeRoute.state) {
+    activeRoute =
+      homeRoute.state.routes[
+        homeRoute.state.index
+      ].name;
+  } else {
+    activeRoute = homeRoute.name;
+  }
+}
 
   const handleLogout = async () => {
     try {
@@ -35,24 +53,28 @@ const activeRoute =
 
   const menuItems = [
   // MAIN
-  
   {
-  title: "My Profile",
-  icon: "person-circle-outline",
-  route: "Profile",
-  section: "MAIN",
-},
+    title: "Dashboard",
+    icon: "grid-outline",
+    route: "Home",
+    section: "MAIN",
+  },
   {
     title: "Attendance",
     icon: "calendar-outline",
     route: "Attendance",
     section: "MAIN",
   },
-  
+  {
+    title: "Apply Leave",
+    icon: "document-text-outline",
+    route: "Leave",
+    section: "MAIN",
+  },
   {
     title: "Earnings",
     icon: "wallet-outline",
-    route: "Earnings",
+    route: "Payslips",
     section: "MAIN",
   },
 
@@ -81,14 +103,14 @@ const activeRoute =
     route: "Onboarding",
     section: "ACCOUNT",
   },
-{
-  title: "Policies & Guidelines",
-  icon: "document-text-outline",
-  route: "Policies",
-  section: "ACCOUNT",
-},
+
   // DANGER
-  
+  {
+    title: "Resignation",
+    icon: "warning-outline",
+    route: "Resignation",
+    section: "DANGER",
+  },
 ];
   const renderMenuItem = (item) => {
     const active = activeRoute === item.route;
@@ -113,65 +135,31 @@ const activeRoute =
       break;
 
     case "Attendance":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Attendance",
-  });
-  break;
+      navigation.navigate("EmployeeTabs", {
+        screen: "Home",
+        params: {
+          screen: "Attendance",
+        },
+      });
+      break;
 
     case "Leave":
       navigation.navigate("EmployeeTabs", {
         screen: "Leave",
       });
       break;
-      
-      case "CompOff":
-  navigation.navigate("EmployeeTabs", {
-    screen: "CompOff",
-  });
-  break;
-  case "Earnings":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Earnings",
-  });
-  break;
-  case "Onboarding":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Onboarding",
-  });
-  break;
-
-  case "Profile":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Profile",
-  });
-  break;
 
     case "Tickets":
       navigation.navigate("EmployeeTabs", {
         screen: "Tickets",
       });
       break;
-      case "Holidays":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Holidays",
-  });
-  break;
 
     case "Notifications":
       navigation.navigate("EmployeeTabs", {
         screen: "Notifications",
       });
       break;
-      case "Performance":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Performance",
-  });
-  break;
-  case "Policies":
-  navigation.navigate("EmployeeTabs", {
-    screen: "Policies",
-  });
-  break;
 
     default:
       navigation.navigate(item.route);
@@ -280,7 +268,7 @@ const activeRoute =
 
 {renderSection("ACCOUNT", "ACCOUNT")}
 
-
+{renderSection("OTHER", "DANGER")}
 
       </DrawerContentScrollView>
       <View style={styles.bottomContainer}>
