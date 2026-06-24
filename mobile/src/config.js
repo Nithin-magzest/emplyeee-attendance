@@ -1,13 +1,18 @@
 // ─────────────────────────────────────────────
-//  UPDATE THIS to your machine's local IP when
-//  running on a real device or Android emulator.
+//  SECURITY: Use HTTPS in production.
+//  HTTP exposes Bearer tokens to anyone on the
+//  same network. Set up Nginx + SSL on the server
+//  and change the URL scheme to https://.
 //
-//  Find it with:  ipconfig  (Windows)
-//  Example:  'http://192.168.1.105:5000'
+//  PRODUCTION:  'https://yourdomain.com'
 //
-//  For iOS Simulator you can use localhost:
-//  'http://localhost:5000'
+//  LOCAL DEV ONLY (real device / Android emulator):
+//  Find your LAN IP with: ipconfig (Windows)
+//  Example: 'http://192.168.1.x:5000'
+//
+//  iOS Simulator: 'http://localhost:5000'
 // ─────────────────────────────────────────────
+// SECURITY NOTE: Change to https:// for production deployment
 export const API_BASE_URL = 'http://192.168.1.9:5000';
 
 export const COLORS = {

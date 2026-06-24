@@ -87,17 +87,27 @@
 
       .rules-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; font-size: 12px; line-height: 2; color: #64748b; margin-top: 6px; }
 
-      /* Action icon buttons */
-      .action-col { display: flex; flex-direction: row; gap: 6px; align-items: center; }
-      .btn-icon { width: 32px; height: 32px; border: none; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.18s; font-size: 15px; text-decoration: none; flex-shrink: 0; }
-      .btn-icon-view  { background: #1e3a8a; color: #fff; }
-      .btn-icon-view:hover  { background: #1e40af; }
-      .btn-icon-dl    { background: #0f766e; color: #fff; }
-      .btn-icon-dl:hover    { background: #0d9488; }
-      .btn-icon-email { background: #6366f1; color: #fff; }
-      .btn-icon-email:hover { background: #4f46e5; }
-      .btn-icon:disabled    { opacity: 0.4; cursor: not-allowed; }
-      .btn-icon-email:disabled { opacity: 0.4; cursor: not-allowed; }
+      /* Action buttons */
+      .action-col { display: flex; align-items: center; }
+      .btn-group {
+        display: inline-flex; border-radius: 8px; overflow: hidden;
+        border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      }
+      .btn-group a, .btn-group button {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 30px; border: none; border-right: 1px solid #e2e8f0;
+        background: #fff; cursor: pointer; text-decoration: none;
+        transition: background 0.14s, color 0.14s;
+      }
+      .btn-group a:last-child, .btn-group button:last-child { border-right: none; }
+      .btn-group i { font-size: 15px; }
+      .ag-view  { color: #1e3a8a; }
+      .ag-view:hover  { background: #1e3a8a; color: #fff !important; }
+      .ag-dl    { color: #0f766e; }
+      .ag-dl:hover    { background: #0f766e; color: #fff !important; }
+      .ag-send  { color: #6d28d9; }
+      .ag-send:hover  { background: #6d28d9; color: #fff !important; }
+      .ag-send:disabled { color: #cbd5e1; cursor: not-allowed; background: #fff; }
       .no-email { font-size: 11px; color: #94a3b8; }
 
       /* Toast notification */
@@ -334,30 +344,32 @@
                 <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
                 <td>
                   <div class="action-col">
-                    <a class="btn-icon btn-icon-view"
-                       href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
-                       target="_blank" title="View Payslip">
-                      <i class="ti ti-eye"></i>
-                    </a>
-                    <a class="btn-icon btn-icon-dl"
-                       href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
-                       target="_blank" title="Download Payslip">
-                      <i class="ti ti-download"></i>
-                    </a>
-                    {% if email_configured and e.email %}
-                    <button class="btn-icon btn-icon-email" title="Send Payslip Email"
-                      onclick="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
-                      <i class="ti ti-mail"></i>
-                    </button>
-                    {% elif not email_configured %}
-                    <button class="btn-icon btn-icon-email" title="Email not configured" disabled>
-                      <i class="ti ti-mail"></i>
-                    </button>
-                    {% else %}
-                    <button class="btn-icon btn-icon-email" title="No email set for employee" disabled>
-                      <i class="ti ti-mail-off"></i>
-                    </button>
-                    {% endif %}
+                    <div class="btn-group">
+                      <a class="ag-view"
+                         href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                         target="_blank" title="View Payslip">
+                        <i class="ti ti-eye"></i>
+                      </a>
+                      <a class="ag-dl"
+                         href="/download_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                         title="Download Payslip">
+                        <i class="ti ti-download"></i>
+                      </a>
+                      {% if email_configured and e.email %}
+                      <button class="ag-send" title="Send Payslip Email"
+                        onclick="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
+                        <i class="ti ti-send"></i>
+                      </button>
+                      {% elif not email_configured %}
+                      <button class="ag-send" title="Email not configured" disabled>
+                        <i class="ti ti-mail-x"></i>
+                      </button>
+                      {% else %}
+                      <button class="ag-send" title="No email for employee" disabled>
+                        <i class="ti ti-mail-off"></i>
+                      </button>
+                      {% endif %}
+                    </div>
                   </div>
                 </td>
               </tr>

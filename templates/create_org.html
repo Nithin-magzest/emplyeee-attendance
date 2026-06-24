@@ -72,9 +72,22 @@
     {% endfor %}
   {% endwith %}
 
+  {% if signup_disabled %}
+  <div class="alert alert-error">
+    ❌ Organisation self-registration is disabled on this server.
+    Contact your system administrator to provision a new organisation.
+  </div>
+  {% else %}
   <form action="/create_org" method="POST" autocomplete="off">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 
+    <div class="section-title">Signup Code</div>
+    <label class="field-label">Signup Secret Code</label>
+    <input class="field-input" type="password" name="signup_secret"
+           placeholder="Enter the secret code provided by your administrator"
+           required autocomplete="off" />
+
+    <hr class="divider" />
     <div class="section-title">Company Details</div>
 
     <label class="field-label">Company Name</label>
@@ -107,6 +120,7 @@
 
     <button type="submit" class="btn">Create Organisation →</button>
   </form>
+  {% endif %}
 
   <a href="/admin_login" class="back-link">← Already have an account? Sign in</a>
 </div>
