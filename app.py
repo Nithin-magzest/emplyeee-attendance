@@ -165,9 +165,12 @@ def _enforce_csrf():
     if request.method != "POST":
         return
     if request.path.startswith("/api/"):
-        return  # API routes use Bearer-token auth
-    if request.is_json:
-        return  # JSON fetch requests can't be forged cross-site (CORS blocks custom headers)
+        return  # API routes use Bearer-token auth — no session/CSRF needed
+    # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject
+    # script (_inject_csrf_meta) adds X-CSRF-Token to every fetch() call, so
+    # legitimate JSON POSTs from the web UI already carry the token.
+    # Skipping CSRF for is_json would allow XSS payloads to forge state-changing
+    # JSON requests without a token.
     token = session.get("_csrf")
     submitted = (request.form.get("_csrf_token")
                  or request.headers.get("X-CSRF-Token")
@@ -3728,21 +3731,25 @@ def admin_leave_types():
 @app.route("/change_admin_password", methods=["POST"])
 @admin_required
 def change_admin_password():
-    current_pw = request.form.get("current_password", "")
-    new_pw     = request.form.get("new_password", "")
-    confirm_pw = request.form.get("confirm_password", "")
+    current_pw   = request.form.get("current_password", "")
+    new_pw       = request.form.get("new_password", "")
+    confirm_pw   = request.form.get("confirm_password", "")
+    # Use the logged-in admin's username, not a hardcoded 'admin' string.
+    # A hardcoded value lets any admin account change the 'admin' password
+    # if they know its current value — a cross-account privilege escalation.
+    logged_in_as = session.get("admin_username", "admin")
     if not new_pw or new_pw != confirm_pw:
         return redirect("/admin?pwd_error=mismatch")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT password FROM admin_users WHERE username='admin'")
+    cursor.execute("SELECT password FROM admin_users WHERE username=%s", (logged_in_as,))
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
         cursor.close(); db.close()
         return redirect("/admin?pwd_error=wrong")
     cursor.execute(
-        "UPDATE admin_users SET password=%s WHERE username='admin'",
-        (generate_password_hash(new_pw),)
+        "UPDATE admin_users SET password=%s WHERE username=%s",
+        (generate_password_hash(new_pw), logged_in_as)
     )
     db.commit(); cursor.close(); db.close()
     return redirect("/admin?pwd_ok=1")
@@ -8643,6 +8650,10 @@ def api_register_employee():
     file   = request.files.get("face")
     if not name or not emp_id or not file:
         return jsonify({"ok": False, "msg": "name, emp_id and face image required"}), 400
+    # Validate extension, MIME type, magic bytes and size before writing to disk.
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
     test_img = face_recognition.load_image_file(filepath)
@@ -8892,7 +8903,10 @@ def api_salary_report():
 @api_required
 def api_get_email_config():
     cfg = get_email_config()
-    return jsonify({"ok": True, "config": cfg})
+    # Never return the SMTP password to clients — they only need to know config exists.
+    safe_cfg = {k: v for k, v in cfg.items() if k != "password"}
+    safe_cfg["password_set"] = bool(cfg.get("password"))
+    return jsonify({"ok": True, "config": safe_cfg})
 
 
 @app.route("/api/email_config", methods=["POST"])
@@ -10963,8 +10977,13 @@ def upload_document():
     _audit("upload_document", "employee_documents", emp_id,
            f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'}")
     flash("Document uploaded successfully.", "success")
-    redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
-    return redirect(redirect_to)
+    raw_redirect = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
+    # Reject any redirect that leaves this origin (open-redirect prevention).
+    # Only allow relative URLs (no scheme, no netloc).
+    from urllib.parse import urlparse as _urlparse
+    _p = _urlparse(raw_redirect)
+    safe_redirect = raw_redirect if (not _p.scheme and not _p.netloc) else f'/documents?emp_id={emp_id}'
+    return redirect(safe_redirect)
 
 
 @app.route("/delete_document/<int:did>", methods=["POST"])
@@ -11446,15 +11465,30 @@ def web_employee_notifications_list():
 
 # ── Tenant Provisioning ──────────────────────────────────────────────────────
 
-_SUBDOMAIN_RE = re.compile(r'^[a-z0-9\-]+$')
+_SUBDOMAIN_RE  = re.compile(r'^[a-z0-9\-]+$')
+# Set SIGNUP_SECRET in .env to restrict who can create new organisations.
+# Anyone who knows this token can provision a new tenant; keep it private.
+_SIGNUP_SECRET = os.environ.get("SIGNUP_SECRET", "").strip()
 
 @app.route("/create_org", methods=["GET"])
 def create_org_page():
-    return render_template("create_org.html")
+    if not _SIGNUP_SECRET:
+        # Provisioning disabled: no SIGNUP_SECRET configured in .env
+        return render_template("create_org.html", signup_disabled=True)
+    return render_template("create_org.html", signup_disabled=False)
 
 
 @app.route("/create_org", methods=["POST"])
 def create_org():
+    # Require a server-side secret token to prevent anonymous tenant creation.
+    if not _SIGNUP_SECRET:
+        flash("Organisation self-registration is disabled on this server.", "error")
+        return redirect("/create_org")
+    submitted_secret = request.form.get("signup_secret", "").strip()
+    if not secrets.compare_digest(_SIGNUP_SECRET, submitted_secret):
+        flash("Invalid signup code. Contact your administrator.", "error")
+        return redirect("/create_org")
+
     company_name    = request.form.get("company_name", "").strip()
     subdomain       = request.form.get("subdomain", "").strip().lower()
     admin_username  = request.form.get("admin_username", "").strip()
