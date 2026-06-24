@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Companies</title>
   <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
     body { background: #eff6ff; min-height: 100vh; display: flex; }
@@ -76,6 +77,28 @@
     .btn-save { padding: 9px 18px; background: #1e3a8a; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
 
     .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+
+    /* ── Dark mode overrides ── */
+    body.dark-mode { background: #0d1117 !important; }
+    body.dark-mode .main { background: #0d1117 !important; }
+    body.dark-mode .card { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .card-title { color: #e2e8f0 !important; }
+    body.dark-mode .page-header h1 { color: #e2e8f0 !important; }
+    body.dark-mode .page-header p { color: #94a3b8 !important; }
+    body.dark-mode th { background: #1e3a8a !important; color: #fff !important; border-color: #30363d !important; }
+    body.dark-mode td { color: #e2e8f0 !important; border-color: #30363d !important; }
+    body.dark-mode tr:hover td { background: #1c2128 !important; }
+    body.dark-mode .badge-blue { background: #1e3a8a !important; color: #93c5fd !important; }
+    body.dark-mode .btn-edit { background: #1e3a8a !important; color: #93c5fd !important; }
+    body.dark-mode .btn-del { background: #7f1d1d !important; color: #fca5a5 !important; }
+    body.dark-mode .btn-cancel { background: #1c2128 !important; color: #94a3b8 !important; border-color: #30363d !important; }
+    body.dark-mode .modal { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .modal h3 { color: #e2e8f0 !important; }
+    body.dark-mode .field-group label { color: #94a3b8 !important; }
+    body.dark-mode .field-group input { background: #0d1117 !important; color: #e2e8f0 !important; border-color: #30363d !important; }
+    body.dark-mode .flash-success { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+    body.dark-mode .flash-error { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+    body.dark-mode .modal-overlay { background: rgba(0,0,0,0.75) !important; }
   </style>
 </head>
 <body>
@@ -213,6 +236,7 @@
   </div>
 </div>
 
+<script src="/static/darkmode.js"></script>
 <script>
   function openEdit(id, name, code) {
     document.getElementById('editForm').action = '/companies/' + id + '/edit';
