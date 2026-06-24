@@ -76,13 +76,17 @@
       .muted { color: #94a3b8; }
 
       /* BUTTONS */
-      .btn-view {
-        padding: 6px 16px; border: none; border-radius: 8px;
-        background: #1e3a8a; color: white;
-        font-size: 12px; font-weight: 600; cursor: pointer;
-        text-decoration: none; display: inline-block; transition: 0.2s;
+      .slip-actions { display: flex; gap: 7px; align-items: center; }
+      .btn-slip {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 14px; border-radius: 8px; font-size: 12px;
+        font-weight: 600; cursor: pointer; text-decoration: none;
+        transition: all 0.18s; border: 1.5px solid; white-space: nowrap;
       }
-      .btn-view:hover { background: #1e40af; }
+      .btn-slip-view     { background: #eff6ff; color: #1e3a8a; border-color: #bfdbfe; }
+      .btn-slip-view:hover { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+      .btn-slip-dl       { background: #f0fdfa; color: #0f766e; border-color: #99f6e4; }
+      .btn-slip-dl:hover   { background: #0f766e; color: #fff; border-color: #0f766e; }
 
       @media (max-width: 768px) {
         body { flex-direction: column; }
@@ -198,12 +202,19 @@
                   {% endif %}
                 </td>
                 <td>
-                  <a class="btn-view slip-link"
-                     data-emp="{{ emp_id }}"
-                     href="/view_payslip/{{ emp_id }}/{{ slip_months[0][0] }}/{{ slip_months[0][1] }}"
-                     target="_blank">
-                    👁 View Pay Slip
-                  </a>
+                  <div class="slip-actions">
+                    <a class="btn-slip btn-slip-view slip-link"
+                       data-emp="{{ emp_id }}"
+                       href="/view_payslip/{{ emp_id }}/{{ slip_months[0][0] }}/{{ slip_months[0][1] }}"
+                       target="_blank">
+                      <i class="ti ti-eye"></i> View
+                    </a>
+                    <a class="btn-slip btn-slip-dl dl-link"
+                       data-emp="{{ emp_id }}"
+                       href="/download_payslip/{{ emp_id }}/{{ slip_months[0][0] }}/{{ slip_months[0][1] }}">
+                      <i class="ti ti-download"></i> Download
+                    </a>
+                  </div>
                 </td>
               </tr>
               {% else %}
@@ -224,6 +235,9 @@
         const year  = document.getElementById("selYear").value;
         document.querySelectorAll(".slip-link").forEach(function(a) {
           a.href = "/view_payslip/" + a.dataset.emp + "/" + year + "/" + month;
+        });
+        document.querySelectorAll(".dl-link").forEach(function(a) {
+          a.href = "/download_payslip/" + a.dataset.emp + "/" + year + "/" + month;
         });
         document.querySelectorAll(".att-detail-link").forEach(function(a) {
           a.href = "/employee_attendance_detail/" + a.dataset.emp + "/" + year + "/" + month;
