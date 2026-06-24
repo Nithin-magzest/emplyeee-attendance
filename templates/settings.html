@@ -1005,6 +1005,71 @@
     </div>
 
 
+    <!-- ══════════════════════════════════════
+         TAB: AUTH
+    ══════════════════════════════════════ -->
+    <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
+      <div class="section" style="max-width:600px;">
+        <div class="section-title">🔐 Attendance Authentication</div>
+        <p style="font-size:13px;color:#64748b;margin-bottom:24px;line-height:1.7;">
+          Enable or disable each authentication factor independently. Attendance marking requires any
+          <strong>two active factors</strong>. Password controls employee login to the mobile app.
+        </p>
+
+        {% set methods = [
+          ("qr",          "📷", "QR Code Scan",              "qr_enabled",            "Employees scan their personal QR code to identify themselves."),
+          ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
+          ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
+          ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password.")
+        ] %}
+
+        {% for key, icon, label, cfg_key, desc in methods %}
+        {% set is_on = auth_config[cfg_key] %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:#f8fafc;border:1px solid {% if is_on %}#bbf7d0{% else %}#fecaca{% endif %};border-radius:12px;margin-bottom:12px;transition:border-color .2s;">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <span style="font-size:26px;line-height:1;margin-top:2px;">{{ icon }}</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#1e293b;">{{ label }}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:3px;line-height:1.5;">{{ desc }}</div>
+              <div style="margin-top:8px;">
+                {% if is_on %}
+                <span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">✅ Enabled</span>
+                {% else %}
+                <span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">❌ Disabled</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <label class="dm-switch" title="Toggle {{ label }}" style="flex-shrink:0;margin-left:20px;">
+            <input type="checkbox" {% if is_on %}checked{% endif %}
+                   onchange="toggleAuthMethod('{{ key }}', this.checked)">
+            <span class="dm-slider"></span>
+          </label>
+        </div>
+        {% endfor %}
+
+        <!-- Combo info card -->
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-top:8px;">
+          <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:10px;">Available attendance combinations:</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:#1e293b;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">📷🤳</span>
+              <div><strong>QR + Face</strong> — requires QR and Face both enabled</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">📷👆</span>
+              <div><strong>QR + Fingerprint</strong> — requires QR and Fingerprint both enabled</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:15px;">🤳👆</span>
+              <div><strong>Face + Fingerprint</strong> — requires Face and Fingerprint both enabled (no QR)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-auth -->
+
   </div><!-- /main -->
 
   <!-- ══ SHIFT EDIT MODAL ══ -->
@@ -1421,6 +1486,22 @@
       if (chk) chk.checked = isDark;
       if (isDark) document.body.classList.add('dark-mode');
     });
+
+    function toggleAuthMethod(method, on) {
+      var csrf = document.querySelector('meta[name="csrf-token"]');
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/toggle_auth_method';
+      [['_csrf_token', csrf ? csrf.content : ''], ['method', method], ['enabled', on ? '1' : '0']].forEach(function(pair) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = pair[0]; inp.value = pair[1];
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function toggleFingerprint(on) { toggleAuthMethod('fingerprint', on); }
   </script>
 
   <!-- ══ GOAL EDIT MODAL ══ -->
