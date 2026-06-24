@@ -341,6 +341,43 @@ def get_company_settings():
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": ""}
 
+_AUTH_CONFIG_DEFAULTS = {
+    "fingerprint_enabled": False,
+    "qr_enabled": True,
+    "face_enabled": True,
+    "location_enabled": True,
+    "employee_password_auth": True,
+}
+
+def get_auth_config():
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("""
+            SELECT COALESCE(fingerprint_enabled, 0),
+                   COALESCE(qr_enabled, 1),
+                   COALESCE(face_enabled, 1),
+                   COALESCE(location_enabled, 1),
+                   COALESCE(employee_password_auth, 1)
+            FROM company_settings LIMIT 1
+        """)
+        row = cursor.fetchone()
+        cursor.close(); db.close()
+        if row:
+            return {
+                "fingerprint_enabled": bool(row[0]),
+                "qr_enabled":          bool(row[1]),
+                "face_enabled":        bool(row[2]),
+                "location_enabled":    bool(row[3]),
+                "employee_password_auth": bool(row[4]),
+            }
+        return dict(_AUTH_CONFIG_DEFAULTS)
+    except Exception:
+        return dict(_AUTH_CONFIG_DEFAULTS)
+
+def get_fingerprint_enabled():
+    return get_auth_config()["fingerprint_enabled"]
+
 @app.context_processor
 def inject_company():
     return {"co": get_company_settings()}
@@ -1039,6 +1076,24 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN default_onboarding_template_id INT DEFAULT NULL",
         "ALTER TABLE employee_onboarding_tasks ADD COLUMN employee_note VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN fingerprint_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN qr_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN face_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN location_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN employee_password_auth TINYINT(1) DEFAULT 1",
+        "ALTER TABLE employees ADD COLUMN fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN face_auth_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_radius INT DEFAULT 100",
+        "ALTER TABLE company_settings ADD COLUMN pin_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN biometric_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN notify_leave TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_payslip TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_resignation TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_doc_expiry TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN session_timeout INT DEFAULT 30",
+        "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
     ]:
         try:
             cursor.execute(sql)
@@ -2467,7 +2522,7 @@ def admin_action():
 @app.route("/settings")
 @admin_required
 def settings_page():
-    tab    = request.args.get("tab", "email")
+    tab    = request.args.get("tab", "company")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -2547,6 +2602,34 @@ def settings_page():
     """)
     companies = cursor.fetchall()
 
+    # Feature flags
+    cursor.execute("""
+        SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled, pin_enabled,
+               fingerprint_enabled, biometric_enabled, notify_leave, notify_payslip,
+               notify_resignation, notify_doc_expiry, session_timeout,
+               COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'),
+               COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata')
+        FROM company_settings LIMIT 1
+    """)
+    fr = cursor.fetchone()
+    features = {
+        "face_auth":    bool(fr[0]) if fr else False,
+        "geo":          bool(fr[1]) if fr else False,
+        "geo_radius":   fr[2] if fr else 100,
+        "qr":           bool(fr[3]) if fr else False,
+        "pin":          bool(fr[4]) if fr else True,
+        "fingerprint":  bool(fr[5]) if fr else False,
+        "biometric":    bool(fr[6]) if fr else False,
+        "notify_leave": bool(fr[7]) if fr else True,
+        "notify_payslip": bool(fr[8]) if fr else True,
+        "notify_resignation": bool(fr[9]) if fr else True,
+        "notify_doc_expiry":  bool(fr[10]) if fr else True,
+        "session_timeout": fr[11] if fr else 30,
+        "working_days": (fr[12] if fr else "Mon,Tue,Wed,Thu,Fri").split(","),
+        "company_name": fr[13] if fr else "",
+        "timezone":     fr[14] if fr else "Asia/Kolkata",
+    }
+
     cursor.close(); db.close()
     return render_template("settings.html",
         tab=tab,
@@ -2576,6 +2659,8 @@ def settings_page():
         grace_minutes=GRACE_MINUTES,
         holiday_pay=HOLIDAY_PAY,
         leave_pay=LEAVE_PAY,
+        auth_config=get_auth_config(),
+        features=features,
     )
 
 # ---------------- SAVE DEFAULT ONBOARDING TEMPLATE ----------------
@@ -2629,6 +2714,50 @@ def save_salary_rules():
     load_default_shift()
     return redirect("/settings?tab=salary-rules&saved=1")
 
+# ---------------- TOGGLE AUTH METHOD ----------------
+_TOGGLE_COLUMN_MAP = {
+    "fingerprint": "fingerprint_enabled",
+    "qr":          "qr_enabled",
+    "face":        "face_enabled",
+    "location":    "location_enabled",
+    "password":    "employee_password_auth",
+}
+_TOGGLE_LABEL_MAP = {
+    "fingerprint": "Fingerprint / Biometric",
+    "qr":          "QR Code",
+    "face":        "Face Recognition",
+    "location":    "Location Verification",
+    "password":    "Password Login",
+}
+
+@app.route("/toggle_auth_method", methods=["POST"])
+@admin_required
+def toggle_auth_method():
+    method  = request.form.get("method", "")
+    enabled = request.form.get("enabled", "0") == "1"
+    if method not in _TOGGLE_COLUMN_MAP:
+        flash("Invalid authentication method.", "danger")
+        return redirect("/settings?tab=auth")
+    column = _TOGGLE_COLUMN_MAP[method]
+    label  = _TOGGLE_LABEL_MAP[method]
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
+    db.commit(); cursor.close(); db.close()
+    state = "enabled" if enabled else "disabled"
+    flash(f"{label} authentication {state}.", "success")
+    return redirect("/settings?tab=auth")
+
+@app.route("/toggle_fingerprint", methods=["POST"])
+@admin_required
+def toggle_fingerprint():
+    enabled = request.form.get("enabled", "0") == "1"
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET fingerprint_enabled=%s", (1 if enabled else 0,))
+    db.commit(); cursor.close(); db.close()
+    state = "enabled" if enabled else "disabled"
+    flash(f"Fingerprint authentication {state}.", "success")
+    return redirect("/settings?tab=auth")
+
 # ---------------- SAVE COMPANY CODE ----------------
 @app.route("/save_company_code", methods=["POST"])
 @admin_required
@@ -2639,6 +2768,62 @@ def save_company_code():
     db.commit(); cursor.close(); db.close()
     flash(f"Company code set to '{code}'.", "success")
     return redirect("/settings?tab=email")
+
+# ---------------- SAVE COMPANY INFO ----------------
+@app.route("/save_company_info", methods=["POST"])
+@admin_required
+def save_company_info():
+    name     = request.form.get("company_name", "").strip()
+    code     = request.form.get("company_code", "").strip().upper()[:10]
+    timezone = request.form.get("timezone", "Asia/Kolkata").strip()
+    w_days   = ",".join(request.form.getlist("working_days"))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
+        (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=company&saved=1")
+
+# ---------------- TOGGLE FEATURE (AJAX) ----------------
+@app.route("/toggle_feature", methods=["POST"])
+@admin_required
+def toggle_feature():
+    from flask import jsonify
+    allowed = {
+        "face_auth_enabled","geo_enabled","qr_enabled","pin_enabled",
+        "fingerprint_enabled","biometric_enabled",
+        "notify_leave","notify_payslip","notify_resignation","notify_doc_expiry",
+    }
+    data    = request.get_json(force=True) or {}
+    feature = data.get("feature", "")
+    value   = 1 if data.get("value") else 0
+    if feature not in allowed:
+        return jsonify({"ok": False, "error": "unknown feature"}), 400
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+# ---------------- SAVE GEO RADIUS ----------------
+@app.route("/save_geo_radius", methods=["POST"])
+@admin_required
+def save_geo_radius():
+    radius = int(request.form.get("geo_radius", 100))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=attendance&saved=1")
+
+# ---------------- SAVE SECURITY SETTINGS ----------------
+@app.route("/save_security_settings", methods=["POST"])
+@admin_required
+def save_security_settings():
+    timeout = int(request.form.get("session_timeout", 30))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=security&saved=1")
 
 
 # ---------------- COMPANIES ----------------
@@ -3553,6 +3738,13 @@ def add_employee_page():
                  _mgr_id, _mgr_name, _dept)
             )
             db.commit()
+            _fp_cred = request.form.get("fingerprint_credential_id", "").strip() or None
+            if _fp_cred:
+                cursor.execute(
+                    "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
+                    (_fp_cred, emp_id)
+                )
+                db.commit()
             assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             registered = True
@@ -5344,18 +5536,36 @@ def attendance():
     face_b64   = data.get("face_image", "")
     user_lat   = data.get("lat")
     user_lon   = data.get("lon")
+    auth_combo = data.get("auth_combo", "qr_face")
+    fingerprint_verified = bool(data.get("fingerprint_verified", False))
+
+    if auth_combo not in ("qr_face", "qr_only", "qr_fingerprint", "fingerprint_only"):
+        return jsonify({"ok": False, "msg": "Invalid auth combination."})
+
+    cfg = get_auth_config()
+
+    if auth_combo in ("qr_fingerprint", "fingerprint_only"):
+        if not cfg["fingerprint_enabled"]:
+            return jsonify({"ok": False, "msg": "Fingerprint not enabled. Ask your admin to enable it in Settings."}), 403
+        if not fingerprint_verified:
+            return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
 
     if not emp_id:
-        return jsonify({"ok": False, "msg": "No QR code data received."})
-    if not face_b64:
+        err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
+        return jsonify({"ok": False, "msg": err_msg})
+
+    needs_face = (auth_combo == "qr_face")
+    if needs_face and not face_b64:
         return jsonify({"ok": False, "msg": "Face photo not captured."})
 
-    try:
-        img_bytes = base64.b64decode(face_b64)
-        pil_img   = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        frame     = np.array(pil_img)
-    except Exception:
-        return jsonify({"ok": False, "msg": "Invalid face image data."})
+    frame = None
+    if needs_face:
+        try:
+            img_bytes = base64.b64decode(face_b64)
+            pil_img   = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame     = np.array(pil_img)
+        except Exception:
+            return jsonify({"ok": False, "msg": "Invalid face image data."})
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -5366,49 +5576,54 @@ def attendance():
 
     if not result:
         cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Employee not found. Please check your QR code."})
+        not_found_msg = ("Employee ID not found. Please check your ID and try again."
+                         if auth_combo == "fingerprint_only"
+                         else "Employee not found. Please check your QR code.")
+        return jsonify({"ok": False, "msg": not_found_msg})
 
     face_path, employee_name, employee_email, emp_work_mode, emp_work_lat, emp_work_lon = result
 
-    # Location check: WFH → must be within 300 m of home; Office → must be within 300 m of office
-    if not user_lat or not user_lon:
+    # Location check
+    if cfg["location_enabled"] and (not user_lat or not user_lon):
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."})
-    if emp_work_mode == 'wfh':
-        if emp_work_lat and emp_work_lon:
-            if not is_within_range(float(user_lat), float(user_lon), float(emp_work_lat), float(emp_work_lon)):
+    if cfg["location_enabled"] and user_lat and user_lon:
+        if emp_work_mode == 'wfh':
+            if emp_work_lat and emp_work_lon:
+                if not is_within_range(float(user_lat), float(user_lon), float(emp_work_lat), float(emp_work_lon)):
+                    cursor.close(); db.close()
+                    return jsonify({"ok": False, "msg": "You are outside your registered home location."})
+        else:
+            if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
                 cursor.close(); db.close()
-                return jsonify({"ok": False, "msg": "You are outside your registered home location."})
-        # no home location set → allow (admin can set it later)
-    else:
-        if not is_within_range(float(user_lat), float(user_lon), OFFICE_LAT, OFFICE_LON):
+                return jsonify({"ok": False, "msg": "You are outside the office premises."})
+
+    # Face recognition (only for qr_face combo)
+    known_encoding = None
+    if needs_face:
+        if not os.path.exists(face_path):
             cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": "You are outside the office premises."})
+            return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
+        known_image = face_recognition.load_image_file(face_path)
+        known_encs  = face_recognition.face_encodings(known_image)
+        if not known_encs:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
+        known_encoding = known_encs[0]
 
-    if not os.path.exists(face_path):
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
-
-    known_image    = face_recognition.load_image_file(face_path)
-    known_encs     = face_recognition.face_encodings(known_image)
-    if not known_encs:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
-    known_encoding = known_encs[0]
-
-    locs = face_recognition.face_locations(frame)
-    encs = face_recognition.face_encodings(frame, locs)
-    if not encs:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "No face detected in photo. Look directly at the camera."})
-
-    matched = any(
-        True in face_recognition.compare_faces([known_encoding], enc)
-        for enc in encs
-    )
-    if not matched:
-        cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
+    if needs_face:
+        locs = face_recognition.face_locations(frame)
+        encs = face_recognition.face_encodings(frame, locs)
+        if not encs:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "No face detected in photo. Look directly at the camera."})
+        matched = any(
+            True in face_recognition.compare_faces([known_encoding], enc)
+            for enc in encs
+        )
+        if not matched:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
 
     now          = datetime.datetime.now()
     today        = now.date()
@@ -9574,13 +9789,61 @@ def api_employee_sync_punches():
     return jsonify({"ok": True, "results": results})
 
 
+@app.route("/api/employee/auth-config", methods=["GET"])
+def api_employee_auth_config():
+    """Return all authentication method flags (public, no token required)."""
+    return jsonify({"ok": True, **get_auth_config()})
+
+
+@app.route("/webauthn/challenge", methods=["GET"])
+def webauthn_challenge():
+    """Return a fresh random base64url challenge for WebAuthn registration or assertion."""
+    import base64 as _b64
+    raw = secrets.token_bytes(32)
+    b64 = _b64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    return jsonify({"challenge": b64})
+
+
+@app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
+def get_employee_webauthn_credential(emp_id):
+    """Return the stored WebAuthn credential_id for an employee (public, used by kiosk)."""
+    emp_id = emp_id.strip().upper()
+    try:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s LIMIT 1",
+            (emp_id,)
+        )
+        row = cursor.fetchone(); cursor.close(); db.close()
+        return jsonify({"ok": True, "credential_id": row[0] if row else None})
+    except Exception:
+        return jsonify({"ok": True, "credential_id": None})
+
+
 @app.route("/api/employee/qr-face-checkin", methods=["POST"])
 def api_employee_qr_face_checkin():
-    """Public kiosk endpoint: QR code + face photo attendance marking (no auth token required)."""
-    employee_id = request.form.get("employee_id", "").strip().upper()
-    lat         = request.form.get("lat")
-    lon         = request.form.get("lon")
-    face_photo  = request.files.get("face_photo")
+    """Public kiosk endpoint — supports auth_combo: qr_face | qr_fingerprint | face_fingerprint."""
+    employee_id        = request.form.get("employee_id", "").strip().upper()
+    lat                = request.form.get("lat")
+    lon                = request.form.get("lon")
+    face_photo         = request.files.get("face_photo")
+    auth_combo         = request.form.get("auth_combo", "qr_face")
+    fingerprint_verified = request.form.get("fingerprint_verified", "false").lower() == "true"
+
+    if auth_combo not in ("qr_face", "qr_fingerprint", "face_fingerprint"):
+        return jsonify({"ok": False, "msg": "Invalid auth_combo"}), 400
+
+    cfg = get_auth_config()
+
+    if auth_combo in ("qr_face", "qr_fingerprint") and not cfg["qr_enabled"]:
+        return jsonify({"ok": False, "msg": "QR code authentication is not enabled"}), 403
+    if auth_combo in ("qr_face", "face_fingerprint") and not cfg["face_enabled"]:
+        return jsonify({"ok": False, "msg": "Face recognition authentication is not enabled"}), 403
+    if auth_combo in ("qr_fingerprint", "face_fingerprint"):
+        if not cfg["fingerprint_enabled"]:
+            return jsonify({"ok": False, "msg": "Fingerprint authentication is not enabled"}), 403
+        if not fingerprint_verified:
+            return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
 
     if not employee_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400

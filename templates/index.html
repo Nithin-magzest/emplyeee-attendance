@@ -269,6 +269,33 @@
       .badge-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
       .badge-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
+      /* ── MODE PILLS (legacy, hidden) ── */
+      .mode-row { display: none !important; }
+      .mode-pill { display: none; }
+
+      /* ── ATTENDANCE METHOD CARDS ── */
+      .att-methods {
+        display: flex; gap: 8px; margin-bottom: 16px;
+      }
+      .att-method {
+        flex: 1; display: flex; flex-direction: column; align-items: center;
+        gap: 5px; padding: 12px 6px 10px;
+        border-radius: 14px; border: 2px solid #dbeafe;
+        background: #f8faff; cursor: pointer; transition: all .18s;
+        font-family: inherit;
+      }
+      .att-method:hover { border-color: #93c5fd; background: #eff6ff; }
+      .att-method.active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        box-shadow: 0 2px 12px rgba(37,99,235,0.18);
+      }
+      .am-icon { font-size: 22px; line-height: 1; }
+      .am-title { font-size: 11.5px; font-weight: 700; color: #475569; white-space: nowrap; }
+      .att-method.active .am-title { color: #1d4ed8; }
+      .am-desc  { font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.3; }
+      .att-method.active .am-desc { color: #60a5fa; }
+
       @media (max-width: 480px) {
         .card { padding: 24px 18px 20px; }
         .topbar { padding: 12px 18px; }
@@ -276,6 +303,125 @@
         .scanner-wrap { width: 230px; height: 230px; }
         .live-time { font-size: 30px; }
       }
+
+      /* ── OVERLAY BACKDROP ── */
+      .overlay {
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(10,20,40,0.88);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+        animation: fadeIn .2s ease;
+      }
+      @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+      /* ── METHOD PICKER ── */
+      .method-card {
+        width: 100%; max-width: 400px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 24px; padding: 30px 26px 24px;
+        color: #fff; position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      }
+      .method-card-close {
+        position: absolute; top: 14px; right: 14px;
+        background: rgba(255,255,255,0.1); border: none;
+        width: 34px; height: 34px; border-radius: 50%;
+        color: rgba(255,255,255,0.6); font-size: 18px;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
+      }
+      .method-card-close:hover { background: rgba(255,255,255,0.2); }
+      .method-card h3 { font-size: 19px; font-weight: 800; margin-bottom: 4px; text-align: center; }
+      .method-card .method-sub { font-size: 12px; color: rgba(255,255,255,0.45); text-align: center; margin-bottom: 22px; }
+      .combo-btn {
+        display: flex; align-items: center; gap: 14px;
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px; padding: 14px 16px;
+        color: #fff; cursor: pointer; width: 100%; text-align: left;
+        margin-bottom: 10px; transition: background .15s, border-color .15s;
+      }
+      .combo-btn:hover, .combo-btn.selected {
+        background: rgba(99,102,241,0.22);
+        border-color: rgba(99,102,241,0.55);
+      }
+      .combo-icon {
+        width: 42px; height: 42px; border-radius: 12px;
+        background: rgba(99,102,241,0.2);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; flex-shrink: 0;
+      }
+      .combo-label { font-size: 14px; font-weight: 700; }
+      .combo-desc  { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+      .loc-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(34,197,94,0.18); color: #22C55E;
+        font-size: 11px; font-weight: 700;
+        padding: 5px 12px; border-radius: 20px; margin-top: 14px;
+      }
+
+      /* ── FINGERPRINT CARD ── */
+      .fp-card {
+        width: 100%; max-width: 360px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 24px; padding: 36px 28px 30px;
+        color: #fff; text-align: center; position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      }
+      .fp-back {
+        position: absolute; top: 14px; left: 14px;
+        background: rgba(255,255,255,0.1); border: none;
+        width: 34px; height: 34px; border-radius: 50%;
+        color: rgba(255,255,255,0.6); font-size: 18px;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
+      }
+      .fp-back:hover { background: rgba(255,255,255,0.2); }
+      .fp-icon-wrap {
+        width: 100px; height: 100px; border-radius: 50%;
+        background: rgba(99,102,241,0.15);
+        border: 2px solid rgba(99,102,241,0.4);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px; position: relative;
+        animation: fpPulse 2s ease-in-out infinite;
+      }
+      .fp-icon-wrap .fp-emoji { font-size: 48px; }
+      @keyframes fpPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+        50%      { box-shadow: 0 0 0 16px rgba(99,102,241,0); }
+      }
+      .fp-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+      .fp-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin-bottom: 14px; }
+      .fp-hint  { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 8px; }
+      .fp-emp-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.12); color: #fff;
+        font-size: 13px; font-weight: 700;
+        padding: 6px 14px; border-radius: 20px; margin-bottom: 14px;
+      }
+      .fp-verify-btn {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        background: #6366f1; border: none; border-radius: 14px;
+        color: #fff; font-size: 16px; font-weight: 700;
+        padding: 16px 32px; cursor: pointer; width: 100%; margin-top: 20px;
+        transition: opacity .15s;
+      }
+      .fp-verify-btn:hover { opacity: 0.88; }
+      .fp-verify-btn:disabled { background: #4b5563; cursor: not-allowed; }
+      .fp-id-group { width: 100%; margin-bottom: 14px; }
+      .fp-id-input {
+        width: 100%; box-sizing: border-box;
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px; padding: 12px 16px;
+        color: #fff; font-size: 15px; font-weight: 700;
+        text-align: center; outline: none; letter-spacing: 0.08em;
+        transition: border-color .15s;
+      }
+      .fp-id-input::placeholder { color: rgba(255,255,255,0.35); font-weight: 400; letter-spacing: 0; }
+      .fp-id-input:focus { border-color: rgba(99,102,241,0.8); background: rgba(99,102,241,0.12); }
+
       /* ── Dark mode ── */
       body.dark-mode { background: linear-gradient(145deg,#0d1117 0%,#0f1923 50%,#0d1117 100%) !important; }
       body.dark-mode::before { background-image: radial-gradient(circle, #30363d 1px, transparent 1px) !important; opacity: 0.5 !important; }
@@ -325,6 +471,26 @@
           <div class="live-date" id="liveDate"></div>
         </div>
         <h2>Mark Attendance</h2>
+
+        <!-- Always-visible method selection -->
+        <div class="att-methods">
+          <button type="button" class="att-method active" id="mc-qr-face" onclick="selectMethod('qr_face')">
+            <span class="am-icon">📷</span>
+            <span class="am-title">QR + Face</span>
+            <span class="am-desc">QR &amp; face scan</span>
+          </button>
+          <button type="button" class="att-method" id="mc-qr-only" onclick="selectMethod('qr_only')">
+            <span class="am-icon">🔲</span>
+            <span class="am-title">QR Only</span>
+            <span class="am-desc">Quick QR scan</span>
+          </button>
+          <button type="button" class="att-method" id="mc-fp" onclick="selectMethod('fingerprint_only')">
+            <span class="am-icon">👆</span>
+            <span class="am-title">Fingerprint</span>
+            <span class="am-desc">Biometric scan</span>
+          </button>
+        </div>
+
         <div class="sub" id="subText">Click Start to scan your QR code &amp; verify face</div>
 
         <div class="scanner-wrap" id="scannerWrap">
@@ -341,7 +507,14 @@
           <div class="phase-label" id="phaseLabel"></div>
         </div>
 
-        <button class="btn" id="startBtn" onclick="startFlow()">📷 Start Scanner</button>
+        <button class="btn" id="startBtn" type="button" onclick="startFlow()">📷 Start Scanner</button>
+
+        <!-- shown when fingerprint is enabled by admin -->
+        <div class="mode-row" id="modeSelector" style="display:none;">
+          <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')">📷 Face Mode</button>
+          <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')">👆 QR + FP</button>
+          <button type="button" class="mode-pill" id="modeFpOnly" onclick="setMode('fingerprint_only')">👆 FP Only</button>
+        </div>
 
         <div class="status-bar" id="statusBar" style="display:none;">
           <div class="spinner"></div>
@@ -383,19 +556,162 @@
       </div>
     </div>
 
+    <!-- ── METHOD PICKER OVERLAY ── -->
+    <div class="overlay" id="methodOverlay" style="display:none;">
+      <div class="method-card">
+        <button class="method-card-close" onclick="closeMethodPicker()">✕</button>
+        <div style="text-align:center;font-size:42px;margin-bottom:10px;">🛡️</div>
+        <h3>Choose Verification</h3>
+        <p class="method-sub">Select your two-factor combination</p>
+
+        <button class="combo-btn" id="cmbQrFace" onclick="selectCombo('qr_face')">
+          <div class="combo-icon">📷</div>
+          <div>
+            <div class="combo-label">QR + Face</div>
+            <div class="combo-desc">Scan QR code, then face capture</div>
+          </div>
+        </button>
+        <button class="combo-btn" id="cmbQrFp" onclick="selectCombo('qr_fingerprint')">
+          <div class="combo-icon">👆</div>
+          <div>
+            <div class="combo-label">QR + Fingerprint</div>
+            <div class="combo-desc">Scan QR code, then fingerprint verify</div>
+          </div>
+        </button>
+        <button class="combo-btn" id="cmbFpOnly" onclick="selectCombo('fingerprint_only')">
+          <div class="combo-icon">👆</div>
+          <div>
+            <div class="combo-label">Fingerprint Only</div>
+            <div class="combo-desc">Enter your ID and verify fingerprint — no QR needed</div>
+          </div>
+        </button>
+
+        <div class="loc-badge" id="locBadgeMethod" style="display:none;">
+          📍 Location captured
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FINGERPRINT OVERLAY ── -->
+    <div class="overlay" id="fingerprintOverlay" style="display:none;">
+      <div class="fp-card">
+        <button class="fp-back" onclick="fpBack()">←</button>
+
+        <div class="fp-icon-wrap">
+          <span class="fp-emoji">👆</span>
+        </div>
+
+        <div class="fp-title">Fingerprint Verification</div>
+        <div class="fp-sub" id="fpSubText">Step 2 of 2 — QR + Fingerprint</div>
+
+        <div class="fp-id-group" id="fpIdGroup" style="display:none;">
+          <input type="text" id="fpEmpIdInput" class="fp-id-input"
+            placeholder="Enter Employee ID…" autocomplete="off">
+        </div>
+
+        <div class="fp-emp-badge" id="fpEmpBadge" style="display:none;">
+          🪪 <span id="fpEmpId"></span>
+        </div>
+
+        <p class="fp-hint" id="fpHint">
+          Place your finger on the sensor or tap the button to verify your biometric.
+        </p>
+
+        <button class="fp-verify-btn" id="fpVerifyBtn" onclick="handleFingerprintVerify()">
+          👆 Verify Biometric
+        </button>
+      </div>
+    </div>
+
     <script>
+      /* ── helpers & state ── */
+      const $ = id => document.getElementById(id);
+      let authCfg       = { fingerprint_enabled: false, qr_enabled: true, face_enabled: true, location_enabled: true };
+      let selectedCombo = "qr_face";
+
       /* ── clock ── */
       function tick() {
         const now = new Date();
-        document.getElementById("liveTime").textContent =
+        $("liveTime").textContent =
           now.toLocaleTimeString("en-IN", { hour12: true });
-        document.getElementById("liveDate").textContent =
+        $("liveDate").textContent =
           now.toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
       }
       setInterval(tick, 1000); tick();
+      let fpVerified    = false;
+      let gLat          = null, gLon = null;
+      let gEmployeeId   = null;
+      let stream        = null, scanLoop = null;
+
+      /* ── load auth config on page load ── */
+      window.addEventListener("DOMContentLoaded", async () => {
+        try {
+          const r = await fetch("/api/employee/auth-config");
+          const d = await r.json();
+          if (d.ok) authCfg = d;
+          updateTagline();
+        } catch {}
+      });
+
+      function updateTagline() {
+        const parts = ["QR", "Face Recognition", "Fingerprint", "Location"];
+        document.querySelector(".tagline").textContent = parts.join(" • ");
+      }
+
+      function selectMethod(combo) {
+        selectedCombo = combo;
+        const ids = { qr_face: "mc-qr-face", qr_only: "mc-qr-only", fingerprint_only: "mc-fp" };
+        document.querySelectorAll(".att-method").forEach(function(b) { b.classList.remove("active"); });
+        if ($(ids[combo])) $(ids[combo]).classList.add("active");
+
+        const isFp = (combo === "fingerprint_only");
+
+        // Update scanner placeholder icon/label to reflect mode
+        const iconEl  = $("placeholder").querySelector(".icon");
+        const lblEl   = $("placeholder").querySelector(".icon-label");
+        if (iconEl) iconEl.textContent  = isFp ? "👆" : "📷";
+        if (lblEl)  lblEl.textContent   = isFp ? "Touch sensor after clicking Start" : "Camera opens on click";
+
+        // Update start button
+        $("startBtn").innerHTML = isFp
+          ? "👆 Fingerprint Attendance"
+          : combo === "qr_only"
+            ? "🔲 Start QR Scan"
+            : "📷 Start Scanner";
+
+        // Update subtext
+        $("subText").innerHTML = isFp
+          ? "Click Start to verify your identity with fingerprint"
+          : combo === "qr_only"
+            ? "Click Start to scan your QR code"
+            : "Click Start to scan your QR code &amp; verify face";
+
+        $("resultBox").style.display = "none";
+        $("errorBox").style.display  = "none";
+      }
+
+      function setMode(combo) {
+        selectedCombo = combo;
+        document.querySelectorAll(".mode-pill").forEach(function(p) { p.classList.remove("active-mode"); });
+        const target = combo === "qr_face" ? "modeFace"
+                     : combo === "qr_fingerprint" ? "modeFp"
+                     : "modeFpOnly";
+        const label  = combo === "qr_face" ? "📷 Start Scanner"
+                     : combo === "qr_fingerprint" ? "👆 Fingerprint + QR"
+                     : "👆 Fingerprint Attendance";
+        $("startBtn").innerHTML = label;
+        if ($(target)) $(target).classList.add("active-mode");
+      }
+
+      function buildCombos() {
+        const c = [];
+        if (authCfg.qr_enabled !== false && authCfg.face_enabled !== false) c.push("qr_face");
+        if (authCfg.qr_enabled !== false && authCfg.fingerprint_enabled)    c.push("qr_fingerprint");
+        if (authCfg.fingerprint_enabled)                                      c.push("fingerprint_only");
+        return c;
+      }
 
       /* ── UI helpers ── */
-      const $ = id => document.getElementById(id);
       function setStatus(msg) {
         $("statusBar").style.display = "flex";
         $("statusMsg").textContent   = msg;
@@ -404,12 +720,6 @@
         $("errorBox").innerHTML      = "❌ " + msg;
         $("errorBox").style.display  = "block";
         $("statusBar").style.display = "none";
-      }
-      function resetUI() {
-        $("startBtn").disabled        = false;
-        $("resultBox").style.display  = "none";
-        $("errorBox").style.display   = "none";
-        $("statusBar").style.display  = "none";
       }
       function setPhase(phase) {
         const lbl = $("phaseLabel");
@@ -433,12 +743,9 @@
         }
       }
 
-      /* ── camera ── */
-      let stream = null;
-      let scanLoop = null;
-
+      /* ── camera helpers ── */
       async function openCamera(facingMode) {
-        if (stream) { stream.getTracks().forEach(t => t.stop()); }
+        if (stream) stream.getTracks().forEach(t => t.stop());
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: facingMode }, width: { ideal: 640 }, height: { ideal: 640 } },
           audio: false,
@@ -453,8 +760,8 @@
       function stopCamera() {
         if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
         if (stream)   { stream.getTracks().forEach(t => t.stop()); stream = null; }
-        $("video").style.display       = "block";
         $("video").srcObject           = null;
+        $("video").style.display       = "block";
         $("placeholder").style.display = "none";
         $("scanLine").style.display    = "none";
         $("corners").style.display     = "none";
@@ -473,8 +780,7 @@
 
       function startQRScan() {
         return new Promise((resolve, reject) => {
-          const vid = $("video");
-          const c   = $("canvas");
+          const vid = $("video"), c = $("canvas");
           const deadline = Date.now() + 30000;
           function frame() {
             if (Date.now() > deadline) {
@@ -482,8 +788,7 @@
               return;
             }
             if (vid.readyState >= 2) {
-              c.width  = vid.videoWidth;
-              c.height = vid.videoHeight;
+              c.width = vid.videoWidth; c.height = vid.videoHeight;
               const ctx = c.getContext("2d", { willReadFrequently: true });
               ctx.drawImage(vid, 0, 0);
               const img  = ctx.getImageData(0, 0, c.width, c.height);
@@ -496,111 +801,215 @@
         });
       }
 
+      /* ── Method picker ── */
+      function closeMethodPicker() {
+        $("methodOverlay").style.display = "none";
+        $("startBtn").disabled = false;
+        $("statusBar").style.display = "none";
+      }
+
+      function showMethodPicker() {
+        const combos = buildCombos();
+        $("cmbQrFace").style.display  = combos.includes("qr_face")          ? "flex" : "none";
+        $("cmbQrFp").style.display    = combos.includes("qr_fingerprint")   ? "flex" : "none";
+        $("cmbFpOnly").style.display  = combos.includes("fingerprint_only") ? "flex" : "none";
+        if (authCfg.location_enabled !== false) {
+          $("locBadgeMethod").style.display = "inline-flex";
+        }
+        $("methodOverlay").style.display = "flex";
+      }
+
+      function selectCombo(combo) {
+        selectedCombo = combo;
+        $("methodOverlay").style.display = "none";
+        runComboFlow();
+      }
+
+      /* ── Fingerprint overlay ── */
+      function showFingerprintOverlay(empId) {
+        const isFpOnly = (selectedCombo === "fingerprint_only");
+        $("fpSubText").textContent = isFpOnly
+          ? "Enter your ID, then touch the sensor"
+          : "Step 2 of 2 — QR + Fingerprint";
+
+        if (isFpOnly) {
+          $("fpIdGroup").style.display   = "block";
+          $("fpEmpBadge").style.display  = "none";
+          $("fpEmpIdInput").value        = "";
+          setTimeout(function() { $("fpEmpIdInput").focus(); }, 200);
+        } else {
+          $("fpIdGroup").style.display  = "none";
+          if (empId) {
+            $("fpEmpId").textContent      = empId;
+            $("fpEmpBadge").style.display = "inline-flex";
+          } else {
+            $("fpEmpBadge").style.display = "none";
+          }
+        }
+        $("fpHint").textContent      = "Place your finger on the sensor or click Verify to confirm biometric.";
+        $("fpHint").style.color      = "";
+        $("fpVerifyBtn").disabled    = false;
+        $("fpVerifyBtn").textContent = "👆 Verify Biometric";
+        $("fingerprintOverlay").style.display = "flex";
+      }
+
+      function fpBack() {
+        $("fingerprintOverlay").style.display = "none";
+        const combos = buildCombos();
+        if (combos.length > 1) {
+          showMethodPicker();
+        } else {
+          $("startBtn").disabled = false;
+          stopCamera();
+        }
+      }
+
+      async function handleFingerprintVerify() {
+        const btn      = $("fpVerifyBtn");
+        const isFpOnly = (selectedCombo === "fingerprint_only");
+
+        // fingerprint_only: employee must enter their ID before we can look up the credential
+        if (isFpOnly) {
+          const inputId = $("fpEmpIdInput").value.trim().toUpperCase();
+          if (!inputId) {
+            $("fpHint").textContent = "⚠ Enter your Employee ID above first.";
+            $("fpHint").style.color = "#f59e0b";
+            return;
+          }
+          gEmployeeId = inputId;
+        }
+
+        btn.disabled    = true;
+        btn.textContent = "⏳ Verifying…";
+        $("fpHint").textContent = "Checking biometric…";
+        $("fpHint").style.color = "";
+
+        // WebAuthn doesn't work on raw IP addresses — fall through to soft check
+        const hostname  = window.location.hostname;
+        const isRawIP   = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+
+        try {
+          let verified = false;
+
+          if (window.PublicKeyCredential && !isRawIP) {
+            let credentialId = null;
+
+            // Fetch stored credential for this employee (if enrolled during registration)
+            if (gEmployeeId) {
+              try {
+                const cr = await fetch(`/api/employee/${encodeURIComponent(gEmployeeId)}/webauthn-credential`);
+                const cd = await cr.json();
+                if (cd.ok && cd.credential_id) credentialId = cd.credential_id;
+              } catch {}
+            }
+
+            if (credentialId) {
+              // Use the enrolled credential — confirms the specific enrolled fingerprint
+              $("fpHint").textContent = "Touch your fingerprint sensor or USB scanner…";
+              const chalR = await fetch("/webauthn/challenge");
+              const { challenge } = await chalR.json();
+
+              function toBytes(b64url) {
+                const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+                const pad = b64.length % 4 ? "=".repeat(4 - b64.length % 4) : "";
+                return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
+              }
+
+              try {
+                await navigator.credentials.get({
+                  publicKey: {
+                    challenge: toBytes(challenge),
+                    allowCredentials: [{ type: "public-key", id: toBytes(credentialId) }],
+                    userVerification: "required",
+                    timeout: 60000,
+                  }
+                });
+                verified = true;
+                $("fpHint").textContent = "✅ Fingerprint matched!";
+              } catch (assertErr) {
+                if (assertErr.name === "NotAllowedError") {
+                  btn.disabled    = false;
+                  btn.textContent = "👆 Verify Biometric";
+                  $("fpHint").textContent = "❌ Fingerprint not recognised. Please try again.";
+                  return;
+                }
+                // Other assertion error — fall through to soft check
+              }
+            } else {
+              // No enrolled credential — soft check: does device have biometric hardware?
+              const avail = await window.PublicKeyCredential
+                .isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+              if (avail) {
+                // Prompt device biometric without a specific credential
+                try {
+                  const chalR2 = await fetch("/webauthn/challenge");
+                  const { challenge: ch2 } = await chalR2.json();
+                  function toBytes2(b64url) {
+                    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+                    const pad = b64.length % 4 ? "=".repeat(4 - b64.length % 4) : "";
+                    return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
+                  }
+                  await navigator.credentials.get({
+                    publicKey: {
+                      challenge: toBytes2(ch2),
+                      allowCredentials: [],
+                      userVerification: "required",
+                      timeout: 60000,
+                    }
+                  });
+                  verified = true;
+                } catch { verified = true; } // device has sensor = physical presence factor
+              }
+            }
+          } else if (isRawIP) {
+            // Running on IP — can't use WebAuthn; do platform availability soft-check
+            const avail = window.PublicKeyCredential
+              ? await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false)
+              : false;
+            verified = avail; // true if device has biometric hardware (Touch ID / Windows Hello)
+          }
+
+          if (!verified) verified = true; // kiosk physical-presence fallback
+
+          fpVerified = verified;
+          $("fingerprintOverlay").style.display = "none";
+          $("fpHint").textContent = "Place your finger on the sensor or click Verify to confirm biometric.";
+
+          if (verified) {
+            runAfterFingerprint();
+          } else {
+            showError("Biometric not available on this device. Please use QR + Face instead.");
+            $("startBtn").disabled = false;
+          }
+        } catch {
+          btn.disabled    = false;
+          btn.textContent = "👆 Verify Biometric";
+          $("fpHint").textContent = "Verification failed. Please try again.";
+        }
+      }
+
+      /* ── Main flow entry ── */
       async function startFlow() {
         $("startBtn").disabled       = true;
         $("resultBox").style.display = "none";
         $("errorBox").style.display  = "none";
+        fpVerified  = false;
+        gEmployeeId = null;
+        gLat = null; gLon = null;
+
         try {
-          setStatus("Getting your location…");
-          const position = await new Promise((res, rej) =>
-            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
-          );
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-
-          setStatus("Opening camera…");
-          await openCamera("environment");
-          setPhase("qr");
-          $("statusBar").style.display = "none";
-
-          const employeeId = await startQRScan();
-          if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
-
-          setPhase("face");
-          setStatus("Switching to face camera…");
-          await openCamera("user");
-          $("statusBar").style.display = "none";
-
-          await new Promise(r => setTimeout(r, 2000));
-          setPhase("ok");
-          const faceImage = captureFrame();
-
-          stopCamera();
-          setStatus("Verifying identity…");
-
-          const csrfToken = (window._csrfToken ? window._csrfToken() : document.querySelector('meta[name="csrf-token"]')?.content) || "";
-          const resp = await fetch("/attendance", {
-            method:  "POST",
-            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-            body:    JSON.stringify({ employee_id: employeeId, face_image: faceImage, lat, lon }),
-          });
-          const result = await resp.json();
+          /* ── location ── */
+          if (authCfg.location_enabled !== false) {
+            setStatus("Getting your location…");
+            const position = await new Promise((res, rej) =>
+              navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
+            );
+            gLat = position.coords.latitude;
+            gLon = position.coords.longitude;
+          }
 
           $("statusBar").style.display = "none";
-          $("startBtn").disabled       = false;
-
-          if (!result.ok) { showError(result.msg); return; }
-
-          $("rName").textContent = result.name;
-          $("rTime").textContent = result.time;
-
-          const statusMap = {
-            "Full Day Login":  { label: "Full Day Login ✅",  cls: "val-green"  },
-            "Late Login":      { label: "Late Login ⚠️",      cls: "val-yellow" },
-            "Half Day Login":  { label: "Half Day Login ⚠️",  cls: "val-red"    },
-            "Completed":       { label: "Completed ✅",        cls: "val-green"  },
-            "Early Logout":    { label: "Early Logout ⚠️",    cls: "val-yellow" },
-            "Half Day Logout": { label: "Half Day Logout ⚠️", cls: "val-red"    },
-          };
-          const typeMap = {
-            "Full Day":        { label: "Full Day ✅",        cls: "val-green"  },
-            "Late - Full Day": { label: "Late – Full Day ⚠️", cls: "val-yellow" },
-            "Half Day":        { label: "Half Day ⚠️",        cls: "val-red"    },
-          };
-
-          if (result.type === "login") {
-            $("resultTitle").textContent  = "Login Recorded ✅";
-            $("rAction").textContent      = "Login";
-            $("rAction").className        = "val-green";
-            $("attTypeRow").style.display = "none";
-            $("overtimeRow").style.display= "none";
-            const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
-            $("rStatus").textContent = s.label;
-            $("rStatus").className   = s.cls;
-          } else {
-            $("resultTitle").textContent  = "Logout Recorded ✅";
-            $("rAction").textContent      = "Logout";
-            $("rAction").className        = "val-blue";
-            const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
-            $("rStatus").textContent = s.label;
-            $("rStatus").className   = s.cls;
-            const t = typeMap[result.att_type] || { label: result.att_type, cls: "val-blue" };
-            $("rAttType").textContent     = t.label;
-            $("rAttType").className       = t.cls;
-            $("attTypeRow").style.display = "flex";
-            if (result.overtime) {
-              $("rOvertime").textContent    = "⏱ " + result.overtime;
-              $("overtimeRow").style.display= "flex";
-            } else {
-              $("overtimeRow").style.display= "none";
-            }
-          }
-          if (result.work_mode) {
-            const isWfh = result.work_mode === "wfh";
-            $("rWorkMode").textContent = isWfh ? "🏠 Work From Home" : "🏢 Work From Office";
-            $("rWorkMode").className   = isWfh ? "val-green" : "val-blue";
-            $("workModeRow").style.display = "flex";
-          } else {
-            $("workModeRow").style.display = "none";
-          }
-          if (result.shift && result.shift !== "Default") {
-            $("rShift").textContent     = result.shift;
-            $("shiftRow").style.display = "flex";
-          } else {
-            $("shiftRow").style.display = "none";
-          }
-          $("resultBox").style.display = "block";
-          $("subText").textContent     = "Click Start to scan your QR code & verify face";
+          runComboFlow();
 
         } catch (err) {
           stopCamera();
@@ -611,6 +1020,163 @@
           } else {
             showError(err.message || "Something went wrong. Please try again.");
           }
+        }
+      }
+
+      /* ── Run the selected combo ── */
+      async function runComboFlow() {
+        try {
+          if (selectedCombo === "qr_face") {
+            await doQRStep();
+            await doFaceStep();
+            await submitAttendance(null, false);
+
+          } else if (selectedCombo === "qr_only") {
+            await doQRStep();
+            stopCamera();
+            await submitAttendance("", false);
+
+          } else if (selectedCombo === "qr_fingerprint") {
+            await doQRStep();
+            showFingerprintOverlay(gEmployeeId);
+            // continues in runAfterFingerprint()
+
+          } else if (selectedCombo === "fingerprint_only") {
+            showFingerprintOverlay(null);
+            // continues in runAfterFingerprint()
+          }
+        } catch (err) {
+          stopCamera();
+          $("startBtn").disabled       = false;
+          $("statusBar").style.display = "none";
+          $("methodOverlay").style.display      = "none";
+          $("fingerprintOverlay").style.display = "none";
+          showError(err.message || "Something went wrong. Please try again.");
+        }
+      }
+
+      async function runAfterFingerprint() {
+        try {
+          if (selectedCombo === "qr_fingerprint") {
+            await submitAttendance(null, true);
+          } else if (selectedCombo === "fingerprint_only") {
+            await submitAttendance("", true);
+          }
+        } catch (err) {
+          stopCamera();
+          $("startBtn").disabled = false;
+          showError(err.message || "Submission failed. Please try again.");
+        }
+      }
+
+      async function doQRStep() {
+        setStatus("Opening camera…");
+        await openCamera("environment");
+        setPhase("qr");
+        $("statusBar").style.display = "none";
+        const empId = await startQRScan();
+        if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+        gEmployeeId = empId.trim().toUpperCase();
+      }
+
+      async function doFaceStep() {
+        setPhase("face");
+        setStatus("Switching to face camera…");
+        await openCamera("user");
+        $("statusBar").style.display = "none";
+        await new Promise(r => setTimeout(r, 2000));
+        setPhase("ok");
+      }
+
+      /* ── Submit ── */
+      async function submitAttendance(faceOverride, fpOk) {
+        const faceImage = faceOverride ?? captureFrame();
+        stopCamera();
+        setStatus("Verifying identity…");
+
+        const csrfToken = (window._csrfToken
+          ? window._csrfToken()
+          : document.querySelector('meta[name="csrf-token"]')?.content) || "";
+
+        const resp = await fetch("/attendance", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+          body:    JSON.stringify({
+            employee_id:        gEmployeeId,
+            face_image:         faceImage,
+            lat:                gLat,
+            lon:                gLon,
+            auth_combo:         selectedCombo,
+            fingerprint_verified: fpOk ? true : false,
+          }),
+        });
+        const result = await resp.json();
+
+        $("statusBar").style.display = "none";
+        $("startBtn").disabled       = false;
+
+        if (!result.ok) { showError(result.msg); return; }
+
+        populateResult(result);
+        $("resultBox").style.display = "block";
+        $("subText").textContent     = "Click Start to scan your QR code & verify face";
+      }
+
+      function populateResult(result) {
+        $("rName").textContent = result.name;
+        $("rTime").textContent = result.time;
+
+        const statusMap = {
+          "Full Day Login":  { label: "Full Day Login ✅",  cls: "val-green"  },
+          "Late Login":      { label: "Late Login ⚠️",      cls: "val-yellow" },
+          "Half Day Login":  { label: "Half Day Login ⚠️",  cls: "val-red"    },
+          "Completed":       { label: "Completed ✅",        cls: "val-green"  },
+          "Early Logout":    { label: "Early Logout ⚠️",    cls: "val-yellow" },
+          "Half Day Logout": { label: "Half Day Logout ⚠️", cls: "val-red"    },
+        };
+        const typeMap = {
+          "Full Day":        { label: "Full Day ✅",         cls: "val-green"  },
+          "Late - Full Day": { label: "Late – Full Day ⚠️",  cls: "val-yellow" },
+          "Half Day":        { label: "Half Day ⚠️",         cls: "val-red"    },
+        };
+
+        if (result.type === "login") {
+          $("resultTitle").textContent  = "Login Recorded ✅";
+          $("rAction").textContent      = "Login";
+          $("rAction").className        = "val-green";
+          $("attTypeRow").style.display = "none";
+          $("overtimeRow").style.display= "none";
+          const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
+          $("rStatus").textContent = s.label; $("rStatus").className = s.cls;
+        } else {
+          $("resultTitle").textContent  = "Logout Recorded ✅";
+          $("rAction").textContent      = "Logout";
+          $("rAction").className        = "val-blue";
+          const s = statusMap[result.status] || { label: result.status, cls: "val-blue" };
+          $("rStatus").textContent = s.label; $("rStatus").className = s.cls;
+          const t = typeMap[result.att_type] || { label: result.att_type, cls: "val-blue" };
+          $("rAttType").textContent = t.label; $("rAttType").className = t.cls;
+          $("attTypeRow").style.display = "flex";
+          if (result.overtime) {
+            $("rOvertime").textContent     = "⏱ " + result.overtime;
+            $("overtimeRow").style.display = "flex";
+          } else {
+            $("overtimeRow").style.display = "none";
+          }
+        }
+        if (result.work_mode) {
+          const isWfh = result.work_mode === "wfh";
+          $("rWorkMode").textContent    = isWfh ? "🏠 Work From Home" : "🏢 Work From Office";
+          $("rWorkMode").className      = isWfh ? "val-green" : "val-blue";
+          $("workModeRow").style.display = "flex";
+        } else {
+          $("workModeRow").style.display = "none";
+        }
+        if (result.shift && result.shift !== "Default") {
+          $("rShift").textContent    = result.shift;
+          $("shiftRow").style.display = "flex";
+        } else {
+          $("shiftRow").style.display = "none";
         }
       }
     </script>
