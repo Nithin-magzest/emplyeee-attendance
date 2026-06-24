@@ -70,6 +70,24 @@
       .btn-del:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
       .empty { text-align: center; color: #94a3b8; padding: 30px; font-size: 13px; }
       {% with messages = get_flashed_messages(with_categories=true) %}{% endwith %}
+
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
+      body.dark-mode .page-title { color: #cdd9e5 !important; }
+      body.dark-mode .page-sub { color: #768390 !important; }
+      body.dark-mode .section { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .section h3 { color: #cdd9e5 !important; }
+      body.dark-mode .form-group label { color: #768390 !important; }
+      body.dark-mode .form-group input, body.dark-mode .form-group select, body.dark-mode .form-group textarea { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .ann-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .ann-title { color: #cdd9e5 !important; }
+      body.dark-mode .ann-content { color: #94a3b8 !important; }
+      body.dark-mode .ann-meta { color: #768390 !important; }
+      body.dark-mode .pri-urgent { background: #7f1d1d !important; color: #fca5a5 !important; }
+      body.dark-mode .pri-important { background: #713f12 !important; color: #fbbf24 !important; }
+      body.dark-mode .pri-normal { background: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode .btn-del { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
     </style>
   <link rel="stylesheet" href="/static/shared.css" />
   </head>
