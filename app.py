@@ -31,6 +31,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import threading
 import io as _io
+import hashlib
 from werkzeug.exceptions import HTTPException
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -124,6 +125,7 @@ else:
         _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
@@ -1882,8 +1884,8 @@ def setup_wizard():
             error = "Company name is required."
         elif not admin_user:
             error = "Admin username is required."
-        elif len(admin_pass) < 6:
-            error = "Password must be at least 6 characters."
+        elif len(admin_pass) < 8:
+            error = "Password must be at least 8 characters."
         elif admin_pass != admin_pass2:
             error = "Passwords do not match."
         else:
@@ -1919,6 +1921,7 @@ def admin_login():
         if admin_row and check_password_hash(admin_row[0], password):
             session.clear()
             session["admin_logged_in"] = True
+            session["admin_username"] = identifier
             session["admin_role"] = admin_row[1]
             session.permanent = True
             return redirect("/admin")
@@ -1932,7 +1935,7 @@ def admin_login():
         if emp_row:
             stored_pwd = emp_row[3]
             if stored_pwd and not check_password_hash(stored_pwd, password):
-                return render_template("admin_login.html", error="Incorrect password.")
+                return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
             session.clear()
             session["employee_id"]   = emp_row[0]
             session["employee_name"] = emp_row[1]
@@ -3758,39 +3761,39 @@ def change_admin_password():
 @app.route("/admin_set_recovery_email", methods=["POST"])
 @admin_required
 def admin_set_recovery_email():
-    email = request.form.get("recovery_email", "").strip()
+    email    = request.form.get("recovery_email", "").strip()
+    username = session.get("admin_username", "admin")
     if email:
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute("UPDATE admin_users SET email=%s WHERE username='admin'", (email,))
+        cursor.execute("UPDATE admin_users SET email=%s WHERE username=%s", (email, username))
         db.commit(); cursor.close(); db.close()
     return redirect("/admin?email_ok=1#password-management")
 
 
 
 @app.route("/admin_forgot_password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def admin_forgot_password():
     if request.method == "GET":
         return render_template("admin_forgot_password.html",
                                sent=False, error=None)
-    admin_email = request.form.get("email", "").strip()
+    admin_email = request.form.get("email", "").strip().lower()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT id, email FROM admin_users WHERE username='admin'")
+    cursor.execute("SELECT id FROM admin_users WHERE LOWER(email)=%s", (admin_email,))
     row = cursor.fetchone()
-    if not row or not row[1]:
+    if not row:
         cursor.close(); db.close()
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="No email is set for the admin account. Contact your system administrator.")
-    if row[1].lower() != admin_email.lower():
-        cursor.close(); db.close()
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="Email address does not match the admin account.")
-    token   = secrets.token_hex(32)
-    expiry  = datetime.datetime.now() + datetime.timedelta(hours=1)
+        # Return the same message whether the email exists or not (no account enumeration)
+        return render_template("admin_forgot_password.html", sent=True, error=None)
+    token       = secrets.token_hex(32)
+    token_hash  = hashlib.sha256(token.encode()).hexdigest()
+    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
+    admin_id    = row[0]
     cursor.execute(
-        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE username='admin'",
-        (token, expiry)
+        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
+        (token_hash, expiry, admin_id)
     )
     db.commit(); cursor.close(); db.close()
     cfg = get_email_config()
@@ -3822,12 +3825,14 @@ def admin_forgot_password():
 
 
 @app.route("/admin_reset_password/<token>", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def admin_reset_password(token):
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
         "SELECT id FROM admin_users WHERE reset_token=%s AND reset_token_expiry > %s",
-        (token, datetime.datetime.now())
+        (token_hash, datetime.datetime.now())
     )
     row = cursor.fetchone()
     if not row:
@@ -3838,17 +3843,18 @@ def admin_reset_password(token):
         return render_template("admin_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw     = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    if len(new_pw) < 6:
+    if len(new_pw) < 8:
         cursor.close(); db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
-                               token=token, error="Password must be at least 6 characters.")
+                               token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
         cursor.close(); db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
+    admin_id = row[0]
     cursor.execute(
-        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE username='admin'",
-        (generate_password_hash(new_pw),)
+        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
+        (generate_password_hash(new_pw), admin_id)
     )
     db.commit(); cursor.close(); db.close()
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
@@ -3870,8 +3876,9 @@ def employee_forgot_password():
         cursor.close(); db.close()
         return render_template("employee_forgot_password.html", sent=False,
                                error="Employee ID and email do not match our records.")
-    token  = secrets.token_hex(32)
-    expiry = datetime.datetime.now() + datetime.timedelta(hours=1)
+    token       = secrets.token_hex(32)
+    token_hash  = hashlib.sha256(token.encode()).hexdigest()
+    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
     try:
         cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
         db.commit()
@@ -3883,7 +3890,7 @@ def employee_forgot_password():
     except mysql.connector.errors.DatabaseError:
         db.rollback()
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
-                   (token, expiry, emp_id))
+                   (token_hash, expiry, emp_id))
     db.commit(); cursor.close(); db.close()
     cfg = get_email_config()
     if not cfg:
@@ -3913,10 +3920,12 @@ def employee_forgot_password():
 
 
 @app.route("/employee_reset_password/<token>", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def employee_reset_password(token):
     db = get_db_connection(); cursor = db.cursor(buffered=True)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
-                   (token, datetime.datetime.now()))
+                   (token_hash, datetime.datetime.now()))
     row = cursor.fetchone()
     if not row:
         cursor.close(); db.close()
@@ -3926,10 +3935,10 @@ def employee_reset_password(token):
         return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw     = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    if len(new_pw) < 6:
+    if len(new_pw) < 8:
         cursor.close(); db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
-                               token=token, error="Password must be at least 6 characters.")
+                               token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
         cursor.close(); db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
@@ -5517,7 +5526,7 @@ def change_password():
     if not row or not check_password_hash(row[0], current):
         cursor.close(); db.close()
         return redirect("/employee_portal?pwd_error=wrong#my-profile")
-    if len(new_pwd) < 6:
+    if len(new_pwd) < 8:
         cursor.close(); db.close()
         return redirect("/employee_portal?pwd_error=short#my-profile")
     if new_pwd != confirm:
@@ -5539,12 +5548,12 @@ def force_change_pin():
     if request.method == "POST":
         new_pwd = request.form.get("new_password", "").strip()
         confirm = request.form.get("confirm_password", "").strip()
-        if len(new_pwd) < 6:
-            error = "Password must be at least 6 characters."
+        if len(new_pwd) < 8:
+            error = "Password must be at least 8 characters."
         elif new_pwd != confirm:
             error = "Passwords do not match."
-        elif new_pwd == "1234":
-            error = "You cannot use '1234' as your password."
+        elif new_pwd in ("1234", "12345678", "password", "admin123"):
+            error = "That password is too common. Please choose a stronger one."
         else:
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
@@ -9239,8 +9248,8 @@ def api_employee_change_password():
     new_password     = data.get("new_password", "").strip()
     if not current_password or not new_password:
         return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
-    if len(new_password) < 4:
-        return jsonify({"ok": False, "msg": "New password must be at least 4 characters"}), 400
+    if len(new_password) < 8:
+        return jsonify({"ok": False, "msg": "New password must be at least 8 characters"}), 400
     from flask import g as _g
     emp_id = _g.api_emp_id
     with _db() as (cursor, conn):
