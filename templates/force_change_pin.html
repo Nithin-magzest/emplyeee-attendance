@@ -53,7 +53,14 @@
         color: #fca5a5; font-size: 13px; margin-bottom: 18px;
       }
       .hint { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: -12px; margin-bottom: 18px; }
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .card { background: #161b22 !important; border: 1px solid #30363d; color: #cdd9e5 !important; }
+      body.dark-mode input { background: #0d1117 !important; color: #cdd9e5 !important; border: 1px solid #30363d !important; }
+      body.dark-mode input::placeholder { color: #768390 !important; opacity: 1 !important; }
+      body.dark-mode .hint { color: #768390 !important; opacity: 1 !important; }
     </style>
+    <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
     <div class="card">
@@ -84,5 +91,6 @@
         <button type="submit" class="btn">Save Password & Continue</button>
       </form>
     </div>
+  <script src="/static/darkmode.js"></script>
   </body>
 </html>
