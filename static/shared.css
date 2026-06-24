@@ -1,11 +1,11 @@
 /* ── DARK MODE VARIABLES ── */
 body.dark-mode {
-  --bg:       #000000;
-  --surface:  #111111;
-  --border:   #2a2a2a;
-  --text:     #e2e8f0;
-  --muted:    #94a3b8;
-  --accent:   #3b82f6;
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --border:   #30363d;
+  --text:     #cdd9e5;
+  --muted:    #768390;
+  --accent:   #4d9de0;
   filter: none;
 }
 
@@ -30,13 +30,13 @@ body.dark-mode table thead tr,
 body.dark-mode table thead tr th,
 body.dark-mode table th { background: #1e3a8a !important; color: #ffffff !important; }
 body.dark-mode table tbody tr { background: var(--surface) !important; color: var(--text) !important; }
-body.dark-mode table tbody tr:nth-child(even) { background: #000000 !important; }
+body.dark-mode table tbody tr:nth-child(even) { background: #0d1117 !important; }
 body.dark-mode table td, body.dark-mode table th { border-color: var(--border) !important; color: var(--text) !important; }
 
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
-  background: #000000 !important;
+  background: #0d1117 !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
@@ -48,9 +48,9 @@ body.dark-mode label, body.dark-mode .info-label {
 }
 
 body.dark-mode .reason-quote {
-  background: #111111 !important;
+  background: #161b22 !important;
   color: #cbd5e1 !important;
-  border-color: #2a2a2a !important;
+  border-color: #30363d !important;
 }
 
 /* ── DARK MODE: BROAD TEXT VISIBILITY ── */
@@ -71,10 +71,10 @@ body.dark-mode .badge-orange { background: #7c2d12 !important; color: #fdba74 !i
 body.dark-mode .badge-yellow { background: #713f12 !important; color: #fde047 !important; }
 body.dark-mode .badge-blue   { background: #1e3a8a !important; color: #93c5fd !important; }
 body.dark-mode .badge-gray,
-body.dark-mode .b-gray       { background: #111111 !important; color: #94a3b8 !important; border-color: #2a2a2a !important; }
+body.dark-mode .b-gray       { background: #161b22 !important; color: #94a3b8 !important; border-color: #30363d !important; }
 
 /* Flash / alert messages */
-body.dark-mode .flash         { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .flash         { background: #161b22 !important; border-color: #30363d !important; }
 body.dark-mode .flash-success { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
 body.dark-mode .flash-error   { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
 
@@ -98,7 +98,7 @@ body.dark-mode .sn-orange     { color: #fb923c !important; }
 
 /* Modal backgrounds */
 body.dark-mode .modal-box,
-body.dark-mode .modal-body    { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .modal-body    { background: #161b22 !important; border-color: #30363d !important; }
 body.dark-mode .modal-backdrop { background: rgba(0,0,0,0.8) !important; }
 
 /* ── ATTENDANCE CALENDAR CELLS ── */
@@ -107,8 +107,8 @@ body.dark-mode .cal-late    { background: #713f12 !important; color: #fde047 !im
 body.dark-mode .cal-half    { background: #7c2d12 !important; color: #fdba74 !important; border-color: #9a3412 !important; }
 body.dark-mode .cal-absent  { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
 body.dark-mode .cal-holiday { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
-body.dark-mode .cal-weekend { background: #111111 !important; color: #64748b !important; border-color: #2a2a2a !important; }
-body.dark-mode .cal-future  { background: #000000 !important; color: #2a2a2a !important; border-color: #111111 !important; }
+body.dark-mode .cal-weekend { background: #161b22 !important; color: #64748b !important; border-color: #30363d !important; }
+body.dark-mode .cal-future  { background: #0d1117 !important; color: #2a2a2a !important; border-color: #111111 !important; }
 body.dark-mode .cal-today   { box-shadow: 0 0 0 2px #60a5fa !important; }
 body.dark-mode .cal-legend  { color: #94a3b8 !important; }
 
@@ -116,7 +116,7 @@ body.dark-mode .cal-legend  { color: #94a3b8 !important; }
 body.dark-mode .hol-cal-day.hd-sunday  { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
 body.dark-mode .hol-cal-day.hd-holiday { background: #713f12 !important; border-color: #854d0e !important; color: #fde047 !important; }
 body.dark-mode .hol-cal-day.hd-today   { background: #1e3a8a !important; border-color: #3b82f6 !important; color: #93c5fd !important; }
-body.dark-mode .hol-cal-day.hd-normal  { background: #111111 !important; border-color: #2a2a2a !important; color: #e2e8f0 !important; }
+body.dark-mode .hol-cal-day.hd-normal  { background: #161b22 !important; border-color: #30363d !important; color: #e2e8f0 !important; }
 body.dark-mode .hol-name-lbl           { color: #fbbf24 !important; }
 body.dark-mode .hol-badge-pub          { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
 body.dark-mode .hol-badge-comp         { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
@@ -136,7 +136,7 @@ body.dark-mode .s-green  { background: #14532d !important; color: #86efac !impor
 body.dark-mode .s-yellow { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
 body.dark-mode .s-red    { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
 body.dark-mode .s-blue   { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
-body.dark-mode .s-gray   { background: #111111 !important; color: #94a3b8 !important; border-color: #2a2a2a !important; }
+body.dark-mode .s-gray   { background: #161b22 !important; color: #94a3b8 !important; border-color: #30363d !important; }
 
 /* ── LEAVE STATUS BADGES (.ls-*) ── */
 body.dark-mode .ls-pending  { background: #713f12 !important; color: #fde047 !important; border-color: #854d0e !important; }
@@ -185,62 +185,62 @@ body.dark-mode ::selection {
 /* Filter/search/toolbar bars (employees, attendance detail, salary report, shifts, settings) */
 body.dark-mode .toolbar,
 body.dark-mode .filter-bar,
-body.dark-mode .bulk-bar { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .bulk-bar { background: #161b22 !important; border-color: #30363d !important; }
 
 /* Summary cards (attendance detail, salary report) */
 body.dark-mode .emp-card,
-body.dark-mode .sum-card { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .sum-card { background: #161b22 !important; border-color: #30363d !important; }
 
 /* Email / settings test cards */
-body.dark-mode .test-card { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .test-card { background: #161b22 !important; border-color: #30363d !important; }
 
 /* List item rows (break_config, shifts, settings) */
 body.dark-mode .break-item,
-body.dark-mode .shift-item { background: #0a0a0a !important; border-color: #2a2a2a !important; color: var(--text) !important; }
+body.dark-mode .shift-item { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
 
 /* Rules / info boxes */
-body.dark-mode .rules-box { background: #0a0a0a !important; border-color: #2a2a2a !important; color: #94a3b8 !important; }
+body.dark-mode .rules-box { background: #0d1117 !important; border-color: #30363d !important; color: #94a3b8 !important; }
 
 /* Gray/cancel buttons that have a light background */
 body.dark-mode .btn-gray,
 body.dark-mode .btn-cancel,
 body.dark-mode .btn-cancel-sm,
-body.dark-mode .btn-clear-filter { background: #1a1a1a !important; border-color: #2a2a2a !important; color: #94a3b8 !important; }
+body.dark-mode .btn-clear-filter { background: #1c2128 !important; border-color: #30363d !important; color: #94a3b8 !important; }
 
 /* Photo upload drag-zone */
-body.dark-mode .photo-upload-box { background: #0a0a0a !important; border-color: #3b82f6 !important; color: var(--text) !important; }
+body.dark-mode .photo-upload-box { background: #0d1117 !important; border-color: #3b82f6 !important; color: var(--text) !important; }
 
 /* Ticket done-section header */
-body.dark-mode .sec-head.done { background: #111111 !important; color: #64748b !important; }
+body.dark-mode .sec-head.done { background: #161b22 !important; color: #64748b !important; }
 
 /* Admin holidays calendar: normal day cells and legend dot */
-body.dark-mode .cal-day.day-normal { background: #111111 !important; border-color: #2a2a2a !important; }
-body.dark-mode .leg-normal { background: #111111 !important; border-color: #2a2a2a !important; }
+body.dark-mode .cal-day.day-normal { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .leg-normal { background: #161b22 !important; border-color: #30363d !important; }
 
 /* ── EMPLOYEE PORTAL: MISSING CONTAINER BACKGROUNDS ── */
 /* .calendar and .cal-filter are not .section/.card, so they need their own override */
 body.dark-mode .calendar,
 body.dark-mode .cal-filter {
-  background: #111111 !important;
-  border-color: #2a2a2a !important;
+  background: #161b22 !important;
+  border-color: #30363d !important;
 }
 
 /* Holiday calendar wrapper */
 body.dark-mode .hol-cal-single-wrap {
-  background: #111111 !important;
-  border-color: #2a2a2a !important;
+  background: #161b22 !important;
+  border-color: #30363d !important;
 }
 
 /* Ticket rows */
 body.dark-mode .ticket-row {
-  background: #111111 !important;
-  border-color: #2a2a2a !important;
+  background: #161b22 !important;
+  border-color: #30363d !important;
 }
 
 /* Payslip cards */
 body.dark-mode .payslip-card {
-  background: #111111 !important;
-  border-color: #2a2a2a !important;
+  background: #161b22 !important;
+  border-color: #30363d !important;
   color: var(--text) !important;
 }
 body.dark-mode .payslip-card .ps-month { color: #93c5fd !important; }
@@ -248,8 +248,8 @@ body.dark-mode .payslip-card:hover { background: #1e3a8a !important; border-colo
 
 /* Leave reason chips */
 body.dark-mode .reason-chip {
-  background: #111111 !important;
-  border-color: #2a2a2a !important;
+  background: #161b22 !important;
+  border-color: #30363d !important;
   color: var(--text) !important;
 }
 body.dark-mode .reason-chip:hover,
@@ -342,3 +342,631 @@ body.dark-mode .hol-legend { color: var(--text) !important; }
   .tab-nav { overflow-x: auto; white-space: nowrap; }
   .tab-btn { font-size: 12px !important; padding: 8px 12px !important; }
 }
+
+/* ══════════════════════════════════════════════════════
+   DARK MODE: INLINE STYLE OVERRIDES
+   Catches all elements with hardcoded light backgrounds
+   and dark text colours set via style="" attributes
+   ══════════════════════════════════════════════════════ */
+
+/* ── White / near-white backgrounds ── */
+body.dark-mode div[style*="background:#fff"],
+body.dark-mode div[style*="background: #fff"],
+body.dark-mode div[style*="background:#ffffff"],
+body.dark-mode div[style*="background: #ffffff"],
+body.dark-mode div[style*="background:#f8fafc"],
+body.dark-mode div[style*="background: #f8fafc"],
+body.dark-mode div[style*="background:#f1f5f9"],
+body.dark-mode div[style*="background: #f1f5f9"],
+body.dark-mode div[style*="background:#eff6ff"],
+body.dark-mode div[style*="background: #eff6ff"],
+body.dark-mode div[style*="background:#dbeafe"],
+body.dark-mode div[style*="background: #dbeafe"],
+body.dark-mode div[style*="background:#e2e8f0"],
+body.dark-mode div[style*="background: #e2e8f0"],
+body.dark-mode div[style*="background:#f0f9ff"],
+body.dark-mode div[style*="background: #f0f9ff"],
+body.dark-mode div[style*="background:#fafafa"],
+body.dark-mode div[style*="background: #fafafa"],
+body.dark-mode div[style*="background:#ffffff"],
+body.dark-mode td[style*="background:#fff"],
+body.dark-mode td[style*="background: #fff"],
+body.dark-mode td[style*="background:#ffffff"],
+body.dark-mode td[style*="background:#f8fafc"],
+body.dark-mode td[style*="background:#f1f5f9"],
+body.dark-mode span[style*="background:#fff"],
+body.dark-mode span[style*="background: #fff"],
+body.dark-mode span[style*="background:#ffffff"],
+body.dark-mode label[style*="background:#fff"],
+body.dark-mode label[style*="background: #fff"],
+body.dark-mode section[style*="background:#fff"],
+body.dark-mode section[style*="background:#ffffff"],
+body.dark-mode p[style*="background:#fff"],
+body.dark-mode li[style*="background:#fff"] {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+/* ── Light info/tip boxes ── */
+body.dark-mode div[style*="background:#fffbeb"],
+body.dark-mode div[style*="background: #fffbeb"],
+body.dark-mode div[style*="background:#fef9c3"],
+body.dark-mode div[style*="background:#fff7ed"],
+body.dark-mode div[style*="background: #fff7ed"],
+body.dark-mode div[style*="background:#fef3c7"],
+body.dark-mode div[style*="background:#ecfdf5"],
+body.dark-mode div[style*="background:#dcfce7"],
+body.dark-mode div[style*="background:#fee2e2"],
+body.dark-mode div[style*="background:#fce7f3"] {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+/* ── Table row backgrounds ── */
+body.dark-mode tr[style*="background:#fff"],
+body.dark-mode tr[style*="background: #fff"],
+body.dark-mode tr[style*="background:#f8fafc"],
+body.dark-mode tr[style*="background:#eff6ff"] {
+  background: #161b22 !important;
+}
+
+/* ── Dark text colours on inline styles ── */
+body.dark-mode *[style*="color:#1e293b"],
+body.dark-mode *[style*="color: #1e293b"] { color: #e2e8f0 !important; }
+
+body.dark-mode *[style*="color:#0f172a"],
+body.dark-mode *[style*="color: #0f172a"] { color: #e2e8f0 !important; }
+
+body.dark-mode *[style*="color:#374151"],
+body.dark-mode *[style*="color: #374151"] { color: #e2e8f0 !important; }
+
+body.dark-mode *[style*="color:#475569"],
+body.dark-mode *[style*="color: #475569"] { color: #94a3b8 !important; }
+
+body.dark-mode *[style*="color:#64748b"],
+body.dark-mode *[style*="color: #64748b"] { color: #94a3b8 !important; }
+
+body.dark-mode *[style*="color:#6b7280"],
+body.dark-mode *[style*="color: #6b7280"] { color: #94a3b8 !important; }
+
+body.dark-mode *[style*="color:#94a3b8"],
+body.dark-mode *[style*="color: #94a3b8"] { color: #64748b !important; }
+
+body.dark-mode *[style*="color:#334155"],
+body.dark-mode *[style*="color: #334155"] { color: #cbd5e1 !important; }
+
+body.dark-mode *[style*="color:#111827"],
+body.dark-mode *[style*="color: #111827"] { color: #e2e8f0 !important; }
+
+/* ── Border colours on inline styles ── */
+body.dark-mode *[style*="border-color:#dbeafe"],
+body.dark-mode *[style*="border-color: #dbeafe"],
+body.dark-mode *[style*="border-color:#e2e8f0"],
+body.dark-mode *[style*="border-color: #e2e8f0"],
+body.dark-mode *[style*="border-color:#f1f5f9"],
+body.dark-mode *[style*="border-color: #f1f5f9"] {
+  border-color: #30363d !important;
+}
+
+/* ── Modal overlays with inline backgrounds ── */
+body.dark-mode div[style*="position:fixed"][style*="background:rgba(0,0,0"],
+body.dark-mode div[style*="position: fixed"][style*="background:rgba(0,0,0"] {
+  background: rgba(0,0,0,0.75) !important;
+}
+
+/* ── Inline modal inner panels ── */
+body.dark-mode div[style*="border-radius:18px"][style*="background:#fff"],
+body.dark-mode div[style*="border-radius: 18px"][style*="background:#fff"],
+body.dark-mode div[style*="border-radius:16px"][style*="background:#fff"],
+body.dark-mode div[style*="border-radius:20px"][style*="background:#fff"],
+body.dark-mode div[style*="border-radius:14px"][style*="background:#fff"] {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+/* ── Tab navigation ── */
+body.dark-mode .tab-nav,
+body.dark-mode .tab-bar,
+body.dark-mode .module-tabs,
+body.dark-mode .inner-tabs {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+body.dark-mode .tab-btn,
+body.dark-mode .tab-button {
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+body.dark-mode .tab-btn.active,
+body.dark-mode .tab-btn[style*="border-bottom"] {
+  color: #e2e8f0 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* ── Progress bars ── */
+body.dark-mode div[style*="background:#e2e8f0"][style*="border-radius"],
+body.dark-mode div[style*="background:#f1f5f9"][style*="border-radius"],
+body.dark-mode div[style*="background:#dbeafe"][style*="border-radius"] {
+  background: #1c2128 !important;
+}
+
+/* ── Dividers / hr inline ── */
+body.dark-mode hr[style*="border-color:#e2e8f0"],
+body.dark-mode hr[style*="border-color:#dbeafe"],
+body.dark-mode div[style*="border-top:1px solid #e2e8f0"],
+body.dark-mode div[style*="border-top: 1px solid #e2e8f0"],
+body.dark-mode div[style*="border-bottom:1px solid #e2e8f0"],
+body.dark-mode div[style*="border-bottom: 1px solid #e2e8f0"] {
+  border-color: #30363d !important;
+}
+
+/* ── Page headers and top action bars ── */
+body.dark-mode .page-header,
+body.dark-mode .page-header h1,
+body.dark-mode .page-header p,
+body.dark-mode .page-header-left,
+body.dark-mode .topbar,
+body.dark-mode .topbar-top,
+body.dark-mode .topbar-heading,
+body.dark-mode .topbar-controls,
+body.dark-mode .controls-bar,
+body.dark-mode .header-actions,
+body.dark-mode .action-bar,
+body.dark-mode .top-actions {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-color: #30363d !important;
+}
+
+/* ── Companies page specific ── */
+body.dark-mode .field-group input,
+body.dark-mode .field-group label {
+  background: #000 !important;
+  color: var(--text) !important;
+  border-color: #30363d !important;
+}
+
+/* ── Settings appearance tab ── */
+body.dark-mode .tab-appearance,
+body.dark-mode [id*="tab-"] {
+  background: #161b22 !important;
+  color: var(--text) !important;
+}
+
+/* ── Org chart SVG canvas ── */
+body.dark-mode .org-canvas,
+body.dark-mode #orgCanvas {
+  background: #0d1117 !important;
+}
+body.dark-mode .org-viewport {
+  background: #0d1117 !important;
+  border-color: #30363d !important;
+}
+
+/* ── Analytics charts container ── */
+body.dark-mode .chart-box,
+body.dark-mode .chart-wrap {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+/* ── Info/hint boxes that use light bg ── */
+body.dark-mode .info-box,
+body.dark-mode .hint-box,
+body.dark-mode .note-box,
+body.dark-mode .tip-box {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #94a3b8 !important;
+}
+
+/* ── Links inside dark mode main ── */
+body.dark-mode .main a:not(.btn):not(.nav-item):not(.btn-sm):not([class*="badge"]) {
+  color: #93c5fd !important;
+}
+
+/* ── Inline border shorthand patterns ── */
+body.dark-mode *[style*="border:1px solid #dbeafe"],
+body.dark-mode *[style*="border: 1px solid #dbeafe"],
+body.dark-mode *[style*="border:1px solid #e2e8f0"],
+body.dark-mode *[style*="border: 1px solid #e2e8f0"],
+body.dark-mode *[style*="border:1.5px solid #dbeafe"],
+body.dark-mode *[style*="border:1.5px solid #e2e8f0"],
+body.dark-mode *[style*="border:2px solid #dbeafe"] {
+  border-color: #30363d !important;
+}
+
+/* ── Code blocks ── */
+body.dark-mode code {
+  background: #1c2128 !important;
+  color: #93c5fd !important;
+}
+
+/* ══════════════════════════════════════════════════════
+   DARK MODE: COMPREHENSIVE TEMPLATE CLASS OVERRIDES
+   ══════════════════════════════════════════════════════ */
+
+/* ── Topbar (white surface used by most templates) ── */
+body.dark-mode .topbar { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .topbar * { color: var(--text) !important; }
+body.dark-mode .topbar h1,
+body.dark-mode .topbar h2,
+body.dark-mode .topbar .sub,
+body.dark-mode .topbar-heading h1 { color: #cdd9e5 !important; }
+body.dark-mode .topbar .sub,
+body.dark-mode .topbar-heading .sub { color: #768390 !important; }
+body.dark-mode .tab-btn { color: #768390 !important; background: none !important; border-color: transparent !important; }
+body.dark-mode .tab-btn:hover { color: #cdd9e5 !important; background: #1c2128 !important; }
+body.dark-mode .tab-btn.active { color: #4d9de0 !important; border-bottom-color: #4d9de0 !important; background: none !important; }
+
+/* ── Department tabs ── */
+body.dark-mode .dept-tabs { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .dept-tab { background: #161b22 !important; color: #768390 !important; border-color: #30363d !important; }
+body.dark-mode .dept-tab.active { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+
+/* ── Flash / alert messages (all naming variants) ── */
+body.dark-mode .flash-green,
+body.dark-mode .alert-success,
+body.dark-mode .success { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .flash-red,
+body.dark-mode .alert-danger,
+body.dark-mode .error,
+body.dark-mode .error-box { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .alert { background: #161b22 !important; border-color: #30363d !important; color: var(--text) !important; }
+body.dark-mode .notice,
+body.dark-mode .notice-box,
+body.dark-mode .info-note,
+body.dark-mode .billable-note { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+
+/* ── Light action buttons ── */
+body.dark-mode .btn-edit,
+body.dark-mode .btn-edit-shift,
+body.dark-mode .btn-lb,
+body.dark-mode .btn-view,
+body.dark-mode .btn-select-all,
+body.dark-mode .btn-icon,
+body.dark-mode .btn-icon-email,
+body.dark-mode .hbtn { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .btn-del,
+body.dark-mode .btn-del-shift,
+body.dark-mode .btn-reject,
+body.dark-mode .btn-resign,
+body.dark-mode .btn-decline { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .btn-approve,
+body.dark-mode .btn-accept { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
+body.dark-mode .btn-cancel,
+body.dark-mode .btn-cancel-sm,
+body.dark-mode .btn-clear-filter,
+body.dark-mode .btn-light,
+body.dark-mode .back-btn,
+body.dark-mode .back-link { background: #1c2128 !important; color: #94a3b8 !important; border-color: #30363d !important; }
+body.dark-mode .btn-indigo,
+body.dark-mode .btn-respond,
+body.dark-mode .btn-card { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
+body.dark-mode .btn-export,
+body.dark-mode .btn-download,
+body.dark-mode .btn-dl-qr,
+body.dark-mode .btn-lb-download,
+body.dark-mode .btn-print,
+body.dark-mode .btn-email-all,
+body.dark-mode .btn-import { background: #1c2128 !important; color: #94a3b8 !important; border-color: #30363d !important; }
+
+/* ── tbl action buttons inside tables ── */
+body.dark-mode .tbl-btn { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .tbl-btn-delete { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
+body.dark-mode .btn-sm { background: #1c2128 !important; color: #94a3b8 !important; border-color: #30363d !important; }
+
+/* ── Cards and containers ── */
+body.dark-mode .ann-card,
+body.dark-mode .ticket-card,
+body.dark-mode .ticket-row,
+body.dark-mode .req-card,
+body.dark-mode .emp-card,
+body.dark-mode .sum-card,
+body.dark-mode .detail-card,
+body.dark-mode .salary-box,
+body.dark-mode .result-box,
+body.dark-mode .balance-row,
+body.dark-mode .lb-box { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .ann-card *,
+body.dark-mode .ticket-card * { color: var(--text) !important; }
+body.dark-mode .ann-body,
+body.dark-mode .ticket-desc,
+body.dark-mode .ticket-field { color: #768390 !important; }
+body.dark-mode .ann-title,
+body.dark-mode .ticket-subject { color: #cdd9e5 !important; }
+body.dark-mode .ann-meta,
+body.dark-mode .ticket-meta,
+body.dark-mode .ticket-id,
+body.dark-mode .card-meta { color: #768390 !important; }
+
+/* ── Modals (all naming variants) ── */
+body.dark-mode .modal-bg,
+body.dark-mode .modal-overlay { background: rgba(0,0,0,0.75) !important; }
+body.dark-mode .modal,
+body.dark-mode .modal-box,
+body.dark-mode .modal-body,
+body.dark-mode .modal-content,
+body.dark-mode .edit-modal-box,
+body.dark-mode .qr-modal-box,
+body.dark-mode .lb-box,
+body.dark-mode .lightbox-box { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .modal *,
+body.dark-mode .modal-box *,
+body.dark-mode .edit-modal-box * { color: var(--text) !important; }
+body.dark-mode .modal-title,
+body.dark-mode .qr-modal-title,
+body.dark-mode .lightbox-name { color: #cdd9e5 !important; }
+body.dark-mode .modal-actions { border-color: #30363d !important; }
+
+/* ── Section headers and titles ── */
+body.dark-mode .section-header { border-color: #30363d !important; }
+body.dark-mode .section-title,
+body.dark-mode .card-title,
+body.dark-mode .card-top,
+body.dark-mode .page-title,
+body.dark-mode .app-title,
+body.dark-mode .app-header { color: #cdd9e5 !important; }
+
+/* ── Employee grid cards ── */
+body.dark-mode .emp-card { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .emp-name { color: #cdd9e5 !important; }
+body.dark-mode .emp-role,
+body.dark-mode .emp-id,
+body.dark-mode .emp-email,
+body.dark-mode .emp-meta { color: #768390 !important; }
+body.dark-mode .emp-id-tag { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .emp-counter,
+body.dark-mode .emp-count { background: #1c2128 !important; border-color: #30363d !important; color: var(--text) !important; }
+
+/* ── Avatar placeholders ── */
+body.dark-mode .avatar-ph,
+body.dark-mode .photo-placeholder,
+body.dark-mode .scanner-placeholder,
+body.dark-mode .lightbox-placeholder { background: #1c2128 !important; border-color: #30363d !important; color: #768390 !important; }
+
+/* ── Photo / QR cards ── */
+body.dark-mode .photo-card { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .photo-wrap,
+body.dark-mode .qr-img-wrap { background: #1c2128 !important; border-color: #30363d !important; }
+body.dark-mode .photo-upload-box { background: #0d1117 !important; border-color: #4d9de0 !important; color: #768390 !important; }
+
+/* ── Salary rows ── */
+body.dark-mode .salary-row { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .salary-row-revised { background: #1c2128 !important; border-color: #30363d !important; }
+body.dark-mode .salary-val,
+body.dark-mode .salary-yr-exact { color: #cdd9e5 !important; }
+body.dark-mode .amt-gross,
+body.dark-mode .amt-net,
+body.dark-mode .amt-late { color: #cdd9e5 !important; }
+body.dark-mode .no-salary { background: #1c2128 !important; color: #768390 !important; }
+
+/* ── Leave pills and chips ── */
+body.dark-mode .leave-pill { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .leave-pill.used { background: #7f1d1d !important; color: #fca5a5 !important; }
+
+/* ── Progress bars ── */
+body.dark-mode .pbar-wrap { background: #1c2128 !important; border-color: #30363d !important; }
+body.dark-mode .pbar { background: #4d9de0 !important; }
+body.dark-mode .pbar-medium { background: #fbbf24 !important; }
+
+/* ── Shift-specific ── */
+body.dark-mode .shift-item { background: #0d1117 !important; border-color: #30363d !important; }
+body.dark-mode .shift-item.default-shift { background: #14532d !important; border-color: #166534 !important; }
+body.dark-mode .shift-name { color: #60a5fa !important; }
+body.dark-mode .shift-time { color: #768390 !important; }
+body.dark-mode .bulk-select-shift,
+body.dark-mode .shift-select { background: #0d1117 !important; color: var(--text) !important; border-color: #30363d !important; }
+
+/* ── Break-config specific ── */
+body.dark-mode .break-item { background: #0d1117 !important; border-color: #30363d !important; }
+body.dark-mode .break-name { color: #cdd9e5 !important; }
+body.dark-mode .break-badge { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .break-meta { color: #768390 !important; }
+
+/* ── Announcement cards ── */
+body.dark-mode .ann-icon { background: #1e3a8a !important; }
+
+/* ── Holiday badges ── */
+body.dark-mode .hbadge { background: #713f12 !important; color: #fbbf24 !important; border-color: #854d0e !important; }
+body.dark-mode .badge-holiday { background: #713f12 !important; color: #fbbf24 !important; }
+
+/* ── Resignation ── */
+body.dark-mode .rs-row { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .rs-lbl { color: #768390 !important; }
+body.dark-mode .status-resigned { background: #7f1d1d !important; color: #fca5a5 !important; }
+
+/* ── Edit form (edit_employee) ── */
+body.dark-mode .edit-form { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .ef-lbl { color: #768390 !important; }
+body.dark-mode .ef-hint { color: #768390 !important; }
+body.dark-mode .ef-inp { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
+body.dark-mode .ef-row { border-color: #30363d !important; }
+
+/* ── Ticket raise form ── */
+body.dark-mode .ticket-raise-form,
+body.dark-mode .ticket-form-grid { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .ticket-textarea,
+body.dark-mode .respond-textarea { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
+body.dark-mode .respond-select { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
+body.dark-mode .ticket-full { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .ticket-history-label { color: #768390 !important; }
+body.dark-mode .ticket-row-header { background: #1c2128 !important; border-color: #30363d !important; }
+body.dark-mode .ticket-top { border-color: #30363d !important; }
+
+/* ── Existing response box ── */
+body.dark-mode .existing-response { background: #1c2128 !important; border-color: #30363d !important; }
+
+/* ── Onboarding cards ── */
+body.dark-mode .step-badge { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .phase-label { color: #768390 !important; }
+
+/* ── Performance review ── */
+body.dark-mode .pbar-wrap { background: #1c2128 !important; }
+
+/* ── QR code cards ── */
+body.dark-mode .qr-modal-box { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Search bars ── */
+body.dark-mode .search-box,
+body.dark-mode .search-wrap input { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
+body.dark-mode .filter-select,
+body.dark-mode .filter-label { background: #0d1117 !important; border-color: #30363d !important; color: var(--text) !important; }
+
+/* ── Document cards ── */
+body.dark-mode .doc-card,
+body.dark-mode .paper { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Offer letter paper ── */
+body.dark-mode .paper { background: #161b22 !important; color: var(--text) !important; }
+body.dark-mode .paper .co-name { color: #60a5fa !important; }
+body.dark-mode .paper .sig-line { border-color: #30363d !important; }
+
+/* ── Calendar (leave calendar) ── */
+body.dark-mode .cal-header { background: #1e3a8a !important; color: #fff !important; }
+body.dark-mode .cal-headers { background: #1c2128 !important; color: #768390 !important; }
+body.dark-mode .cal-month-panel { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .cal-day.empty-cell { background: #0d1117 !important; }
+body.dark-mode .mnav-btn,
+body.dark-mode .hol-mnav-btn { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+body.dark-mode .mnav-label,
+body.dark-mode .hol-mnav-label { color: #cdd9e5 !important; }
+body.dark-mode .year-nav a { background: #1e3a8a !important; color: #93c5fd !important; }
+
+/* ── Payslip / salary portal ── */
+body.dark-mode .payslip-grid { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .payslip-hint { color: #768390 !important; }
+body.dark-mode .ctc-table tr { background: #161b22 !important; }
+body.dark-mode .ctc-table td { color: var(--text) !important; border-color: #30363d !important; }
+body.dark-mode .salary-stack { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Empty states ── */
+body.dark-mode .empty,
+body.dark-mode .empty-state,
+body.dark-mode .leave-empty,
+body.dark-mode .ticket-empty,
+body.dark-mode .empty-row { color: #768390 !important; }
+body.dark-mode .empty-icon { color: #30363d !important; }
+
+/* ── Pagination ── */
+body.dark-mode .pagination-bar { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .btn-page { background: #0d1117 !important; border-color: #30363d !important; color: #768390 !important; }
+body.dark-mode .btn-page.active { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1d4ed8 !important; }
+
+/* ── Status badges ── */
+body.dark-mode .status-badge { background: #1c2128 !important; color: var(--text) !important; border-color: #30363d !important; }
+body.dark-mode .badge-role { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #6d28d9 !important; }
+body.dark-mode .badge-yellow { background: #713f12 !important; color: #fde047 !important; }
+body.dark-mode .badge-blue { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .b-accepted,
+body.dark-mode .sb-accepted { background: #14532d !important; color: #86efac !important; }
+body.dark-mode .b-declined,
+body.dark-mode .sb-declined { background: #7f1d1d !important; color: #fca5a5 !important; }
+body.dark-mode .sb-approved { background: #14532d !important; color: #86efac !important; }
+body.dark-mode .sb-rejected { background: #7f1d1d !important; color: #fca5a5 !important; }
+body.dark-mode .sb-resolved { background: #1e3a8a !important; color: #93c5fd !important; }
+body.dark-mode .revised-badge,
+body.dark-mode .rev-badge { background: #713f12 !important; color: #fbbf24 !important; border-color: #854d0e !important; }
+
+/* ── Stat cards (all templates) ── */
+body.dark-mode .stat-card { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .stat-num,
+body.dark-mode .stat-num-sm,
+body.dark-mode .stat-val { color: #cdd9e5 !important; }
+body.dark-mode .stat-lbl,
+body.dark-mode .stat-label { color: #768390 !important; }
+body.dark-mode .stat-icon,
+body.dark-mode .si-orange { background: #7c2d12 !important; }
+
+/* ── Admin payslip table ── */
+body.dark-mode .att-table tr { background: #161b22 !important; }
+body.dark-mode .att-table td { border-color: #30363d !important; color: var(--text) !important; }
+
+/* ── Profile page ── */
+body.dark-mode .profile-avatar { border-color: #30363d !important; }
+body.dark-mode .profile-name { color: #cdd9e5 !important; }
+body.dark-mode .profile-rows { border-color: #30363d !important; }
+body.dark-mode .info-label { color: #768390 !important; }
+body.dark-mode .info-value { color: #cdd9e5 !important; }
+body.dark-mode .info-row { border-color: #30363d !important; }
+
+/* ── Today attendance (live view) ── */
+body.dark-mode .app-content { background: #0d1117 !important; }
+body.dark-mode .app-header { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .scanner-wrap,
+body.dark-mode .scanner-box { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .location-box { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .location-box-title { color: #768390 !important; }
+body.dark-mode .clock-block,
+body.dark-mode .live-time,
+body.dark-mode .live-date { color: #cdd9e5 !important; }
+
+/* ── Result/summary row boxes ── */
+body.dark-mode .result-row { border-color: #30363d !important; }
+body.dark-mode .rs-row { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Compoff ── */
+body.dark-mode .confirm-group,
+body.dark-mode .confirm-label { color: #768390 !important; }
+
+/* ── Overtime ── */
+body.dark-mode .time-item { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .time-lbl { color: #768390 !important; }
+body.dark-mode .time-val { color: #cdd9e5 !important; }
+
+/* ── Email config ── */
+body.dark-mode .test-row { border-color: #30363d !important; }
+body.dark-mode .no-email { background: #1c2128 !important; border-color: #30363d !important; color: #768390 !important; }
+
+/* ── Setup wizard ── */
+body.dark-mode .step-badge { background: #1e3a8a !important; color: #93c5fd !important; }
+
+/* ── Inline important color text overrides ── */
+body.dark-mode *[style*="color:#1e40af"],
+body.dark-mode *[style*="color: #1e40af"] { color: #60a5fa !important; }
+body.dark-mode *[style*="color:#15803d"],
+body.dark-mode *[style*="color: #15803d"] { color: #4ade80 !important; }
+body.dark-mode *[style*="color:#7c3aed"],
+body.dark-mode *[style*="color: #7c3aed"] { color: #a78bfa !important; }
+body.dark-mode *[style*="color:#854d0e"],
+body.dark-mode *[style*="color: #854d0e"] { color: #fbbf24 !important; }
+body.dark-mode *[style*="color:#c2410c"],
+body.dark-mode *[style*="color: #c2410c"] { color: #fb923c !important; }
+body.dark-mode *[style*="color:#be123c"],
+body.dark-mode *[style*="color: #be123c"] { color: #f87171 !important; }
+body.dark-mode *[style*="color:#dc2626"],
+body.dark-mode *[style*="color: #dc2626"] { color: #f87171 !important; }
+body.dark-mode *[style*="color:#16a34a"],
+body.dark-mode *[style*="color: #16a34a"] { color: #4ade80 !important; }
+
+/* ── More inline bg overrides (extended palette) ── */
+body.dark-mode div[style*="background:#faf5ff"],
+body.dark-mode div[style*="background: #faf5ff"],
+body.dark-mode div[style*="background:#fefce8"],
+body.dark-mode div[style*="background: #fefce8"],
+body.dark-mode div[style*="background:#fff1f2"],
+body.dark-mode div[style*="background: #fff1f2"],
+body.dark-mode div[style*="background:#f0fdf4"],
+body.dark-mode div[style*="background: #f0fdf4"],
+body.dark-mode div[style*="background:#fef2f2"],
+body.dark-mode div[style*="background: #fef2f2"],
+body.dark-mode div[style*="background:#f0f4ff"],
+body.dark-mode div[style*="background: #f0f4ff"],
+body.dark-mode div[style*="background:#f5f3ff"],
+body.dark-mode div[style*="background: #f5f3ff"] { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── More inline border shorthand overrides ── */
+body.dark-mode *[style*="border:1px solid #86efac"],
+body.dark-mode *[style*="border: 1px solid #86efac"],
+body.dark-mode *[style*="border:1px solid #d8b4fe"],
+body.dark-mode *[style*="border: 1px solid #d8b4fe"],
+body.dark-mode *[style*="border:1px solid #fde047"],
+body.dark-mode *[style*="border:1px solid #bae6fd"],
+body.dark-mode *[style*="border: 1px solid #bae6fd"],
+body.dark-mode *[style*="border:1px solid #fca5a5"],
+body.dark-mode *[style*="border: 1px solid #fca5a5"],
+body.dark-mode *[style*="border:1px solid #fed7aa"],
+body.dark-mode *[style*="border: 1px solid #fed7aa"],
+body.dark-mode *[style*="border:1px solid #fda4af"],
+body.dark-mode *[style*="border:1px solid #c7d2fe"],
+body.dark-mode *[style*="border: 1px solid #c7d2fe"] { border-color: #30363d !important; }
