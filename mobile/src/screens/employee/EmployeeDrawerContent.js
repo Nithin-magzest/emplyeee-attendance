@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerContentScrollView } from "@react-navigation/drawer";
-
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { employeeLogout } from "../../api/client";
 import { useAuth } from "../../store/AuthContext";
 
@@ -17,7 +17,31 @@ export default function EmployeeDrawerContent(props) {
   const { navigation, state } = props;
   const { signOut } = useAuth();
 
-  const activeRoute = state.routeNames[state.index];
+  
+
+const drawerRoute = state.routes[state.index];
+
+let activeRoute =
+  getFocusedRouteNameFromRoute(drawerRoute) ??
+  drawerRoute.name;
+
+// HomeStack nested screens
+if (
+  drawerRoute.state &&
+  drawerRoute.state.routes
+) {
+  const homeRoute =
+    drawerRoute.state.routes[drawerRoute.state.index];
+
+  if (homeRoute.state) {
+    activeRoute =
+      homeRoute.state.routes[
+        homeRoute.state.index
+      ].name;
+  } else {
+    activeRoute = homeRoute.name;
+  }
+}
 
   const handleLogout = async () => {
     try {
@@ -28,62 +52,66 @@ export default function EmployeeDrawerContent(props) {
   };
 
   const menuItems = [
-    {
-      title: "Dashboard",
-      icon: "grid-outline",
-      route: "Home",
-      section: "MAIN",
-    },
-    {
-      title: "Attendance",
-      icon: "time-outline",
-      route: "Attendance",
-      section: "MAIN",
-    },
-    {
-      title: "Leave",
-      icon: "calendar-outline",
-      route: "Leave",
-      section: "MAIN",
-    },
-    {
-      title: "Payslips",
-      icon: "wallet-outline",
-      route: "Payslips",
-      section: "MAIN",
-    },
-    {
-      title: "Tickets",
-      icon: "chatbubble-ellipses-outline",
-      route: "Tickets",
-      section: "WORK",
-    },
-    {
-      title: "Announcements",
-      icon: "megaphone-outline",
-      route: "Announcements",
-      section: "WORK",
-    },
-    {
-      title: "Holidays",
-      icon: "gift-outline",
-      route: "Holidays",
-      section: "WORK",
-    },
-    {
-      title: "My Profile",
-      icon: "person-circle-outline",
-      route: "Profile",
-      section: "ACCOUNT",
-    },
-    {
-      title: "Settings",
-      icon: "settings-outline",
-      route: "Settings",
-      section: "ACCOUNT",
-    },
-  ];
+  // MAIN
+  {
+    title: "Dashboard",
+    icon: "grid-outline",
+    route: "Home",
+    section: "MAIN",
+  },
+  {
+    title: "Attendance",
+    icon: "calendar-outline",
+    route: "Attendance",
+    section: "MAIN",
+  },
+  {
+    title: "Apply Leave",
+    icon: "document-text-outline",
+    route: "Leave",
+    section: "MAIN",
+  },
+  {
+    title: "Earnings",
+    icon: "wallet-outline",
+    route: "Payslips",
+    section: "MAIN",
+  },
 
+  // ACCOUNT
+  {
+    title: "Holidays",
+    icon: "calendar-clear-outline",
+    route: "Holidays",
+    section: "ACCOUNT",
+  },
+  {
+    title: "Comp-off / OT",
+    icon: "time-outline",
+    route: "CompOff",
+    section: "ACCOUNT",
+  },
+  {
+    title: "My Performance",
+    icon: "trending-up-outline",
+    route: "Performance",
+    section: "ACCOUNT",
+  },
+  {
+    title: "My Onboarding",
+    icon: "briefcase-outline",
+    route: "Onboarding",
+    section: "ACCOUNT",
+  },
+
+  // DANGER
+  {
+    title: "Resignation",
+    icon: "warning-outline",
+    route: "Resignation",
+    section: "DANGER",
+  },
+];
   const renderMenuItem = (item) => {
     const active = activeRoute === item.route;
 
@@ -96,16 +124,49 @@ export default function EmployeeDrawerContent(props) {
           active && styles.activeMenuItem,
         ]}
         onPress={() => {
-          /**
-           * Navigation will be connected
-           * after all screens are created.
-           */
-          if (
-            state.routeNames.includes(item.route)
-          ) {
-            navigation.navigate(item.route);
-          }
-        }}
+  switch (item.route) {
+    case "Home":
+      navigation.navigate("EmployeeTabs", {
+        screen: "Home",
+        params: {
+          screen: "Dashboard",
+        },
+      });
+      break;
+
+    case "Attendance":
+      navigation.navigate("EmployeeTabs", {
+        screen: "Home",
+        params: {
+          screen: "Attendance",
+        },
+      });
+      break;
+
+    case "Leave":
+      navigation.navigate("EmployeeTabs", {
+        screen: "Leave",
+      });
+      break;
+
+    case "Tickets":
+      navigation.navigate("EmployeeTabs", {
+        screen: "Tickets",
+      });
+      break;
+
+    case "Notifications":
+      navigation.navigate("EmployeeTabs", {
+        screen: "Notifications",
+      });
+      break;
+
+    default:
+      navigation.navigate(item.route);
+  }
+
+  navigation.closeDrawer();
+}}
       >
         <Ionicons
           name={item.icon}
@@ -203,44 +264,37 @@ export default function EmployeeDrawerContent(props) {
 
         <View style={styles.divider} />
 
-        {renderSection(
-          "MAIN",
-          "MAIN"
-        )}
+        {renderSection("MAIN", "MAIN")}
 
-        {renderSection(
-          "WORK",
-          "WORK"
-        )}
+{renderSection("ACCOUNT", "ACCOUNT")}
 
-        {renderSection(
-          "ACCOUNT",
-          "ACCOUNT"
-        )}
+{renderSection("OTHER", "DANGER")}
 
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={22}
-            color="#EF4444"
-          />
-
-          <Text
-            style={styles.logoutText}
-          >
-            Logout
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={styles.version}>
-          Version 1.0.0
-        </Text>
       </DrawerContentScrollView>
+      <View style={styles.bottomContainer}>
+
+    <TouchableOpacity
+      style={styles.logoutButton}
+      onPress={handleLogout}
+    >
+      <Ionicons
+        name="log-out-outline"
+        size={22}
+        color="#EF4444"
+      />
+
+      <Text style={styles.logoutText}>
+        Logout
+      </Text>
+
+    </TouchableOpacity>
+
+    <Text style={styles.version}>
+      Version 1.0.0
+    </Text>
+
+  </View>
+
     </SafeAreaView>
   );
 }
@@ -252,21 +306,21 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 10,
   },
 
   header: {
     alignItems: "center",
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 8,
+    paddingBottom: 12,
     paddingHorizontal: 24,
     backgroundColor: "#FFFFFF",
   },
 
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 64,
+    height: 64,
+    borderRadius: 36,
     backgroundColor: "#EEF4FF",
     justifyContent: "center",
     alignItems: "center",
@@ -281,6 +335,12 @@ const styles = StyleSheet.create({
     },
     elevation: 4,
   },
+  bottomContainer: {
+  paddingHorizontal: 20,
+  paddingTop: 8,
+  paddingBottom: 18,
+  backgroundColor: "#F7F9FC",
+},
 
   onlineDot: {
     position: "absolute",
@@ -299,7 +359,7 @@ const styles = StyleSheet.create({
 
   name: {
     marginTop: 16,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
   },
@@ -310,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF4FF",
 
     paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingVertical: 5,
 
     borderRadius: 30,
   },
@@ -331,19 +391,19 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "#EEF2F7",
-    marginVertical: 22,
+    marginVertical: 12,
     marginHorizontal: 20,
   },
 
   section: {
-    marginBottom: 18,
-    paddingHorizontal: 18,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
 
   sectionTitle: {
-    marginBottom: 12,
+    marginBottom: 6,
 
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
 
     color: "#94A3B8",
@@ -354,13 +414,13 @@ const styles = StyleSheet.create({
   },
 
   menuItem: {
-    height: 56,
+    height: 46,
 
-    borderRadius: 18,
+    borderRadius: 14,
 
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
 
-    marginBottom: 10,
+    marginBottom: 6,
 
     backgroundColor: "#FFFFFF",
 
@@ -369,19 +429,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowOpacity: 0.02,
+    shadowRadius: 5,
     shadowOffset: {
       width: 0,
       height: 3,
     },
 
-    elevation: 2,
+    elevation: 1,
   },
 
   activeMenuItem: {
     backgroundColor: "#173B8C",
-  },
+    borderLeftWidth: 4,
+    borderLeftColor: "#22C55E",
+},
 
   menuText: {
     flex: 1,

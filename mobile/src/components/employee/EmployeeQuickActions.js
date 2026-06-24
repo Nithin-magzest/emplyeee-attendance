@@ -51,14 +51,7 @@ const ACTIONS = [
     bg: "#F0F9FF",
     screen: "Profile",
   },
-  {
-    title: "Password",
-    subtitle: "Change Password",
-    icon: "key-outline",
-    color: "#0891B2",
-    bg: "#ECFEFF",
-    screen: "ChangePin",
-  },
+  
 ];
 
 export default function EmployeeQuickActions({ navigation }) {

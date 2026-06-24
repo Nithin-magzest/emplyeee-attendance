@@ -23,41 +23,39 @@ export default function EmployeeNavigator() {
 
       tabBarStyle: {
   position: "absolute",
-
-  left: 24,
-  right: 24,
-  bottom: 24,
-
-  height: 78,
-
-  borderRadius: 28,
-
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: 72,
   backgroundColor: "#173B8C",
-
   borderTopWidth: 0,
-
-  elevation: 25,
-
+  borderTopLeftRadius: 26,
+  borderTopRightRadius: 26,
+  elevation: 15,
   shadowColor: "#000",
-  shadowOpacity: 0.18,
-  shadowRadius: 24,
+  shadowOpacity: 0.12,
+  shadowRadius: 20,
   shadowOffset: {
     width: 0,
-    height: 12,
+    height: -3,
   },
-
-  paddingBottom: 10,
-  paddingTop: 10,
+  paddingTop: 8,
+  paddingBottom: 8,
+},
+tabBarLabelStyle: {
+  fontSize: 11,
+  fontWeight: "600",
+  marginTop: -2,
 },
 
-       tabBarLabelStyle: {
+tabBarLabelStyle: {
   fontSize: 10,
-  fontWeight: "700",
-  marginTop: 3,
+  fontWeight: "600",
+  marginTop: 2,
 },
 
         tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(255,255,255,0.55)",
+        tabBarInactiveTintColor: "rgba(255,255,255,0.72)",
 
         tabBarIcon: ({ focused, color, size }) => {
           if (route.name === "Home") {
@@ -74,7 +72,7 @@ export default function EmployeeNavigator() {
             return (
               <Ionicons
                 name={focused ? "document-text" : "document-text-outline"}
-                size={24}
+                size={22}
                 color={color}
               />
             );
@@ -94,7 +92,7 @@ export default function EmployeeNavigator() {
             return (
               <Ionicons
                 name={focused ? "ticket" : "ticket-outline"}
-                size={24}
+                size={22}
                 color={color}
               />
             );
@@ -107,7 +105,7 @@ export default function EmployeeNavigator() {
                   ? "notifications"
                   : "notifications-outline"
               }
-              size={24}
+              size={22}
               color={color}
             />
           );
@@ -134,10 +132,10 @@ export default function EmployeeNavigator() {
         name="Scan"
         component={AttendanceScreen}
         options={{
-          tabBarLabel: "Scan",
+          tabBarLabel: "",
 
           tabBarItemStyle: {
-            top: -18,
+            top: 3,
           },
 
           tabBarIcon: () => (
@@ -152,7 +150,7 @@ export default function EmployeeNavigator() {
     justifyContent: "center",
     alignItems: "center",
 
-    borderWidth: 5,
+    borderWidth: 3,
     borderColor: "#FFFFFF",
 
     shadowColor: "#22C55E",
@@ -162,35 +160,52 @@ export default function EmployeeNavigator() {
       width: 0,
       height: 8,
     },
-    elevation: 16,
+    elevation: 18,
   }}
 >
   <Ionicons
-      name="qr-code"
-      size={30}
-      color="#FFFFFF"
+    name="qr-code"
+    size={30}
+    color="#FFFFFF"
   />
 </View>
-          ),
+         ),
 
-          tabBarIconStyle: {
-            backgroundColor: "#22C55E",
-            width: 64,
-            height: 64,
-            borderRadius: 32,
+          
+          tabBarStyle: {
+  position: "absolute",
 
-            justifyContent: "center",
-            alignItems: "center",
+  left: 0,
+  right: 0,
+  bottom: 0,
 
-            shadowColor: "#22C55E",
-            shadowOpacity: 0.35,
-            shadowRadius: 12,
-            shadowOffset: {
-              width: 0,
-              height: 6,
-            },
-            elevation: 10,
-          },
+  height: 72,
+
+  backgroundColor: "#173B8C",
+
+  borderTopWidth: 0,
+
+  borderTopLeftRadius: 26,
+  borderTopRightRadius: 26,
+
+  elevation: 15,
+
+  shadowColor: "#000",
+  shadowOpacity: 0.12,
+  shadowRadius: 20,
+  shadowOffset: {
+    width: 0,
+    height: -3,
+  },
+
+  paddingTop: 8,
+  paddingBottom: 8,
+},
+tabBarLabelStyle: {
+  fontSize: 11,
+  fontWeight: "600",
+  marginTop: -2,
+}
         }}
       />
 
