@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Tools — {{ co.company_name }}</title>
   <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#f0f4ff;min-height:100vh;display:flex}
@@ -127,6 +128,73 @@
       .sidebar{display:none}
       .filter-bar{flex-direction:column}
     }
+
+    /* ── Dark mode overrides ── */
+    body.dark-mode { background:#0d1117 !important; }
+    body.dark-mode .main { background:#0d1117 !important; }
+
+    /* Topbar */
+    body.dark-mode .topbar { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .topbar-heading h1 { color:#e2e8f0 !important; }
+    body.dark-mode .topbar-heading .sub { color:#64748b !important; }
+
+    /* Tabs */
+    body.dark-mode .tabs { border-color:#30363d !important; }
+    body.dark-mode .tab-btn { color:#94a3b8 !important; background:transparent !important; }
+    body.dark-mode .tab-btn:hover { color:#e2e8f0 !important; background:#1a1a1a !important; }
+    body.dark-mode .tab-btn.active { color:#93c5fd !important; border-bottom-color:#3b82f6 !important; }
+
+    /* Org chart controls */
+    body.dark-mode .org-controls { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .search-box { background:#0d1117 !important; border-color:#30363d !important; color:#e2e8f0 !important; }
+    body.dark-mode .dept-select { background:#0d1117 !important; border-color:#30363d !important; color:#e2e8f0 !important; }
+    body.dark-mode .btn { background:#161b22 !important; border-color:#30363d !important; color:#94a3b8 !important; }
+    body.dark-mode .btn:hover { background:#1a1a1a !important; color:#e2e8f0 !important; border-color:#3b82f6 !important; }
+    body.dark-mode .stat-chip { background:#1e3a8a !important; border-color:#1d4ed8 !important; color:#93c5fd !important; }
+
+    /* Org node cards */
+    body.dark-mode .node-card { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .node:hover .node-card { border-color:#6366f1 !important; }
+    body.dark-mode .node.root-node .node-card { background:#1e1b4b !important; border-color:#6366f1 !important; }
+    body.dark-mode .node-name { color:#e2e8f0 !important; }
+    body.dark-mode .node-role { color:#94a3b8 !important; }
+    body.dark-mode .node-dept { background:#1e3a8a !important; border-color:#1d4ed8 !important; color:#93c5fd !important; }
+    body.dark-mode .node-id { color:#64748b !important; }
+    body.dark-mode .reports-badge { border-color:#111 !important; }
+    body.dark-mode #viewport { background:#0a0a0a !important; }
+    body.dark-mode .loading-overlay { background:rgba(0,0,0,0.85) !important; }
+    body.dark-mode .org-legend { background:#161b22 !important; border-color:#30363d !important; color:#94a3b8 !important; }
+    body.dark-mode .conn-line { stroke:#2a2a2a !important; }
+
+    /* Audit logs */
+    body.dark-mode .audit-wrap { background:#0d1117 !important; }
+    body.dark-mode .stat-card { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .stat-val { color:#e2e8f0 !important; }
+    body.dark-mode .stat-lbl { color:#94a3b8 !important; }
+    body.dark-mode .si-blue { background:#1e3a8a !important; }
+    body.dark-mode .si-green { background:#14532d !important; }
+    body.dark-mode .si-purple { background:#4c1d95 !important; }
+    body.dark-mode .filter-bar { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .filter-bar label { color:#94a3b8 !important; }
+    body.dark-mode .filter-bar input, body.dark-mode .filter-bar select { background:#0d1117 !important; border-color:#30363d !important; color:#e2e8f0 !important; }
+    body.dark-mode .btn-clear { background:#7f1d1d !important; border-color:#991b1b !important; color:#fca5a5 !important; }
+    body.dark-mode .table-wrap { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .table-header { border-color:#30363d !important; }
+    body.dark-mode .table-header h3 { color:#e2e8f0 !important; }
+    body.dark-mode .table-count { background:#1a1a1a !important; color:#94a3b8 !important; }
+    body.dark-mode thead tr { background:#1e3a8a !important; border-color:#30363d !important; }
+    body.dark-mode th { color:#fff !important; }
+    body.dark-mode td { border-color:#30363d !important; color:#e2e8f0 !important; }
+    body.dark-mode tr:hover td { background:#0f1f3d !important; }
+    body.dark-mode .ts-txt { color:#e2e8f0 !important; }
+    body.dark-mode .action-pill { background:#1e3a8a !important; border-color:#1d4ed8 !important; color:#93c5fd !important; }
+    body.dark-mode .b-actor-admin { background:#4c1d95 !important; color:#c4b5fd !important; }
+    body.dark-mode .b-actor-emp { background:#14532d !important; color:#86efac !important; }
+    body.dark-mode .detail-txt { color:#94a3b8 !important; }
+    body.dark-mode .ip-txt { background:#1a1a1a !important; color:#64748b !important; }
+    body.dark-mode .pg-btn { background:#161b22 !important; border-color:#30363d !important; color:#93c5fd !important; }
+    body.dark-mode .pg-btn:hover { background:#1a1a1a !important; }
+    body.dark-mode .pg-btn.active { background:#1e3a8a !important; border-color:#1e3a8a !important; color:#fff !important; }
   </style>
 </head>
 <body>

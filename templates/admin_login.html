@@ -9,7 +9,7 @@
 
       body {
         min-height: 100vh;
-        background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%);
+        background: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 50%, #fce7f3 100%);
         display: flex; align-items: center; justify-content: center;
         padding: 24px;
         position: relative; overflow: hidden;
@@ -18,22 +18,33 @@
       body::before {
         content: '';
         position: fixed; inset: 0; pointer-events: none;
-        background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-        background-size: 32px 32px;
+        background-image: radial-gradient(circle, rgba(99,102,241,0.06) 1px, transparent 1px);
+        background-size: 28px 28px;
+      }
+
+      .orb {
+        position: fixed; border-radius: 50%; filter: blur(80px);
+        opacity: 0.35; pointer-events: none; animation: float 8s ease-in-out infinite;
+      }
+      .orb1 { width: 500px; height: 500px; background: radial-gradient(circle, #93c5fd, #a5b4fc); top: -150px; left: -150px; animation-delay: 0s; }
+      .orb2 { width: 400px; height: 400px; background: radial-gradient(circle, #c4b5fd, #f9a8d4); bottom: -100px; right: -100px; animation-delay: -3s; }
+      .orb3 { width: 300px; height: 300px; background: radial-gradient(circle, #7dd3fc, #86efac); bottom: 100px; left: 30%; animation-delay: -5s; }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0px) scale(1); }
+        50% { transform: translateY(-30px) scale(1.05); }
       }
 
       .card {
         width: 100%; max-width: 420px;
-        background: rgba(255,255,255,0.06);
-        -webkit-backdrop-filter: blur(20px);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.75);
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(255,255,255,0.9);
         border-radius: 28px;
         padding: 44px 40px 36px;
         position: relative; z-index: 1;
-        box-shadow:
-          0 32px 80px rgba(0,0,0,0.4),
-          0 0 0 1px rgba(255,255,255,0.05) inset;
+        box-shadow: 0 20px 60px rgba(99,102,241,0.15), 0 4px 20px rgba(0,0,0,0.06);
       }
 
       .logo {
@@ -51,11 +62,11 @@
       }
       .logo h1 {
         font-size: 24px; font-weight: 800;
-        color: #ffffff; letter-spacing: -0.3px;
+        color: #1e293b; letter-spacing: -0.3px;
         margin-bottom: 6px;
       }
       .logo p {
-        font-size: 13px; color: rgba(255,255,255,0.5);
+        font-size: 13px; color: #64748b;
         letter-spacing: 0.3px;
       }
 
@@ -63,27 +74,27 @@
         display: block;
         font-size: 11px; font-weight: 700;
         text-transform: uppercase; letter-spacing: 0.7px;
-        color: rgba(255,255,255,0.55);
+        color: #475569;
         margin-bottom: 8px;
       }
 
       .field-input {
         width: 100%;
         padding: 14px 16px;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.15);
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
         border-radius: 12px;
-        color: #ffffff;
+        color: #1e293b;
         font-size: 15px;
         outline: none;
         transition: 0.2s;
         margin-bottom: 20px;
       }
-      .field-input::placeholder { color: rgba(255,255,255,0.3); }
+      .field-input::placeholder { color: #94a3b8; }
       .field-input:focus {
-        background: rgba(255,255,255,0.12);
-        border-color: rgba(99,102,241,0.7);
-        box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+        background: #fff;
+        border-color: #818cf8;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
       }
 
       .btn-login {
@@ -120,32 +131,48 @@
         font-size: 12px;
       }
       .links a {
-        color: rgba(255,255,255,0.4);
+        color: #94a3b8;
         text-decoration: none;
         transition: 0.2s;
       }
-      .links a:hover { color: rgba(255,255,255,0.8); }
-      .links .forgot { color: #93c5fd; }
-      .links .forgot:hover { color: #bfdbfe; }
+      .links a:hover { color: #475569; }
+      .links .forgot { color: #6366f1; }
+      .links .forgot:hover { color: #4f46e5; }
 
       .hint {
         margin-top: 24px;
         padding: 14px 16px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
-        font-size: 12px; color: rgba(255,255,255,0.35);
+        font-size: 12px; color: #64748b;
         line-height: 1.6;
       }
-      .hint strong { color: rgba(255,255,255,0.55); }
+      .hint strong { color: #475569; }
 
       @media (max-width: 480px) {
         .card { padding: 32px 24px 28px; }
       }
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .orb { opacity: 0.05 !important; }
+      body.dark-mode .card { background: rgba(22,27,34,0.92) !important; border-color: #30363d !important; }
+      body.dark-mode .logo h1,body.dark-mode .logo h2 { color: #cdd9e5 !important; }
+      body.dark-mode .logo p { color: #768390 !important; }
+      body.dark-mode label { color: #768390 !important; }
+      body.dark-mode input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode input::placeholder { color: #768390 !important; opacity: 1 !important; }
+      body.dark-mode .error { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+      body.dark-mode .hint { background: #1c2128 !important; border-color: #30363d !important; color: #768390 !important; }
+      body.dark-mode .hint strong { color: #94a3b8 !important; }
+      body.dark-mode .links .forgot { color: #4d9de0 !important; }
     </style>
     <link rel="stylesheet" href="/static/shared.css" />
   </head>
   <body>
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
     <div class="card">
       <div class="logo">
         <div class="logo-icon">🏢</div>
@@ -175,8 +202,8 @@
         <a href="/">← Back to Scanner</a>
         <a href="/admin_forgot_password" class="forgot">Forgot password?</a>
       </div>
-      <div style="text-align:center;margin-top:10px;font-size:12px;color:rgba(255,255,255,0.5);">
-        Employee? <a href="/employee_forgot_password" style="color:#93c5fd;text-decoration:none;">Reset your password</a>
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:#94a3b8;">
+        Employee? <a href="/employee_forgot_password" style="color:#6366f1;text-decoration:none;">Reset your password</a>
       </div>
 
       <div class="hint">
