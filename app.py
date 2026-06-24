@@ -1037,6 +1037,21 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN default_onboarding_template_id INT DEFAULT NULL",
         "ALTER TABLE employee_onboarding_tasks ADD COLUMN employee_note VARCHAR(500) DEFAULT NULL",
+        # Feature flags
+        "ALTER TABLE company_settings ADD COLUMN face_auth_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN geo_radius INT DEFAULT 100",
+        "ALTER TABLE company_settings ADD COLUMN qr_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN pin_enabled TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN fingerprint_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN biometric_enabled TINYINT(1) DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN notify_leave TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_payslip TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_resignation TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN notify_doc_expiry TINYINT(1) DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN session_timeout INT DEFAULT 30",
+        "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
     ]:
         try:
             cursor.execute(sql)
@@ -2464,7 +2479,7 @@ def admin_action():
 @app.route("/settings")
 @admin_required
 def settings_page():
-    tab    = request.args.get("tab", "email")
+    tab    = request.args.get("tab", "company")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -2544,6 +2559,34 @@ def settings_page():
     """)
     companies = cursor.fetchall()
 
+    # Feature flags
+    cursor.execute("""
+        SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled, pin_enabled,
+               fingerprint_enabled, biometric_enabled, notify_leave, notify_payslip,
+               notify_resignation, notify_doc_expiry, session_timeout,
+               COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'),
+               COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata')
+        FROM company_settings LIMIT 1
+    """)
+    fr = cursor.fetchone()
+    features = {
+        "face_auth":    bool(fr[0]) if fr else False,
+        "geo":          bool(fr[1]) if fr else False,
+        "geo_radius":   fr[2] if fr else 100,
+        "qr":           bool(fr[3]) if fr else False,
+        "pin":          bool(fr[4]) if fr else True,
+        "fingerprint":  bool(fr[5]) if fr else False,
+        "biometric":    bool(fr[6]) if fr else False,
+        "notify_leave": bool(fr[7]) if fr else True,
+        "notify_payslip": bool(fr[8]) if fr else True,
+        "notify_resignation": bool(fr[9]) if fr else True,
+        "notify_doc_expiry":  bool(fr[10]) if fr else True,
+        "session_timeout": fr[11] if fr else 30,
+        "working_days": (fr[12] if fr else "Mon,Tue,Wed,Thu,Fri").split(","),
+        "company_name": fr[13] if fr else "",
+        "timezone":     fr[14] if fr else "Asia/Kolkata",
+    }
+
     cursor.close(); db.close()
     return render_template("settings.html",
         tab=tab,
@@ -2573,6 +2616,7 @@ def settings_page():
         grace_minutes=GRACE_MINUTES,
         holiday_pay=HOLIDAY_PAY,
         leave_pay=LEAVE_PAY,
+        features=features,
     )
 
 # ---------------- SAVE DEFAULT ONBOARDING TEMPLATE ----------------
@@ -2636,6 +2680,62 @@ def save_company_code():
     db.commit(); cursor.close(); db.close()
     flash(f"Company code set to '{code}'.", "success")
     return redirect("/settings?tab=email")
+
+# ---------------- SAVE COMPANY INFO ----------------
+@app.route("/save_company_info", methods=["POST"])
+@admin_required
+def save_company_info():
+    name     = request.form.get("company_name", "").strip()
+    code     = request.form.get("company_code", "").strip().upper()[:10]
+    timezone = request.form.get("timezone", "Asia/Kolkata").strip()
+    w_days   = ",".join(request.form.getlist("working_days"))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
+        (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
+    )
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=company&saved=1")
+
+# ---------------- TOGGLE FEATURE (AJAX) ----------------
+@app.route("/toggle_feature", methods=["POST"])
+@admin_required
+def toggle_feature():
+    from flask import jsonify
+    allowed = {
+        "face_auth_enabled","geo_enabled","qr_enabled","pin_enabled",
+        "fingerprint_enabled","biometric_enabled",
+        "notify_leave","notify_payslip","notify_resignation","notify_doc_expiry",
+    }
+    data    = request.get_json(force=True) or {}
+    feature = data.get("feature", "")
+    value   = 1 if data.get("value") else 0
+    if feature not in allowed:
+        return jsonify({"ok": False, "error": "unknown feature"}), 400
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
+    db.commit(); cursor.close(); db.close()
+    return jsonify({"ok": True})
+
+# ---------------- SAVE GEO RADIUS ----------------
+@app.route("/save_geo_radius", methods=["POST"])
+@admin_required
+def save_geo_radius():
+    radius = int(request.form.get("geo_radius", 100))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=attendance&saved=1")
+
+# ---------------- SAVE SECURITY SETTINGS ----------------
+@app.route("/save_security_settings", methods=["POST"])
+@admin_required
+def save_security_settings():
+    timeout = int(request.form.get("session_timeout", 30))
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
+    db.commit(); cursor.close(); db.close()
+    return redirect("/settings?tab=security&saved=1")
 
 
 # ---------------- COMPANIES ----------------
