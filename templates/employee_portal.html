@@ -600,6 +600,10 @@
         <a href="/my_onboarding" class="sb-item" style="text-decoration:none;">
           <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
         </a>
+        <button type="button" class="sb-item" id="sbn-shift-swap" onclick="showView('shift-swap')">
+          <span class="sb-icon"><i class="ti ti-switch-horizontal"></i></span>Shift Swap
+          {% if incoming_swap_requests %}<span class="badge b-red" style="font-size:10px;padding:1px 6px;margin-left:4px;">{{ incoming_swap_requests|length }}</span>{% endif %}
+        </button>
         <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">
           <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
         </button>
@@ -1294,6 +1298,143 @@
       </div><!-- /view-apply-leave -->
 
       <!-- ═══ VIEW: TICKETS ═══ -->
+      <!-- ═══ VIEW: SHIFT SWAP ═══ -->
+      <div id="view-shift-swap" class="view">
+      <div class="mod-title">🔄 Shift Swap <span>Request to swap your shift with a colleague</span></div>
+      <div class="section">
+
+        {% if swap_sent %}
+        <div class="toast toast-green">✅ Swap request sent! Waiting for colleague to respond.</div>
+        {% endif %}
+        {% if swap_responded %}
+        <div class="toast toast-green">✅ Response submitted successfully.</div>
+        {% endif %}
+        {% if swap_error == 'invalid_target' %}
+        <div class="toast toast-red">❌ Invalid target employee selected.</div>
+        {% elif swap_error == 'no_shift' %}
+        <div class="toast toast-red">❌ Either you or the selected employee does not have a shift assigned. Contact admin.</div>
+        {% elif swap_error == 'same_shift' %}
+        <div class="toast toast-red">❌ You and the selected employee are already on the same shift — no swap needed.</div>
+        {% elif swap_error == 'duplicate' %}
+        <div class="toast toast-red">❌ You already have a pending swap request with this employee.</div>
+        {% endif %}
+
+        <!-- Incoming swap requests -->
+        {% if incoming_swap_requests %}
+        <h3 style="color:#b45309;margin:0 0 12px;">⚡ Incoming Swap Requests</h3>
+        {% for sw in incoming_swap_requests %}
+        {% set sw_id, sw_req_id, sw_req_name, sw_req_shift, sw_reason, sw_status, sw_date = sw %}
+        <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:#1e293b;margin-bottom:4px;">
+            <strong>{{ sw_req_name }}</strong> ({{ sw_req_id }}) wants to swap their
+            <span style="color:#2563eb;font-weight:700;">{{ sw_req_shift }}</span> shift with yours.
+          </div>
+          {% if sw_reason %}
+          <div style="font-size:13px;color:#64748b;margin-bottom:10px;">Reason: {{ sw_reason }}</div>
+          {% endif %}
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">Requested: {{ sw_date.strftime('%d %b %Y %H:%M') if sw_date else '—' }}</div>
+          <form method="POST" action="/respond_shift_swap/{{ sw_id }}" style="display:flex;gap:10px;flex-wrap:wrap;">
+            <input type="hidden" name="action" value="accept">
+            <input type="text" name="response" placeholder="Optional note (e.g. Happy to swap)"
+                   style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;" maxlength="200">
+            <button type="submit" style="padding:8px 20px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-weight:600;cursor:pointer;">✅ Accept</button>
+          </form>
+          <form method="POST" action="/respond_shift_swap/{{ sw_id }}" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+            <input type="hidden" name="action" value="reject">
+            <input type="text" name="response" placeholder="Reason for rejection…"
+                   style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;" maxlength="200">
+            <button type="submit" style="padding:8px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-weight:600;cursor:pointer;">✗ Decline</button>
+          </form>
+        </div>
+        {% endfor %}
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0;">
+        {% endif %}
+
+        <!-- Request swap form -->
+        {% if emp[7] %}
+        <h3 style="margin:0 0 12px;">Request Shift Swap</h3>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:20px;">
+          <div style="font-size:13px;color:#475569;margin-bottom:14px;">
+            Your current shift: <strong style="color:#2563eb;">{{ emp[7] }}
+            ({{ emp[8]|fmt_time if emp[8] else '--' }} – {{ emp[9]|fmt_time if emp[9] else '--' }})</strong>
+          </div>
+          <form method="POST" action="/submit_shift_swap">
+            <div style="display:grid;gap:12px;">
+              <div>
+                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;">Select Colleague to Swap With</label>
+                <select name="target_id" required
+                        style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;background:#fff;">
+                  <option value="" disabled selected>-- Choose employee --</option>
+                  {% for eid, ename in swap_eligible_employees %}
+                  <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;">Reason (optional)</label>
+                <textarea name="reason" rows="2" maxlength="500" placeholder="Why do you want to swap shifts?"
+                          style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;resize:vertical;"></textarea>
+              </div>
+              <button type="submit"
+                      style="padding:10px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;width:fit-content;">
+                🔄 Send Swap Request
+              </button>
+            </div>
+          </form>
+        </div>
+        {% else %}
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px;color:#92400e;font-size:14px;margin-bottom:20px;">
+          ⚠️ You don't have a shift assigned yet. Please contact admin to get a shift assigned before requesting a swap.
+        </div>
+        {% endif %}
+
+        <!-- My outgoing swap requests -->
+        <h3 style="margin:0 0 12px;">My Swap Requests</h3>
+        {% if my_swap_requests %}
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f1f5f9;color:#475569;text-align:left;">
+                <th style="padding:10px 12px;font-weight:600;">With</th>
+                <th style="padding:10px 12px;font-weight:600;">Their Shift</th>
+                <th style="padding:10px 12px;font-weight:600;">Reason</th>
+                <th style="padding:10px 12px;font-weight:600;">Status</th>
+                <th style="padding:10px 12px;font-weight:600;">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sw in my_swap_requests %}
+              {% set sw_id, sw_tgt_id, sw_tgt_name, sw_tgt_shift, sw_reason, sw_status, sw_date = sw %}
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px 12px;font-weight:600;">{{ sw_tgt_name }}<br><span style="color:#94a3b8;font-weight:400;">{{ sw_tgt_id }}</span></td>
+                <td style="padding:10px 12px;">{{ sw_tgt_shift }}</td>
+                <td style="padding:10px 12px;color:#64748b;">{{ sw_reason or '—' }}</td>
+                <td style="padding:10px 12px;">
+                  {% if sw_status == 'Pending_Target' %}
+                    <span style="background:#fef9c3;color:#854d0e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Awaiting Colleague</span>
+                  {% elif sw_status == 'Pending_Admin' %}
+                    <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Awaiting Admin</span>
+                  {% elif sw_status == 'Approved' %}
+                    <span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">✅ Approved</span>
+                  {% elif sw_status == 'Rejected' %}
+                    <span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">✗ Declined</span>
+                  {% else %}
+                    <span style="background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Rejected</span>
+                  {% endif %}
+                </td>
+                <td style="padding:10px 12px;color:#94a3b8;">{{ sw_date.strftime('%d %b %Y') if sw_date else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:32px;color:#94a3b8;font-size:14px;">No swap requests made yet.</div>
+        {% endif %}
+
+      </div>
+      </div><!-- /view-shift-swap -->
+
       <div id="view-tickets" class="view">
       <div class="mod-title">🎫 Support Tickets <span>Raise a complaint or request admin support</span></div>
       <div class="section" id="tickets">
@@ -3234,7 +3375,7 @@
 
       // On page load: restore last active view from hash → localStorage → dashboard
       (function() {
-        var validViews = ['dashboard','attendance','apply-leave','earnings','holidays','tickets','my-profile','resign','policies'];
+        var validViews = ['dashboard','attendance','apply-leave','earnings','holidays','shift-swap','tickets','my-profile','resign','policies'];
         var hash    = window.location.hash.replace('#', '');
         var stored  = '';
         try { stored = localStorage.getItem('portalView') || ''; } catch(e) {}

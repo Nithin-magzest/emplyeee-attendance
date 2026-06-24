@@ -165,9 +165,12 @@ def _enforce_csrf():
     if request.method != "POST":
         return
     if request.path.startswith("/api/"):
-        return  # API routes use Bearer-token auth
-    if request.is_json:
-        return  # JSON fetch requests can't be forged cross-site (CORS blocks custom headers)
+        return  # API routes use Bearer-token auth — no session/CSRF needed
+    # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject
+    # script (_inject_csrf_meta) adds X-CSRF-Token to every fetch() call, so
+    # legitimate JSON POSTs from the web UI already carry the token.
+    # Skipping CSRF for is_json would allow XSS payloads to forge state-changing
+    # JSON requests without a token.
     token = session.get("_csrf")
     submitted = (request.form.get("_csrf_token")
                  or request.headers.get("X-CSRF-Token")
@@ -372,9 +375,36 @@ def load_default_shift():
     except Exception:
         pass
 
-# Deduction rates
-LATE_DEDUCTION_RATE = 0.10   # 10% deduction for late login
-HALF_DAY_RATE       = 0.50   # 50% deduction for half day
+# Deduction rates and salary rules (loaded from DB on startup)
+LATE_DEDUCTION_RATE = 0.10
+HALF_DAY_RATE       = 0.50
+GRACE_MINUTES       = 15       # grace period after shift start for full-day login
+HOLIDAY_PAY         = 'paid'   # 'paid' = full day pay | 'unpaid' = no pay
+LEAVE_PAY           = 'exclude' # 'exclude' = not a working day | 'absent' = count as absent
+
+def load_salary_rules():
+    global LATE_DEDUCTION_RATE, HALF_DAY_RATE, GRACE_MINUTES, HOLIDAY_PAY, LEAVE_PAY
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "SELECT COALESCE(late_deduction_pct,10), COALESCE(half_day_deduction_pct,50), "
+            "       COALESCE(grace_minutes,15), COALESCE(holiday_pay,'paid'), COALESCE(leave_pay,'exclude') "
+            "FROM company_settings LIMIT 1"
+        )
+        row = cursor.fetchone()
+        cursor.close(); db.close()
+        if row:
+            LATE_DEDUCTION_RATE = float(row[0]) / 100.0
+            HALF_DAY_RATE       = float(row[1]) / 100.0
+            GRACE_MINUTES       = int(row[2])
+            HOLIDAY_PAY         = str(row[3])
+            LEAVE_PAY           = str(row[4])
+    except Exception:
+        pass
+
+def load_deduction_rates():
+    load_salary_rules()
 
 # ---------------- IMAGE UPLOAD VALIDATION ----------------
 _ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
@@ -924,6 +954,22 @@ def init_db():
         )
     """)
     db.commit()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shift_swap_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            requester_id VARCHAR(50) NOT NULL,
+            target_id VARCHAR(50) NOT NULL,
+            requester_shift_id INT NOT NULL,
+            target_shift_id INT NOT NULL,
+            reason TEXT,
+            status ENUM('Pending_Target','Pending_Admin','Approved','Rejected','Rejected_Admin') DEFAULT 'Pending_Target',
+            target_response TEXT,
+            admin_response TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
 
     # Migrations for existing installs
     for sql in [
@@ -976,6 +1022,11 @@ def init_db():
         "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
         "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
         "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
+        "ALTER TABLE company_settings ADD COLUMN late_deduction_pct DECIMAL(5,2) DEFAULT 10.00",
+        "ALTER TABLE company_settings ADD COLUMN half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00",
+        "ALTER TABLE company_settings ADD COLUMN grace_minutes INT DEFAULT 15",
+        "ALTER TABLE company_settings ADD COLUMN holiday_pay ENUM('paid','unpaid') DEFAULT 'paid'",
+        "ALTER TABLE company_settings ADD COLUMN leave_pay ENUM('exclude','absent') DEFAULT 'exclude'",
         "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN company_id INT DEFAULT NULL",
         "ALTER TABLE employee_documents ADD COLUMN expiry_date DATE DEFAULT NULL",
@@ -1267,8 +1318,14 @@ def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
 
 def calculate_deduction(salary_per_day, attendance_type):
     spd = float(salary_per_day)
-    if attendance_type in ("Full Day", "Approved Leave"):
+    if attendance_type == "Full Day":
         return 0.0
+    if attendance_type == "Approved Leave":
+        # If leave is configured as 'absent', deduct full day; else no deduction
+        return spd if LEAVE_PAY == 'absent' else 0.0
+    if attendance_type == "Holiday":
+        # If holiday is unpaid, deduct full day
+        return spd if HOLIDAY_PAY == 'unpaid' else 0.0
     if attendance_type == "Late - Full Day":
         return round(spd * LATE_DEDUCTION_RATE, 2)
     if attendance_type in ("Half Day", "Present"):
@@ -1675,12 +1732,16 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
 
     for d in billable_past:
         if d in holidays_set:
-            # Holiday → paid as full day, no attendance required
-            full_days += 1
+            if HOLIDAY_PAY == 'paid':
+                full_days += 1
+            else:
+                absent_days += 1   # unpaid holiday = counts as absent deduction
             holiday_days += 1
         elif d in leave_dates:
-            # Approved leave → not a working day, no pay and no absent deduction
-            leave_days_count += 1
+            if LEAVE_PAY == 'absent':
+                absent_days += 1   # count approved leave as absent
+            else:
+                leave_days_count += 1  # exclude from working days, no pay/no deduction
         else:
             row = emp_att.get(d)
             if row:
@@ -2507,6 +2568,11 @@ def settings_page():
         now_year=datetime.date.today().year,
         default_onboarding_tpl=default_onboarding_tpl,
         onboarding_templates=onboarding_templates,
+        late_deduction_pct=round(LATE_DEDUCTION_RATE * 100, 1),
+        half_day_deduction_pct=round(HALF_DAY_RATE * 100, 1),
+        grace_minutes=GRACE_MINUTES,
+        holiday_pay=HOLIDAY_PAY,
+        leave_pay=LEAVE_PAY,
     )
 
 # ---------------- SAVE DEFAULT ONBOARDING TEMPLATE ----------------
@@ -2522,6 +2588,43 @@ def save_default_onboarding_template():
     flash("Default onboarding template saved.", "success")
     return redirect("/onboarding?tab=templates")
 
+# ---------------- SAVE SALARY RULES ----------------
+@app.route("/save_salary_rules", methods=["POST"])
+@admin_required
+def save_salary_rules():
+    try:
+        late_pct  = max(0.0, min(100.0, float(request.form.get("late_deduction_pct",  10))))
+        half_pct  = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
+        grace_min = max(0,   min(120,   int(request.form.get("grace_minutes", 15))))
+    except (ValueError, TypeError):
+        return redirect("/settings?tab=salary-rules&saved=0")
+    holiday_pay = request.form.get("holiday_pay", "paid")
+    leave_pay   = request.form.get("leave_pay",   "exclude")
+    if holiday_pay not in ("paid", "unpaid"):
+        holiday_pay = "paid"
+    if leave_pay not in ("exclude", "absent"):
+        leave_pay = "exclude"
+    # Optional shift time thresholds
+    shift_start_raw = request.form.get("shift_start", "").strip()
+    shift_half_raw  = request.form.get("shift_half",  "").strip()
+    shift_end_raw   = request.form.get("shift_end",   "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
+        "grace_minutes=%s, holiday_pay=%s, leave_pay=%s",
+        (late_pct, half_pct, grace_min, holiday_pay, leave_pay)
+    )
+    if shift_start_raw and shift_half_raw and shift_end_raw:
+        cursor.execute(
+            "UPDATE company_settings SET shift_start=%s, shift_half=%s, shift_end=%s",
+            (shift_start_raw, shift_half_raw, shift_end_raw)
+        )
+    db.commit()
+    cursor.close(); db.close()
+    load_salary_rules()
+    load_default_shift()
+    return redirect("/settings?tab=salary-rules&saved=1")
 
 # ---------------- SAVE COMPANY CODE ----------------
 @app.route("/save_company_code", methods=["POST"])
@@ -3628,21 +3731,25 @@ def admin_leave_types():
 @app.route("/change_admin_password", methods=["POST"])
 @admin_required
 def change_admin_password():
-    current_pw = request.form.get("current_password", "")
-    new_pw     = request.form.get("new_password", "")
-    confirm_pw = request.form.get("confirm_password", "")
+    current_pw   = request.form.get("current_password", "")
+    new_pw       = request.form.get("new_password", "")
+    confirm_pw   = request.form.get("confirm_password", "")
+    # Use the logged-in admin's username, not a hardcoded 'admin' string.
+    # A hardcoded value lets any admin account change the 'admin' password
+    # if they know its current value — a cross-account privilege escalation.
+    logged_in_as = session.get("admin_username", "admin")
     if not new_pw or new_pw != confirm_pw:
         return redirect("/admin?pwd_error=mismatch")
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT password FROM admin_users WHERE username='admin'")
+    cursor.execute("SELECT password FROM admin_users WHERE username=%s", (logged_in_as,))
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
         cursor.close(); db.close()
         return redirect("/admin?pwd_error=wrong")
     cursor.execute(
-        "UPDATE admin_users SET password=%s WHERE username='admin'",
-        (generate_password_hash(new_pw),)
+        "UPDATE admin_users SET password=%s WHERE username=%s",
+        (generate_password_hash(new_pw), logged_in_as)
     )
     db.commit(); cursor.close(); db.close()
     return redirect("/admin?pwd_ok=1")
@@ -4020,6 +4127,131 @@ def assign_shift():
     db.commit()
     cursor.close(); db.close()
     return jsonify({"ok": True})
+
+
+# ──────────────────────── SHIFT SWAP REQUESTS ────────────────────────
+
+@app.route("/submit_shift_swap", methods=["POST"])
+@employee_required
+def submit_shift_swap():
+    requester_id = session["employee_id"]
+    target_id    = request.form.get("target_id", "").strip()
+    reason       = request.form.get("reason", "").strip()
+    if not target_id or target_id == requester_id:
+        return redirect("/employee_portal?swap_error=invalid_target#shift-swap")
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    # Fetch both employees' current shift_id (must both have shifts assigned)
+    cursor.execute("SELECT shift_id FROM employees WHERE employee_id=%s", (requester_id,))
+    row_r = cursor.fetchone()
+    cursor.execute("SELECT shift_id FROM employees WHERE employee_id=%s", (target_id,))
+    row_t = cursor.fetchone()
+    if not row_r or not row_t or row_r[0] is None or row_t[0] is None:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=no_shift#shift-swap")
+    if row_r[0] == row_t[0]:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=same_shift#shift-swap")
+    # Check no open request already exists between them
+    cursor.execute("""
+        SELECT id FROM shift_swap_requests
+        WHERE requester_id=%s AND target_id=%s
+          AND status IN ('Pending_Target','Pending_Admin')
+    """, (requester_id, target_id))
+    if cursor.fetchone():
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=duplicate#shift-swap")
+    cursor.execute("""
+        INSERT INTO shift_swap_requests
+            (requester_id, target_id, requester_shift_id, target_shift_id, reason)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (requester_id, target_id, row_r[0], row_t[0], reason))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/employee_portal?swap_sent=1#shift-swap")
+
+
+@app.route("/respond_shift_swap/<int:req_id>", methods=["POST"])
+@employee_required
+def respond_shift_swap(req_id):
+    emp_id   = session["employee_id"]
+    action   = request.form.get("action", "")
+    response = request.form.get("response", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT id, requester_id, target_id, status
+        FROM shift_swap_requests WHERE id=%s AND target_id=%s AND status='Pending_Target'
+    """, (req_id, emp_id))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return redirect("/employee_portal?swap_error=not_found#shift-swap")
+    if action == "accept":
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Pending_Admin', target_response=%s WHERE id=%s
+        """, (response or "Accepted", req_id))
+    else:
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Rejected', target_response=%s WHERE id=%s
+        """, (response or "Rejected by employee", req_id))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/employee_portal?swap_responded=1#shift-swap")
+
+
+@app.route("/admin_shift_swap/<int:req_id>", methods=["POST"])
+@admin_required
+def admin_shift_swap(req_id):
+    action   = request.form.get("action", "")
+    response = request.form.get("admin_response", "").strip()
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT requester_id, target_id, requester_shift_id, target_shift_id
+        FROM shift_swap_requests WHERE id=%s AND status='Pending_Admin'
+    """, (req_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return redirect("/admin_shift_swaps?error=not_found")
+    requester_id, target_id, req_shift, tgt_shift = row
+    if action == "approve":
+        # Swap actual shift assignments
+        cursor.execute("UPDATE employees SET shift_id=%s WHERE employee_id=%s", (tgt_shift, requester_id))
+        cursor.execute("UPDATE employees SET shift_id=%s WHERE employee_id=%s", (req_shift, target_id))
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Approved', admin_response=%s WHERE id=%s
+        """, (response or "Approved by admin", req_id))
+    else:
+        cursor.execute("""
+            UPDATE shift_swap_requests SET status='Rejected_Admin', admin_response=%s WHERE id=%s
+        """, (response or "Rejected by admin", req_id))
+    db.commit()
+    cursor.close(); db.close()
+    return redirect("/admin_shift_swaps?ok=1")
+
+
+@app.route("/admin_shift_swaps")
+@admin_required
+def admin_shift_swaps():
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT ssr.id, ssr.requester_id, er.name, ssr.target_id, et.name,
+               sr.name AS req_shift, st.name AS tgt_shift,
+               ssr.reason, ssr.status, ssr.target_response, ssr.admin_response, ssr.created_at
+        FROM shift_swap_requests ssr
+        JOIN employees er ON er.employee_id = ssr.requester_id
+        JOIN employees et ON et.employee_id = ssr.target_id
+        JOIN shifts sr ON sr.id = ssr.requester_shift_id
+        JOIN shifts st ON st.id = ssr.target_shift_id
+        ORDER BY ssr.created_at DESC LIMIT 100
+    """)
+    swap_rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return render_template("admin_shift_swaps.html", swap_rows=swap_rows,
+                           ok=request.args.get("ok"), error=request.args.get("error"))
 
 
 @app.route("/import_indian_holidays", methods=["POST"])
@@ -5189,7 +5421,7 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= s_half:
@@ -6348,6 +6580,37 @@ def employee_portal():
             'present': p_full + p_late + p_half, 'absent': p_absent,
         })
 
+    # Shift swap data
+    try:
+        cursor.execute("""
+            SELECT ssr.id, ssr.target_id, et.name, ts.name AS tgt_shift,
+                   ssr.reason, ssr.status, ssr.created_at
+            FROM shift_swap_requests ssr
+            JOIN employees et ON et.employee_id = ssr.target_id
+            JOIN shifts ts ON ts.id = ssr.target_shift_id
+            WHERE ssr.requester_id=%s ORDER BY ssr.created_at DESC LIMIT 20
+        """, (emp_id,))
+        my_swap_requests = cursor.fetchall()
+        cursor.execute("""
+            SELECT ssr.id, ssr.requester_id, er.name, rs.name AS req_shift,
+                   ssr.reason, ssr.status, ssr.created_at
+            FROM shift_swap_requests ssr
+            JOIN employees er ON er.employee_id = ssr.requester_id
+            JOIN shifts rs ON rs.id = ssr.requester_shift_id
+            WHERE ssr.target_id=%s AND ssr.status='Pending_Target' ORDER BY ssr.created_at DESC
+        """, (emp_id,))
+        incoming_swap_requests = cursor.fetchall()
+        cursor.execute("""
+            SELECT employee_id, name FROM employees
+            WHERE employee_id != %s AND shift_id IS NOT NULL AND is_active=1
+            ORDER BY name
+        """, (emp_id,))
+        swap_eligible_employees = cursor.fetchall()
+    except Exception:
+        my_swap_requests = []
+        incoming_swap_requests = []
+        swap_eligible_employees = []
+
     cursor.close(); db.close()
 
     # Build last 12 months list for pay slips section
@@ -6418,6 +6681,12 @@ def employee_portal():
         ot_pay_this_month=ot_pay_this_month,
         net_this_month=net_this_month,
         recent_payslips=recent_payslips,
+        my_swap_requests=my_swap_requests,
+        incoming_swap_requests=incoming_swap_requests,
+        swap_eligible_employees=swap_eligible_employees,
+        swap_sent=request.args.get("swap_sent") == "1",
+        swap_responded=request.args.get("swap_responded") == "1",
+        swap_error=request.args.get("swap_error", ""),
     )
 
 
@@ -8381,6 +8650,10 @@ def api_register_employee():
     file   = request.files.get("face")
     if not name or not emp_id or not file:
         return jsonify({"ok": False, "msg": "name, emp_id and face image required"}), 400
+    # Validate extension, MIME type, magic bytes and size before writing to disk.
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
     test_img = face_recognition.load_image_file(filepath)
@@ -8630,7 +8903,10 @@ def api_salary_report():
 @api_required
 def api_get_email_config():
     cfg = get_email_config()
-    return jsonify({"ok": True, "config": cfg})
+    # Never return the SMTP password to clients — they only need to know config exists.
+    safe_cfg = {k: v for k, v in cfg.items() if k != "password"}
+    safe_cfg["password_set"] = bool(cfg.get("password"))
+    return jsonify({"ok": True, "config": safe_cfg})
 
 
 @app.route("/api/email_config", methods=["POST"])
@@ -8744,7 +9020,7 @@ def api_checkin():
     worked_mins_stored  = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -9143,7 +9419,7 @@ def api_employee_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -9246,7 +9522,7 @@ def api_employee_sync_punches():
         last_relogin = rec[4] if rec else None
 
         if not login_time:
-            grace_time = (datetime.datetime.combine(punch_date, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+            grace_time = (datetime.datetime.combine(punch_date, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
             if punch_time <= grace_time:
                 status = "Full Day Login"
             elif punch_time <= SHIFT_HALF:
@@ -9355,7 +9631,7 @@ def api_employee_qr_face_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=15)).time()
+        grace_time = (datetime.datetime.combine(today, SHIFT_START) + datetime.timedelta(minutes=GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= SHIFT_HALF:
@@ -10040,6 +10316,20 @@ def view_payslip(emp_id, year, month):
     )
 
 
+@app.route("/download_payslip/<emp_id>/<int:year>/<int:month>")
+def download_payslip(emp_id, year, month):
+    html = view_payslip(emp_id, year, month)
+    if not isinstance(html, str):
+        return html  # redirect or error response
+    from flask import Response
+    filename = f"payslip_{emp_id}_{year}_{month:02d}.html"
+    return Response(
+        html,
+        mimetype="text/html",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @app.route("/admin_payslips")
 @admin_required
 def admin_payslips():
@@ -10687,8 +10977,13 @@ def upload_document():
     _audit("upload_document", "employee_documents", emp_id,
            f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'}")
     flash("Document uploaded successfully.", "success")
-    redirect_to = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
-    return redirect(redirect_to)
+    raw_redirect = request.form.get('redirect_to') or f'/documents?emp_id={emp_id}'
+    # Reject any redirect that leaves this origin (open-redirect prevention).
+    # Only allow relative URLs (no scheme, no netloc).
+    from urllib.parse import urlparse as _urlparse
+    _p = _urlparse(raw_redirect)
+    safe_redirect = raw_redirect if (not _p.scheme and not _p.netloc) else f'/documents?emp_id={emp_id}'
+    return redirect(safe_redirect)
 
 
 @app.route("/delete_document/<int:did>", methods=["POST"])
@@ -11170,15 +11465,30 @@ def web_employee_notifications_list():
 
 # ── Tenant Provisioning ──────────────────────────────────────────────────────
 
-_SUBDOMAIN_RE = re.compile(r'^[a-z0-9\-]+$')
+_SUBDOMAIN_RE  = re.compile(r'^[a-z0-9\-]+$')
+# Set SIGNUP_SECRET in .env to restrict who can create new organisations.
+# Anyone who knows this token can provision a new tenant; keep it private.
+_SIGNUP_SECRET = os.environ.get("SIGNUP_SECRET", "").strip()
 
 @app.route("/create_org", methods=["GET"])
 def create_org_page():
-    return render_template("create_org.html")
+    if not _SIGNUP_SECRET:
+        # Provisioning disabled: no SIGNUP_SECRET configured in .env
+        return render_template("create_org.html", signup_disabled=True)
+    return render_template("create_org.html", signup_disabled=False)
 
 
 @app.route("/create_org", methods=["POST"])
 def create_org():
+    # Require a server-side secret token to prevent anonymous tenant creation.
+    if not _SIGNUP_SECRET:
+        flash("Organisation self-registration is disabled on this server.", "error")
+        return redirect("/create_org")
+    submitted_secret = request.form.get("signup_secret", "").strip()
+    if not secrets.compare_digest(_SIGNUP_SECRET, submitted_secret):
+        flash("Invalid signup code. Contact your administrator.", "error")
+        return redirect("/create_org")
+
     company_name    = request.form.get("company_name", "").strip()
     subdomain       = request.form.get("subdomain", "").strip().lower()
     admin_username  = request.form.get("admin_username", "").strip()
@@ -12039,4 +12349,5 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     load_default_shift()
+    load_salary_rules()
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
