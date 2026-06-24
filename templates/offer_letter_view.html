@@ -134,7 +134,31 @@
       .toolbar, .flash-list { display: none !important; }
       .paper { box-shadow: none; max-width: 100%; }
     }
+
+    /* ── Dark mode ── */
+    body.dark-mode { background: #0d1117 !important; }
+    body.dark-mode .toolbar { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .paper { background: #161b22 !important; color: #cdd9e5 !important; }
+    body.dark-mode .top-line { background: #4d9de0 !important; }
+    body.dark-mode .bot-line { background: #30363d !important; }
+    body.dark-mode .co-name { color: #60a5fa !important; }
+    body.dark-mode .addr-block { color: #768390 !important; }
+    body.dark-mode .lh { color: #768390 !important; }
+    body.dark-mode .para { color: #cdd9e5 !important; }
+    body.dark-mode .section-label { color: #4d9de0 !important; border-color: #30363d !important; }
+    body.dark-mode .ctc-table thead th { background: #1c2128 !important; color: #768390 !important; border-color: #30363d !important; }
+    body.dark-mode .ctc-table tbody td { color: #cdd9e5 !important; border-color: #30363d !important; }
+    body.dark-mode .ctc-table tfoot td { background: #1e3a8a !important; color: #fff !important; }
+    body.dark-mode .tc-ol { color: #94a3b8 !important; }
+    body.dark-mode .note-box { background: #1e3a8a !important; border-color: #4d9de0 !important; color: #93c5fd !important; }
+    body.dark-mode .sig-line { border-color: #30363d !important; }
+    body.dark-mode .sig-name { color: #cdd9e5 !important; }
+    body.dark-mode .sig-title { color: #768390 !important; }
+    body.dark-mode .footer { border-color: #30363d !important; color: #768390 !important; }
+    body.dark-mode .seal { border-color: #30363d !important; color: #30363d !important; }
+    body.dark-mode .hbadge { background: #1e3a8a !important; color: #93c5fd !important; }
   </style>
+  <link rel="stylesheet" href="/static/shared.css" />
 </head>
 <body>
 
@@ -293,5 +317,6 @@
   <div class="bot-line"></div>
 </div>
 
+<script src="/static/darkmode.js"></script>
 </body>
 </html>
