@@ -3293,8 +3293,9 @@ def add_company():
     if not name:
         flash("Company name is required.", "error")
         return redirect(dest)
+    w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
     db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO companies (name, code) VALUES (%s, %s)", (name, code))
+    cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s)", (name, code, w_days))
     db.commit(); cursor.close(); db.close()
     flash(f"Company '{name}' added.", "success")
     return redirect(dest)
