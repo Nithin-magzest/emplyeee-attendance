@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, session, jsonify, redirect, u
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import cv2
 import uuid
 from werkzeug.utils import secure_filename
 import datetime
@@ -80,6 +79,15 @@ def inject_common_vars():
         shift_start=SHIFT_START.strftime("%I:%M %p"),
         shift_end=SHIFT_END.strftime("%I:%M %p"),
     )
+
+@app.template_filter('qr_url')
+def _qr_url_filter(p):
+    """Normalize QR code paths — old code stored absolute OS paths; extract just static/qrcodes/<file>."""
+    import re
+    if not p:
+        return ''
+    m = re.search(r'static[/\\]qrcodes[/\\]([^/\\]+\.png)', str(p))
+    return f'static/qrcodes/{m.group(1)}' if m else str(p)
 
 @app.route("/favicon.ico")
 def favicon():
@@ -444,6 +452,13 @@ def load_salary_rules():
 
 def load_deduction_rates():
     load_salary_rules()
+
+with app.app_context():
+    try:
+        load_default_shift()
+        load_salary_rules()
+    except Exception:
+        pass
 
 # ---------------- IMAGE UPLOAD VALIDATION ----------------
 _ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
@@ -2401,6 +2416,8 @@ def admin_action():
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
                  date_of_joining, work_mode, work_lat, work_lon, company_id)
             )
+            db.commit()
+            assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
             # Send welcome email with credentials
@@ -9916,14 +9933,14 @@ def api_employee_qr_face_checkin():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s",
+        "SELECT name, work_mode, work_lat, work_lon, face_image FROM employees WHERE employee_id=%s",
         (employee_id,)
     )
     result = cursor.fetchone()
     if not result:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
-    employee_name, work_mode, work_lat, work_lon = result
+    employee_name, work_mode, work_lat, work_lon, registered_face = result
 
     if lat and lon:
         try:
@@ -9939,7 +9956,37 @@ def api_employee_qr_face_checkin():
         except (ValueError, TypeError):
             pass
 
-    if face_photo:
+    needs_face = auth_combo in ("qr_face", "face_fingerprint")
+    if needs_face:
+        if not face_photo:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face photo required for this authentication method."}), 400
+        if not registered_face or not os.path.exists(registered_face):
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
+        try:
+            from PIL import Image as _PILImage
+            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            os.makedirs(face_dir, exist_ok=True)
+            ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
+            img = _PILImage.open(face_photo.stream).convert("RGB")
+            img.save(face_path, "JPEG", quality=80)
+
+            known_img      = face_recognition.load_image_file(registered_face)
+            known_encs     = face_recognition.face_encodings(known_img)
+            test_img_data  = face_recognition.load_image_file(face_path)
+            test_encs      = face_recognition.face_encodings(test_img_data)
+            if not known_encs or not test_encs:
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "Face not detected clearly. Please retake the photo."}), 400
+            if not face_recognition.compare_faces([known_encs[0]], test_encs[0], tolerance=0.5)[0]:
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
+        except Exception as _fe:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": f"Face verification error: {_fe}"}), 500
+    elif face_photo:
         try:
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
