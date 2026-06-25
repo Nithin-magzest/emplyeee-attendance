@@ -252,6 +252,17 @@ _CSRF_SCRIPT  = (
     b'f.prepend(i);}});});})();</script>'
 )
 
+_SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
+                   "/save_security_settings", "/toggle_auth_feature",
+                   "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
+                   "/save_company_info", "/toggle_feature"}
+
+@app.after_request
+def _bust_settings_cache(response):
+    if request.method == "POST" and request.path in _SETTINGS_PATHS:
+        invalidate_settings_cache()
+    return response
+
 @app.after_request
 def _inject_csrf_meta(response):
     """Inject CSRF meta tag and auto-inject script into every HTML page."""
@@ -322,8 +333,24 @@ def _validate_upload(file_storage, allowed_exts=None):
         return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
     return True, None
 
-# ---------------- COMPANY SETTINGS ----------------
+# ---------------- COMPANY SETTINGS (with 60-second TTL cache) ----------------
+_co_cache      = {"data": None, "expires": None}
+_auth_cache    = {"data": None, "expires": None}
+_settings_lock = threading.Lock()
+_CO_CACHE_TTL  = 60  # seconds
+
+def _co_expired(cache):
+    return cache["data"] is None or datetime.datetime.now() >= cache["expires"]
+
+def invalidate_settings_cache():
+    with _settings_lock:
+        _co_cache["data"]    = None
+        _auth_cache["data"]  = None
+
 def get_company_settings():
+    with _settings_lock:
+        if not _co_expired(_co_cache):
+            return dict(_co_cache["data"])
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -331,10 +358,14 @@ def get_company_settings():
         row = cursor.fetchone()
         cursor.close(); db.close()
         if row:
-            return {"company_name": row[0], "company_tagline": row[1],
-                    "company_logo": row[2], "currency_symbol": row[3],
-                    "company_code": row[6],
-                    "timezone": row[4], "setup_done": bool(row[5])}
+            result = {"company_name": row[0], "company_tagline": row[1],
+                      "company_logo": row[2], "currency_symbol": row[3],
+                      "company_code": row[6],
+                      "timezone": row[4], "setup_done": bool(row[5])}
+            with _settings_lock:
+                _co_cache["data"]    = result
+                _co_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
+            return dict(result)
     except Exception:
         pass
     return {"company_name": "My Company", "company_tagline": "Employee Attendance System",
@@ -350,6 +381,9 @@ _AUTH_CONFIG_DEFAULTS = {
 }
 
 def get_auth_config():
+    with _settings_lock:
+        if not _co_expired(_auth_cache):
+            return dict(_auth_cache["data"])
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -364,13 +398,17 @@ def get_auth_config():
         row = cursor.fetchone()
         cursor.close(); db.close()
         if row:
-            return {
+            result = {
                 "fingerprint_enabled": bool(row[0]),
                 "qr_enabled":          bool(row[1]),
                 "face_enabled":        bool(row[2]),
                 "location_enabled":    bool(row[3]),
                 "employee_password_auth": bool(row[4]),
             }
+            with _settings_lock:
+                _auth_cache["data"]    = result
+                _auth_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
+            return dict(result)
         return dict(_AUTH_CONFIG_DEFAULTS)
     except Exception:
         return dict(_AUTH_CONFIG_DEFAULTS)
@@ -1143,6 +1181,33 @@ def init_db():
                 if pwd_hash and check_password_hash(pwd_hash, '1234'):
                     cursor.execute("UPDATE employees SET force_pin_change=1 WHERE employee_id=%s", (eid,))
             cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('force_pin_change_flag')")
+            db.commit()
+    except Exception:
+        pass
+
+    # Performance indexes migration
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v1'")
+        if not cursor.fetchone():
+            _idx_stmts = [
+                "ALTER TABLE leave_requests ADD INDEX idx_leave_emp(employee_id)",
+                "ALTER TABLE leave_requests ADD INDEX idx_leave_status(status)",
+                "ALTER TABLE tickets ADD INDEX idx_tickets_emp(employee_id)",
+                "ALTER TABLE tickets ADD INDEX idx_tickets_status(status)",
+                "ALTER TABLE resignation_requests ADD INDEX idx_resign_emp(employee_id)",
+                "ALTER TABLE notifications ADD INDEX idx_notif_emp(employee_id)",
+                "ALTER TABLE notifications ADD INDEX idx_notif_read(is_read)",
+                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_emp(employee_id)",
+                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_status(status)",
+                "ALTER TABLE payroll_runs ADD INDEX idx_payroll_emp(employee_id)",
+            ]
+            for stmt in _idx_stmts:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v1')")
             db.commit()
     except Exception:
         pass
@@ -7217,7 +7282,7 @@ def request_leave():
   </div>
 </div>"""
         try:
-            send_email_smtp(
+            send_email_async(
                 config.get("from_email", config["user"]),
                 f"Leave Request — {emp_name} ({date_label})",
                 html_body, config
@@ -8384,11 +8449,8 @@ def leave_action(lid):
     Employee Attendance System &bull; Automated Notification
   </div>
 </div>"""
-                try:
-                    send_email_smtp(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
-                    flash(f"{icon} Leave {action} — email sent to {emp_email}", "success")
-                except Exception as _e:
-                    flash(f"Leave {action} but email failed: {_e}", "error")
+                send_email_async(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
+                flash(f"{icon} Leave {action} — notification queued for {emp_email}", "success")
 
     return redirect("/leave_holidays?tab=leaves")
 
@@ -8506,14 +8568,11 @@ def request_resignation():
     </p>
   </div>
 </div>"""
-        try:
-            send_email_smtp(
-                config.get("from_email", config["user"]),
-                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-                html_body, config
-            )
-        except Exception as e:
-            app_log.error('"Resignation notification email failed: %s"', e)
+        send_email_async(
+            config.get("from_email", config["user"]),
+            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+            html_body, config
+        )
 
     return redirect("/employee_portal?resigned=1#resign")
 
@@ -8776,12 +8835,8 @@ def ticket_action(tid):
     <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">This is an automated message — please do not reply.</p>
   </div>
 </div>"""
-                try:
-                    send_email_smtp(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
-                    msg = f"✅ Ticket updated — email sent to {emp_email}"
-                except Exception as _e:
-                    msg = f"⚠️ Ticket updated but email failed: {_e}"
-                    msg_type = "warning"
+                send_email_async(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
+                msg = f"✅ Ticket updated — notification queued for {emp_email}"
             else:
                 msg = "Ticket updated. SMTP not configured — email not sent."
                 msg_type = "warning"
@@ -9259,11 +9314,8 @@ def api_send_salary_email():
     entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
     month_name    = datetime.date(year, month, 1).strftime("%B %Y")
     html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
-    try:
-        send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
-        return jsonify({"ok": True, "msg": f"Sent to {email}"})
-    except Exception as ex:
-        return jsonify({"ok": False, "msg": str(ex)})
+    send_email_async(email, f"Salary Slip - {month_name}", html_body, config)
+    return jsonify({"ok": True, "msg": f"Queued for {email}"})
 
 
 @app.route("/api/attendance/checkin", methods=["POST"])
@@ -10089,14 +10141,11 @@ def api_employee_resign():
             f'<tr><td style="padding:10px;color:#555;font-weight:600;">Reason</td><td style="padding:10px;">{reason}</td></tr>'
             f'</table></div></div>'
         )
-        try:
-            send_email_smtp(
-                config.get("from_email", config["user"]),
-                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-                html_body, config
-            )
-        except Exception as e:
-            app_log.error('"Resignation notification email failed: %s"', e)
+        send_email_async(
+            config.get("from_email", config["user"]),
+            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+            html_body, config
+        )
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 
@@ -12038,7 +12087,7 @@ def bulk_assign_onboarding():
                 if _ecfg:
                     _html = (f"<p>Hi <strong>{_er[0]}</strong>,</p>"
                              f"<p>A new onboarding checklist <strong>'{_tr[0]}'</strong> has been assigned to you. Please complete all tasks by <strong>{due_date}</strong>.</p>")
-                    send_email_smtp(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
+                    send_email_async(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
         except Exception:
             pass
     db.commit(); cursor.close(); db.close()
@@ -12229,7 +12278,7 @@ def onboarding_assign():
                          f"<p>A new onboarding checklist <strong>'{tname}'</strong> has been assigned to you.</p>"
                          f"<p>Due date: <strong>{due_date or 'Not set'}</strong></p>"
                          f"<p>Please log in to your employee portal and complete all tasks on time.</p>")
-                send_email_smtp(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
+                send_email_async(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
             except Exception:
                 pass
     cursor.close(); db.close()
@@ -12554,7 +12603,7 @@ def my_onboarding_task_done():
                 _msg += "<p style='color:#16a34a;font-weight:700;'>🎉 All tasks completed — onboarding marked as Complete!</p>"
             else:
                 _msg += f"<p>{remaining} task(s) remaining.</p>"
-            send_email_smtp(admin_email, f"Onboarding Task Done — {emp_name_ob}", _msg, _ecfg)
+            send_email_async(admin_email, f"Onboarding Task Done — {emp_name_ob}", _msg, _ecfg)
     except Exception:
         pass
 
