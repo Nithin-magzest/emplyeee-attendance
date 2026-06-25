@@ -210,7 +210,6 @@
   <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
-  <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
   <hr class="nav-sep" style="margin-top:12px;" />
@@ -231,7 +230,7 @@
     <div class="topbar-heading">
       <div>
         <h1><i class="ti ti-tool" style="color:#6366f1;"></i> Admin Tools</h1>
-        <div class="sub">Org Chart &amp; Audit Logs</div>
+        <div class="sub">{% if active_company %}<span style="color:#1e3a8a;font-weight:700;"><i class="ti ti-building" style="font-size:12px;"></i> {{ active_company.name }}</span> — {% endif %}Org Chart &amp; Audit Logs</div>
       </div>
     </div>
     <div class="tabs">
@@ -243,6 +242,17 @@
       </button>
     </div>
   </div>
+  {% if active_company %}
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;background:#eff6ff;border-bottom:1.5px solid #bfdbfe;">
+    <i class="ti ti-building" style="color:#1e3a8a;font-size:15px;"></i>
+    <span style="font-size:13px;font-weight:700;color:#1e3a8a;">{{ active_company.name }}</span>
+    <span style="font-size:12px;color:#64748b;">— org chart and audit logs filtered to this company</span>
+    <form method="POST" action="/clear_company" style="margin-left:auto;">
+      <input type="hidden" name="next" value="/admin_tools?tab={{ tab }}" />
+      <button type="submit" style="padding:4px 12px;border:1px solid #bfdbfe;border-radius:20px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">✕ Show All</button>
+    </form>
+  </div>
+  {% endif %}
 
   <!-- ORG CHART TAB -->
   <div id="tab-org_chart" class="tab-panel {% if tab == 'org_chart' %}active{% endif %}">

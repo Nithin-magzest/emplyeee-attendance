@@ -125,7 +125,6 @@
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
-      <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
       <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
       <hr class="nav-sep" style="margin-top:12px;" />
