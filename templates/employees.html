@@ -489,7 +489,7 @@
                       <i class="ti ti-camera"></i>
                     </button>
                     <button class="btn-icon btn-qr" title="QR Code"
-                      onclick="openQR('{{ emp_id }}', '{{ name }}', '{{ qr_code }}')">
+                      onclick="openQR('{{ emp_id }}', '{{ name }}', '{{ qr_code|qr_url }}')">
                       <i class="ti ti-qrcode"></i>
                     </button>
                     <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
