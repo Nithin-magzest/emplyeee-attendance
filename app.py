@@ -13239,4 +13239,14 @@ if __name__ == "__main__":
     init_db()
     load_default_shift()
     load_salary_rules()
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    import os as _os
+    _cert = _os.path.join(_os.path.dirname(__file__), "cert.pem")
+    _key  = _os.path.join(_os.path.dirname(__file__), "key.pem")
+    if _os.path.exists(_cert) and _os.path.exists(_key):
+        print("🔒  SSL cert found — starting on https://0.0.0.0:5000")
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,
+                ssl_context=(_cert, _key))
+    else:
+        print("⚠   No cert.pem / key.pem — starting on http://0.0.0.0:5000")
+        print("    Fingerprint / WebAuthn requires HTTPS. Run: python generate_cert.py")
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
