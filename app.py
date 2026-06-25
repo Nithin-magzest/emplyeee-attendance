@@ -1917,7 +1917,7 @@ def unhandled_exception(e):
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", auth_cfg=get_auth_config())
 
 # ---------------- ADMIN LOGIN ----------------
 @app.route("/setup", methods=["GET", "POST"])
@@ -2593,7 +2593,7 @@ def settings_page():
     # Company stats
     cursor.execute("SELECT COUNT(*) FROM employees")
     total_employees = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM employees WHERE status='Active'")
+    cursor.execute("SELECT COUNT(*) FROM employees WHERE is_active=1")
     active_employees = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(DISTINCT department) FROM employees WHERE department IS NOT NULL AND department != ''")
     total_departments = cursor.fetchone()[0]
