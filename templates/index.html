@@ -960,6 +960,7 @@
           await navigator.credentials.get({
             publicKey: {
               challenge:        toBytes(challenge),
+              rpId:             window.location.hostname,
               allowCredentials: [{ type: "public-key", id: toBytes(credentialId) }],
               userVerification: "required",
               timeout:          60000,
