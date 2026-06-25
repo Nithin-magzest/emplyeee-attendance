@@ -273,6 +273,15 @@
       .mode-row { display: none !important; }
       .mode-pill { display: none; }
 
+      /* No-methods warning */
+      .no-methods-msg {
+        background: #fef9c3; border: 1px solid #fde047;
+        border-radius: 12px; padding: 14px 16px;
+        font-size: 13px; color: #854d0e; text-align: center;
+        margin-bottom: 16px; line-height: 1.5;
+      }
+      body.dark-mode .no-methods-msg { background: #422006; border-color: #92400e; color: #fbbf24; }
+
       /* ── ATTENDANCE METHOD CARDS ── */
       .att-methods {
         display: flex; gap: 8px; margin-bottom: 16px;
@@ -472,24 +481,38 @@
         </div>
         <h2>Mark Attendance</h2>
 
-        <!-- Always-visible method selection -->
+        <!-- Method cards: shown only when admin enables the corresponding auth option -->
+        {% set show_qr_face = auth_cfg.qr_enabled and auth_cfg.face_enabled %}
+        {% set show_qr_only = auth_cfg.qr_enabled %}
+        {% set show_fp      = auth_cfg.fingerprint_enabled %}
+        {% set first_method = 'qr_face' if show_qr_face else ('qr_only' if show_qr_only else ('fingerprint_only' if show_fp else '')) %}
+        {% if show_qr_face or show_qr_only or show_fp %}
         <div class="att-methods">
-          <button type="button" class="att-method active" id="mc-qr-face" onclick="selectMethod('qr_face')">
+          {% if show_qr_face %}
+          <button type="button" class="att-method {% if first_method == 'qr_face' %}active{% endif %}" id="mc-qr-face" onclick="selectMethod('qr_face')">
             <span class="am-icon">📷</span>
             <span class="am-title">QR + Face</span>
             <span class="am-desc">QR &amp; face scan</span>
           </button>
-          <button type="button" class="att-method" id="mc-qr-only" onclick="selectMethod('qr_only')">
+          {% endif %}
+          {% if show_qr_only %}
+          <button type="button" class="att-method {% if first_method == 'qr_only' %}active{% endif %}" id="mc-qr-only" onclick="selectMethod('qr_only')">
             <span class="am-icon">🔲</span>
             <span class="am-title">QR Only</span>
             <span class="am-desc">Quick QR scan</span>
           </button>
-          <button type="button" class="att-method" id="mc-fp" onclick="selectMethod('fingerprint_only')">
+          {% endif %}
+          {% if show_fp %}
+          <button type="button" class="att-method {% if first_method == 'fingerprint_only' %}active{% endif %}" id="mc-fp" onclick="selectMethod('fingerprint_only')">
             <span class="am-icon">👆</span>
             <span class="am-title">Fingerprint</span>
             <span class="am-desc">Biometric scan</span>
           </button>
+          {% endif %}
         </div>
+        {% else %}
+        <div class="no-methods-msg">⚠️ No attendance method is enabled. Ask your admin to enable one in Settings → Authentication.</div>
+        {% endif %}
 
         <div class="sub" id="subText">Click Start to scan your QR code &amp; verify face</div>
 
@@ -623,11 +646,13 @@
       </div>
     </div>
 
+    <script type="application/json" id="serverCfg">{"auth":{{ auth_cfg | tojson }},"combo":{{ (first_method if first_method else 'qr_face') | tojson }}}</script>
     <script>
       /* ── helpers & state ── */
       const $ = id => document.getElementById(id);
-      let authCfg       = { fingerprint_enabled: false, qr_enabled: true, face_enabled: true, location_enabled: true };
-      let selectedCombo = "qr_face";
+      const _srv = JSON.parse(document.getElementById('serverCfg').textContent);
+      let authCfg = _srv.auth;
+      let selectedCombo = _srv.combo;
 
       /* ── clock ── */
       function tick() {
@@ -642,20 +667,16 @@
       let gLat          = null, gLon = null;
       let gEmployeeId   = null;
       let stream        = null, scanLoop = null;
-
-      /* ── load auth config on page load ── */
-      window.addEventListener("DOMContentLoaded", async () => {
-        try {
-          const r = await fetch("/api/employee/auth-config");
-          const d = await r.json();
-          if (d.ok) authCfg = d;
-          updateTagline();
-        } catch {}
-      });
+      document.addEventListener("DOMContentLoaded", updateTagline);
 
       function updateTagline() {
-        const parts = ["QR", "Face Recognition", "Fingerprint", "Location"];
-        document.querySelector(".tagline").textContent = parts.join(" • ");
+        const parts = [];
+        if (authCfg.qr_enabled)          parts.push("QR");
+        if (authCfg.face_enabled)        parts.push("Face Recognition");
+        if (authCfg.fingerprint_enabled) parts.push("Fingerprint");
+        if (authCfg.location_enabled)    parts.push("Location");
+        const el = document.querySelector(".tagline");
+        if (el) el.textContent = parts.length ? parts.join(" • ") : "Attendance System";
       }
 
       function selectMethod(combo) {
@@ -868,7 +889,6 @@
         const btn      = $("fpVerifyBtn");
         const isFpOnly = (selectedCombo === "fingerprint_only");
 
-        // fingerprint_only: employee must enter their ID before we can look up the credential
         if (isFpOnly) {
           const inputId = $("fpEmpIdInput").value.trim().toUpperCase();
           if (!inputId) {
@@ -881,110 +901,86 @@
 
         btn.disabled    = true;
         btn.textContent = "⏳ Verifying…";
-        $("fpHint").textContent = "Checking biometric…";
         $("fpHint").style.color = "";
 
-        // WebAuthn doesn't work on raw IP addresses — fall through to soft check
-        const hostname  = window.location.hostname;
-        const isRawIP   = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-
-        try {
-          let verified = false;
-
-          if (window.PublicKeyCredential && !isRawIP) {
-            let credentialId = null;
-
-            // Fetch stored credential for this employee (if enrolled during registration)
-            if (gEmployeeId) {
-              try {
-                const cr = await fetch(`/api/employee/${encodeURIComponent(gEmployeeId)}/webauthn-credential`);
-                const cd = await cr.json();
-                if (cd.ok && cd.credential_id) credentialId = cd.credential_id;
-              } catch {}
-            }
-
-            if (credentialId) {
-              // Use the enrolled credential — confirms the specific enrolled fingerprint
-              $("fpHint").textContent = "Touch your fingerprint sensor or USB scanner…";
-              const chalR = await fetch("/webauthn/challenge");
-              const { challenge } = await chalR.json();
-
-              function toBytes(b64url) {
-                const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
-                const pad = b64.length % 4 ? "=".repeat(4 - b64.length % 4) : "";
-                return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
-              }
-
-              try {
-                await navigator.credentials.get({
-                  publicKey: {
-                    challenge: toBytes(challenge),
-                    allowCredentials: [{ type: "public-key", id: toBytes(credentialId) }],
-                    userVerification: "required",
-                    timeout: 60000,
-                  }
-                });
-                verified = true;
-                $("fpHint").textContent = "✅ Fingerprint matched!";
-              } catch (assertErr) {
-                if (assertErr.name === "NotAllowedError") {
-                  btn.disabled    = false;
-                  btn.textContent = "👆 Verify Biometric";
-                  $("fpHint").textContent = "❌ Fingerprint not recognised. Please try again.";
-                  return;
-                }
-                // Other assertion error — fall through to soft check
-              }
-            } else {
-              // No enrolled credential — soft check: does device have biometric hardware?
-              const avail = await window.PublicKeyCredential
-                .isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
-              if (avail) {
-                // Prompt device biometric without a specific credential
-                try {
-                  const chalR2 = await fetch("/webauthn/challenge");
-                  const { challenge: ch2 } = await chalR2.json();
-                  function toBytes2(b64url) {
-                    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
-                    const pad = b64.length % 4 ? "=".repeat(4 - b64.length % 4) : "";
-                    return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
-                  }
-                  await navigator.credentials.get({
-                    publicKey: {
-                      challenge: toBytes2(ch2),
-                      allowCredentials: [],
-                      userVerification: "required",
-                      timeout: 60000,
-                    }
-                  });
-                  verified = true;
-                } catch { verified = true; } // device has sensor = physical presence factor
-              }
-            }
-          } else if (isRawIP) {
-            // Running on IP — can't use WebAuthn; do platform availability soft-check
-            const avail = window.PublicKeyCredential
-              ? await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false)
-              : false;
-            verified = avail; // true if device has biometric hardware (Touch ID / Windows Hello)
-          }
-
-          if (!verified) verified = true; // kiosk physical-presence fallback
-
-          fpVerified = verified;
-          $("fingerprintOverlay").style.display = "none";
-          $("fpHint").textContent = "Place your finger on the sensor or click Verify to confirm biometric.";
-
-          if (verified) {
-            runAfterFingerprint();
-          } else {
-            showError("Biometric not available on this device. Please use QR + Face instead.");
-            $("startBtn").disabled = false;
-          }
-        } catch {
+        function fpError(msg) {
           btn.disabled    = false;
           btn.textContent = "👆 Verify Biometric";
-          $("fpHint").textContent = "Verification failed. Please try again.";
+          $("fpHint").textContent = msg;
+          $("fpHint").style.color = "#f59e0b";
+        }
+
+        function toBytes(b64url) {
+          const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+          const pad = b64.length % 4 ? "=".repeat(4 - b64.length % 4) : "";
+          return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
+        }
+
+        try {
+          // WebAuthn requires localhost or HTTPS — won't work on raw IP
+          const hostname = window.location.hostname;
+          const isRawIP  = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+          if (isRawIP) {
+            fpError("⚠ Fingerprint requires HTTPS or localhost access. Ask your admin to configure HTTPS.");
+            return;
+          }
+
+          if (!window.PublicKeyCredential) {
+            fpError("⚠ This browser does not support WebAuthn. Please use Chrome or Edge.");
+            return;
+          }
+
+          // Check device has biometric hardware
+          const avail = await window.PublicKeyCredential
+            .isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+          if (!avail) {
+            fpError("⚠ No fingerprint sensor detected on this device.");
+            return;
+          }
+
+          // Look up the enrolled credential for this employee
+          let credentialId = null;
+          if (gEmployeeId) {
+            try {
+              const cr = await fetch(`/api/employee/${encodeURIComponent(gEmployeeId)}/webauthn-credential`);
+              const cd = await cr.json();
+              if (cd.ok && cd.credential_id) credentialId = cd.credential_id;
+            } catch {}
+          }
+
+          if (!credentialId) {
+            fpError("⚠ No fingerprint registered for this Employee ID. Please enroll your fingerprint first.");
+            return;
+          }
+
+          // Prompt the actual fingerprint sensor
+          $("fpHint").textContent = "👆 Touch your fingerprint sensor now…";
+          $("fpHint").style.color = "";
+          const chalR = await fetch("/webauthn/challenge");
+          const { challenge } = await chalR.json();
+
+          await navigator.credentials.get({
+            publicKey: {
+              challenge:        toBytes(challenge),
+              allowCredentials: [{ type: "public-key", id: toBytes(credentialId) }],
+              userVerification: "required",
+              timeout:          60000,
+            }
+          });
+
+          // Only reach here if fingerprint matched
+          fpVerified = true;
+          $("fpHint").textContent = "✅ Fingerprint matched!";
+          $("fpHint").style.color = "#22c55e";
+          $("fingerprintOverlay").style.display = "none";
+          runAfterFingerprint();
+
+        } catch (err) {
+          if (err.name === "NotAllowedError") {
+            fpError("❌ Fingerprint not recognised or timed out. Please try again.");
+          } else {
+            fpError("❌ Verification failed: " + (err.message || "Unknown error"));
+          }
         }
       }
 

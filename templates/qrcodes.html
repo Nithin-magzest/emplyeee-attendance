@@ -72,7 +72,7 @@
       {% for emp_id, name, role, qr_path in employees %}
       <div class="card">
         {% if qr_path %}
-          <img src="/{{ qr_path }}" alt="QR Code for {{ name }}" />
+          <img src="/{{ qr_path|qr_url }}" alt="QR Code for {{ name }}" />
         {% else %}
           <div style="width:140px;height:140px;border-radius:10px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;opacity:0.4;font-size:13px;">No QR</div>
         {% endif %}
@@ -80,7 +80,7 @@
         <div class="emp-id">ID: {{ emp_id }}</div>
         <div class="emp-role">{{ role or '—' }}</div>
         {% if qr_path %}
-          <a class="download-btn" href="/{{ qr_path }}" download="{{ emp_id }}_qr.png">⬇ Download</a>
+          <a class="download-btn" href="/{{ qr_path|qr_url }}" download="{{ emp_id }}_qr.png">⬇ Download</a>
         {% endif %}
       </div>
       {% endfor %}
