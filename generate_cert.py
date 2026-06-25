@@ -13,6 +13,7 @@ import ipaddress
 import socket
 
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
@@ -29,7 +30,7 @@ except Exception:
 print(f"Detected local IP: {local_ip}")
 
 # ── generate private key ─────────────────────────────────────────────────────
-key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
 # ── build certificate ────────────────────────────────────────────────────────
 subject = issuer = x509.Name([
@@ -54,7 +55,7 @@ cert = (
         ]),
         critical=False,
     )
-    .sign(key, hashes.SHA256())
+    .sign(key, hashes.SHA256(), default_backend())
 )
 
 # ── write files ──────────────────────────────────────────────────────────────
