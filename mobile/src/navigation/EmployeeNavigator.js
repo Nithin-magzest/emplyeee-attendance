@@ -1,12 +1,14 @@
-import React from "react";
+
 import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-
+import React, { useState } from "react";
+import AttendanceScannerModal from "../screens/AttendanceScannerModal";
 import EmployeeDashboard from "../screens/employee/EmployeeDashboard";
 import LeaveScreen from "../screens/employee/LeaveScreen";
 import TicketsScreen from "../screens/employee/TicketsScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import CompOffScreen from "../screens/employee/CompOffScreen";
 
 // Replace this with your actual QR screen
 import AttendanceScreen from "../screens/employee/AttendanceScreen";
@@ -14,7 +16,17 @@ import AttendanceScreen from "../screens/employee/AttendanceScreen";
 const Tab = createBottomTabNavigator();
 
 export default function EmployeeNavigator() {
+  const [showScanner, setShowScanner] = useState(false);
   return (
+    <>
+  <AttendanceScannerModal
+    visible={showScanner}
+    onClose={() => setShowScanner(false)}
+    onSuccess={() => setShowScanner(false)}
+  />
+
+  
+    
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -130,7 +142,13 @@ tabBarLabelStyle: {
 
       <Tab.Screen
         name="Scan"
-        component={AttendanceScreen}
+        component={View}
+        listeners={{
+  tabPress: (e) => {
+    e.preventDefault();
+    setShowScanner(true);
+  },
+}}
         options={{
           tabBarLabel: "",
 
@@ -224,6 +242,14 @@ tabBarLabelStyle: {
           tabBarLabel: "Alerts",
         }}
       />
+      <Tab.Screen
+  name="CompOff"
+  component={CompOffScreen}
+  options={{
+    tabBarButton: () => null, // Hide from bottom bar
+  }}
+/>
     </Tab.Navigator>
+    </>
   );
 }

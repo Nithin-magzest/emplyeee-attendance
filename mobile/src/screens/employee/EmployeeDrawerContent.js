@@ -21,27 +21,9 @@ export default function EmployeeDrawerContent(props) {
 
 const drawerRoute = state.routes[state.index];
 
-let activeRoute =
+const activeRoute =
   getFocusedRouteNameFromRoute(drawerRoute) ??
   drawerRoute.name;
-
-// HomeStack nested screens
-if (
-  drawerRoute.state &&
-  drawerRoute.state.routes
-) {
-  const homeRoute =
-    drawerRoute.state.routes[drawerRoute.state.index];
-
-  if (homeRoute.state) {
-    activeRoute =
-      homeRoute.state.routes[
-        homeRoute.state.index
-      ].name;
-  } else {
-    activeRoute = homeRoute.name;
-  }
-}
 
   const handleLogout = async () => {
     try {
@@ -60,17 +42,18 @@ if (
     section: "MAIN",
   },
   {
+  title: "My Profile",
+  icon: "person-circle-outline",
+  route: "Profile",
+  section: "MAIN",
+},
+  {
     title: "Attendance",
     icon: "calendar-outline",
     route: "Attendance",
     section: "MAIN",
   },
-  {
-    title: "Apply Leave",
-    icon: "document-text-outline",
-    route: "Leave",
-    section: "MAIN",
-  },
+  
   {
     title: "Earnings",
     icon: "wallet-outline",
@@ -135,19 +118,19 @@ if (
       break;
 
     case "Attendance":
-      navigation.navigate("EmployeeTabs", {
-        screen: "Home",
-        params: {
-          screen: "Attendance",
-        },
-      });
-      break;
+  navigation.navigate("Attendance");
+  break;
 
     case "Leave":
       navigation.navigate("EmployeeTabs", {
         screen: "Leave",
       });
       break;
+      case "CompOff":
+  navigation.navigate("EmployeeTabs", {
+    screen: "CompOff",
+  });
+  break;
 
     case "Tickets":
       navigation.navigate("EmployeeTabs", {

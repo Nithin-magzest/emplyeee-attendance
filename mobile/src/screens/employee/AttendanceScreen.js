@@ -102,7 +102,11 @@ export default function AttendanceScreen() {
   if (loading) {
     return (
       <LinearGradient
-        colors={["#F8FAFC", "#F2F7FD", "#EDF4FF"]}
+        colors={[
+  "#F8FAFC",
+  "#F6F9FE",
+  "#EEF4FF",
+]}
         style={{ flex: 1 }}
       >
         <LoadingSkeleton />
@@ -112,41 +116,55 @@ export default function AttendanceScreen() {
 
   return (
     <LinearGradient
-      colors={["#F8FAFC", "#F3F7FD", "#EDF4FF"]}
+      colors={[
+  "#F8FAFC",
+  "#F6F9FE",
+  "#EEF4FF",
+]}
       style={styles.container}
     >
       {/* Header */}
 
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => navigation.openDrawer()}
-        >
-          <Ionicons
-            name="menu"
-            size={24}
-            color="#173B8C"
-          />
-        </TouchableOpacity>
 
-        <View>
-          <Text style={styles.smallTitle}>
-            Employee Portal
-          </Text>
+  <TouchableOpacity
+    style={styles.menuButton}
+    onPress={() => navigation.openDrawer()}
+  >
+    <Ionicons
+      name="menu"
+      size={22}
+      color="#173B8C"
+    />
+  </TouchableOpacity>
 
-          <Text style={styles.title}>
-            Attendance
-          </Text>
-        </View>
+  <View style={styles.headerCenter}>
+    <Text style={styles.smallTitle}>
+      Employee Portal
+    </Text>
 
-        <TouchableOpacity style={styles.profile}>
-          <Ionicons
-            name="person"
-            size={22}
-            color="#173B8C"
-          />
-        </TouchableOpacity>
-      </View>
+    <Text style={styles.title}>
+      Attendance
+    </Text>
+
+    <Text style={styles.date}>
+      {today.toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })}
+    </Text>
+  </View>
+
+  <TouchableOpacity style={styles.menuButton}>
+    <Ionicons
+      name="person-circle-outline"
+      size={28}
+      color="#173B8C"
+    />
+  </TouchableOpacity>
+
+</View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -162,19 +180,19 @@ export default function AttendanceScreen() {
           />
         }
       >
-        <MonthYearPicker
-          month={month}
-          year={year}
-          onPrevious={previousMonth}
-          onNext={nextMonth}
-        />
+        
+        
 
         <AttendanceSummaryCard
-          percentage={percentage}
-          present={present}
-          absent={absent}
-          late={late}
-        />
+  month={month}
+  year={year}
+  percentage={percentage}
+  present={present}
+  late={late}
+  absent={absent}
+  onPrevious={previousMonth}
+  onNext={nextMonth}
+/>
 
         <AttendanceStatusCard
           checkIn={latest.check_in || "--:--"}
@@ -281,4 +299,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 120,
   },
+  iconButton: {
+  width: 40,
+  height: 40,
+
+  borderRadius: 12,
+
+  backgroundColor: "#F8FAFC",
+
+  borderWidth: 1,
+  borderColor: "#E2E8F0",
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  shadowColor: "#0F172A",
+  shadowOpacity: 0.04,
+  shadowRadius: 10,
+  shadowOffset: {
+    width: 0,
+    height: 4,
+  },
+
+  elevation: 2,
+},
 });
