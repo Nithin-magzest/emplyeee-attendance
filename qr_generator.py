@@ -10,4 +10,4 @@ def generate_qr(emp_id):
     path = os.path.join(folder, f"{emp_id}.png")
     img = qrcode.make(emp_id)
     img.save(path)
-    return path
+    return f"static/qrcodes/{emp_id}.png"

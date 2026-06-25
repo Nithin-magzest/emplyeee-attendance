@@ -943,7 +943,7 @@
             <!-- QR code -->
             {% if emp[27] %}
             <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;border-left:1px solid #f1f5f9;padding-left:14px;gap:6px;">
-              <img src="/{{ emp[27] }}" alt="My QR"
+              <img src="/{{ emp[27]|qr_url }}" alt="My QR"
                    style="width:116px;height:116px;border-radius:8px;border:1px solid #e2e8f0;display:block;" />
               <div style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Your QR</div>
             </div>
