@@ -2765,9 +2765,8 @@
             const btn = document.getElementById('fpEnrollBtn');
             showMsg('');
 
-            const hostname = window.location.hostname;
-            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-              showMsg('&#9888; Fingerprint requires HTTPS or localhost. Use http://localhost:5000 or ask your admin to set up HTTPS.', true);
+            if (!window.isSecureContext) {
+              showMsg('&#9888; Fingerprint requires HTTPS or localhost. Use https://127.0.0.1:5000 or ask your admin to set up HTTPS.', true);
               return;
             }
             if (!window.PublicKeyCredential) {
