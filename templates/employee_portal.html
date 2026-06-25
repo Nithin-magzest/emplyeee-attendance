@@ -2709,6 +2709,151 @@
           </form>
         </div>
 
+        {% if fp_enabled %}
+        <!-- FINGERPRINT ENROLLMENT -->
+        <div class="section" style="margin-top:22px;" id="fp-enroll-section">
+          <h3 style="margin:0 0 4px;">&#128400; Fingerprint Enrollment</h3>
+          <p style="font-size:13px;color:#64748b;margin:0 0 16px;">Register your fingerprint so you can use it to mark attendance at the kiosk.</p>
+
+          <div id="fpEnrollStatus" style="margin-bottom:14px;">
+            {% if fp_enrolled %}
+            <div style="display:inline-flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#15803d;">
+              &#10003; Fingerprint registered
+            </div>
+            {% else %}
+            <div style="display:inline-flex;align-items:center;gap:8px;background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#854d0e;">
+              &#9888; No fingerprint enrolled yet
+            </div>
+            {% endif %}
+          </div>
+
+          <div id="fpEnrollMsg" style="font-size:13px;color:#dc2626;margin-bottom:10px;display:none;"></div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button id="fpEnrollBtn" onclick="startFpEnroll()"
+              style="padding:10px 22px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+              &#128400; {% if fp_enrolled %}Re-enroll Fingerprint{% else %}Enroll Fingerprint{% endif %}
+            </button>
+            {% if fp_enrolled %}
+            <button id="fpRemoveBtn" onclick="removeFpEnroll()"
+              style="padding:10px 22px;border:1px solid #fca5a5;border-radius:10px;background:#fff;color:#dc2626;font-size:14px;font-weight:600;cursor:pointer;">
+              &#128465; Remove Fingerprint
+            </button>
+            {% endif %}
+          </div>
+        </div>
+
+        <script>
+        (function() {
+          function toBytes(b64url) {
+            const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');
+            const pad = b64.length % 4 ? '='.repeat(4 - b64.length % 4) : '';
+            return Uint8Array.from(atob(b64 + pad), c => c.charCodeAt(0));
+          }
+          function toB64url(buf) {
+            return btoa(String.fromCharCode(...new Uint8Array(buf)))
+              .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+          }
+          function showMsg(msg, isError) {
+            const el = document.getElementById('fpEnrollMsg');
+            el.textContent = msg;
+            el.style.color  = isError ? '#dc2626' : '#15803d';
+            el.style.display = msg ? 'block' : 'none';
+          }
+
+          window.startFpEnroll = async function() {
+            const btn = document.getElementById('fpEnrollBtn');
+            showMsg('');
+
+            const hostname = window.location.hostname;
+            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+              showMsg('&#9888; Fingerprint requires HTTPS or localhost. Use http://localhost:5000 or ask your admin to set up HTTPS.', true);
+              return;
+            }
+            if (!window.PublicKeyCredential) {
+              showMsg('&#9888; This browser does not support WebAuthn. Use Chrome or Edge.', true);
+              return;
+            }
+            const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+            if (!avail) {
+              showMsg('&#9888; No fingerprint sensor detected on this device.', true);
+              return;
+            }
+
+            btn.disabled    = true;
+            btn.textContent = '&#9203; Waiting for sensor...';
+
+            try {
+              const chalR    = await fetch('/webauthn/challenge');
+              const { challenge } = await chalR.json();
+
+              const empId   = {{ emp[0] | tojson }};
+              const empName = {{ emp[1] | tojson }};
+
+              const cred = await navigator.credentials.create({
+                publicKey: {
+                  challenge:              toBytes(challenge),
+                  rp:                     { name: 'Attendance System', id: window.location.hostname },
+                  user:                   { id: toBytes(btoa(empId)), name: empId, displayName: empName },
+                  pubKeyCredParams:       [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                  authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+                  timeout:                60000,
+                }
+              });
+
+              const credentialId = toB64url(cred.rawId);
+              const saveR  = await fetch('/api/employee/webauthn-register', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ credential_id: credentialId }),
+              });
+              const saved = await saveR.json();
+              if (!saved.ok) throw new Error(saved.msg || 'Save failed');
+
+              showMsg('&#10003; Fingerprint enrolled successfully! You can now use it at the kiosk.', false);
+              btn.textContent = '&#128400; Re-enroll Fingerprint';
+              document.getElementById('fpEnrollStatus').innerHTML =
+                '<div style="display:inline-flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#15803d;">&#10003; Fingerprint registered</div>';
+              const rmBtn = document.getElementById('fpRemoveBtn');
+              if (!rmBtn) {
+                const d = document.createElement('button');
+                d.id = 'fpRemoveBtn';
+                d.setAttribute('onclick','removeFpEnroll()');
+                d.setAttribute('style','padding:10px 22px;border:1px solid #fca5a5;border-radius:10px;background:#fff;color:#dc2626;font-size:14px;font-weight:600;cursor:pointer;');
+                d.textContent = '🗑️ Remove Fingerprint';
+                btn.parentNode.appendChild(d);
+              }
+            } catch(err) {
+              if (err.name === 'NotAllowedError') {
+                showMsg('&#10006; Enrollment cancelled or timed out. Please try again.', true);
+              } else {
+                showMsg('&#10006; ' + (err.message || 'Unknown error'), true);
+              }
+            } finally {
+              btn.disabled    = false;
+              btn.textContent = '&#128400; Re-enroll Fingerprint';
+            }
+          };
+
+          window.removeFpEnroll = async function() {
+            if (!confirm('Remove your enrolled fingerprint? You will need to re-enroll before using fingerprint attendance.')) return;
+            const res  = await fetch('/api/employee/webauthn-unenroll', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok) {
+              document.getElementById('fpEnrollStatus').innerHTML =
+                '<div style="display:inline-flex;align-items:center;gap:8px;background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;color:#854d0e;">&#9888; No fingerprint enrolled yet</div>';
+              const rb = document.getElementById('fpRemoveBtn');
+              if (rb) rb.remove();
+              document.getElementById('fpEnrollBtn').textContent = '&#128400; Enroll Fingerprint';
+              showMsg('Fingerprint removed.', false);
+            } else {
+              showMsg('Failed to remove: ' + (data.msg || ''), true);
+            }
+          };
+        })();
+        </script>
+        {% endif %}
+
       </div><!-- /view-my-profile -->
 
       <!-- ═══ VIEW: TERMS & CONDITIONS ═══ -->

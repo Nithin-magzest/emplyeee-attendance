@@ -6579,7 +6579,8 @@ def employee_portal():
                e.address, e.city, e.state, e.pincode,
                e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
                e.aadhar_number, e.pan_number, e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
-               e.qr_code, e.work_mode, e.about_me, e.manager_name, e.department
+               e.qr_code, e.work_mode, e.about_me, e.manager_name, e.department,
+               e.fingerprint_credential_id
         FROM employees e
         LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         LEFT JOIN shifts sh ON e.shift_id = sh.id
@@ -6594,6 +6595,8 @@ def employee_portal():
     # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
     # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
     # [27]=qr_code [28]=work_mode [29]=about_me [30]=manager_name [31]=department
+    # [32]=fingerprint_credential_id
+    fp_enrolled = bool(emp[32]) if len(emp) > 32 else False
     # Decrypt PII fields
     for _pii_idx in (21, 22, 24, 25, 26):
         if _pii_idx < len(emp):
@@ -7058,6 +7061,8 @@ def employee_portal():
         swap_sent=request.args.get("swap_sent") == "1",
         swap_responded=request.args.get("swap_responded") == "1",
         swap_error=request.args.get("swap_error", ""),
+        fp_enrolled=fp_enrolled,
+        fp_enabled=get_auth_config().get("fingerprint_enabled", False),
     )
 
 
@@ -9936,6 +9941,50 @@ def webauthn_challenge():
     raw = secrets.token_bytes(32)
     b64 = _b64.urlsafe_b64encode(raw).rstrip(b"=").decode()
     return jsonify({"challenge": b64})
+
+
+@app.route("/api/employee/webauthn-register", methods=["POST"])
+def webauthn_register():
+    """Save a WebAuthn credential after successful enrollment. Requires active employee session."""
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Not logged in"}), 401
+    data          = request.get_json(force=True, silent=True) or {}
+    credential_id = (data.get("credential_id") or "").strip()
+    if not credential_id:
+        return jsonify({"ok": False, "msg": "credential_id required"}), 400
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
+            (credential_id, emp_id)
+        )
+        db.commit()
+        cursor.close(); db.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/employee/webauthn-unenroll", methods=["POST"])
+def webauthn_unenroll():
+    """Remove the stored WebAuthn credential for the logged-in employee."""
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Not logged in"}), 401
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "UPDATE employees SET fingerprint_credential_id=NULL WHERE employee_id=%s",
+            (emp_id,)
+        )
+        db.commit()
+        cursor.close(); db.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 @app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
