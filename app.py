@@ -146,6 +146,32 @@ app.jinja_env.globals["csrf_token"] = _csrf_token
 app.jinja_env.globals["timedelta"]  = datetime.timedelta
 
 @app.context_processor
+def inject_companies_context():
+    """Inject active company and companies list into every admin template."""
+    if not session.get("admin_logged_in"):
+        return {}
+    try:
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute("""
+            SELECT id, name, COALESCE(code,''), COALESCE(pin,'')
+            FROM companies ORDER BY name
+        """)
+        rows = cur.fetchall()
+        cur.close(); db.close()
+        active_cid = session.get("active_company_id")
+        active_company = None
+        for r in rows:
+            if r[0] == active_cid:
+                active_company = {"id": r[0], "name": r[1], "code": r[2]}
+                break
+        return {
+            "all_companies": [{"id": r[0], "name": r[1], "code": r[2], "has_pin": bool(r[3])} for r in rows],
+            "active_company": active_company,
+        }
+    except Exception:
+        return {"all_companies": [], "active_company": None}
+
+@app.context_processor
 def inject_overdue_onboardings():
     if not session.get("admin_logged_in"):
         return {}
@@ -377,6 +403,114 @@ def get_auth_config():
 
 def get_fingerprint_enabled():
     return get_auth_config()["fingerprint_enabled"]
+
+# ── Per-company feature settings ──────────────────────────────────────────────
+def _read_global_features():
+    """Read global company_settings feature flags as dict."""
+    try:
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute("""
+            SELECT face_auth_enabled, geo_enabled, COALESCE(geo_radius,300), qr_enabled,
+                   pin_enabled, COALESCE(fingerprint_enabled,0), COALESCE(biometric_enabled,0),
+                   COALESCE(notify_leave,1), COALESCE(notify_payslip,1),
+                   COALESCE(notify_resignation,1), COALESCE(notify_doc_expiry,1),
+                   COALESCE(session_timeout,30),
+                   COALESCE(late_deduction_pct,10), COALESCE(half_day_deduction_pct,50),
+                   COALESCE(grace_minutes,15), COALESCE(holiday_pay,'paid'),
+                   COALESCE(leave_pay,'exclude'),
+                   COALESCE(shift_start,'09:00:00'), COALESCE(shift_half,'13:00:00'),
+                   COALESCE(shift_end,'18:00:00')
+            FROM company_settings LIMIT 1
+        """)
+        r = cur.fetchone(); cur.close(); db.close()
+        if r:
+            return {
+                "face_auth_enabled": bool(r[0]), "geo_enabled": bool(r[1]),
+                "geo_radius": r[2], "qr_enabled": bool(r[3]), "pin_enabled": bool(r[4]),
+                "fingerprint_enabled": bool(r[5]), "biometric_enabled": bool(r[6]),
+                "notify_leave": bool(r[7]), "notify_payslip": bool(r[8]),
+                "notify_resignation": bool(r[9]), "notify_doc_expiry": bool(r[10]),
+                "session_timeout": r[11],
+                "late_deduction_pct": float(r[12]), "half_day_deduction_pct": float(r[13]),
+                "grace_minutes": int(r[14]), "holiday_pay": r[15], "leave_pay": r[16],
+                "shift_start": r[17], "shift_half": r[18], "shift_end": r[19],
+            }
+    except Exception:
+        pass
+    return {
+        "face_auth_enabled": True, "geo_enabled": False, "geo_radius": 300,
+        "qr_enabled": True, "pin_enabled": True, "fingerprint_enabled": False,
+        "biometric_enabled": False, "notify_leave": True, "notify_payslip": True,
+        "notify_resignation": True, "notify_doc_expiry": True, "session_timeout": 30,
+        "late_deduction_pct": 10.0, "half_day_deduction_pct": 50.0, "grace_minutes": 15,
+        "holiday_pay": "paid", "leave_pay": "exclude",
+        "shift_start": "09:00:00", "shift_half": "13:00:00", "shift_end": "18:00:00",
+    }
+
+def get_co_features(company_id=None):
+    """Return feature settings for a company, falling back to global defaults."""
+    if not company_id:
+        return _read_global_features()
+    try:
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute("""
+            SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled,
+                   pin_enabled, fingerprint_enabled, biometric_enabled,
+                   notify_leave, notify_payslip, notify_resignation, notify_doc_expiry,
+                   session_timeout, late_deduction_pct, half_day_deduction_pct,
+                   grace_minutes, holiday_pay, leave_pay, shift_start, shift_half, shift_end
+            FROM company_feature_settings WHERE company_id=%s
+        """, (company_id,))
+        r = cur.fetchone(); cur.close(); db.close()
+        if r:
+            return {
+                "face_auth_enabled": bool(r[0]), "geo_enabled": bool(r[1]),
+                "geo_radius": r[2], "qr_enabled": bool(r[3]), "pin_enabled": bool(r[4]),
+                "fingerprint_enabled": bool(r[5]), "biometric_enabled": bool(r[6]),
+                "notify_leave": bool(r[7]), "notify_payslip": bool(r[8]),
+                "notify_resignation": bool(r[9]), "notify_doc_expiry": bool(r[10]),
+                "session_timeout": r[11],
+                "late_deduction_pct": float(r[12]), "half_day_deduction_pct": float(r[13]),
+                "grace_minutes": int(r[14]), "holiday_pay": r[15], "leave_pay": r[16],
+                "shift_start": r[17], "shift_half": r[18], "shift_end": r[19],
+            }
+    except Exception:
+        pass
+    return _read_global_features()
+
+def _upsert_co_feature(company_id, field, value):
+    """Insert or update a single field in company_feature_settings."""
+    if not company_id:
+        return
+    try:
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute(f"""
+            INSERT INTO company_feature_settings (company_id, {field})
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE {field}=VALUES({field})
+        """, (company_id, value))
+        db.commit(); cur.close(); db.close()
+    except Exception:
+        pass
+
+def _upsert_co_features(company_id, fields_dict):
+    """Insert or update multiple fields in company_feature_settings."""
+    if not company_id or not fields_dict:
+        return
+    try:
+        cols   = ", ".join(fields_dict.keys())
+        vals   = list(fields_dict.values())
+        placeholders = ", ".join(["%s"] * len(vals))
+        updates = ", ".join(f"{k}=VALUES({k})" for k in fields_dict.keys())
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute(f"""
+            INSERT INTO company_feature_settings (company_id, {cols})
+            VALUES (%s, {placeholders})
+            ON DUPLICATE KEY UPDATE {updates}
+        """, [company_id] + vals)
+        db.commit(); cur.close(); db.close()
+    except Exception:
+        pass
 
 @app.context_processor
 def inject_company():
@@ -989,7 +1123,35 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(200) NOT NULL,
             code VARCHAR(20) DEFAULT NULL,
+            working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS company_feature_settings (
+            company_id INT PRIMARY KEY,
+            face_auth_enabled  TINYINT(1) DEFAULT 1,
+            qr_enabled         TINYINT(1) DEFAULT 1,
+            fingerprint_enabled TINYINT(1) DEFAULT 0,
+            geo_enabled        TINYINT(1) DEFAULT 0,
+            geo_radius         INT DEFAULT 300,
+            pin_enabled        TINYINT(1) DEFAULT 1,
+            biometric_enabled  TINYINT(1) DEFAULT 0,
+            notify_leave       TINYINT(1) DEFAULT 1,
+            notify_payslip     TINYINT(1) DEFAULT 1,
+            notify_resignation TINYINT(1) DEFAULT 1,
+            notify_doc_expiry  TINYINT(1) DEFAULT 1,
+            session_timeout    INT DEFAULT 30,
+            late_deduction_pct DECIMAL(5,2) DEFAULT 10.00,
+            half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00,
+            grace_minutes      INT DEFAULT 15,
+            holiday_pay        ENUM('paid','unpaid') DEFAULT 'paid',
+            leave_pay          ENUM('exclude','absent') DEFAULT 'exclude',
+            shift_start        TIME DEFAULT '09:00:00',
+            shift_half         TIME DEFAULT '13:00:00',
+            shift_end          TIME DEFAULT '18:00:00',
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
         )
     """)
     db.commit()
@@ -1095,6 +1257,9 @@ def init_db():
         "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
         "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
         "ALTER TABLE break_config ADD COLUMN shift_id INT DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE shifts ADD COLUMN company_id INT DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN pin VARCHAR(10) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -2016,43 +2181,61 @@ def admin():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
+    active_cid = session.get("active_company_id")
+    _co_filter = "AND e.company_id=%s" if active_cid else ""
+    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args   = (active_cid,) if active_cid else ()
 
-    cursor.execute("SELECT COUNT(*) FROM employees")
+    if active_cid:
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
+    else:
+        cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL",
-        (today,)
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",
+        (today,) + _co_args
     )
     present = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT COUNT(DISTINCT employee_id) FROM attendance "
-        "WHERE date=%s AND status='Late Login'",
-        (today,)
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",
+        (today,) + _co_args
     )
     late = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT e.employee_id, e.name, a.login_time, a.logout_time, a.status, "
-        "       a.logout_status, a.attendance_type, e.role "
-        "FROM employees e "
-        "LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
-        "ORDER BY e.name",
-        (today,)
+        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, a.status, "
+        f"       a.logout_status, a.attendance_type, e.role "
+        f"FROM employees e "
+        f"LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
+        f"WHERE 1=1 {_co_filter} ORDER BY e.name",
+        (today,) + _co_args
     )
     today_rows = cursor.fetchall()
 
-    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    if active_cid:
+        cursor.execute("SELECT employee_id, name FROM employees WHERE company_id=%s ORDER BY name", _co_args)
+    else:
+        cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
     all_employees = cursor.fetchall()
 
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}",
+        _co_args
+    )
     pending_leaves = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}",
+        _co_args
+    )
     pending_resignations = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}",
+        _co_args
+    )
     pending_tickets = cursor.fetchone()[0]
 
     try:
@@ -2151,29 +2334,36 @@ def dashboard_live():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
+    active_cid = session.get("active_company_id")
+    _co_filter = "AND e.company_id=%s" if active_cid else ""
+    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args   = (active_cid,) if active_cid else ()
 
-    cursor.execute("SELECT COUNT(*) FROM employees")
+    if active_cid:
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
+    else:
+        cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL",
-        (today,)
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",
+        (today,) + _co_args
     )
     present = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login'",
-        (today,)
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",
+        (today,) + _co_args
     )
     late = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT e.employee_id, e.name, a.login_time, a.logout_time, "
-        "       a.status, a.logout_status, a.attendance_type, e.role "
-        "FROM employees e "
-        "LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
-        "ORDER BY e.name",
-        (today,)
+        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, "
+        f"       a.status, a.logout_status, a.attendance_type, e.role "
+        f"FROM employees e "
+        f"LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
+        f"WHERE 1=1 {_co_filter} ORDER BY e.name",
+        (today,) + _co_args
     )
     rows = []
     for emp_id, name, login_t, logout_t, status, logout_s, att_type, role in cursor.fetchall():
@@ -2188,13 +2378,13 @@ def dashboard_live():
             "att_type": att_type or "",
         })
 
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_leaves = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_resignations = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}", _co_args)
     pending_tickets = cursor.fetchone()[0]
 
     cursor.close(); db.close()
@@ -2218,16 +2408,24 @@ def attendance_chart_data():
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
 
+    active_cid = session.get("active_company_id")
+    _co_filter = "AND e.company_id=%s" if active_cid else ""
+    _co_sub    = "AND a.employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args   = (active_cid,) if active_cid else ()
+
     # Last 30 days: present count per day
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT a.date, COUNT(DISTINCT a.employee_id)
         FROM attendance a
-        WHERE a.date >= %s AND a.date <= %s AND a.login_time IS NOT NULL
+        WHERE a.date >= %s AND a.date <= %s AND a.login_time IS NOT NULL {_co_sub}
         GROUP BY a.date ORDER BY a.date
-    """, (today - datetime.timedelta(days=29), today))
+    """, (today - datetime.timedelta(days=29), today) + _co_args)
     present_by_day = {str(r[0]): r[1] for r in cursor.fetchall()}
 
-    cursor.execute("SELECT COUNT(*) FROM employees")
+    if active_cid:
+        cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
+    else:
+        cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
 
     trend_labels, trend_present, trend_absent = [], [], []
@@ -2240,15 +2438,16 @@ def attendance_chart_data():
         trend_absent.append(max(total - p, 0))
 
     # Today by department
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT COALESCE(e.department, 'Unassigned'),
                COUNT(DISTINCT CASE WHEN a.login_time IS NOT NULL THEN e.employee_id END),
                COUNT(DISTINCT e.employee_id)
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s
+        WHERE 1=1 {_co_filter}
         GROUP BY COALESCE(e.department, 'Unassigned')
         ORDER BY COALESCE(e.department, 'Unassigned')
-    """, (today,))
+    """, (today,) + _co_args)
     dept_labels, dept_present, dept_absent = [], [], []
     for dept, p, tot in cursor.fetchall():
         dept_labels.append(dept)
@@ -2278,14 +2477,17 @@ def today_present():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
-    cursor.execute("""
+    active_cid = session.get("active_company_id")
+    _co = "AND e.company_id=%s" if active_cid else ""
+    _args = (today,) + ((active_cid,) if active_cid else ())
+    cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role, a.login_time, a.logout_time,
                a.status, a.logout_status, a.attendance_type
         FROM employees e
         JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
-        WHERE a.login_time IS NOT NULL
+        WHERE a.login_time IS NOT NULL {_co}
         ORDER BY a.login_time
-    """, (today,))
+    """, _args)
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -2300,13 +2502,16 @@ def today_absent():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
-    cursor.execute("""
+    active_cid = session.get("active_company_id")
+    _co = "AND e.company_id=%s" if active_cid else ""
+    _args = (today,) + ((active_cid,) if active_cid else ())
+    cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
-        WHERE a.employee_id IS NULL
+        WHERE a.employee_id IS NULL {_co}
         ORDER BY e.name
-    """, (today,))
+    """, _args)
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -2321,13 +2526,16 @@ def today_late():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
-    cursor.execute("""
+    active_cid = session.get("active_company_id")
+    _co = "AND e.company_id=%s" if active_cid else ""
+    _args = (today,) + ((active_cid,) if active_cid else ())
+    cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role, a.login_time, a.status
         FROM employees e
         JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
-        WHERE a.status IN ('Late Login', 'Half Day Login')
+        WHERE a.status IN ('Late Login', 'Half Day Login') {_co}
         ORDER BY a.login_time
-    """, (today,))
+    """, _args)
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -2532,15 +2740,22 @@ def settings_page():
     row = cursor.fetchone()
     email_config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4], "from_email": row[5] or row[2]} if row else None
 
-    # Shifts
-    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
+    # Shifts (with company)
+    cursor.execute("""
+        SELECT s.id, s.name, s.start_time, s.half_time, s.end_time,
+               COALESCE(s.company_id, 0), COALESCE(c.name, '')
+        FROM shifts s
+        LEFT JOIN companies c ON c.id = s.company_id
+        ORDER BY c.name, s.start_time
+    """)
     shift_rows = []
-    for sid, sname, st, ht, et in cursor.fetchall():
+    for sid, sname, st, ht, et, scid, scname in cursor.fetchall():
         shift_rows.append({
             "id": sid, "name": sname,
             "start": _td_to_time(st).strftime("%H:%M") if st else "--",
             "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
             "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
+            "company_id": scid, "company_name": scname,
         })
     cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
     emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
@@ -2611,41 +2826,60 @@ def settings_page():
 
     cursor.execute("""
         SELECT c.id, c.name, COALESCE(c.code,''), c.created_at,
-               COUNT(e.id) AS emp_count
+               COUNT(e.id) AS emp_count,
+               COALESCE(c.working_days,'Mon,Tue,Wed,Thu,Fri'),
+               CASE WHEN c.pin IS NOT NULL AND c.pin != '' THEN 1 ELSE 0 END AS has_pin
         FROM companies c
         LEFT JOIN employees e ON e.company_id = c.id
-        GROUP BY c.id, c.name, c.code, c.created_at
+        GROUP BY c.id, c.name, c.code, c.created_at, c.working_days, c.pin
         ORDER BY c.name
     """)
     companies = cursor.fetchall()
 
-    # Feature flags
-    cursor.execute("""
-        SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled, pin_enabled,
-               fingerprint_enabled, biometric_enabled, notify_leave, notify_payslip,
-               notify_resignation, notify_doc_expiry, session_timeout,
-               COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'),
-               COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata')
-        FROM company_settings LIMIT 1
-    """)
-    fr = cursor.fetchone()
+    # Feature flags — per-company when active, global otherwise
+    _active_cid_settings = session.get("active_company_id")
+    fr = get_co_features(_active_cid_settings)
+    cursor.execute("SELECT COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'), COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata') FROM company_settings LIMIT 1")
+    _gset = cursor.fetchone()
     features = {
-        "face_auth":    bool(fr[0]) if fr else False,
-        "geo":          bool(fr[1]) if fr else False,
-        "geo_radius":   fr[2] if fr else 100,
-        "qr":           bool(fr[3]) if fr else False,
-        "pin":          bool(fr[4]) if fr else True,
-        "fingerprint":  bool(fr[5]) if fr else False,
-        "biometric":    bool(fr[6]) if fr else False,
-        "notify_leave": bool(fr[7]) if fr else True,
-        "notify_payslip": bool(fr[8]) if fr else True,
-        "notify_resignation": bool(fr[9]) if fr else True,
-        "notify_doc_expiry":  bool(fr[10]) if fr else True,
-        "session_timeout": fr[11] if fr else 30,
-        "working_days": (fr[12] if fr else "Mon,Tue,Wed,Thu,Fri").split(","),
-        "company_name": fr[13] if fr else "",
-        "timezone":     fr[14] if fr else "Asia/Kolkata",
+        "face_auth":    fr["face_auth_enabled"],
+        "geo":          fr["geo_enabled"],
+        "geo_radius":   fr["geo_radius"],
+        "qr":           fr["qr_enabled"],
+        "pin":          fr["pin_enabled"],
+        "fingerprint":  fr["fingerprint_enabled"],
+        "biometric":    fr["biometric_enabled"],
+        "notify_leave": fr["notify_leave"],
+        "notify_payslip": fr["notify_payslip"],
+        "notify_resignation": fr["notify_resignation"],
+        "notify_doc_expiry":  fr["notify_doc_expiry"],
+        "session_timeout": fr["session_timeout"],
+        "working_days": (_gset[0] if _gset else "Mon,Tue,Wed,Thu,Fri").split(","),
+        "company_name": _gset[1] if _gset else "",
+        "timezone":     _gset[2] if _gset else "Asia/Kolkata",
+        # salary rules from company features
+        "late_deduction_pct": fr["late_deduction_pct"],
+        "half_day_deduction_pct": fr["half_day_deduction_pct"],
+        "grace_minutes": fr["grace_minutes"],
+        "holiday_pay": fr["holiday_pay"],
+        "leave_pay": fr["leave_pay"],
+        "shift_start": fr["shift_start"],
+        "shift_half": fr["shift_half"],
+        "shift_end": fr["shift_end"],
     }
+
+    # Resolve salary/shift display values: company-specific overrides global
+    def _td_str(v):
+        if v is None: return None
+        if isinstance(v, str): return v[:5]
+        if isinstance(v, datetime.timedelta):
+            t = int(v.total_seconds()); return "%02d:%02d" % (t//3600, (t%3600)//60)
+        if isinstance(v, datetime.time): return v.strftime("%H:%M")
+        return str(v)[:5]
+
+    _co_shift_start = _td_str(fr.get("shift_start")) or SHIFT_START.strftime("%H:%M")
+    _co_shift_half  = _td_str(fr.get("shift_half"))  or SHIFT_HALF.strftime("%H:%M")
+    _co_shift_end   = _td_str(fr.get("shift_end"))   or SHIFT_END.strftime("%H:%M")
 
     cursor.close(); db.close()
     return render_template("settings.html",
@@ -2668,19 +2902,25 @@ def settings_page():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
         saved=request.args.get("saved") == "1",
-        default_start=SHIFT_START.strftime("%H:%M"),
-        default_half=SHIFT_HALF.strftime("%H:%M"),
-        default_end=SHIFT_END.strftime("%H:%M"),
+        default_start=_co_shift_start,
+        default_half=_co_shift_half,
+        default_end=_co_shift_end,
         now_month=datetime.date.today().month,
         now_year=datetime.date.today().year,
         default_onboarding_tpl=default_onboarding_tpl,
         onboarding_templates=onboarding_templates,
-        late_deduction_pct=round(LATE_DEDUCTION_RATE * 100, 1),
-        half_day_deduction_pct=round(HALF_DAY_RATE * 100, 1),
-        grace_minutes=GRACE_MINUTES,
-        holiday_pay=HOLIDAY_PAY,
-        leave_pay=LEAVE_PAY,
-        auth_config=get_auth_config(),
+        late_deduction_pct=round(fr["late_deduction_pct"], 1),
+        half_day_deduction_pct=round(fr["half_day_deduction_pct"], 1),
+        grace_minutes=fr["grace_minutes"],
+        holiday_pay=fr["holiday_pay"],
+        leave_pay=fr["leave_pay"],
+        auth_config={
+            "face_enabled":            fr["face_auth_enabled"],
+            "qr_enabled":              fr["qr_enabled"],
+            "fingerprint_enabled":     fr["fingerprint_enabled"],
+            "location_enabled":        fr["geo_enabled"],
+            "employee_password_auth":  True,
+        },
         features=features,
     )
 
@@ -2714,26 +2954,36 @@ def save_salary_rules():
         holiday_pay = "paid"
     if leave_pay not in ("exclude", "absent"):
         leave_pay = "exclude"
-    # Optional shift time thresholds
     shift_start_raw = request.form.get("shift_start", "").strip()
     shift_half_raw  = request.form.get("shift_half",  "").strip()
     shift_end_raw   = request.form.get("shift_end",   "").strip()
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
-        "grace_minutes=%s, holiday_pay=%s, leave_pay=%s",
-        (late_pct, half_pct, grace_min, holiday_pay, leave_pay)
-    )
-    if shift_start_raw and shift_half_raw and shift_end_raw:
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        _fields = {
+            "late_deduction_pct": late_pct, "half_day_deduction_pct": half_pct,
+            "grace_minutes": grace_min, "holiday_pay": holiday_pay, "leave_pay": leave_pay,
+        }
+        if shift_start_raw and shift_half_raw and shift_end_raw:
+            _fields.update({"shift_start": shift_start_raw, "shift_half": shift_half_raw,
+                            "shift_end": shift_end_raw})
+        _upsert_co_features(active_cid, _fields)
+    else:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
-            "UPDATE company_settings SET shift_start=%s, shift_half=%s, shift_end=%s",
-            (shift_start_raw, shift_half_raw, shift_end_raw)
+            "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
+            "grace_minutes=%s, holiday_pay=%s, leave_pay=%s",
+            (late_pct, half_pct, grace_min, holiday_pay, leave_pay)
         )
-    db.commit()
-    cursor.close(); db.close()
-    load_salary_rules()
-    load_default_shift()
+        if shift_start_raw and shift_half_raw and shift_end_raw:
+            cursor.execute(
+                "UPDATE company_settings SET shift_start=%s, shift_half=%s, shift_end=%s",
+                (shift_start_raw, shift_half_raw, shift_end_raw)
+            )
+        db.commit()
+        cursor.close(); db.close()
+        load_salary_rules()
+        load_default_shift()
     flash("Salary rules saved.", "success")
     return redirect("/settings?tab=salary")
 
@@ -2763,9 +3013,17 @@ def toggle_auth_method():
         return redirect("/settings?tab=attendance")
     column = _TOGGLE_COLUMN_MAP[method]
     label  = _TOGGLE_LABEL_MAP[method]
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
-    db.commit(); cursor.close(); db.close()
+    active_cid = session.get("active_company_id")
+    # Map old column names to company_feature_settings column names
+    _cfs_map = {"face_enabled": "face_auth_enabled", "location_enabled": "geo_enabled",
+                "employee_password_auth": None}  # password auth stays global
+    cfs_col = _cfs_map.get(column, column)
+    if active_cid and cfs_col:
+        _upsert_co_feature(active_cid, cfs_col, 1 if enabled else 0)
+    else:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
+        db.commit(); cursor.close(); db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"{label} {state}.", "success")
     return redirect("/settings?tab=attendance")
@@ -2774,9 +3032,13 @@ def toggle_auth_method():
 @admin_required
 def toggle_fingerprint():
     enabled = request.form.get("enabled", "0") == "1"
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("UPDATE company_settings SET fingerprint_enabled=%s", (1 if enabled else 0,))
-    db.commit(); cursor.close(); db.close()
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        _upsert_co_feature(active_cid, "fingerprint_enabled", 1 if enabled else 0)
+    else:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE company_settings SET fingerprint_enabled=%s", (1 if enabled else 0,))
+        db.commit(); cursor.close(); db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"Fingerprint authentication {state}.", "success")
     return redirect("/settings?tab=attendance")
@@ -2824,9 +3086,20 @@ def toggle_feature():
     value   = 1 if data.get("value") else 0
     if feature not in allowed:
         return jsonify({"ok": False, "error": "unknown feature"}), 400
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
-    db.commit(); cursor.close(); db.close()
+    active_cid = session.get("active_company_id")
+    # Map company_settings col names → company_feature_settings col names
+    _cfs_col_map = {"face_auth_enabled": "face_auth_enabled", "geo_enabled": "geo_enabled",
+                    "qr_enabled": "qr_enabled", "pin_enabled": "pin_enabled",
+                    "fingerprint_enabled": "fingerprint_enabled", "biometric_enabled": "biometric_enabled",
+                    "notify_leave": "notify_leave", "notify_payslip": "notify_payslip",
+                    "notify_resignation": "notify_resignation", "notify_doc_expiry": "notify_doc_expiry"}
+    cfs_col = _cfs_col_map.get(feature, feature)
+    if active_cid and cfs_col in _cfs_col_map:
+        _upsert_co_feature(active_cid, cfs_col, value)
+    else:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
+        db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True})
 
 # ---------------- SAVE GEO RADIUS ----------------
@@ -2834,9 +3107,13 @@ def toggle_feature():
 @admin_required
 def save_geo_radius():
     radius = int(request.form.get("geo_radius", 100))
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
-    db.commit(); cursor.close(); db.close()
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        _upsert_co_feature(active_cid, "geo_radius", radius)
+    else:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
+        db.commit(); cursor.close(); db.close()
     flash("Attendance settings saved.", "success")
     return redirect("/settings?tab=attendance")
 
@@ -2845,30 +3122,73 @@ def save_geo_radius():
 @admin_required
 def save_security_settings():
     timeout = int(request.form.get("session_timeout", 30))
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
-    db.commit(); cursor.close(); db.close()
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        _upsert_co_feature(active_cid, "session_timeout", timeout)
+    else:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
+        db.commit(); cursor.close(); db.close()
     flash("Security settings saved.", "success")
     return redirect("/settings?tab=security")
 
 
 # ---------------- COMPANIES ----------------
 
+@app.route("/switch_company", methods=["POST"])
+@admin_required
+def switch_company():
+    cid  = request.form.get("company_id", "").strip()
+    pin  = request.form.get("pin", "").strip()
+    dest = request.form.get("next", "/admin")
+    if not cid:
+        session.pop("active_company_id", None)
+        flash("Switched to: All Companies", "success")
+        return redirect(dest)
+    try:
+        cid = int(cid)
+    except ValueError:
+        return redirect(dest)
+    db = get_db_connection(); cur = db.cursor(buffered=True)
+    cur.execute("SELECT name, COALESCE(pin,'') FROM companies WHERE id=%s", (cid,))
+    row = cur.fetchone()
+    cur.close(); db.close()
+    if not row:
+        flash("Company not found.", "error")
+        return redirect(dest)
+    cname, stored_pin = row
+    if stored_pin and stored_pin != pin:
+        flash(f"Incorrect PIN for {cname}.", "error")
+        return redirect(dest + ("&" if "?" in dest else "?") + "pin_error=1&pin_cid=" + str(cid))
+    session["active_company_id"] = cid
+    flash(f"Switched to: {cname}", "success")
+    return redirect(dest)
+
+@app.route("/clear_company", methods=["POST"])
+@admin_required
+def clear_company():
+    session.pop("active_company_id", None)
+    flash("Viewing all companies.", "success")
+    return redirect(request.form.get("next", "/admin"))
+
+@app.route("/set_company_pin", methods=["POST"])
+@admin_required
+def set_company_pin():
+    cid = request.form.get("company_id", "").strip()
+    pin = request.form.get("pin", "").strip()
+    if not cid:
+        flash("Invalid request.", "error")
+        return redirect("/settings?tab=company")
+    db = get_db_connection(); cur = db.cursor(buffered=True)
+    cur.execute("UPDATE companies SET pin=%s WHERE id=%s", (pin or None, int(cid)))
+    db.commit(); cur.close(); db.close()
+    flash("PIN " + ("set." if pin else "removed."), "success")
+    return redirect("/settings?tab=company")
+
 @app.route("/companies")
 @admin_required
 def view_companies():
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT c.id, c.name, c.code, c.created_at,
-               COUNT(e.id) AS employee_count
-        FROM companies c
-        LEFT JOIN employees e ON e.company_id = c.id
-        GROUP BY c.id, c.name, c.code, c.created_at
-        ORDER BY c.name
-    """)
-    companies = cursor.fetchall()
-    cursor.close(); db.close()
-    return render_template("companies.html", companies=companies)
+    return redirect("/settings?tab=company")
 
 
 @app.route("/companies/add", methods=["POST"])
@@ -2902,11 +3222,13 @@ def edit_company(cid):
 
     db = get_db_connection(); cursor = db.cursor(buffered=True)
 
+    w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
+
     cursor.execute("SELECT COALESCE(code,'') FROM companies WHERE id=%s", (cid,))
     row      = cursor.fetchone()
     old_code = (row[0] or "").strip().upper() if row else ""
 
-    cursor.execute("UPDATE companies SET name=%s, code=%s WHERE id=%s", (name, new_code, cid))
+    cursor.execute("UPDATE companies SET name=%s, code=%s, working_days=%s WHERE id=%s", (name, new_code, w_days, cid))
     db.commit()
 
     renamed_count = 0
@@ -3470,22 +3792,42 @@ def api_employee_info(emp_id):
 def view_employees():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
-               COUNT(a.date)  AS total_days,
-               MAX(a.date)    AS last_seen,
-               e.work_mode, e.work_lat, e.work_lon,
-               e.face_image, e.qr_code,
-               e.department, e.phone, e.gender,
-               s.name AS shift_name, e.shift_id
-        FROM employees e
-        LEFT JOIN attendance a ON e.employee_id = a.employee_id
-        LEFT JOIN shifts     s ON e.shift_id = s.id
-        GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
-                 e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code,
-                 e.department, e.phone, e.gender, s.name, e.shift_id
-        ORDER BY e.name
-    """)
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                   COUNT(a.date)  AS total_days,
+                   MAX(a.date)    AS last_seen,
+                   e.work_mode, e.work_lat, e.work_lon,
+                   e.face_image, e.qr_code,
+                   e.department, e.phone, e.gender,
+                   s.name AS shift_name, e.shift_id
+            FROM employees e
+            LEFT JOIN attendance a ON e.employee_id = a.employee_id
+            LEFT JOIN shifts     s ON e.shift_id = s.id
+            WHERE e.company_id = %s
+            GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                     e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code,
+                     e.department, e.phone, e.gender, s.name, e.shift_id
+            ORDER BY e.name
+        """, (active_cid,))
+    else:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                   COUNT(a.date)  AS total_days,
+                   MAX(a.date)    AS last_seen,
+                   e.work_mode, e.work_lat, e.work_lon,
+                   e.face_image, e.qr_code,
+                   e.department, e.phone, e.gender,
+                   s.name AS shift_name, e.shift_id
+            FROM employees e
+            LEFT JOIN attendance a ON e.employee_id = a.employee_id
+            LEFT JOIN shifts     s ON e.shift_id = s.id
+            GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                     e.work_mode, e.work_lat, e.work_lon, e.face_image, e.qr_code,
+                     e.department, e.phone, e.gender, s.name, e.shift_id
+            ORDER BY e.name
+        """)
     employees_raw = cursor.fetchall()
 
     cursor.execute("SELECT DISTINCT employee_id FROM resignation_requests WHERE status='Accepted'")
@@ -4262,14 +4604,18 @@ def add_shift():
     end   = request.form.get("end_time",   "").strip()
     redirect_to = request.form.get("redirect_to", "shifts")
     dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?saved=1"
+    company_id = request.form.get("company_id", "").strip() or None
+    if company_id:
+        try: company_id = int(company_id)
+        except: company_id = None
     if not all([name, start, half, end]):
         return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute(
-            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
-            (name, start, half, end)
+            "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
+            (name, start, half, end, company_id)
         )
         db.commit()
         shift_id = cursor.lastrowid
@@ -4325,13 +4671,17 @@ def edit_shift(sid):
     end   = request.form.get("end_time",   "").strip()
     redirect_to = request.form.get("redirect_to", "shifts")
     dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?updated=1"
+    company_id = request.form.get("company_id", "").strip() or None
+    if company_id:
+        try: company_id = int(company_id)
+        except: company_id = None
     if not all([name, start, half, end]):
         return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE shifts SET name=%s, start_time=%s, half_time=%s, end_time=%s WHERE id=%s",
-        (name, start, half, end, sid)
+        "UPDATE shifts SET name=%s, start_time=%s, half_time=%s, end_time=%s, company_id=%s WHERE id=%s",
+        (name, start, half, end, company_id, sid)
     )
     db.commit()
     cursor.close(); db.close()
@@ -4677,13 +5027,24 @@ def delete_break(bid):
 def view_salary():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
-               COALESCE(e.phone,''), COALESCE(e.email,'')
-        FROM employees e
-        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-        ORDER BY e.name
-    """)
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+                   COALESCE(e.phone,''), COALESCE(e.email,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            WHERE e.company_id = %s
+            ORDER BY e.name
+        """, (active_cid,))
+    else:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+                   COALESCE(e.phone,''), COALESCE(e.email,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            ORDER BY e.name
+        """)
     data = cursor.fetchall()
     cursor.close()
     db.close()
@@ -4724,7 +5085,11 @@ def monthly_report():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,''), COALESCE(email,'') FROM employees ORDER BY name")
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,''), COALESCE(email,'') FROM employees WHERE company_id=%s ORDER BY name", (active_cid,))
+    else:
+        cursor.execute("SELECT employee_id, name, COALESCE(role,''), COALESCE(phone,''), COALESCE(email,'') FROM employees ORDER BY name")
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
@@ -5131,13 +5496,24 @@ def salary_report():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
-               COALESCE(e.role,''), COALESCE(e.phone,'')
-        FROM employees e
-        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-        ORDER BY e.name
-    """)
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+                   COALESCE(e.role,''), COALESCE(e.phone,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            WHERE e.company_id = %s
+            ORDER BY e.name
+        """, (active_cid,))
+    else:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+                   COALESCE(e.role,''), COALESCE(e.phone,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            ORDER BY e.name
+        """)
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
@@ -7330,8 +7706,10 @@ def performance():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
+    active_cid = session.get("active_company_id")
     dept_filter = "AND e.department=%s" if dept else ""
-    params = [yr, q] + ([dept] if dept else [])
+    co_filter   = "AND e.company_id=%s" if active_cid else ""
+    params = [yr, q] + ([dept] if dept else []) + ([active_cid] if active_cid else [])
     cursor.execute(f"""
         SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
                pr.id, COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
@@ -7339,12 +7717,15 @@ def performance():
         FROM employees e
         LEFT JOIN performance_reviews pr
             ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
-        WHERE e.is_active=1 {dept_filter}
+        WHERE e.is_active=1 {dept_filter} {co_filter}
         ORDER BY e.name
     """, params)
     employees = cursor.fetchall()
 
-    cursor.execute("SELECT department FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' GROUP BY department ORDER BY MIN(id) ASC")
+    if active_cid:
+        cursor.execute("SELECT department FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' AND company_id=%s GROUP BY department ORDER BY MIN(id) ASC", (active_cid,))
+    else:
+        cursor.execute("SELECT department FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' GROUP BY department ORDER BY MIN(id) ASC")
     departments = [r[0] for r in cursor.fetchall()]
 
     # Announcements
@@ -7368,16 +7749,18 @@ def performance():
     total_bonus_pool = 0.0
     hike_eligible_count = 0
     if active_tab == 'hike':
-        cursor.execute("""
+        _hike_co = "AND e.company_id=%s" if active_cid else ""
+        _hike_params = (yr, q) + ((active_cid,) if active_cid else ())
+        cursor.execute(f"""
             SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
                    COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
                    COALESCE(sc.monthly_ctc,0)
             FROM employees e
             LEFT JOIN performance_reviews pr ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
             LEFT JOIN salary_config sc ON sc.employee_id=e.employee_id
-            WHERE e.is_active=1
+            WHERE e.is_active=1 {_hike_co}
             ORDER BY e.name
-        """, (yr, q))
+        """, _hike_params)
         for (h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc) in cursor.fetchall():
             h_rating = float(h_rating or 0)
             h_ctc    = float(h_ctc or 0)
@@ -8203,43 +8586,48 @@ def leave_holidays():
     db = get_db_connection(); cursor = db.cursor(buffered=True)
 
     # Leaves data
-    cursor.execute("""
+    active_cid = session.get("active_company_id")
+    _co_join   = "AND e.company_id=%s" if active_cid else ""
+    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args   = (active_cid,) if active_cid else ()
+
+    cursor.execute(f"""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
                COALESCE(lt.name, 'Leave Request') AS leave_type_name,
                COALESCE(lr.is_half_day, 0) AS is_half_day,
                lr.half_day_session
         FROM leave_requests lr
-        JOIN employees e ON lr.employee_id = e.employee_id
+        JOIN employees e ON lr.employee_id = e.employee_id {_co_join}
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         ORDER BY FIELD(lr.status, 'Pending', 'Approved', 'Rejected'), lr.created_at DESC
-    """)
+    """, _co_args)
     leaves = cursor.fetchall()
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT employee_id, SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
         FROM leave_requests WHERE YEAR(leave_date)=YEAR(CURDATE()) AND status='Approved'
-        GROUP BY employee_id
-    """)
+        {_co_sub} GROUP BY employee_id
+    """, _co_args)
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
     cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
     leave_types_list = cursor.fetchall()
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
-        FROM tickets t JOIN employees e ON t.employee_id = e.employee_id
+        FROM tickets t JOIN employees e ON t.employee_id = e.employee_id {_co_join}
         ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'), t.created_at DESC
-    """)
+    """, _co_args)
     all_tickets = cursor.fetchall()
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
-        FROM resignation_requests rr JOIN employees e ON rr.employee_id = e.employee_id
+        FROM resignation_requests rr JOIN employees e ON rr.employee_id = e.employee_id {_co_join}
         ORDER BY FIELD(rr.status, 'Pending', 'Accepted', 'Declined'), rr.created_at DESC
-    """)
+    """, _co_args)
     resignations = cursor.fetchall()
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
     pending_tickets = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_resignations = cursor.fetchone()[0]
 
     # Holidays data

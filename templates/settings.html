@@ -349,10 +349,11 @@
   <div class="sidebar">
     <div class="brand-wrap">
       <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
-      <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div></div>
+      <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+</div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
-  <a class="nav-item" href="/companies"><span class="nav-icon"><i class="ti ti-building"></i></span>Companies</a>
+
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/shifts"><span class="nav-icon"><i class="ti ti-clock"></i></span>Shifts &amp; Breaks</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
@@ -374,8 +375,29 @@
 
     <div class="page-header">
       <h1>⚙️ Settings</h1>
-      <p>All system configuration in one place — Email, Salary &amp; Incentives.</p>
+      {% if active_company %}
+      <p style="display:flex;align-items:center;gap:8px;color:#1e3a8a;font-weight:600;">
+        <i class="ti ti-building" style="font-size:15px;"></i>
+        Editing settings for: <strong>{{ active_company.name }}</strong>
+        {% if active_company.code %}<span style="font-size:11px;color:#64748b;font-weight:400;">({{ active_company.code }})</span>{% endif %}
+        — <span style="font-size:12px;color:#64748b;font-weight:400;">changes apply to this company only</span>
+      </p>
+      {% else %}
+      <p>Global settings — applied to all companies unless overridden per company.</p>
+      {% endif %}
     </div>
+
+    {% if active_company %}
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:16px;">
+      <i class="ti ti-building-community" style="color:#1e3a8a;font-size:16px;flex-shrink:0;"></i>
+      <div style="font-size:13px;color:#1e3a8a;font-weight:600;">Company Scope: <strong>{{ active_company.name }}</strong></div>
+      <div style="font-size:12px;color:#64748b;margin-left:4px;">All settings below (attendance modes, salary rules, security) are specific to this company.</div>
+      <form method="POST" action="/clear_company" style="margin-left:auto;">
+        <input type="hidden" name="next" value="/settings" />
+        <button type="submit" style="padding:4px 12px;border:1px solid #bfdbfe;border-radius:20px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Switch to Global</button>
+      </form>
+    </div>
+    {% endif %}
 
     {% with msgs = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in msgs %}
@@ -436,25 +458,6 @@
               <div><div class="sec-title">Company</div><div class="sec-sub">Organisation details, timezone and working schedule</div></div>
             </div>
 
-          <!-- Stats row -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
-              <div style="width:42px;height:42px;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-users" style="font-size:20px;color:#1e3a8a;"></i></div>
-              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Total Employees</div></div>
-            </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
-              <div style="width:42px;height:42px;border-radius:12px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-user-check" style="font-size:20px;color:#16a34a;"></i></div>
-              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ active_employees }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Active</div></div>
-            </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
-              <div style="width:42px;height:42px;border-radius:12px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-sitemap" style="font-size:20px;color:#ea580c;"></i></div>
-              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_departments }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Departments</div></div>
-            </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:12px;">
-              <div style="width:42px;height:42px;border-radius:12px;background:#fefce8;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="font-size:20px;color:#ca8a04;"></i></div>
-              <div><div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1;">{{ total_shifts }}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Shifts</div></div>
-            </div>
-          </div>
 
           <!-- Companies — merged: name, code, employee count, add/edit/delete -->
           <div class="section" style="margin-bottom:20px;">
@@ -468,42 +471,56 @@
               </button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp = c %}
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}{% set cwd_list = cwd.split(',') %}
 
-              <!-- View row -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;" id="co-view-{{ cid }}">
-                <div style="width:42px;height:42px;border-radius:11px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  <i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i>
-                </div>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;">{{ cname }}</div>
-                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    {% if ccode %}
-                    <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;background:#fefce8;border:1px solid #fde68a;color:#92400e;font-family:monospace;letter-spacing:1px;">{{ ccode }}</span>
-                    {% else %}
-                    <span style="font-size:11px;color:#94a3b8;">No code set</span>
-                    {% endif %}
-                    <span style="font-size:11px;color:#64748b;"><i class="ti ti-users" style="font-size:11px;"></i> {{ cemp }} employee{{ 's' if cemp != 1 else '' }}</span>
+              <!-- View card -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;" id="co-view-{{ cid }}">
+                <div style="padding:14px 18px;display:flex;align-items:center;gap:14px;">
+                  <div style="width:42px;height:42px;border-radius:11px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;">{{ cname }}</div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                      {% if ccode %}
+                      <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;background:#fefce8;border:1px solid #fde68a;color:#92400e;font-family:monospace;letter-spacing:1px;">{{ ccode }}</span>
+                      {% else %}
+                      <span style="font-size:11px;color:#94a3b8;">No code set</span>
+                      {% endif %}
+                      <span style="font-size:11px;color:#64748b;"><i class="ti ti-users" style="font-size:11px;"></i> {{ cemp }} employee{{ 's' if cemp != 1 else '' }}</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button type="button" onclick="openSetPin({{ cid }},'{{ cname }}',{{ cpin }})"
+                      style="display:flex;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid {{ '#fde68a' if cpin else '#e2e8f0' }};border-radius:8px;background:{{ '#fffbeb' if cpin else '#f8fafc' }};color:{{ '#d97706' if cpin else '#64748b' }};font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"
+                      title="{{ 'PIN set — click to change' if cpin else 'Set PIN protection' }}">
+                      <i class="ti ti-lock{{ '-open' if not cpin else '' }}" style="font-size:12px;"></i> PIN{{ ' ✓' if cpin else '' }}
+                    </button>
+                    <button type="button" onclick="openEditCompany({{ cid }})" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+                      <i class="ti ti-pencil" style="font-size:12px;"></i> Edit
+                    </button>
+                    <form method="POST" action="/companies/{{ cid }}/delete" style="display:inline;" onsubmit="return confirm('Delete company {{ cname }}?')">
+                      <input type="hidden" name="redirect_to" value="settings" />
+                      <button type="submit" class="btn-del" style="padding:6px 12px;font-size:12px;">Delete</button>
+                    </form>
                   </div>
                 </div>
-                <div style="display:flex;gap:6px;flex-shrink:0;">
-                  <button type="button" onclick="openEditCompany({{ cid }},'{{ cname|replace("'","\\'") }}','{{ ccode or "" }}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-                    <i class="ti ti-pencil" style="font-size:12px;"></i> Edit
-                  </button>
-                  <form method="POST" action="/companies/{{ cid }}/delete" style="display:inline;" onsubmit="return confirm('Delete company {{ cname }}? This cannot be undone.')">
-                    <input type="hidden" name="redirect_to" value="settings" />
-                    <button type="submit" class="btn-del" style="padding:6px 12px;font-size:12px;">Delete</button>
-                  </form>
+                <!-- Working days strip -->
+                <div style="padding:8px 18px 12px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px;">📅 Working days:</span>
+                  {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                  <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;{% if d in cwd_list %}background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;{% else %}background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;text-decoration:line-through;{% endif %}">{{ d }}</span>
+                  {% endfor %}
                 </div>
               </div>
 
               <!-- Inline edit row -->
-              <div id="co-edit-{{ cid }}" style="display:none;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:18px;">
-                <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:12px;">✏️ Edit Company</div>
+              <div id="co-edit-{{ cid }}" style="display:none;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:18px;">
+                <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:14px;">✏️ Edit {{ cname }}</div>
                 <form method="POST" action="/companies/{{ cid }}/edit">
                   <input type="hidden" name="redirect_to" value="settings" />
-                  <div style="display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:12px;">
+                  <div style="display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:14px;">
                     <div class="field" style="margin:0;">
                       <label style="font-size:12px;">Company Name</label>
                       <input type="text" name="name" value="{{ cname }}" required />
@@ -512,6 +529,18 @@
                       <label style="font-size:12px;">Code <span style="font-weight:400;color:#94a3b8;">(ID prefix)</span></label>
                       <input type="text" name="code" value="{{ ccode or '' }}" maxlength="20" placeholder="e.g. MGZ" style="font-family:monospace;letter-spacing:1px;" />
                     </div>
+                  </div>
+                  <div style="margin-bottom:14px;">
+                    <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">📅 Working Days</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                      {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                      <label style="cursor:pointer;">
+                        <input type="checkbox" name="working_days" value="{{ d }}" {% if d in cwd_list %}checked{% endif %} style="display:none;" onchange="styleCoWd(this)" />
+                        <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;border:1.5px solid {% if d in cwd_list %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if d in cwd_list %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if d in cwd_list %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ d }}</span>
+                      </label>
+                      {% endfor %}
+                    </div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">Affects payroll calculation for this company.</div>
                   </div>
                   <div style="display:flex;gap:8px;">
                     <button type="submit" style="padding:8px 18px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save Changes</button>
@@ -525,24 +554,6 @@
               {% endfor %}
             </div>
           </div>
-
-          <form method="POST" action="/save_company_info">
-            <input type="hidden" name="company_name" value="{{ features.company_name }}" />
-            <input type="hidden" name="company_code" value="{{ company_code }}" />
-            <div class="section" style="margin-bottom:16px;">
-              <div class="section-title">📅 Working Days</div>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-                <label style="cursor:pointer;" id="wdlbl_{{ d }}">
-                  <input type="checkbox" name="working_days" value="{{ d }}" {% if d in features.working_days %}checked{% endif %} style="display:none;" onchange="styleWd(this,'{{ d }}')" />
-                  <span style="display:inline-block;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;border:1.5px solid {% if d in features.working_days %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if d in features.working_days %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if d in features.working_days %}#1e3a8a{% else %}#64748b{% endif %};" id="wdspan_{{ d }}">{{ d }}</span>
-                </label>
-                {% endfor %}
-              </div>
-              <div class="field-note" style="margin-top:10px;">Click to toggle working days. Affects payroll calculation.</div>
-            </div>
-            <button type="submit" class="btn-submit">Save Working Days</button>
-          </form>
 
           </div><!-- /ss-company -->
 
@@ -636,10 +647,10 @@
           <div class="s3-section" id="ss-shifts">
             <div class="sec-header">
               <div class="sec-icon" style="background:#fff7ed;"><i class="ti ti-clock" style="color:#ea580c;font-size:20px;"></i></div>
-              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Breaks are added per shift</div></div>
+              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Shifts are per company · breaks are per shift</div></div>
             </div>
 
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div style="font-size:13px;font-weight:700;color:#475569;">{{ shifts|length }} shift{{ 's' if shifts|length != 1 else '' }} configured</div>
               <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addShiftModal').classList.add('open')">+ Add Shift</button>
             </div>
@@ -651,60 +662,82 @@
               {% set _ = breaks_by_shift[bshift].append(b) %}
             {% endfor %}
 
-            <div style="display:flex;flex-direction:column;gap:16px;">
-              {% for s in shifts %}
-              {% set sbreaks = breaks_by_shift.get(s.id, []) %}
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+            <!-- Group shifts by company -->
+            {% set seen_companies = [] %}
+            {% for s in shifts %}{% if s.company_id not in seen_companies %}{% set _ = seen_companies.append(s.company_id) %}{% endif %}{% endfor %}
 
-                <!-- Shift header bar -->
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:38px;height:38px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="color:#ea580c;font-size:18px;"></i></div>
-                    <div>
-                      <div style="font-size:14px;font-weight:800;color:#0f172a;">{{ s.name }}{% if loop.first %} <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#eff6ff;color:#1e3a8a;margin-left:6px;">Default</span>{% endif %}</div>
-                      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-                        <span style="font-size:12px;color:#16a34a;font-weight:600;">▶ {{ s.start }}</span>
-                        <span style="font-size:12px;color:#ca8a04;font-weight:600;">⚡ {{ s.half }}</span>
-                        <span style="font-size:12px;color:#dc2626;font-weight:600;">■ {{ s.end }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}')">Edit</button>
-                    <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete this shift and its breaks?')"><input type="hidden" name="redirect_to" value="settings" /><button type="submit" class="btn-del">Delete</button></form>
-                    <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name }}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:12px;"></i> Add Break</button>
-                  </div>
+            {% if shifts %}
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              {% for cid_grp in seen_companies %}
+              {% set grp_name = '' %}
+              {% for s in shifts %}{% if s.company_id == cid_grp %}{% set grp_name = s.company_name %}{% endif %}{% endfor %}
+
+              <!-- Company group header -->
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                  <div style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="color:#1e3a8a;font-size:14px;"></i></div>
+                  <div style="font-size:13px;font-weight:800;color:#1e3a8a;">{{ grp_name if grp_name else 'Unassigned' }}</div>
+                  <div style="flex:1;height:1px;background:#e2e8f0;"></div>
                 </div>
 
-                <!-- Breaks list under this shift -->
-                <div style="padding:12px 18px;">
-                  {% if sbreaks %}
-                  <div style="display:flex;flex-direction:column;gap:8px;">
-                    {% for b in sbreaks %}{% set bid,bname,btime,bdur,bactive,bshift = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
-                    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:{% if bactive %}#f8fafc{% else %}#fafafa{% endif %};border:1px solid #f1f5f9;border-radius:10px;opacity:{% if bactive %}1{% else %}.6{% endif %};">
-                      <div style="width:32px;height:32px;border-radius:8px;background:{% if btype=='lunch' %}#fef3c7{% else %}#dbeafe{% endif %};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
-                      <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:700;color:#0f172a;">{{ bname }} <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
-                        <div style="font-size:12px;color:#64748b;margin-top:2px;">🕐 {{ btime|string|truncate(5,True,'') }} &nbsp;·&nbsp; ⏱ {{ bdur }} mins</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  {% for s in shifts %}{% if s.company_id == cid_grp %}
+                  {% set sbreaks = breaks_by_shift.get(s.id, []) %}
+                  <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+
+                    <!-- Shift header -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:36px;height:36px;border-radius:9px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="color:#ea580c;font-size:17px;"></i></div>
+                        <div>
+                          <div style="font-size:13px;font-weight:800;color:#0f172a;">{{ s.name }}</div>
+                          <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+                            <span style="font-size:11px;color:#16a34a;font-weight:700;">▶ {{ s.start }}</span>
+                            <span style="font-size:11px;color:#ca8a04;font-weight:700;">⚡ {{ s.half }}</span>
+                            <span style="font-size:11px;color:#dc2626;font-weight:700;">■ {{ s.end }}</span>
+                          </div>
+                        </div>
                       </div>
-                      {% if not bactive %}<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:#fee2e2;color:#dc2626;">Inactive</span>{% endif %}
-                      <div style="display:flex;gap:6px;">
-                        <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
-                        <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
+                      <div style="display:flex;align-items:center;gap:6px;">
+                        <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}',{{ s.company_id or 0 }})">Edit</button>
+                        <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete shift and its breaks?')"><input type="hidden" name="redirect_to" value="settings" /><button type="submit" class="btn-del">Delete</button></form>
+                        <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name }}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add Break</button>
                       </div>
                     </div>
-                    {% endfor %}
-                  </div>
-                  {% else %}
-                  <div style="padding:10px 0;font-size:12px;color:#94a3b8;text-align:center;">No breaks for this shift — click <strong>Add Break</strong> to add one.</div>
-                  {% endif %}
-                </div>
 
+                    <!-- Breaks -->
+                    <div style="padding:10px 16px;">
+                      {% if sbreaks %}
+                      <div style="display:flex;flex-direction:column;gap:6px;">
+                        {% for b in sbreaks %}{% set bid,bname,btime,bdur,bactive,bshift = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
+                        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:{% if bactive %}#f8fafc{% else %}#fafafa{% endif %};border:1px solid #f1f5f9;border-radius:9px;opacity:{% if bactive %}1{% else %}.6{% endif %};">
+                          <div style="width:28px;height:28px;border-radius:7px;background:{% if btype=='lunch' %}#fef3c7{% else %}#dbeafe{% endif %};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
+                          <div style="flex:1;">
+                            <div style="font-size:12px;font-weight:700;color:#0f172a;">{{ bname }} <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
+                            <div style="font-size:11px;color:#64748b;margin-top:1px;">🕐 {{ btime|string|truncate(5,True,'') }} · ⏱ {{ bdur }} mins</div>
+                          </div>
+                          {% if not bactive %}<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#dc2626;">Inactive</span>{% endif %}
+                          <div style="display:flex;gap:5px;">
+                            <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
+                            <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                      {% else %}
+                      <div style="padding:8px 0;font-size:12px;color:#94a3b8;text-align:center;">No breaks — click <strong>Add Break</strong> above.</div>
+                      {% endif %}
+                    </div>
+
+                  </div>
+                  {% endif %}{% endfor %}
+                </div>
               </div>
-              {% else %}
-              <div class="empty-row">No shifts yet. Add a shift to get started.</div>
               {% endfor %}
             </div>
+            {% else %}
+            <div class="empty-row">No shifts yet. Click <strong>+ Add Shift</strong> to create one.</div>
+            {% endif %}
 
           </div>
 
@@ -1121,7 +1154,16 @@
 
       <!-- Step 1: Shift details -->
       <div id="asStep1">
-        <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Enter shift name and timings.</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Select company, then enter shift name and timings.</div>
+        <div class="field">
+          <label>Company</label>
+          <select id="as_company" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;">
+            <option value="">— No specific company (shared) —</option>
+            {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}
+            <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="field">
           <label>Shift Name</label>
           <input type="text" id="as_name" placeholder="e.g. Morning Shift" />
@@ -1157,11 +1199,12 @@
         </div>
 
         <form id="asForm" method="POST" action="/add_shift" style="display:none;">
-          <input type="hidden" name="redirect_to" value="settings" />
-          <input type="hidden" name="name"       id="asf_name" />
-          <input type="hidden" name="start_time" id="asf_start" />
-          <input type="hidden" name="half_time"  id="asf_half" />
-          <input type="hidden" name="end_time"   id="asf_end" />
+          <input type="hidden" name="redirect_to"  value="settings" />
+          <input type="hidden" name="name"         id="asf_name" />
+          <input type="hidden" name="start_time"   id="asf_start" />
+          <input type="hidden" name="half_time"    id="asf_half" />
+          <input type="hidden" name="end_time"     id="asf_end" />
+          <input type="hidden" name="company_id"   id="asf_company" />
           <div id="asf_breaks_container"></div>
         </form>
 
@@ -1170,6 +1213,44 @@
           <button type="button" id="asSaveBtn" onclick="asSave()" class="btn-submit" style="display:none;">💾 Save Shift</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ SET COMPANY PIN MODAL ══ -->
+  <div id="setPinModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10002;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;padding:28px;width:360px;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
+      <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:3px;">🔒 PIN Protection</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:20px;" id="spn_label">Control access to this company</div>
+      <form method="POST" action="/set_company_pin" id="spnForm">
+        <input type="hidden" name="company_id" id="spn_cid" />
+        <!-- Toggle row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">Enable PIN Protection</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">Require PIN when switching to this company</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:46px;height:25px;cursor:pointer;flex-shrink:0;">
+            <input type="checkbox" id="spn_toggle" onchange="spnToggleChange(this)" style="opacity:0;width:0;height:0;position:absolute;" />
+            <span id="spn_track" style="position:absolute;inset:0;border-radius:25px;background:#e2e8f0;transition:background .2s;"></span>
+            <span id="spn_thumb" style="position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.25);transition:left .2s;"></span>
+          </label>
+        </div>
+        <!-- PIN input area — shown when toggle ON -->
+        <div id="spn_pin_section" style="display:none;margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">PIN Code</label>
+          <input type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
+            style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:11px;font-size:22px;letter-spacing:7px;text-align:center;font-family:monospace;outline:none;transition:border .15s;box-sizing:border-box;"
+            oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
+          <div style="font-size:11px;color:#94a3b8;margin-top:5px;text-align:center;">4–10 characters (numbers or letters)</div>
+        </div>
+        <div style="font-size:11px;color:#64748b;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 12px;margin-bottom:16px;line-height:1.5;">
+          💡 When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" onclick="closeSetPin()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1230,6 +1311,15 @@
       <div class="modal-title">✏️ Edit Shift</div>
       <form id="shiftEditForm" method="POST">
         <input type="hidden" name="redirect_to" value="settings" />
+        <div class="field">
+          <label>Company</label>
+          <select name="company_id" id="se_company" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;">
+            <option value="">— No specific company (shared) —</option>
+            {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}
+            <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="field">
           <label>Shift Name</label>
           <input type="text" name="name" id="se_name" required />
@@ -1297,14 +1387,44 @@
       security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
     };
 
+    /* ── SET PIN MODAL ── */
+    function openSetPin(cid, cname, hasPin) {
+      document.getElementById('spn_cid').value = cid;
+      document.getElementById('spn_label').textContent = cname;
+      document.getElementById('spn_pin').value = '';
+      // Set toggle state based on whether PIN exists
+      var tog = document.getElementById('spn_toggle');
+      tog.checked = !!hasPin;
+      spnToggleChange(tog, true);
+      document.getElementById('setPinModal').style.display = 'flex';
+      if (hasPin) setTimeout(function(){ document.getElementById('spn_pin').focus(); }, 100);
+    }
+    function closeSetPin() { document.getElementById('setPinModal').style.display = 'none'; }
+    function spnToggleChange(cb, skipAnim) {
+      var on = cb.checked;
+      document.getElementById('spn_track').style.background = on ? '#1e3a8a' : '#e2e8f0';
+      document.getElementById('spn_thumb').style.left = on ? '24px' : '3px';
+      document.getElementById('spn_pin_section').style.display = on ? 'block' : 'none';
+      // When OFF, clear the pin field so empty string is submitted (removes PIN)
+      if (!on) document.getElementById('spn_pin').value = '';
+    }
+
     /* ── COMPANY INLINE EDIT ── */
-    function openEditCompany(id, name, code) {
+    function openEditCompany(id) {
       document.getElementById('co-view-' + id).style.display = 'none';
       document.getElementById('co-edit-' + id).style.display = 'block';
     }
     function closeEditCompany(id) {
       document.getElementById('co-edit-' + id).style.display = 'none';
-      document.getElementById('co-view-' + id).style.display = 'flex';
+      document.getElementById('co-view-' + id).style.display = 'block';
+    }
+    function styleCoWd(cb) {
+      var span = cb.nextElementSibling;
+      if (cb.checked) {
+        span.style.borderColor = '#1e3a8a'; span.style.background = '#eff6ff'; span.style.color = '#1e3a8a';
+      } else {
+        span.style.borderColor = '#e2e8f0'; span.style.background = '#f8fafc'; span.style.color = '#94a3b8';
+      }
     }
     document.getElementById('addCompanyModal').addEventListener('click', function(e) {
       if (e.target === this) this.classList.remove('open');
@@ -1496,12 +1616,13 @@
     }
 
     /* ── SHIFT EDIT MODAL ── */
-    function openShiftEdit(id, name, start, half, end) {
+    function openShiftEdit(id, name, start, half, end, companyId) {
       document.getElementById('shiftEditForm').action = '/edit_shift/' + id;
-      document.getElementById('se_name').value  = name;
-      document.getElementById('se_start').value = start;
-      document.getElementById('se_half').value  = half;
-      document.getElementById('se_end').value   = end;
+      document.getElementById('se_name').value    = name;
+      document.getElementById('se_start').value   = start;
+      document.getElementById('se_half').value    = half;
+      document.getElementById('se_end').value     = end;
+      document.getElementById('se_company').value = companyId || '';
       document.getElementById('shiftEditModal').classList.add('open');
     }
     function closeShiftEdit() { document.getElementById('shiftEditModal').classList.remove('open'); }
@@ -1570,10 +1691,11 @@
     }
 
     function asSave() {
-      document.getElementById('asf_name').value  = document.getElementById('as_name').value.trim();
-      document.getElementById('asf_start').value = document.getElementById('as_start').value;
-      document.getElementById('asf_half').value  = document.getElementById('as_half').value;
-      document.getElementById('asf_end').value   = document.getElementById('as_end').value;
+      document.getElementById('asf_name').value    = document.getElementById('as_name').value.trim();
+      document.getElementById('asf_start').value   = document.getElementById('as_start').value;
+      document.getElementById('asf_half').value    = document.getElementById('as_half').value;
+      document.getElementById('asf_end').value     = document.getElementById('as_end').value;
+      document.getElementById('asf_company').value = document.getElementById('as_company').value;
       var cont = document.getElementById('asf_breaks_container');
       cont.innerHTML = '';
       if (_asBreakYes) {
@@ -1805,5 +1927,92 @@
   </div>
 
 <script src="/static/darkmode.js"></script>
+
+  <!-- ══ COMPANY SWITCHER FLOAT ══ -->
+  <div id="co-float" style="position:fixed;top:14px;right:20px;z-index:10000;font-family:'Segoe UI',sans-serif;">
+    <button onclick="coFloatToggle(event)" id="co-float-btn" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1e3a8a;border:none;border-radius:30px;cursor:pointer;color:#fff;font-family:inherit;box-shadow:0 4px 16px rgba(30,58,138,0.35);transition:all .15s;">
+      <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
+      <span style="font-size:12px;font-weight:700;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="co-float-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;" id="co-float-chev"></i>
+    </button>
+
+    <div id="co-float-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:220px;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.15);overflow:hidden;">
+      <!-- All Companies -->
+      <form method="POST" action="/clear_company">
+        <input type="hidden" name="next" value="{{ request.path }}" />
+        <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if not active_company %}background:#eff6ff;color:#1e3a8a;{% endif %}">
+          <div style="width:28px;height:28px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building-community" style="font-size:14px;color:#64748b;"></i></div>
+          All Companies
+        </button>
+      </form>
+      <div style="height:1px;background:#f1f5f9;"></div>
+      {% for c in all_companies %}
+      <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+        {% if c.has_pin %}
+        <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
+          <div style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#1e3a8a;"></i></div>
+          <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
+          <i class="ti ti-lock" style="font-size:12px;color:#f59e0b;"></i>
+        </button>
+        {% else %}
+        <form method="POST" action="/switch_company">
+          <input type="hidden" name="company_id" value="{{ c.id }}" />
+          <input type="hidden" name="next" value="{{ request.path }}" />
+          <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
+            <div style="width:28px;height:28px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#16a34a;"></i></div>
+            <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if not all_companies %}
+      <div style="padding:14px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- PIN entry modal (global) -->
+  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
+      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
+      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
+      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+      <form method="POST" action="/switch_company" id="co-pin-form">
+        <input type="hidden" name="company_id" id="co-pin-cid" />
+        <input type="hidden" name="next" id="co-pin-next" />
+        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
+          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+          oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
+        <div style="display:flex;gap:8px;">
+          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* Company float switcher */
+    var _coOpen = false;
+    function coFloatToggle(e){e&&e.stopPropagation();_coOpen=!_coOpen;document.getElementById('co-float-menu').style.display=_coOpen?'block':'none';}
+    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-float-menu').style.display='none';}});
+    document.getElementById('co-float-menu').addEventListener('click',function(e){e.stopPropagation();});
+
+    /* PIN modal */
+    function coFloatPin(cid,name,next){
+      document.getElementById('co-pin-cid').value=cid;
+      document.getElementById('co-pin-next').value=next;
+      document.getElementById('co-pin-name').textContent='Enter PIN to access: '+name;
+      document.getElementById('co-pin-input').value='';
+      document.getElementById('co-pin-modal').style.display='flex';
+      document.getElementById('co-float-menu').style.display='none';
+      _coOpen=false;
+      setTimeout(function(){document.getElementById('co-pin-input').focus();},120);
+    }
+    function coPinClose(){document.getElementById('co-pin-modal').style.display='none';}
+    document.getElementById('co-pin-modal').addEventListener('click',function(e){if(e.target===this)coPinClose();});
+  </script>
+
 </body>
 </html>
