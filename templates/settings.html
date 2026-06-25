@@ -379,12 +379,9 @@
 
     {% with msgs = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in msgs %}
-        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ msg }}</div>
+        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ '✅ ' if cat == 'success' else '❌ ' }}{{ msg }}</div>
       {% endfor %}
     {% endwith %}
-    {% if saved %}
-      <div class="flash flash-green">✅ Settings saved successfully!</div>
-    {% endif %}
 
     <!-- ══ 3-TAB SETTINGS NAV ══ -->
     <div class="s3-nav">
@@ -438,7 +435,6 @@
               <div class="sec-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i></div>
               <div><div class="sec-title">Company</div><div class="sec-sub">Organisation details, timezone and working schedule</div></div>
             </div>
-          {% if saved and tab=='company' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
 
           <!-- Stats row -->
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
@@ -460,55 +456,74 @@
             </div>
           </div>
 
-          <!-- Company Name & Code cards with inline edit -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
-
-            <!-- Company Name card -->
-            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="color:#1e3a8a;font-size:17px;"></i></div>
-                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Name</span>
-                </div>
-                <button type="button" onclick="toggleEdit('cn')" id="cn-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
+          <!-- Companies — merged: name, code, employee count, add/edit/delete -->
+          <div class="section" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div>
+                <div class="section-title" style="margin-bottom:2px;">🏢 Companies</div>
+                <div style="font-size:12px;color:#64748b;">Manage company name, code and details</div>
               </div>
-              <!-- View mode -->
-              <div id="cn-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">{{ features.company_name or '—' }}</div>
-              <!-- Edit mode -->
-              <form id="cn-edit" method="POST" action="/save_company_info" style="display:none;">
-                <input type="hidden" name="company_code" value="{{ company_code }}" />
-                <input type="text" name="company_name" value="{{ features.company_name }}" placeholder="e.g. Magzest Solutions" style="width:100%;padding:9px 12px;border:1.5px solid #bfdbfe;border-radius:9px;font-size:14px;font-weight:600;margin-bottom:10px;outline:none;" />
-                <div style="display:flex;gap:8px;">
-                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
-                  <button type="button" onclick="toggleEdit('cn')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-                </div>
-              </form>
+              <button type="button" onclick="document.getElementById('addCompanyModal').classList.add('open')" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+                <i class="ti ti-plus" style="font-size:14px;"></i> Add Company
+              </button>
             </div>
 
-            <!-- Company Code card -->
-            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:36px;height:36px;border-radius:10px;background:#fefce8;display:flex;align-items:center;justify-content:center;"><i class="ti ti-hash" style="color:#ca8a04;font-size:17px;"></i></div>
-                  <span style="font-size:13px;font-weight:700;color:#475569;">Company Code</span>
-                </div>
-                <button type="button" onclick="toggleEdit('cc')" id="cc-editbtn" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-pencil" style="font-size:13px;"></i> Edit</button>
-              </div>
-              <!-- View mode -->
-              <div id="cc-view" style="font-size:20px;font-weight:800;color:#0f172a;padding:4px 0;">
-                {% if company_code %}<span style="font-family:monospace;background:#fefce8;border:1.5px solid #fde68a;padding:4px 14px;border-radius:8px;letter-spacing:2px;">{{ company_code }}</span>{% else %}<span style="color:#94a3b8;font-size:14px;">Not set</span>{% endif %}
-              </div>
-              <!-- Edit mode -->
-              <form id="cc-edit" method="POST" action="/save_company_info" style="display:none;">
-                <input type="hidden" name="company_name" value="{{ features.company_name }}" />
-                <input type="text" name="company_code" value="{{ company_code }}" placeholder="e.g. MGZ" maxlength="10" style="width:100%;padding:9px 12px;border:1.5px solid #fde68a;border-radius:9px;font-size:14px;font-weight:700;font-family:monospace;letter-spacing:2px;margin-bottom:10px;outline:none;" />
-                <div style="display:flex;gap:8px;">
-                  <button type="submit" style="flex:1;padding:8px;border:none;border-radius:8px;background:#ca8a04;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save</button>
-                  <button type="button" onclick="toggleEdit('cc')" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-                </div>
-              </form>
-            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp = c %}
 
+              <!-- View row -->
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;" id="co-view-{{ cid }}">
+                <div style="width:42px;height:42px;border-radius:11px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;">{{ cname }}</div>
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    {% if ccode %}
+                    <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;background:#fefce8;border:1px solid #fde68a;color:#92400e;font-family:monospace;letter-spacing:1px;">{{ ccode }}</span>
+                    {% else %}
+                    <span style="font-size:11px;color:#94a3b8;">No code set</span>
+                    {% endif %}
+                    <span style="font-size:11px;color:#64748b;"><i class="ti ti-users" style="font-size:11px;"></i> {{ cemp }} employee{{ 's' if cemp != 1 else '' }}</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button type="button" onclick="openEditCompany({{ cid }},'{{ cname|replace("'","\\'") }}','{{ ccode or "" }}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+                    <i class="ti ti-pencil" style="font-size:12px;"></i> Edit
+                  </button>
+                  <form method="POST" action="/companies/{{ cid }}/delete" style="display:inline;" onsubmit="return confirm('Delete company {{ cname }}? This cannot be undone.')">
+                    <input type="hidden" name="redirect_to" value="settings" />
+                    <button type="submit" class="btn-del" style="padding:6px 12px;font-size:12px;">Delete</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Inline edit row -->
+              <div id="co-edit-{{ cid }}" style="display:none;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:18px;">
+                <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:12px;">✏️ Edit Company</div>
+                <form method="POST" action="/companies/{{ cid }}/edit">
+                  <input type="hidden" name="redirect_to" value="settings" />
+                  <div style="display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:12px;">
+                    <div class="field" style="margin:0;">
+                      <label style="font-size:12px;">Company Name</label>
+                      <input type="text" name="name" value="{{ cname }}" required />
+                    </div>
+                    <div class="field" style="margin:0;">
+                      <label style="font-size:12px;">Code <span style="font-weight:400;color:#94a3b8;">(ID prefix)</span></label>
+                      <input type="text" name="code" value="{{ ccode or '' }}" maxlength="20" placeholder="e.g. MGZ" style="font-family:monospace;letter-spacing:1px;" />
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button type="submit" style="padding:8px 18px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save Changes</button>
+                    <button type="button" onclick="closeEditCompany({{ cid }})" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  </div>
+                </form>
+              </div>
+
+              {% else %}
+              <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">No companies yet — click <strong>Add Company</strong> to create one.</div>
+              {% endfor %}
+            </div>
           </div>
 
           <form method="POST" action="/save_company_info">
@@ -526,8 +541,9 @@
               </div>
               <div class="field-note" style="margin-top:10px;">Click to toggle working days. Affects payroll calculation.</div>
             </div>
-            <button type="submit" class="btn-submit">Save Company Info</button>
+            <button type="submit" class="btn-submit">Save Working Days</button>
           </form>
+
           </div><!-- /ss-company -->
 
           <!-- ATTENDANCE -->
@@ -536,7 +552,6 @@
               <div class="sec-icon" style="background:#f0fdf4;"><i class="ti ti-fingerprint" style="color:#16a34a;font-size:20px;"></i></div>
               <div><div class="sec-title">Attendance Methods</div><div class="sec-sub">Enable or disable each punch-in method</div></div>
             </div>
-            {% if saved and tab=='attendance' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
               <!-- Face Auth -->
@@ -621,46 +636,76 @@
           <div class="s3-section" id="ss-shifts">
             <div class="sec-header">
               <div class="sec-icon" style="background:#fff7ed;"><i class="ti ti-clock" style="color:#ea580c;font-size:20px;"></i></div>
-              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Manage shift timings and daily break schedule</div></div>
+              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Breaks are added per shift</div></div>
             </div>
-            <div class="section" style="margin-bottom:16px;">
-              <div class="section-header">
-                <div class="section-title" style="margin-bottom:0;">Work Shifts</div>
-                <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addShiftModal').classList.add('open')">+ Add Shift</button>
-              </div>
-              <div class="shift-list" style="margin-top:14px;">
-                {% for s in shifts %}
-                <div class="shift-item {% if loop.first %}default-shift{% endif %}">
-                  <div><div class="shift-name">{{ s.name }}{% if loop.first %}<span class="emp-badge">Default</span>{% endif %}</div><div class="shift-times"><span><span class="dot dot-green"></span>Start {{ s.start }}</span><span><span class="dot dot-yellow"></span>Half {{ s.half }}</span><span><span class="dot dot-red"></span>End {{ s.end }}</span></div></div>
-                  <div class="shift-actions">
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="font-size:13px;font-weight:700;color:#475569;">{{ shifts|length }} shift{{ 's' if shifts|length != 1 else '' }} configured</div>
+              <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addShiftModal').classList.add('open')">+ Add Shift</button>
+            </div>
+
+            {% set breaks_by_shift = {} %}
+            {% for b in breaks %}
+              {% set bid,bname,btime,bdur,bactive,bshift = b %}
+              {% if bshift not in breaks_by_shift %}{% set _ = breaks_by_shift.update({bshift: []}) %}{% endif %}
+              {% set _ = breaks_by_shift[bshift].append(b) %}
+            {% endfor %}
+
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              {% for s in shifts %}
+              {% set sbreaks = breaks_by_shift.get(s.id, []) %}
+              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+
+                <!-- Shift header bar -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:38px;height:38px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="color:#ea580c;font-size:18px;"></i></div>
+                    <div>
+                      <div style="font-size:14px;font-weight:800;color:#0f172a;">{{ s.name }}{% if loop.first %} <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#eff6ff;color:#1e3a8a;margin-left:6px;">Default</span>{% endif %}</div>
+                      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                        <span style="font-size:12px;color:#16a34a;font-weight:600;">▶ {{ s.start }}</span>
+                        <span style="font-size:12px;color:#ca8a04;font-weight:600;">⚡ {{ s.half }}</span>
+                        <span style="font-size:12px;color:#dc2626;font-weight:600;">■ {{ s.end }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;">
                     <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}')">Edit</button>
-                    <form method="POST" action="/delete_shift" style="display:inline;" onsubmit="return confirm('Delete shift?')"><input type="hidden" name="shift_id" value="{{ s.id }}" /><button type="submit" class="btn-del">Delete</button></form>
+                    <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete this shift and its breaks?')"><input type="hidden" name="redirect_to" value="settings" /><button type="submit" class="btn-del">Delete</button></form>
+                    <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name }}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:12px;"></i> Add Break</button>
                   </div>
                 </div>
-                {% else %}<div class="empty-row">No shifts yet.</div>{% endfor %}
-              </div>
-            </div>
-            <div class="section">
-              <div class="section-header">
-                <div><div class="section-title" style="margin-bottom:2px;">Breaks</div><div style="font-size:12px;color:#64748b;">☕ Coffee &amp; 🍽 Lunch breaks</div></div>
-                <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addBreakModal').classList.add('open')">+ Add Break</button>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
-                {% for b in breaks %}{% set bid,bname,btime,bdur,bactive = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
-                <div class="feat-card" style="opacity:{% if bactive %}1{% else %}.55{% endif %};">
-                  <div class="feat-icon" style="font-size:20px;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
-                  <div class="feat-body">
-                    <div style="display:flex;align-items:center;gap:8px;"><span class="feat-name">{{ bname }}</span><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
-                    <div class="feat-desc">🕐 {{ btime|string|truncate(5,True,'') }} &nbsp;·&nbsp; ⏱ {{ bdur }} mins</div>
+
+                <!-- Breaks list under this shift -->
+                <div style="padding:12px 18px;">
+                  {% if sbreaks %}
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    {% for b in sbreaks %}{% set bid,bname,btime,bdur,bactive,bshift = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:{% if bactive %}#f8fafc{% else %}#fafafa{% endif %};border:1px solid #f1f5f9;border-radius:10px;opacity:{% if bactive %}1{% else %}.6{% endif %};">
+                      <div style="width:32px;height:32px;border-radius:8px;background:{% if btype=='lunch' %}#fef3c7{% else %}#dbeafe{% endif %};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
+                      <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;">{{ bname }} <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px;">🕐 {{ btime|string|truncate(5,True,'') }} &nbsp;·&nbsp; ⏱ {{ bdur }} mins</div>
+                      </div>
+                      {% if not bactive %}<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:#fee2e2;color:#dc2626;">Inactive</span>{% endif %}
+                      <div style="display:flex;gap:6px;">
+                        <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
+                        <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
+                      </div>
+                    </div>
+                    {% endfor %}
                   </div>
-                  <div style="display:flex;gap:6px;">
-                    <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }})">Edit</button>
-                    <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
-                  </div>
+                  {% else %}
+                  <div style="padding:10px 0;font-size:12px;color:#94a3b8;text-align:center;">No breaks for this shift — click <strong>Add Break</strong> to add one.</div>
+                  {% endif %}
                 </div>
-                {% else %}<div class="empty-row">No breaks configured.</div>{% endfor %}
+
               </div>
+              {% else %}
+              <div class="empty-row">No shifts yet. Add a shift to get started.</div>
+              {% endfor %}
             </div>
+
           </div>
 
     </div>
@@ -687,7 +732,6 @@
               <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;font-size:20px;"></i></div>
               <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
             </div>
-            {% if saved and tab=='salary-rules' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
             <form method="POST" action="/save_salary_rules">
 
               <!-- Section 1: Shift Timings -->
@@ -887,7 +931,6 @@
               <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-trophy" style="color:#ca8a04;font-size:20px;"></i></div>
               <div><div class="sec-title">Incentives</div><div class="sec-sub">Manage incentive goals and employee awards</div></div>
             </div>
-            {% if saved and tab=='incentives' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
             <div class="section" style="margin-bottom:16px;">
               <div class="section-title">🎯 Add Incentive Goal</div>
               <form method="POST" action="/add_incentive_goal">
@@ -973,7 +1016,6 @@
               <div class="sec-icon" style="background:#fef2f2;"><i class="ti ti-shield-lock" style="color:#dc2626;font-size:20px;"></i></div>
               <div><div class="sec-title">Security</div><div class="sec-sub">Session management and access control</div></div>
             </div>
-            {% if saved and tab=='security' %}<div class="flash flash-green">✅ Saved!</div>{% endif %}
             <div class="section">
               <form method="POST" action="/save_security_settings">
                 <div class="two-col">
@@ -1072,11 +1114,122 @@
 
   </div><!-- /main -->
 
+  <!-- ══ ADD SHIFT MODAL (2-step) ══ -->
+  <div class="modal-bg" id="addShiftModal">
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-title">🕐 Add New Shift</div>
+
+      <!-- Step 1: Shift details -->
+      <div id="asStep1">
+        <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Enter shift name and timings.</div>
+        <div class="field">
+          <label>Shift Name</label>
+          <input type="text" id="as_name" placeholder="e.g. Morning Shift" />
+        </div>
+        <div class="time-row">
+          <div class="field" style="margin:0;"><label>🟢 Start Time</label><input type="time" id="as_start" /></div>
+          <div class="field" style="margin:0;"><label>🟡 Late / Half Day</label><input type="time" id="as_half" /></div>
+          <div class="field" style="margin:0;"><label>🔴 End Time</label><input type="time" id="as_end" /></div>
+        </div>
+        <div id="asStep1Err" style="display:none;font-size:12px;color:#dc2626;margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:8px;">Please fill all fields.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button type="button" onclick="document.getElementById('addShiftModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="button" onclick="asNext()" class="btn-submit">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Breaks question + add breaks -->
+      <div id="asStep2" style="display:none;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;color:#166534;" id="asShiftSummary"></div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px;">Do you want to add breaks for this shift?</div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <button type="button" id="asBtnYes" onclick="asToggleBreaks(true)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">☕ Yes, add breaks</button>
+          <button type="button" id="asBtnNo"  onclick="asToggleBreaks(false)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">⏭ No, skip breaks</button>
+        </div>
+
+        <!-- Breaks form (hidden until Yes) -->
+        <div id="asBreakSection" style="display:none;">
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">Break Details</div>
+          <div id="asBreakRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+          <button type="button" onclick="asAddBreakRow()" style="font-size:12px;font-weight:700;color:#1e3a8a;background:#eff6ff;border:1.5px dashed #bfdbfe;border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit;width:100%;">+ Add Another Break</button>
+        </div>
+
+        <form id="asForm" method="POST" action="/add_shift" style="display:none;">
+          <input type="hidden" name="redirect_to" value="settings" />
+          <input type="hidden" name="name"       id="asf_name" />
+          <input type="hidden" name="start_time" id="asf_start" />
+          <input type="hidden" name="half_time"  id="asf_half" />
+          <input type="hidden" name="end_time"   id="asf_end" />
+          <div id="asf_breaks_container"></div>
+        </form>
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button type="button" onclick="asBack()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">← Back</button>
+          <button type="button" id="asSaveBtn" onclick="asSave()" class="btn-submit" style="display:none;">💾 Save Shift</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADD COMPANY MODAL ══ -->
+  <div class="modal-bg" id="addCompanyModal">
+    <div class="modal">
+      <div class="modal-title">🏢 Add Company</div>
+      <form method="POST" action="/companies/add">
+        <input type="hidden" name="redirect_to" value="settings" />
+        <div class="field">
+          <label>Company Name</label>
+          <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
+        </div>
+        <div class="field">
+          <label>Company Code <span style="font-size:11px;color:#94a3b8;">(optional, used as employee ID prefix)</span></label>
+          <input type="text" name="code" placeholder="e.g. MGZ" maxlength="20" style="font-family:monospace;letter-spacing:1px;" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" onclick="document.getElementById('addCompanyModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-submit">Add Company</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══ ADD BREAK MODAL ══ -->
+  <div class="modal-bg" id="addBreakModal">
+    <div class="modal">
+      <div class="modal-title">➕ Add Break</div>
+      <div id="addBreakShiftLabel" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-weight:600;"></div>
+      <form method="POST" action="/add_break">
+        <input type="hidden" name="shift_id" id="ab_shift_id" />
+        <div class="field">
+          <label>Break Name</label>
+          <input type="text" name="break_name" id="ab_name" placeholder="e.g. Tea Break" required />
+        </div>
+        <div class="two-col" style="gap:12px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>Start Time</label>
+            <input type="time" name="break_time" id="ab_time" required />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Duration (mins)</label>
+            <input type="number" name="duration_minutes" id="ab_duration" value="15" min="1" max="120" required />
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button type="button" onclick="document.getElementById('addBreakModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+          <button type="submit" class="btn-submit">Add Break</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ══ SHIFT EDIT MODAL ══ -->
   <div class="modal-bg" id="shiftEditModal">
     <div class="modal">
       <div class="modal-title">✏️ Edit Shift</div>
       <form id="shiftEditForm" method="POST">
+        <input type="hidden" name="redirect_to" value="settings" />
         <div class="field">
           <label>Shift Name</label>
           <input type="text" name="name" id="se_name" required />
@@ -1100,24 +1253,27 @@
       <div class="modal-title">✏️ Edit Break</div>
       <form id="breakEditForm" method="POST">
         <input type="hidden" name="is_active" id="be_active_hidden" value="1" />
+        <input type="hidden" name="shift_id" id="be_shift_id" />
         <div class="field">
           <label>Break Name</label>
           <input type="text" name="break_name" id="be_name" required />
         </div>
-        <div class="field">
-          <label>Break Start Time</label>
-          <input type="time" name="break_time" id="be_time" required />
+        <div class="two-col" style="gap:12px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>Start Time</label>
+            <input type="time" name="break_time" id="be_time" required />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Duration (mins)</label>
+            <input type="number" name="duration_minutes" id="be_duration" min="1" max="120" required />
+          </div>
         </div>
-        <div class="field">
-          <label>Duration (minutes)</label>
-          <input type="number" name="duration_minutes" id="be_duration" min="1" max="120" required />
-        </div>
-        <div class="toggle-row">
+        <div class="toggle-row" style="margin-top:12px;">
           <input type="checkbox" id="be_active_cb"
             onchange="document.getElementById('be_active_hidden').value=this.checked?'1':'0'" />
-          <span>Active (sends notification to employees)</span>
+          <span>Active</span>
         </div>
-        <div class="modal-actions">
+        <div class="modal-actions" style="margin-top:16px;">
           <button type="button" onclick="closeBreakEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
           <button type="submit" class="btn-save">Save Changes</button>
         </div>
@@ -1140,6 +1296,19 @@
       email:      { icon:'<i class="ti ti-mail" style="color:#0284c7;"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
       security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
     };
+
+    /* ── COMPANY INLINE EDIT ── */
+    function openEditCompany(id, name, code) {
+      document.getElementById('co-view-' + id).style.display = 'none';
+      document.getElementById('co-edit-' + id).style.display = 'block';
+    }
+    function closeEditCompany(id) {
+      document.getElementById('co-edit-' + id).style.display = 'none';
+      document.getElementById('co-view-' + id).style.display = 'flex';
+    }
+    document.getElementById('addCompanyModal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
 
     function toggleEdit(key) {
       var view = document.getElementById(key + '-view');
@@ -1338,12 +1507,113 @@
     function closeShiftEdit() { document.getElementById('shiftEditModal').classList.remove('open'); }
     document.getElementById('shiftEditModal').addEventListener('click', function(e) { if (e.target === this) closeShiftEdit(); });
 
+    /* ── ADD SHIFT MODAL (2-step) ── */
+    var _asBreakYes = false;
+    var _asBreakCount = 0;
+
+    document.getElementById('addShiftModal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+
+    function asNext() {
+      var n = document.getElementById('as_name').value.trim();
+      var s = document.getElementById('as_start').value;
+      var h = document.getElementById('as_half').value;
+      var e = document.getElementById('as_end').value;
+      if (!n || !s || !h || !e) {
+        document.getElementById('asStep1Err').style.display = 'block';
+        return;
+      }
+      document.getElementById('asStep1Err').style.display = 'none';
+      document.getElementById('asShiftSummary').textContent = '📋 ' + n + '  |  ▶ ' + s + '  ⚡ ' + h + '  ■ ' + e;
+      document.getElementById('asStep1').style.display = 'none';
+      document.getElementById('asStep2').style.display = 'block';
+      _asBreakYes = false;
+      _asBreakCount = 0;
+      document.getElementById('asBreakRows').innerHTML = '';
+      document.getElementById('asBreakSection').style.display = 'none';
+      document.getElementById('asSaveBtn').style.display = 'none';
+      styleAsBtn('asBtnYes', false); styleAsBtn('asBtnNo', false);
+    }
+
+    function asBack() {
+      document.getElementById('asStep2').style.display = 'none';
+      document.getElementById('asStep1').style.display = 'block';
+    }
+
+    function styleAsBtn(id, active) {
+      var b = document.getElementById(id);
+      b.style.borderColor = active ? '#1e3a8a' : '#e2e8f0';
+      b.style.background  = active ? '#eff6ff' : '#f8fafc';
+      b.style.color       = active ? '#1e3a8a' : '#374151';
+    }
+
+    function asToggleBreaks(yes) {
+      _asBreakYes = yes;
+      styleAsBtn('asBtnYes', yes);
+      styleAsBtn('asBtnNo', !yes);
+      document.getElementById('asBreakSection').style.display = yes ? 'block' : 'none';
+      document.getElementById('asSaveBtn').style.display = 'inline-flex';
+      if (yes && _asBreakCount === 0) asAddBreakRow();
+    }
+
+    function asAddBreakRow() {
+      _asBreakCount++;
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 100px 80px 30px;gap:8px;align-items:center;';
+      row.innerHTML =
+        '<input type="text" placeholder="Break name (e.g. Tea Break)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
+        '<input type="time" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
+        '<input type="number" value="15" min="1" max="120" placeholder="mins" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
+        '<button type="button" onclick="this.parentNode.remove()" style="border:none;background:#fee2e2;color:#dc2626;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;">×</button>';
+      document.getElementById('asBreakRows').appendChild(row);
+    }
+
+    function asSave() {
+      document.getElementById('asf_name').value  = document.getElementById('as_name').value.trim();
+      document.getElementById('asf_start').value = document.getElementById('as_start').value;
+      document.getElementById('asf_half').value  = document.getElementById('as_half').value;
+      document.getElementById('asf_end').value   = document.getElementById('as_end').value;
+      var cont = document.getElementById('asf_breaks_container');
+      cont.innerHTML = '';
+      if (_asBreakYes) {
+        document.getElementById('asBreakRows').querySelectorAll('div, div').forEach(function(row) {
+          var inputs = row.querySelectorAll('input');
+          if (inputs.length >= 3) {
+            var bn = inputs[0].value.trim();
+            var bt = inputs[1].value;
+            var bd = inputs[2].value;
+            if (bn && bt && bd) {
+              cont.innerHTML += '<input type="hidden" name="break_name[]" value="' + bn.replace(/"/g,'&quot;') + '" />';
+              cont.innerHTML += '<input type="hidden" name="break_time[]" value="' + bt + '" />';
+              cont.innerHTML += '<input type="hidden" name="break_duration[]" value="' + bd + '" />';
+            }
+          }
+        });
+      }
+      document.getElementById('asForm').submit();
+    }
+
+    /* ── ADD BREAK MODAL ── */
+    function openAddBreak(shiftId, shiftName) {
+      document.getElementById('ab_shift_id').value = shiftId;
+      document.getElementById('ab_name').value     = '';
+      document.getElementById('ab_time').value     = '';
+      document.getElementById('ab_duration').value = 15;
+      document.getElementById('addBreakShiftLabel').textContent = '🕐 Adding break for: ' + shiftName;
+      document.getElementById('addBreakModal').classList.add('open');
+    }
+    document.getElementById('addBreakModal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+
     /* ── BREAK EDIT MODAL ── */
-    function openBreakEdit(id, name, time, duration, active) {
-      document.getElementById('breakEditForm').action = '/update_break/' + id;
-      document.getElementById('be_name').value      = name;
-      document.getElementById('be_time').value      = time;
-      document.getElementById('be_duration').value  = duration;
+    function openBreakEdit(id, name, time, duration, active, shiftId) {
+      document.getElementById('breakEditForm').action   = '/update_break/' + id;
+      document.getElementById('be_name').value          = name;
+      document.getElementById('be_time').value          = time;
+      document.getElementById('be_duration').value      = duration;
+      document.getElementById('be_shift_id').value      = shiftId || '';
       var cb = document.getElementById('be_active_cb');
       cb.checked = !!active;
       document.getElementById('be_active_hidden').value = active ? '1' : '0';
