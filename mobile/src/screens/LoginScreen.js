@@ -47,7 +47,7 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const res = await employeeLogin(empId.trim().toUpperCase(), empPassword.trim());
+      const res = await employeeLogin(empId.trim(), empPassword.trim());
       if (res.data.ok) {
         await signIn(res.data.token, {
           role: 'employee',

@@ -14,3 +14,4 @@ static/qrcodes/
 mobile/node_modules/
 mobile/.expo/
 static/employee_docs/
+venv/
