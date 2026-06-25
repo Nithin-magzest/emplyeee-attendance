@@ -4,7 +4,23 @@ import {
   Text,
   StyleSheet,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 export default function AttendanceCalendar({
   records = [],
@@ -17,7 +33,7 @@ export default function AttendanceCalendar({
     records.forEach((item) => {
       if (!item.date) return;
 
-      let color = "#22C55E";
+      let color = "#CBD5E1";
 
       switch ((item.status || "").toLowerCase()) {
         case "present":
@@ -40,9 +56,6 @@ export default function AttendanceCalendar({
         case "absent":
           color = "#EF4444";
           break;
-
-        default:
-          color = "#CBD5E1";
       }
 
       marks[item.date] = {
@@ -57,14 +70,30 @@ export default function AttendanceCalendar({
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          Attendance Calendar
-        </Text>
+      {/* Header */}
 
-        <Text style={styles.subtitle}>
-          Monthly Attendance Overview
-        </Text>
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>
+            Attendance Calendar
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Monthly attendance overview
+          </Text>
+        </View>
+
+        <View style={styles.badge}>
+          <Ionicons
+            name="calendar-outline"
+            size={16}
+            color="#173B8C"
+          />
+
+          <Text style={styles.badgeText}>
+            {MONTHS[month - 1]}
+          </Text>
+        </View>
       </View>
 
       <Calendar
@@ -76,27 +105,30 @@ export default function AttendanceCalendar({
         theme={{
           calendarBackground: "#FFFFFF",
 
-          monthTextColor: "#173B8C",
+          monthTextColor: "#0F172A",
+          textMonthFontSize: 20,
           textMonthFontWeight: "800",
-          textMonthFontSize: 18,
 
           textDayFontSize: 15,
           textDayFontWeight: "700",
 
-          textDayHeaderFontWeight: "700",
           textDayHeaderFontSize: 13,
+          textDayHeaderFontWeight: "700",
 
           textSectionTitleColor: "#94A3B8",
 
           dayTextColor: "#0F172A",
 
           todayTextColor: "#173B8C",
+          todayBackgroundColor: "#EEF4FF",
 
           selectedDayTextColor: "#FFFFFF",
 
           arrowColor: "#173B8C",
 
-          textDisabledColor: "#D1D5DB",
+          textDisabledColor: "#CBD5E1",
+
+          indicatorColor: "#173B8C",
         }}
         style={styles.calendar}
       />
@@ -108,27 +140,36 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
 
-    borderRadius: 26,
+    borderRadius: 24,
 
     marginTop: 22,
 
-    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E8EDF5",
 
-    shadowColor: "#000",
+    shadowColor: "#0F172A",
     shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowRadius: 18,
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 8,
     },
 
     elevation: 5,
+
+    overflow: "hidden",
   },
 
   header: {
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    justifyContent: "space-between",
+
     paddingHorizontal: 22,
     paddingTop: 22,
-    paddingBottom: 12,
+    paddingBottom: 18,
   },
 
   title: {
@@ -139,12 +180,38 @@ const styles = StyleSheet.create({
 
   subtitle: {
     marginTop: 4,
-    color: "#64748B",
     fontSize: 13,
+    color: "#64748B",
     fontWeight: "600",
   },
 
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    backgroundColor: "#EEF4FF",
+
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+
+    borderRadius: 24,
+  },
+
+  badgeText: {
+    marginLeft: 6,
+
+    color: "#173B8C",
+
+    fontWeight: "700",
+
+    fontSize: 13,
+  },
+
   calendar: {
+    borderTopWidth: 1,
+    borderTopColor: "#EEF2F7",
+
     paddingBottom: 18,
+    paddingHorizontal: 6,
   },
 });

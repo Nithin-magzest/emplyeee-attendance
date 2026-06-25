@@ -29,11 +29,11 @@ export default function MonthYearPicker({
   onNext,
 }) {
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <View style={styles.card}>
+      {/* Top Row */}
 
-      <View style={styles.header}>
-        <View>
+      <View style={styles.topRow}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.smallTitle}>
             Attendance Overview
           </Text>
@@ -45,70 +45,100 @@ export default function MonthYearPicker({
 
         <View style={styles.navigation}>
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             style={styles.arrowButton}
             onPress={onPrevious}
           >
             <Ionicons
               name="chevron-back"
-              size={20}
+              size={22}
               color="#173B8C"
             />
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             style={styles.arrowButton}
             onPress={onNext}
           >
             <Ionicons
               name="chevron-forward"
-              size={20}
+              size={22}
               color="#173B8C"
             />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Month Badge */}
+      {/* Bottom Badge */}
 
-      <View style={styles.badge}>
-        <Ionicons
-          name="calendar-outline"
-          size={18}
-          color="#173B8C"
-        />
+      <View style={styles.badgeRow}>
+        <View style={styles.badge}>
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color="#173B8C"
+          />
 
-        <Text style={styles.badgeText}>
-          {MONTHS[month - 1]} {year}
-        </Text>
+          <Text style={styles.badgeText}>
+            {MONTHS[month - 1]} {year}
+          </Text>
+        </View>
+
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+
+          <Text style={styles.liveText}>
+            Monthly View
+          </Text>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 18,
+  card: {
+    backgroundColor: "#FFFFFF",
+
+    borderRadius: 24,
+
+    padding: 20,
+
+    marginBottom: 22,
+
+    borderWidth: 1,
+    borderColor: "#E8EDF5",
+
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
+    elevation: 5,
   },
 
-  header: {
+  topRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
   },
 
   smallTitle: {
     fontSize: 13,
-    color: "#64748B",
     fontWeight: "600",
+    color: "#64748B",
   },
 
   title: {
-    marginTop: 3,
-    fontSize: 28,
+    marginTop: 5,
+    fontSize: 26,
     fontWeight: "800",
     color: "#0F172A",
+    letterSpacing: -0.4,
   },
 
   navigation: {
@@ -116,47 +146,82 @@ const styles = StyleSheet.create({
   },
 
   arrowButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
 
-    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+
+    backgroundColor: "#F8FAFC",
 
     justifyContent: "center",
     alignItems: "center",
 
     marginLeft: 10,
 
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
 
-    elevation: 3,
+  badgeRow: {
+    marginTop: 22,
+
+    flexDirection: "row",
+
+    justifyContent: "space-between",
+
+    alignItems: "center",
   },
 
   badge: {
-    marginTop: 18,
-
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
 
     backgroundColor: "#EEF4FF",
 
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
 
-    borderRadius: 24,
+    borderRadius: 30,
   },
 
   badgeText: {
     marginLeft: 8,
+
     color: "#173B8C",
+
+    fontWeight: "700",
+
     fontSize: 14,
+  },
+
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    backgroundColor: "#ECFDF5",
+
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+
+    borderRadius: 30,
+  },
+
+  liveDot: {
+    width: 8,
+    height: 8,
+
+    borderRadius: 4,
+
+    backgroundColor: "#22C55E",
+
+    marginRight: 7,
+  },
+
+  liveText: {
+    color: "#15803D",
+
+    fontSize: 12,
+
     fontWeight: "700",
   },
 });
