@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, session, jsonify, redirect, u
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import cv2
 import uuid
 from werkzeug.utils import secure_filename
 import datetime
@@ -80,6 +79,15 @@ def inject_common_vars():
         shift_start=SHIFT_START.strftime("%I:%M %p"),
         shift_end=SHIFT_END.strftime("%I:%M %p"),
     )
+
+@app.template_filter('qr_url')
+def _qr_url_filter(p):
+    """Normalize QR code paths — old code stored absolute OS paths; extract just static/qrcodes/<file>."""
+    import re
+    if not p:
+        return ''
+    m = re.search(r'static[/\\]qrcodes[/\\]([^/\\]+\.png)', str(p))
+    return f'static/qrcodes/{m.group(1)}' if m else str(p)
 
 @app.route("/favicon.ico")
 def favicon():
@@ -278,6 +286,17 @@ _CSRF_SCRIPT  = (
     b'f.prepend(i);}});});})();</script>'
 )
 
+_SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
+                   "/save_security_settings", "/toggle_auth_feature",
+                   "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
+                   "/save_company_info", "/toggle_feature"}
+
+@app.after_request
+def _bust_settings_cache(response):
+    if request.method == "POST" and request.path in _SETTINGS_PATHS:
+        invalidate_settings_cache()
+    return response
+
 @app.after_request
 def _inject_csrf_meta(response):
     """Inject CSRF meta tag and auto-inject script into every HTML page."""
@@ -348,8 +367,24 @@ def _validate_upload(file_storage, allowed_exts=None):
         return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
     return True, None
 
-# ---------------- COMPANY SETTINGS ----------------
+# ---------------- COMPANY SETTINGS (with 60-second TTL cache) ----------------
+_co_cache      = {"data": None, "expires": None}
+_auth_cache    = {"data": None, "expires": None}
+_settings_lock = threading.Lock()
+_CO_CACHE_TTL  = 60  # seconds
+
+def _co_expired(cache):
+    return cache["data"] is None or datetime.datetime.now() >= cache["expires"]
+
+def invalidate_settings_cache():
+    with _settings_lock:
+        _co_cache["data"]    = None
+        _auth_cache["data"]  = None
+
 def get_company_settings():
+    with _settings_lock:
+        if not _co_expired(_co_cache):
+            return dict(_co_cache["data"])
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -357,10 +392,14 @@ def get_company_settings():
         row = cursor.fetchone()
         cursor.close(); db.close()
         if row:
-            return {"company_name": row[0], "company_tagline": row[1],
-                    "company_logo": row[2], "currency_symbol": row[3],
-                    "company_code": row[6],
-                    "timezone": row[4], "setup_done": bool(row[5])}
+            result = {"company_name": row[0], "company_tagline": row[1],
+                      "company_logo": row[2], "currency_symbol": row[3],
+                      "company_code": row[6],
+                      "timezone": row[4], "setup_done": bool(row[5])}
+            with _settings_lock:
+                _co_cache["data"]    = result
+                _co_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
+            return dict(result)
     except Exception:
         pass
     return {"company_name": "My Company", "company_tagline": "Employee Attendance System",
@@ -376,6 +415,9 @@ _AUTH_CONFIG_DEFAULTS = {
 }
 
 def get_auth_config():
+    with _settings_lock:
+        if not _co_expired(_auth_cache):
+            return dict(_auth_cache["data"])
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -390,13 +432,17 @@ def get_auth_config():
         row = cursor.fetchone()
         cursor.close(); db.close()
         if row:
-            return {
+            result = {
                 "fingerprint_enabled": bool(row[0]),
                 "qr_enabled":          bool(row[1]),
                 "face_enabled":        bool(row[2]),
                 "location_enabled":    bool(row[3]),
                 "employee_password_auth": bool(row[4]),
             }
+            with _settings_lock:
+                _auth_cache["data"]    = result
+                _auth_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
+            return dict(result)
         return dict(_AUTH_CONFIG_DEFAULTS)
     except Exception:
         return dict(_AUTH_CONFIG_DEFAULTS)
@@ -578,6 +624,13 @@ def load_salary_rules():
 
 def load_deduction_rates():
     load_salary_rules()
+
+with app.app_context():
+    try:
+        load_default_shift()
+        load_salary_rules()
+    except Exception:
+        pass
 
 # ---------------- IMAGE UPLOAD VALIDATION ----------------
 _ALLOWED_IMG_EXT  = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
@@ -1308,6 +1361,33 @@ def init_db():
                 if pwd_hash and check_password_hash(pwd_hash, '1234'):
                     cursor.execute("UPDATE employees SET force_pin_change=1 WHERE employee_id=%s", (eid,))
             cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('force_pin_change_flag')")
+            db.commit()
+    except Exception:
+        pass
+
+    # Performance indexes migration
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v1'")
+        if not cursor.fetchone():
+            _idx_stmts = [
+                "ALTER TABLE leave_requests ADD INDEX idx_leave_emp(employee_id)",
+                "ALTER TABLE leave_requests ADD INDEX idx_leave_status(status)",
+                "ALTER TABLE tickets ADD INDEX idx_tickets_emp(employee_id)",
+                "ALTER TABLE tickets ADD INDEX idx_tickets_status(status)",
+                "ALTER TABLE resignation_requests ADD INDEX idx_resign_emp(employee_id)",
+                "ALTER TABLE notifications ADD INDEX idx_notif_emp(employee_id)",
+                "ALTER TABLE notifications ADD INDEX idx_notif_read(is_read)",
+                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_emp(employee_id)",
+                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_status(status)",
+                "ALTER TABLE payroll_runs ADD INDEX idx_payroll_emp(employee_id)",
+            ]
+            for stmt in _idx_stmts:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v1')")
             db.commit()
     except Exception:
         pass
@@ -2083,7 +2163,7 @@ def unhandled_exception(e):
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", auth_cfg=get_auth_config())
 
 # ---------------- ADMIN LOGIN ----------------
 @app.route("/setup", methods=["GET", "POST"])
@@ -2609,6 +2689,8 @@ def admin_action():
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
                  date_of_joining, work_mode, work_lat, work_lon, company_id)
             )
+            db.commit()
+            assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
             # Send welcome email with credentials
@@ -6873,7 +6955,8 @@ def employee_portal():
                e.address, e.city, e.state, e.pincode,
                e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
                e.aadhar_number, e.pan_number, e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
-               e.qr_code, e.work_mode, e.about_me, e.manager_name, e.department
+               e.qr_code, e.work_mode, e.about_me, e.manager_name, e.department,
+               e.fingerprint_credential_id
         FROM employees e
         LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         LEFT JOIN shifts sh ON e.shift_id = sh.id
@@ -6888,6 +6971,8 @@ def employee_portal():
     # [18]=emergency_contact_name [19]=emergency_contact_phone [20]=emergency_contact_relation
     # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account [25]=bank_ifsc [26]=uan_number
     # [27]=qr_code [28]=work_mode [29]=about_me [30]=manager_name [31]=department
+    # [32]=fingerprint_credential_id
+    fp_enrolled = bool(emp[32]) if len(emp) > 32 else False
     # Decrypt PII fields
     for _pii_idx in (21, 22, 24, 25, 26):
         if _pii_idx < len(emp):
@@ -7352,6 +7437,8 @@ def employee_portal():
         swap_sent=request.args.get("swap_sent") == "1",
         swap_responded=request.args.get("swap_responded") == "1",
         swap_error=request.args.get("swap_error", ""),
+        fp_enrolled=fp_enrolled,
+        fp_enabled=get_auth_config().get("fingerprint_enabled", False),
     )
 
 
@@ -7593,7 +7680,7 @@ def request_leave():
   </div>
 </div>"""
         try:
-            send_email_smtp(
+            send_email_async(
                 config.get("from_email", config["user"]),
                 f"Leave Request — {emp_name} ({date_label})",
                 html_body, config
@@ -8772,11 +8859,8 @@ def leave_action(lid):
     Employee Attendance System &bull; Automated Notification
   </div>
 </div>"""
-                try:
-                    send_email_smtp(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
-                    flash(f"{icon} Leave {action} — email sent to {emp_email}", "success")
-                except Exception as _e:
-                    flash(f"Leave {action} but email failed: {_e}", "error")
+                send_email_async(emp_email, f"Leave {action} — {date_str}", html_body, cfg)
+                flash(f"{icon} Leave {action} — notification queued for {emp_email}", "success")
 
     return redirect("/leave_holidays?tab=leaves")
 
@@ -8894,14 +8978,11 @@ def request_resignation():
     </p>
   </div>
 </div>"""
-        try:
-            send_email_smtp(
-                config.get("from_email", config["user"]),
-                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-                html_body, config
-            )
-        except Exception as e:
-            app_log.error('"Resignation notification email failed: %s"', e)
+        send_email_async(
+            config.get("from_email", config["user"]),
+            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+            html_body, config
+        )
 
     return redirect("/employee_portal?resigned=1#resign")
 
@@ -9164,12 +9245,8 @@ def ticket_action(tid):
     <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">This is an automated message — please do not reply.</p>
   </div>
 </div>"""
-                try:
-                    send_email_smtp(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
-                    msg = f"✅ Ticket updated — email sent to {emp_email}"
-                except Exception as _e:
-                    msg = f"⚠️ Ticket updated but email failed: {_e}"
-                    msg_type = "warning"
+                send_email_async(emp_email, f"Ticket Update: {subject_text}", _html, _ecfg)
+                msg = f"✅ Ticket updated — notification queued for {emp_email}"
             else:
                 msg = "Ticket updated. SMTP not configured — email not sent."
                 msg_type = "warning"
@@ -9647,11 +9724,8 @@ def api_send_salary_email():
     entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
     month_name    = datetime.date(year, month, 1).strftime("%B %Y")
     html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
-    try:
-        send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
-        return jsonify({"ok": True, "msg": f"Sent to {email}"})
-    except Exception as ex:
-        return jsonify({"ok": False, "msg": str(ex)})
+    send_email_async(email, f"Salary Slip - {month_name}", html_body, config)
+    return jsonify({"ok": True, "msg": f"Queued for {email}"})
 
 
 @app.route("/api/attendance/checkin", methods=["POST"])
@@ -10257,6 +10331,50 @@ def webauthn_challenge():
     return jsonify({"challenge": b64})
 
 
+@app.route("/api/employee/webauthn-register", methods=["POST"])
+def webauthn_register():
+    """Save a WebAuthn credential after successful enrollment. Requires active employee session."""
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Not logged in"}), 401
+    data          = request.get_json(force=True, silent=True) or {}
+    credential_id = (data.get("credential_id") or "").strip()
+    if not credential_id:
+        return jsonify({"ok": False, "msg": "credential_id required"}), 400
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
+            (credential_id, emp_id)
+        )
+        db.commit()
+        cursor.close(); db.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/employee/webauthn-unenroll", methods=["POST"])
+def webauthn_unenroll():
+    """Remove the stored WebAuthn credential for the logged-in employee."""
+    emp_id = session.get("employee_id")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Not logged in"}), 401
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "UPDATE employees SET fingerprint_credential_id=NULL WHERE employee_id=%s",
+            (emp_id,)
+        )
+        db.commit()
+        cursor.close(); db.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
 @app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id for an employee (public, used by kiosk)."""
@@ -10304,14 +10422,14 @@ def api_employee_qr_face_checkin():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s",
+        "SELECT name, work_mode, work_lat, work_lon, face_image FROM employees WHERE employee_id=%s",
         (employee_id,)
     )
     result = cursor.fetchone()
     if not result:
         cursor.close(); db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
-    employee_name, work_mode, work_lat, work_lon = result
+    employee_name, work_mode, work_lat, work_lon, registered_face = result
 
     if lat and lon:
         try:
@@ -10327,7 +10445,37 @@ def api_employee_qr_face_checkin():
         except (ValueError, TypeError):
             pass
 
-    if face_photo:
+    needs_face = auth_combo in ("qr_face", "face_fingerprint")
+    if needs_face:
+        if not face_photo:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face photo required for this authentication method."}), 400
+        if not registered_face or not os.path.exists(registered_face):
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
+        try:
+            from PIL import Image as _PILImage
+            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            os.makedirs(face_dir, exist_ok=True)
+            ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
+            img = _PILImage.open(face_photo.stream).convert("RGB")
+            img.save(face_path, "JPEG", quality=80)
+
+            known_img      = face_recognition.load_image_file(registered_face)
+            known_encs     = face_recognition.face_encodings(known_img)
+            test_img_data  = face_recognition.load_image_file(face_path)
+            test_encs      = face_recognition.face_encodings(test_img_data)
+            if not known_encs or not test_encs:
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "Face not detected clearly. Please retake the photo."}), 400
+            if not face_recognition.compare_faces([known_encs[0]], test_encs[0], tolerance=0.5)[0]:
+                cursor.close(); db.close()
+                return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
+        except Exception as _fe:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": f"Face verification error: {_fe}"}), 500
+    elif face_photo:
         try:
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
@@ -10477,14 +10625,11 @@ def api_employee_resign():
             f'<tr><td style="padding:10px;color:#555;font-weight:600;">Reason</td><td style="padding:10px;">{reason}</td></tr>'
             f'</table></div></div>'
         )
-        try:
-            send_email_smtp(
-                config.get("from_email", config["user"]),
-                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-                html_body, config
-            )
-        except Exception as e:
-            app_log.error('"Resignation notification email failed: %s"', e)
+        send_email_async(
+            config.get("from_email", config["user"]),
+            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+            html_body, config
+        )
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 
@@ -12426,7 +12571,7 @@ def bulk_assign_onboarding():
                 if _ecfg:
                     _html = (f"<p>Hi <strong>{_er[0]}</strong>,</p>"
                              f"<p>A new onboarding checklist <strong>'{_tr[0]}'</strong> has been assigned to you. Please complete all tasks by <strong>{due_date}</strong>.</p>")
-                    send_email_smtp(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
+                    send_email_async(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
         except Exception:
             pass
     db.commit(); cursor.close(); db.close()
@@ -12617,7 +12762,7 @@ def onboarding_assign():
                          f"<p>A new onboarding checklist <strong>'{tname}'</strong> has been assigned to you.</p>"
                          f"<p>Due date: <strong>{due_date or 'Not set'}</strong></p>"
                          f"<p>Please log in to your employee portal and complete all tasks on time.</p>")
-                send_email_smtp(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
+                send_email_async(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
             except Exception:
                 pass
     cursor.close(); db.close()
@@ -12942,7 +13087,7 @@ def my_onboarding_task_done():
                 _msg += "<p style='color:#16a34a;font-weight:700;'>🎉 All tasks completed — onboarding marked as Complete!</p>"
             else:
                 _msg += f"<p>{remaining} task(s) remaining.</p>"
-            send_email_smtp(admin_email, f"Onboarding Task Done — {emp_name_ob}", _msg, _ecfg)
+            send_email_async(admin_email, f"Onboarding Task Done — {emp_name_ob}", _msg, _ecfg)
     except Exception:
         pass
 

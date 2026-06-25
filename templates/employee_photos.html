@@ -338,7 +338,7 @@
             {% endif %}
             <button class="btn-card btn-view-qr {% if not has_qr %}no-qr{% endif %}"
                     title="{% if has_qr %}View QR Code{% else %}No QR generated{% endif %}"
-                    onclick="{% if has_qr %}openQrModal('{{ emp_id }}', '{{ name | e }}', '/{{ qr_code }}'){% endif %}">
+                    onclick="{% if has_qr %}openQrModal('{{ emp_id }}', '{{ name | e }}', '/{{ qr_code|qr_url }}'){% endif %}">
               <i class="ti ti-qrcode"></i>
             </button>
           </div>
