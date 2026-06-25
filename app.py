@@ -1094,6 +1094,7 @@ def init_db():
         "ALTER TABLE company_settings ADD COLUMN session_timeout INT DEFAULT 30",
         "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
         "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
+        "ALTER TABLE break_config ADD COLUMN shift_id INT DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -2544,8 +2545,8 @@ def settings_page():
     cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
     emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
 
-    # Breaks
-    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    # Breaks (with shift_id)
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config ORDER BY shift_id, break_time")
     breaks = cursor.fetchall()
 
     # Salary
@@ -2593,7 +2594,13 @@ def settings_page():
     # Company stats
     cursor.execute("SELECT COUNT(*) FROM employees")
     total_employees = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM employees WHERE is_active=1")
+    cursor.execute("""
+        SELECT COUNT(*) FROM employees e
+        WHERE NOT EXISTS (
+            SELECT 1 FROM resignation_requests r
+            WHERE r.employee_id = e.employee_id AND r.status = 'Approved'
+        )
+    """)
     active_employees = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(DISTINCT department) FROM employees WHERE department IS NOT NULL AND department != ''")
     total_departments = cursor.fetchone()[0]
@@ -2699,7 +2706,8 @@ def save_salary_rules():
         half_pct  = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
         grace_min = max(0,   min(120,   int(request.form.get("grace_minutes", 15))))
     except (ValueError, TypeError):
-        return redirect("/settings?tab=salary-rules&saved=0")
+        flash("Invalid values.", "error")
+        return redirect("/settings?tab=salary")
     holiday_pay = request.form.get("holiday_pay", "paid")
     leave_pay   = request.form.get("leave_pay",   "exclude")
     if holiday_pay not in ("paid", "unpaid"):
@@ -2726,7 +2734,8 @@ def save_salary_rules():
     cursor.close(); db.close()
     load_salary_rules()
     load_default_shift()
-    return redirect("/settings?tab=salary-rules&saved=1")
+    flash("Salary rules saved.", "success")
+    return redirect("/settings?tab=salary")
 
 # ---------------- TOGGLE AUTH METHOD ----------------
 _TOGGLE_COLUMN_MAP = {
@@ -2751,15 +2760,15 @@ def toggle_auth_method():
     enabled = request.form.get("enabled", "0") == "1"
     if method not in _TOGGLE_COLUMN_MAP:
         flash("Invalid authentication method.", "danger")
-        return redirect("/settings?tab=auth")
+        return redirect("/settings?tab=attendance")
     column = _TOGGLE_COLUMN_MAP[method]
     label  = _TOGGLE_LABEL_MAP[method]
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
     db.commit(); cursor.close(); db.close()
     state = "enabled" if enabled else "disabled"
-    flash(f"{label} authentication {state}.", "success")
-    return redirect("/settings?tab=auth")
+    flash(f"{label} {state}.", "success")
+    return redirect("/settings?tab=attendance")
 
 @app.route("/toggle_fingerprint", methods=["POST"])
 @admin_required
@@ -2770,7 +2779,7 @@ def toggle_fingerprint():
     db.commit(); cursor.close(); db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"Fingerprint authentication {state}.", "success")
-    return redirect("/settings?tab=auth")
+    return redirect("/settings?tab=attendance")
 
 # ---------------- SAVE COMPANY CODE ----------------
 @app.route("/save_company_code", methods=["POST"])
@@ -2781,7 +2790,7 @@ def save_company_code():
     cursor.execute("UPDATE company_settings SET company_code=%s", (code,))
     db.commit(); cursor.close(); db.close()
     flash(f"Company code set to '{code}'.", "success")
-    return redirect("/settings?tab=email")
+    return redirect("/settings?tab=company")
 
 # ---------------- SAVE COMPANY INFO ----------------
 @app.route("/save_company_info", methods=["POST"])
@@ -2797,7 +2806,8 @@ def save_company_info():
         (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=company&saved=1")
+    flash("Company info saved.", "success")
+    return redirect("/settings?tab=company")
 
 # ---------------- TOGGLE FEATURE (AJAX) ----------------
 @app.route("/toggle_feature", methods=["POST"])
@@ -2827,7 +2837,8 @@ def save_geo_radius():
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=attendance&saved=1")
+    flash("Attendance settings saved.", "success")
+    return redirect("/settings?tab=attendance")
 
 # ---------------- SAVE SECURITY SETTINGS ----------------
 @app.route("/save_security_settings", methods=["POST"])
@@ -2837,7 +2848,8 @@ def save_security_settings():
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=security&saved=1")
+    flash("Security settings saved.", "success")
+    return redirect("/settings?tab=security")
 
 
 # ---------------- COMPANIES ----------------
@@ -2865,7 +2877,7 @@ def add_company():
     name        = request.form.get("name", "").strip()
     code        = request.form.get("code", "").strip().upper()[:20] or None
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
     if not name:
         flash("Company name is required.", "error")
         return redirect(dest)
@@ -2882,7 +2894,7 @@ def edit_company(cid):
     name        = request.form.get("name", "").strip()
     new_code    = (request.form.get("code", "").strip().upper()[:20]) or None
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
 
     if not name:
         flash("Company name is required.", "error")
@@ -2963,7 +2975,7 @@ def edit_company(cid):
 @admin_required
 def delete_company(cid):
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=email" if redirect_to == "settings" else "/companies"
+    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", (cid,))
     count = cursor.fetchone()[0]
@@ -2997,7 +3009,8 @@ def add_incentive_goal():
         (title, desc, amount)
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=incentives&saved=1")
+    flash("Incentive goal added.", "success")
+    return redirect("/settings?tab=incentives")
 
 @app.route("/edit_incentive_goal", methods=["POST"])
 @admin_required
@@ -3017,7 +3030,8 @@ def edit_incentive_goal():
         (title, desc, amount, active, gid)
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=incentives&saved=1")
+    flash("Incentive goal updated.", "success")
+    return redirect("/settings?tab=incentives")
 
 @app.route("/delete_incentive_goal", methods=["POST"])
 @admin_required
@@ -3056,7 +3070,8 @@ def award_incentive():
         (emp_id, goal_id, month, year, amount, notes)
     )
     db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=incentives&saved=1")
+    flash("Incentive awarded.", "success")
+    return redirect("/settings?tab=incentives")
 
 @app.route("/delete_incentive", methods=["POST"])
 @admin_required
@@ -4245,8 +4260,10 @@ def add_shift():
     start = request.form.get("start_time", "").strip()
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
+    redirect_to = request.form.get("redirect_to", "shifts")
+    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?saved=1"
     if not all([name, start, half, end]):
-        return redirect("/shifts?error=All+fields+required")
+        return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
@@ -4255,10 +4272,38 @@ def add_shift():
             (name, start, half, end)
         )
         db.commit()
+        shift_id = cursor.lastrowid
+        # Also save any breaks submitted with this shift
+        bnames    = request.form.getlist("break_name[]")
+        btimes    = request.form.getlist("break_time[]")
+        bdurations = request.form.getlist("break_duration[]")
+        for bn, bt, bd in zip(bnames, btimes, bdurations):
+            bn = bn.strip(); bt = bt.strip(); bd = bd.strip()
+            if bn and bt and bd:
+                cursor.execute(
+                    "INSERT INTO break_config (break_name, break_time, duration_minutes, shift_id, is_active) VALUES (%s,%s,%s,%s,1)",
+                    (bn, bt, int(bd), shift_id)
+                )
+        db.commit()
     except mysql.connector.errors.IntegrityError:
         pass
     cursor.close(); db.close()
-    return redirect("/shifts?saved=1")
+    return redirect(dest)
+
+@app.route("/delete_shift", methods=["POST"])
+@admin_required
+def delete_shift_form():
+    sid = request.form.get("shift_id", "").strip()
+    redirect_to = request.form.get("redirect_to", "shifts")
+    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?deleted=1"
+    if not sid:
+        return redirect(dest)
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE employees SET shift_id=NULL WHERE shift_id=%s", (sid,))
+    cursor.execute("UPDATE break_config SET shift_id=NULL WHERE shift_id=%s", (sid,))
+    cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
+    db.commit(); cursor.close(); db.close()
+    return redirect(dest)
 
 @app.route("/delete_shift/<int:sid>", methods=["POST"])
 @admin_required
@@ -4278,8 +4323,10 @@ def edit_shift(sid):
     start = request.form.get("start_time", "").strip()
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
+    redirect_to = request.form.get("redirect_to", "shifts")
+    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?updated=1"
     if not all([name, start, half, end]):
-        return redirect("/shifts?error=All+fields+required")
+        return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -4288,7 +4335,7 @@ def edit_shift(sid):
     )
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?updated=1")
+    return redirect(dest)
 
 @app.route("/bulk_assign_shift", methods=["POST"])
 @admin_required
@@ -4585,13 +4632,15 @@ def add_break():
     name     = request.form["break_name"].strip()
     btime    = request.form["break_time"]
     duration = int(request.form.get("duration_minutes", 10))
+    shift_id = request.form.get("shift_id") or None
+    if shift_id: shift_id = int(shift_id)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
-                   (name, btime, duration))
+    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes, shift_id) VALUES (%s,%s,%s,%s)",
+                   (name, btime, duration, shift_id))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
-    return redirect("/shifts")
+    return redirect(request.referrer or "/shifts")
 
 @app.route("/update_break/<int:bid>", methods=["POST"])
 @admin_required
@@ -4600,15 +4649,17 @@ def update_break(bid):
     btime    = request.form["break_time"]
     duration = int(request.form.get("duration_minutes", 10))
     active   = 1 if request.form.get("is_active") == "1" else 0
+    shift_id = request.form.get("shift_id") or None
+    if shift_id: shift_id = int(shift_id)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s WHERE id=%s",
-        (name, btime, duration, active, bid)
+        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s, shift_id=%s WHERE id=%s",
+        (name, btime, duration, active, shift_id, bid)
     )
     db.commit(); cursor.close(); db.close()
     flash("Break updated.", "success")
-    return redirect("/shifts")
+    return redirect(request.referrer or "/shifts")
 
 @app.route("/delete_break/<int:bid>", methods=["POST"])
 @admin_required
