@@ -1,6 +1,6 @@
 import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
-
+import AttendanceScreen from "../screens/employee/AttendanceScreen";
 import EmployeeNavigator from "./EmployeeNavigator";
 import EmployeeDrawerContent from "../screens/employee/EmployeeDrawerContent";
 const Drawer = createDrawerNavigator();
@@ -40,7 +40,7 @@ export default function EmployeeDrawerNavigator() {
 
       {/* Future Screens */}
 
-      {/*
+    
       <Drawer.Screen
         name="Attendance"
         component={AttendanceScreen}
