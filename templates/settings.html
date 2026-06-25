@@ -698,9 +698,9 @@
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:6px;">
-                        <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}',{{ s.company_id or 0 }})">Edit</button>
-                        <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete shift and its breaks?')"><input type="hidden" name="redirect_to" value="settings" /><button type="submit" class="btn-del">Delete</button></form>
-                        <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name }}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add Break</button>
+                        <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name|replace("'", "\\'") }}','{{ s.start }}','{{ s.half }}','{{ s.end }}',{{ s.company_id or 0 }})">Edit</button>
+                        <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete shift and its breaks?')"><input type="hidden" name="redirect" value="/settings?tab=shifts" /><button type="submit" class="btn-del">Delete</button></form>
+                        <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name|replace("'", "\\'") }}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add Break</button>
                       </div>
                     </div>
 
@@ -713,12 +713,12 @@
                           <div style="width:28px;height:28px;border-radius:7px;background:{% if btype=='lunch' %}#fef3c7{% else %}#dbeafe{% endif %};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
                           <div style="flex:1;">
                             <div style="font-size:12px;font-weight:700;color:#0f172a;">{{ bname }} <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
-                            <div style="font-size:11px;color:#64748b;margin-top:1px;">🕐 {{ btime|string|truncate(5,True,'') }} · ⏱ {{ bdur }} mins</div>
+                            <div style="font-size:11px;color:#64748b;margin-top:1px;">🕐 {{ btime }} · ⏱ {{ bdur }} mins</div>
                           </div>
                           {% if not bactive %}<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#dc2626;">Inactive</span>{% endif %}
                           <div style="display:flex;gap:5px;">
-                            <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname }}','{{ btime|string|truncate(5,True,'') }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
-                            <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><button type="submit" class="btn-del">Del</button></form>
+                            <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname|replace("'", "\\'") }}','{{ btime }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
+                            <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><input type="hidden" name="redirect" value="/settings?tab=shifts" /><button type="submit" class="btn-del">Del</button></form>
                           </div>
                         </div>
                         {% endfor %}
@@ -1153,16 +1153,6 @@
 
       <!-- Step 1: Shift details -->
       <div id="asStep1">
-        <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Select company, then enter shift name and timings.</div>
-        <div class="field">
-          <label>Company</label>
-          <select id="as_company" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;">
-            <option value="">— No specific company (shared) —</option>
-            {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}
-            <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
         <div class="field">
           <label>Shift Name</label>
           <input type="text" id="as_name" placeholder="e.g. Morning Shift" />
@@ -1203,7 +1193,6 @@
           <input type="hidden" name="start_time"   id="asf_start" />
           <input type="hidden" name="half_time"    id="asf_half" />
           <input type="hidden" name="end_time"     id="asf_end" />
-          <input type="hidden" name="company_id"   id="asf_company" />
           <div id="asf_breaks_container"></div>
         </form>
 
@@ -1281,6 +1270,7 @@
       <div class="modal-title">➕ Add Break</div>
       <div id="addBreakShiftLabel" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-weight:600;"></div>
       <form method="POST" action="/add_break">
+        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
         <input type="hidden" name="shift_id" id="ab_shift_id" />
         <div class="field">
           <label>Break Name</label>
@@ -1308,17 +1298,9 @@
   <div class="modal-bg" id="shiftEditModal">
     <div class="modal">
       <div class="modal-title">✏️ Edit Shift</div>
-      <form id="shiftEditForm" method="POST">
-        <input type="hidden" name="redirect_to" value="settings" />
-        <div class="field">
-          <label>Company</label>
-          <select name="company_id" id="se_company" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;">
-            <option value="">— No specific company (shared) —</option>
-            {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}
-            <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
+      <form id="shiftEditForm" method="POST" action="/edit_shift">
+        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
+        <input type="hidden" name="shift_id" id="se_shift_id" />
         <div class="field">
           <label>Shift Name</label>
           <input type="text" name="name" id="se_name" required />
@@ -1340,7 +1322,9 @@
   <div class="modal-bg" id="breakEditModal">
     <div class="modal">
       <div class="modal-title">✏️ Edit Break</div>
-      <form id="breakEditForm" method="POST">
+      <form id="breakEditForm" method="POST" action="/update_break">
+        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
+        <input type="hidden" name="break_id" id="be_break_id" />
         <input type="hidden" name="is_active" id="be_active_hidden" value="1" />
         <input type="hidden" name="shift_id" id="be_shift_id" />
         <div class="field">
@@ -1617,11 +1601,11 @@
     /* ── SHIFT EDIT MODAL ── */
     function openShiftEdit(id, name, start, half, end, companyId) {
       document.getElementById('shiftEditForm').action = '/edit_shift/' + id;
+      document.getElementById('se_shift_id').value = id;
       document.getElementById('se_name').value    = name;
       document.getElementById('se_start').value   = start;
       document.getElementById('se_half').value    = half;
       document.getElementById('se_end').value     = end;
-      document.getElementById('se_company').value = companyId || '';
       document.getElementById('shiftEditModal').classList.add('open');
     }
     function closeShiftEdit() { document.getElementById('shiftEditModal').classList.remove('open'); }
@@ -1694,7 +1678,7 @@
       document.getElementById('asf_start').value   = document.getElementById('as_start').value;
       document.getElementById('asf_half').value    = document.getElementById('as_half').value;
       document.getElementById('asf_end').value     = document.getElementById('as_end').value;
-      document.getElementById('asf_company').value = document.getElementById('as_company').value;
+      // company auto-set server-side from active session
       var cont = document.getElementById('asf_breaks_container');
       cont.innerHTML = '';
       if (_asBreakYes) {
@@ -1731,6 +1715,7 @@
     /* ── BREAK EDIT MODAL ── */
     function openBreakEdit(id, name, time, duration, active, shiftId) {
       document.getElementById('breakEditForm').action   = '/update_break/' + id;
+      document.getElementById('be_break_id').value      = id;
       document.getElementById('be_name').value          = name;
       document.getElementById('be_time').value          = time;
       document.getElementById('be_duration').value      = duration;

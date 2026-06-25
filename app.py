@@ -2842,9 +2842,19 @@ def settings_page():
     cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
     emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
 
-    # Breaks (with shift_id)
+    # Breaks (with shift_id) — pre-format break_time as HH:MM
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config ORDER BY shift_id, break_time")
-    breaks = cursor.fetchall()
+    breaks = []
+    for _bid, _bname, _bt, _bdur, _bactive, _bshift in cursor.fetchall():
+        if _bt is None:
+            _bt_str = "--"
+        elif isinstance(_bt, datetime.timedelta):
+            _s = int(_bt.total_seconds()); _bt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+        elif isinstance(_bt, datetime.time):
+            _bt_str = _bt.strftime("%H:%M")
+        else:
+            _bt_str = str(_bt)[:5]
+        breaks.append((_bid, _bname, _bt_str, _bdur, _bactive, _bshift))
 
     # Salary
     cursor.execute("""
@@ -4722,10 +4732,12 @@ def delete_shift(sid):
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE employees SET shift_id=NULL WHERE shift_id=%s", (sid,))
+    cursor.execute("UPDATE break_config SET shift_id=NULL WHERE shift_id=%s", (sid,))
     cursor.execute("DELETE FROM shifts WHERE id=%s", (sid,))
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?deleted=1")
+    dest = request.form.get("redirect") or "/settings?tab=shifts"
+    return redirect(dest)
 
 @app.route("/edit_shift", methods=["POST"])
 @app.route("/edit_shift/<int:sid>", methods=["POST"])
