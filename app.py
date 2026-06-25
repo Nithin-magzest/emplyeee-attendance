@@ -3936,8 +3936,31 @@ def view_employees():
     on_leave_count = sum(1 for e in employees if e[-1] == "On Leave")
     resigned_count = sum(1 for e in employees if e[-1] == "Resigned")
 
+    # Full shift details for Schedule tab
+    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
+    shift_full = []
+    for sid, sname, st, ht, et in cursor.fetchall():
+        shift_full.append({
+            "id": sid, "name": sname,
+            "start": _td_to_time(st).strftime("%H:%M") if st else "--",
+            "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
+            "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
+        })
+    # Simple (id, name) list for dropdowns
     cursor.execute("SELECT id, name FROM shifts ORDER BY name")
     shifts = cursor.fetchall()
+
+    # Breaks list
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
+    breaks_raw = cursor.fetchall()
+    breaks_list = []
+    for bid, bname, bt, dur, bactive in breaks_raw:
+        def _fmt_bt(v):
+            if v is None: return "--"
+            if isinstance(v, datetime.timedelta): h,m=divmod(int(v.total_seconds())//60,60); return "%02d:%02d"%(h,m)
+            return str(v)[:5]
+        breaks_list.append({"id": bid, "name": bname, "time": _fmt_bt(bt), "duration": dur, "active": bactive})
+
     cursor.execute(
         "SELECT department FROM employees "
         "WHERE department IS NOT NULL AND department != '' "
@@ -3960,6 +3983,8 @@ def view_employees():
     return render_template("employees.html",
         employees=employees,
         shifts=shifts,
+        shift_full=shift_full,
+        breaks_list=breaks_list,
         departments=departments,
         companies=companies,
         onboarding_templates=onboarding_templates,
@@ -4648,72 +4673,31 @@ def update_photo(emp_id):
     cursor.close(); db.close()
     return jsonify({"ok": True})
 
-# ---------------- SHIFTS ----------------
+# ---------------- SHIFTS (redirect to settings) ----------------
 @app.route("/shifts", methods=["GET"])
 @admin_required
 def shifts():
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT id, name, start_time, half_time, end_time FROM shifts ORDER BY start_time")
-    shift_rows = []
-    for sid, name, st, ht, et in cursor.fetchall():
-        shift_rows.append({
-            "id":    sid, "name": name,
-            "start": _td_to_time(st).strftime("%H:%M") if st else "--",
-            "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
-            "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
-        })
-    cursor.execute(
-        "SELECT e.employee_id, e.name, e.role, s.name "
-        "FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name"
-    )
-    employees = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
-    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
-    breaks = cursor.fetchall()
-    cursor.close(); db.close()
-    return render_template("shifts.html", shifts=shift_rows, employees=employees,
-                           breaks=breaks,
-                           default_start=SHIFT_START.strftime("%H:%M"),
-                           default_half=SHIFT_HALF.strftime("%H:%M"),
-                           default_end=SHIFT_END.strftime("%H:%M"))
+    return redirect("/settings?tab=shifts")
 
 @app.route("/add_shift", methods=["POST"])
 @admin_required
 def add_shift():
-    name  = request.form.get("name", "").strip()
+    name  = (request.form.get("shift_name") or request.form.get("name", "")).strip()
     start = request.form.get("start_time", "").strip()
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
-    redirect_to = request.form.get("redirect_to", "shifts")
-    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?saved=1"
-    company_id = request.form.get("company_id", "").strip() or None
-    if company_id:
-        try: company_id = int(company_id)
-        except: company_id = None
+    dest  = request.form.get("redirect") or ("/settings?tab=shifts" if request.form.get("redirect_to") == "settings" else "/settings?tab=shifts")
     if not all([name, start, half, end]):
         return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute(
-            "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
-            (name, start, half, end, company_id)
+            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
+            (name, start, half, end)
         )
         db.commit()
-        shift_id = cursor.lastrowid
-        # Also save any breaks submitted with this shift
-        bnames    = request.form.getlist("break_name[]")
-        btimes    = request.form.getlist("break_time[]")
-        bdurations = request.form.getlist("break_duration[]")
-        for bn, bt, bd in zip(bnames, btimes, bdurations):
-            bn = bn.strip(); bt = bt.strip(); bd = bd.strip()
-            if bn and bt and bd:
-                cursor.execute(
-                    "INSERT INTO break_config (break_name, break_time, duration_minutes, shift_id, is_active) VALUES (%s,%s,%s,%s,1)",
-                    (bn, bt, int(bd), shift_id)
-                )
-        db.commit()
-    except mysql.connector.errors.IntegrityError:
+    except Exception:
         pass
     cursor.close(); db.close()
     return redirect(dest)
@@ -4722,8 +4706,7 @@ def add_shift():
 @admin_required
 def delete_shift_form():
     sid = request.form.get("shift_id", "").strip()
-    redirect_to = request.form.get("redirect_to", "shifts")
-    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?deleted=1"
+    dest = request.form.get("redirect") or "/settings?tab=shifts"
     if not sid:
         return redirect(dest)
     db = get_db_connection(); cursor = db.cursor(buffered=True)
@@ -4744,26 +4727,25 @@ def delete_shift(sid):
     cursor.close(); db.close()
     return redirect("/shifts?deleted=1")
 
+@app.route("/edit_shift", methods=["POST"])
 @app.route("/edit_shift/<int:sid>", methods=["POST"])
 @admin_required
-def edit_shift(sid):
-    name  = request.form.get("name",  "").strip()
+def edit_shift(sid=None):
+    if sid is None:
+        try: sid = int(request.form.get("shift_id", ""))
+        except: return redirect("/employees?tab=schedule")
+    name  = (request.form.get("shift_name") or request.form.get("name", "")).strip()
     start = request.form.get("start_time", "").strip()
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
-    redirect_to = request.form.get("redirect_to", "shifts")
-    dest = "/settings?tab=shifts" if redirect_to == "settings" else "/shifts?updated=1"
-    company_id = request.form.get("company_id", "").strip() or None
-    if company_id:
-        try: company_id = int(company_id)
-        except: company_id = None
+    dest  = request.form.get("redirect") or "/settings?tab=shifts"
     if not all([name, start, half, end]):
         return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE shifts SET name=%s, start_time=%s, half_time=%s, end_time=%s, company_id=%s WHERE id=%s",
-        (name, start, half, end, company_id, sid)
+        "UPDATE shifts SET name=%s, start_time=%s, half_time=%s, end_time=%s WHERE id=%s",
+        (name, start, half, end, sid)
     )
     db.commit()
     cursor.close(); db.close()
@@ -4772,20 +4754,28 @@ def edit_shift(sid):
 @app.route("/bulk_assign_shift", methods=["POST"])
 @admin_required
 def bulk_assign_shift():
-    shift_id  = request.form.get("shift_id", "").strip()
-    emp_ids   = request.form.getlist("emp_ids")
-    if not emp_ids:
-        return redirect("/shifts?error=No+employees+selected")
+    shift_id    = request.form.get("shift_id", "").strip()
+    emp_ids     = request.form.getlist("emp_ids")
+    dept_filter = request.form.get("dept_filter", "").strip()
+    dest        = request.form.get("redirect") or "/employees?tab=schedule"
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    for emp_id in emp_ids:
+    if emp_ids:
+        for emp_id in emp_ids:
+            cursor.execute(
+                "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
+                (shift_id if shift_id else None, emp_id)
+            )
+    elif dept_filter:
         cursor.execute(
-            "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
-            (shift_id if shift_id else None, emp_id)
+            "UPDATE employees SET shift_id=%s WHERE department=%s",
+            (shift_id if shift_id else None, dept_filter)
         )
+    else:
+        cursor.execute("UPDATE employees SET shift_id=%s", (shift_id if shift_id else None,))
     db.commit()
     cursor.close(); db.close()
-    return redirect("/shifts?bulk_saved=1")
+    return redirect(dest)
 
 @app.route("/update_default_shift", methods=["POST"])
 @admin_required
@@ -5049,59 +5039,59 @@ def api_breaks():
 @app.route("/break_config")
 @admin_required
 def view_break_config():
-    db     = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active FROM break_config ORDER BY break_time")
-    breaks = cursor.fetchall()
-    cursor.close(); db.close()
-    return render_template("break_config.html", breaks=breaks,
-                           shift_start=SHIFT_START.strftime("%I:%M %p"),
-                           shift_end=SHIFT_END.strftime("%I:%M %p"))
+    return redirect("/settings?tab=shifts")
 
 @app.route("/add_break", methods=["POST"])
 @admin_required
 def add_break():
-    name     = request.form["break_name"].strip()
-    btime    = request.form["break_time"]
-    duration = int(request.form.get("duration_minutes", 10))
-    shift_id = request.form.get("shift_id") or None
-    if shift_id: shift_id = int(shift_id)
+    name     = request.form.get("break_name", "").strip()
+    btime    = request.form.get("break_time", "")
+    duration = int(request.form.get("duration_minutes", 10) or 10)
+    dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes, shift_id) VALUES (%s,%s,%s,%s)",
-                   (name, btime, duration, shift_id))
+    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
+                   (name, btime, duration))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
-    return redirect(request.referrer or "/shifts")
+    return redirect(dest)
 
+@app.route("/update_break", methods=["POST"])
 @app.route("/update_break/<int:bid>", methods=["POST"])
 @admin_required
-def update_break(bid):
-    name     = request.form["break_name"].strip()
-    btime    = request.form["break_time"]
-    duration = int(request.form.get("duration_minutes", 10))
-    active   = 1 if request.form.get("is_active") == "1" else 0
-    shift_id = request.form.get("shift_id") or None
-    if shift_id: shift_id = int(shift_id)
+def update_break(bid=None):
+    if bid is None:
+        try: bid = int(request.form.get("break_id", ""))
+        except: return redirect("/employees?tab=schedule")
+    name     = request.form.get("break_name", "").strip()
+    btime    = request.form.get("break_time", "")
+    duration = int(request.form.get("duration_minutes", 10) or 10)
+    active   = 1 if request.form.get("is_active") else 0
+    dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s, shift_id=%s WHERE id=%s",
-        (name, btime, duration, active, shift_id, bid)
+        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s WHERE id=%s",
+        (name, btime, duration, active, bid)
     )
     db.commit(); cursor.close(); db.close()
     flash("Break updated.", "success")
-    return redirect(request.referrer or "/shifts")
+    return redirect(dest)
 
+@app.route("/delete_break", methods=["POST"])
 @app.route("/delete_break/<int:bid>", methods=["POST"])
 @admin_required
-def delete_break(bid):
+def delete_break(bid=None):
+    if bid is None:
+        try: bid = int(request.form.get("break_id", ""))
+        except: return redirect("/employees?tab=schedule")
+    dest = request.form.get("redirect") or "/employees?tab=schedule"
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM break_config WHERE id=%s", (bid,))
     db.commit(); cursor.close(); db.close()
     flash("Break deleted.", "success")
-    return redirect("/shifts")
+    return redirect(dest)
 
 # ---------------- VIEW SALARY CONFIG ----------------
 @app.route("/view_salary")
@@ -13111,16 +13101,25 @@ def admin_tools():
     tab = request.args.get("tab", "org_chart")
     db = get_db_connection(); cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
+    active_cid = session.get("active_company_id")
+    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args   = (active_cid,) if active_cid else ()
+    _co_emp    = "AND company_id=%s" if active_cid else ""
+
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
     pending_resignations = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'")
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
     pending_tickets = cursor.fetchone()[0]
-    cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
+
+    if active_cid:
+        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
+    else:
+        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
     departments = [r[0] for r in cursor.fetchall()]
 
-    # Audit logs data
+    # Audit logs — filter by employees of the active company when set
     actor_f  = request.args.get("actor", "").strip()
     action_f = request.args.get("action", "").strip()
     date_f   = request.args.get("date", "").strip()
@@ -13130,6 +13129,15 @@ def admin_tools():
     if actor_f:  conditions.append("actor LIKE %s"); params.append(f"%{actor_f}%")
     if action_f: conditions.append("action LIKE %s"); params.append(f"%{action_f}%")
     if date_f:   conditions.append("DATE(created_at) = %s"); params.append(date_f)
+    if active_cid:
+        # Show logs where the target_id is an employee of the active company,
+        # OR the actor is an employee of the active company, OR it's an admin action
+        conditions.append(
+            "(target_id IN (SELECT employee_id FROM employees WHERE company_id=%s) "
+            "OR actor IN (SELECT employee_id FROM employees WHERE company_id=%s) "
+            "OR actor_type='admin')"
+        )
+        params += [active_cid, active_cid]
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where}", params)
     total = cursor.fetchone()[0]
@@ -13142,7 +13150,14 @@ def admin_tools():
         params + [per_page, offset]
     )
     logs = cursor.fetchall()
-    cursor.execute("SELECT DISTINCT actor FROM audit_logs ORDER BY actor LIMIT 200")
+    if active_cid:
+        cursor.execute(
+            "SELECT DISTINCT actor FROM audit_logs WHERE actor IN "
+            "(SELECT employee_id FROM employees WHERE company_id=%s) OR actor_type='admin' ORDER BY actor LIMIT 200",
+            (active_cid,)
+        )
+    else:
+        cursor.execute("SELECT DISTINCT actor FROM audit_logs ORDER BY actor LIMIT 200")
     actors = [r[0] for r in cursor.fetchall()]
 
     co = get_company_settings()
@@ -13163,6 +13178,7 @@ def admin_tools():
 @admin_required
 def api_org_chart_data():
     dept_filter = request.args.get("dept", "")
+    active_cid  = session.get("active_company_id")
     db = get_db_connection(); cursor = db.cursor()
     query = """
         SELECT e.employee_id, e.name, e.role, e.department,
@@ -13172,6 +13188,9 @@ def api_org_chart_data():
         WHERE COALESCE(e.is_active, 1) = 1
     """
     params = []
+    if active_cid:
+        query += " AND e.company_id = %s"
+        params.append(active_cid)
     if dept_filter:
         query += " AND e.department = %s"
         params.append(dept_filter)
