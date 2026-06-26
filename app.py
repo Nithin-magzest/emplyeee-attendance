@@ -6,7 +6,13 @@ import uuid
 from werkzeug.utils import secure_filename
 import datetime
 import html as _html
-import face_recognition
+try:
+    import face_recognition
+    _face_recognition_available = True
+except Exception as _fr_err:
+    face_recognition = None
+    _face_recognition_available = False
+    print(f"⚠  face_recognition unavailable ({_fr_err}). Face features disabled.")
 from database import get_db_connection
 from qr_generator import generate_qr
 from werkzeug.security import check_password_hash
@@ -2670,13 +2676,14 @@ def admin_action():
         file.save(filepath)
 
         # Validate that the uploaded photo contains a detectable face
-        test_img = face_recognition.load_image_file(filepath)
-        if not face_recognition.face_encodings(test_img):
-            os.remove(filepath)
-            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
-            cursor.close()
-            db.close()
-            return redirect("/admin")
+        if _face_recognition_available:
+            test_img = face_recognition.load_image_file(filepath)
+            if not face_recognition.face_encodings(test_img):
+                os.remove(filepath)
+                flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+                cursor.close()
+                db.close()
+                return redirect("/admin")
 
         qr_path    = generate_qr(emp_id)
         auto_pass  = secrets.token_urlsafe(8)   # e.g. "aB3xQ7mR"
@@ -2757,13 +2764,14 @@ def admin_action():
             return redirect("/admin")
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
-        test_img = face_recognition.load_image_file(filepath)
-        if not face_recognition.face_encodings(test_img):
-            os.remove(filepath)
-            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
-            cursor.close()
-            db.close()
-            return redirect("/admin")
+        if _face_recognition_available:
+            test_img = face_recognition.load_image_file(filepath)
+            if not face_recognition.face_encodings(test_img):
+                os.remove(filepath)
+                flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+                cursor.close()
+                db.close()
+                return redirect("/admin")
         cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
         db.commit()
         flash(f"Face photo updated successfully for '{name}' (ID: {emp_id}).", "success")
@@ -4187,12 +4195,13 @@ def add_employee_page():
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
 
-    test_img = face_recognition.load_image_file(filepath)
-    if not face_recognition.face_encodings(test_img):
-        os.remove(filepath)
-        flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
-        cursor.close(); db.close()
-        return redirect("/employees")
+    if _face_recognition_available:
+        test_img = face_recognition.load_image_file(filepath)
+        if not face_recognition.face_encodings(test_img):
+            os.remove(filepath)
+            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+            cursor.close(); db.close()
+            return redirect("/employees")
 
     auto_pass  = secrets.token_urlsafe(8)
     hashed_pwd = generate_password_hash(auto_pass)
@@ -4332,12 +4341,13 @@ def update_employee_photo(emp_id):
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
 
-    test_img = face_recognition.load_image_file(filepath)
-    if not face_recognition.face_encodings(test_img):
-        os.remove(filepath)
-        flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
-        cursor.close(); db.close()
-        return redirect("/employees")
+    if _face_recognition_available:
+        test_img = face_recognition.load_image_file(filepath)
+        if not face_recognition.face_encodings(test_img):
+            os.remove(filepath)
+            flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
+            cursor.close(); db.close()
+            return redirect("/employees")
 
     cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
     db.commit()
@@ -6127,6 +6137,9 @@ def attendance():
     # Face recognition (only for qr_face combo)
     known_encoding = None
     if needs_face:
+        if not _face_recognition_available:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face recognition is currently unavailable on this server. Contact your admin."})
         if not os.path.exists(face_path):
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
@@ -6447,9 +6460,10 @@ def update_my_photo():
     try:
         img = Image.open(file.stream).convert("RGB")
         img_array = np.array(img)
-        locs = face_recognition.face_locations(img_array)
-        if not locs:
-            return redirect("/employee_portal?photo_error=no_face#my-profile")
+        if _face_recognition_available:
+            locs = face_recognition.face_locations(img_array)
+            if not locs:
+                return redirect("/employee_portal?photo_error=no_face#my-profile")
         save_path = os.path.join("dataset", emp_id + ".jpg")
         img.save(save_path, "JPEG", quality=90)
         db = get_db_connection()
@@ -9413,10 +9427,11 @@ def api_register_employee():
         return jsonify({"ok": False, "msg": err}), 400
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
-    test_img = face_recognition.load_image_file(filepath)
-    if not face_recognition.face_encodings(test_img):
-        os.remove(filepath)
-        return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400
+    if _face_recognition_available:
+        test_img = face_recognition.load_image_file(filepath)
+        if not face_recognition.face_encodings(test_img):
+            os.remove(filepath)
+            return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400
     qr_path    = generate_qr(emp_id)
     init_pass  = request.form.get("password", "").strip() or emp_id
     hashed_pwd = generate_password_hash(init_pass)
@@ -10453,6 +10468,9 @@ def api_employee_qr_face_checkin():
         if not face_photo:
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Face photo required for this authentication method."}), 400
+        if not _face_recognition_available:
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Face recognition is currently unavailable on this server. Contact your admin."}), 503
         if not registered_face or not os.path.exists(registered_face):
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
