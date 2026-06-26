@@ -132,6 +132,10 @@ const activeRoute =
   });
   break;
 
+  case "Profile":
+  navigation.navigate("Profile");
+  break;
+
     case "Tickets":
       navigation.navigate("EmployeeTabs", {
         screen: "Tickets",
