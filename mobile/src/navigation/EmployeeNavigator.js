@@ -9,7 +9,16 @@ import LeaveScreen from "../screens/employee/LeaveScreen";
 import TicketsScreen from "../screens/employee/TicketsScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import CompOffScreen from "../screens/employee/CompOffScreen";
-
+import PersonalInfoScreen from "../screens/employee/PersonalInfoScreen";
+import WorkInfoScreen from "../screens/employee/WorkInfoScreen";
+import ContactScreen from "../screens/employee/ContactScreen";
+import EmergencyContactScreen from "../screens/employee/EmergencyContactScreen";
+import EducationScreen from "../screens/employee/EducationScreen";
+import ExperienceScreen from "../screens/employee/ExperienceScreen";
+import DocumentsScreen from "../screens/employee/DocumentsScreen";
+import BankDetailsScreen from "../screens/employee/BankDetailsScreen";
+import SecurityScreen from "../screens/employee/SecurityScreen";
+import SettingsScreen from "../screens/employee/SettingsScreen";
 // Replace this with your actual QR screen
 import AttendanceScreen from "../screens/employee/AttendanceScreen";
 

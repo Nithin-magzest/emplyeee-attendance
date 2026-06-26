@@ -2,6 +2,7 @@ import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import AttendanceScreen from "../screens/employee/AttendanceScreen";
 import EmployeeNavigator from "./EmployeeNavigator";
+import ProfileNavigator from "./ProfileNavigator";
 import EmployeeDrawerContent from "../screens/employee/EmployeeDrawerContent";
 import CompOffScreen from "../screens/employee/CompOffScreen";
 const Drawer = createDrawerNavigator();
@@ -50,6 +51,11 @@ export default function EmployeeDrawerNavigator() {
   name="CompOff"
   component={CompOffScreen}
 />
+<Drawer.Screen
+    name="Profile"
+    component={ProfileNavigator}
+/>
+
 {/*
       <Drawer.Screen
         name="Profile"
