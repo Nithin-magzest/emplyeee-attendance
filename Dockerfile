@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# System deps for OpenCV, dlib (face_recognition), and MySQL client
+# System deps: OpenCV / dlib (face_recognition), MySQL client, SSL
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake g++ make \
     libboost-all-dev \
@@ -8,12 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev \
     libgl1 libglib2.0-0 \
     default-libmysqlclient-dev \
+    libssl-dev \
     pkg-config \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies first (layer cache)
+# Install Python deps first (layer cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -21,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Runtime directories that are gitignored
-RUN mkdir -p static/qrcodes dataset
+RUN mkdir -p static/qrcodes static/employee_docs dataset
 
 EXPOSE 5000
 

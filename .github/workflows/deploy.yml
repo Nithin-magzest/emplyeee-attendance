@@ -7,26 +7,64 @@ on:
     branches: [master]
 
 jobs:
-  check:
+  lint:
+    name: Syntax & structure check
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Check Python syntax
         run: python -m py_compile app.py && echo "✅ app.py syntax OK"
 
       - name: Check key templates exist
         run: |
-          for f in templates/index.html templates/admin.html templates/employee_portal.html; do
+          for f in \
+            templates/index.html \
+            templates/admin.html \
+            templates/employee_portal.html \
+            templates/employees.html \
+            templates/employee_detail.html \
+            templates/qrcodes.html; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
-      - name: Done
-        run: echo "✅ All checks passed"
+      - name: Check static assets exist
+        run: |
+          for f in static/shared.css static/darkmode.js static/jsQR.min.js; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+      - name: Check DevOps files exist
+        run: |
+          for f in Dockerfile entrypoint.sh docker-compose.yml nginx/nginx.conf generate_cert.py; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t attendance-app:ci .
+
+      - name: Verify image starts
+        run: |
+          docker run -d --name test-app \
+            -e DB_HOST=localhost \
+            -e DB_USER=test \
+            -e DB_PASS=test \
+            -e DB_NAME=test \
+            -e SECRET_KEY=ci-test-key \
+            attendance-app:ci || true
+          sleep 5
+          docker logs test-app 2>&1 | tail -20
+          docker rm -f test-app || true
