@@ -936,17 +936,12 @@
             return;
           }
 
-          // Look up the enrolled credential for this employee
-          let credentialId = null;
-          if (gEmployeeId) {
-            try {
-              const cr = await fetch(`/api/employee/${encodeURIComponent(gEmployeeId)}/webauthn-credential`);
-              const cd = await cr.json();
-              if (cd.ok && cd.credential_id) credentialId = cd.credential_id;
-            } catch {}
-          }
+          // Fetch server-generated authentication options (challenge stored in session)
+          $("fpHint").textContent = "⏳ Loading…";
+          const authOptR = await fetch(`/webauthn/authentication-options?emp_id=${encodeURIComponent(gEmployeeId || "")}`);
+          const authOpts = await authOptR.json();
 
-          if (!credentialId) {
+          if (!authOpts.allowCredentials || authOpts.allowCredentials.length === 0) {
             fpError("⚠ No fingerprint registered for this Employee ID. Please enroll your fingerprint first.");
             return;
           }
@@ -954,20 +949,41 @@
           // Prompt the actual fingerprint sensor
           $("fpHint").textContent = "👆 Touch your fingerprint sensor now…";
           $("fpHint").style.color = "";
-          const chalR = await fetch("/webauthn/challenge");
-          const { challenge } = await chalR.json();
 
-          await navigator.credentials.get({
+          const assertion = await navigator.credentials.get({
             publicKey: {
-              challenge:        toBytes(challenge),
-              rpId:             window.location.hostname,
-              allowCredentials: [{ type: "public-key", id: toBytes(credentialId) }],
-              userVerification: "required",
-              timeout:          60000,
+              challenge:        toBytes(authOpts.challenge),
+              rpId:             authOpts.rpId,
+              allowCredentials: authOpts.allowCredentials.map(c => ({
+                type:       c.type,
+                id:         toBytes(c.id),
+                transports: c.transports || ["internal"],
+              })),
+              userVerification: authOpts.userVerification || "required",
+              timeout:          authOpts.timeout || 60000,
             }
           });
 
-          // Only reach here if fingerprint matched
+          // Server-side challenge verification
+          function toB64url(buf) {
+            let s = ""; new Uint8Array(buf).forEach(b => s += String.fromCharCode(b));
+            return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
+          }
+          const verR = await fetch("/api/employee/webauthn-verify-challenge", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              emp_id:        gEmployeeId,
+              clientDataJSON: toB64url(assertion.response.clientDataJSON),
+            }),
+          });
+          const verJson = await verR.json();
+          if (!verJson.ok) {
+            fpError("❌ " + (verJson.msg || "Server challenge verification failed."));
+            return;
+          }
+
+          // Only reach here if fingerprint matched AND server verified challenge
           fpVerified = true;
           $("fpHint").textContent = "✅ Fingerprint matched!";
           $("fpHint").style.color = "#22c55e";

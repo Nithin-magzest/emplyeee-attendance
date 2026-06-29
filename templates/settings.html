@@ -351,6 +351,13 @@
       <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
       <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 </div>
+            <div id="co-sw" style="margin:0 0 12px;">
+        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
+          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
+          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+        </button>
+      </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
@@ -362,6 +369,7 @@
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
       <a class="nav-item active" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
@@ -410,9 +418,9 @@
         <div class="s3-tab-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Organisation</div>
-          <div class="s3-tab-sub">Company · Attendance · Shifts</div>
+          <div class="s3-tab-sub">Company · Attendance</div>
         </div>
-        <span class="s3-tab-count">4</span>
+        <span class="s3-tab-count">3</span>
       </button>
       <button class="s3-tab" id="s3tab-fin" onclick="switchGroup('fin')">
         <div class="s3-tab-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;"></i></div>
@@ -445,7 +453,6 @@
         <div class="subnav-dd-menu" id="dd-org">
           <button class="subnav-dd-item active" id="ddi-company"    onclick="switchSub('org','company')">   <i class="ti ti-building"></i>   Company</button>
           <button class="subnav-dd-item"        id="ddi-attendance" onclick="switchSub('org','attendance')"><i class="ti ti-fingerprint"></i> Attendance</button>
-          <button class="subnav-dd-item"        id="ddi-shifts"     onclick="switchSub('org','shifts')">    <i class="ti ti-clock"></i>      Shifts &amp; Breaks</button>
         </div>
       </div>
     </div>
@@ -465,7 +472,7 @@
                 <div class="section-title" style="margin-bottom:2px;">🏢 Companies</div>
                 <div style="font-size:12px;color:#64748b;">Manage company name, code and details</div>
               </div>
-              <button type="button" onclick="document.getElementById('addCompanyModal').classList.add('open')" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+              <button type="button" onclick="acOpenModal()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
                 <i class="ti ti-plus" style="font-size:14px;"></i> Add Company
               </button>
             </div>
@@ -506,11 +513,117 @@
                   </div>
                 </div>
                 <!-- Working days strip -->
-                <div style="padding:8px 18px 12px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <div style="padding:8px 18px 4px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px;">📅 Working days:</span>
                   {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
                   <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;{% if d in cwd_list %}background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;{% else %}background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;text-decoration:line-through;{% endif %}">{{ d }}</span>
                   {% endfor %}
+                </div>
+                <!-- Shifts strip -->
+                <div style="padding:5px 18px 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">🕐 Shifts:</span>
+                  {% if company_shifts.get(cid) %}
+                  {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
+                  <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;" title="{{ _csstart }} – {{ _csend }} (half: {{ _cshalf }})">
+                    {{ _csname }}
+                    <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit shift">✏</button>
+                    <form method="POST" action="/delete_shift/{{ _csid }}" style="display:inline;margin:0;" onsubmit="return confirm('Delete shift \'{{ _csname }}\'? Employees assigned to it will be unassigned.')">
+                      <input type="hidden" name="redirect" value="/settings?tab=company" />
+                      <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete shift">×</button>
+                    </form>
+                  </span>
+                  {% endfor %}
+                  {% else %}
+                  <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
+                  {% endif %}
+                  <button type="button" onclick="toggleCoAddShift({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
+                </div>
+                <!-- Per-shift inline edit forms -->
+                {% if company_shifts.get(cid) %}
+                {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
+                <div id="co-es-{{ _csid }}" style="display:none;padding:6px 18px;background:#f0fdf4;border-top:1px dashed #bbf7d0;">
+                  <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">Edit shift: {{ _csname }}</div>
+                  <form method="POST" action="/edit_shift/{{ _csid }}" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
+                    <input type="hidden" name="redirect" value="/settings?tab=company" />
+                    <input type="text" name="name"       value="{{ _csname }}"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="start_time" value="{{ _csstart }}" required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="half_time"  value="{{ _cshalf }}"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="end_time"   value="{{ _csend }}"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
+                    <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  </form>
+                </div>
+                {% endfor %}
+                {% endif %}
+                <!-- Inline add-shift form -->
+                <div id="co-as-{{ cid }}" style="display:none;padding:8px 18px;">
+                  <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">New shift</div>
+                  <form method="POST" action="/add_shift" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
+                    <input type="hidden" name="redirect"    value="/settings?tab=company" />
+                    <input type="hidden" name="company_id"  value="{{ cid }}" />
+                    <input type="text" name="shift_name"  placeholder="Shift name"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="start_time"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="half_time"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time" name="end_time"    required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+                    <button type="button" onclick="toggleCoAddShift({{ cid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  </form>
+                  <div style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;margin-top:2px;padding:0 2px;">
+                    <span style="font-size:10px;color:#94a3b8;">Name</span>
+                    <span style="font-size:10px;color:#94a3b8;">Start</span>
+                    <span style="font-size:10px;color:#94a3b8;">Half-day</span>
+                    <span style="font-size:10px;color:#94a3b8;">End</span>
+                    <span></span><span></span>
+                  </div>
+                </div>
+
+                <!-- Breaks strip -->
+                <div style="padding:5px 18px 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">☕ Breaks:</span>
+                  {% if company_breaks.get(cid) %}
+                  {% for _cb in company_breaks[cid] %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
+                  <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:{% if 'lunch' in _cbname.lower() %}#fef9c3;color:#92400e;border:1px solid #fde68a;{% else %}#dbeafe;color:#1e40af;border:1px solid #bfdbfe;{% endif %}" title="{{ _cbtime }} · {{ _cbdur }} mins">
+                    {{ _cbname }}
+                    <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit break">✏</button>
+                    <form method="POST" action="/delete_break/{{ _cbid }}" style="display:inline;margin:0;" onsubmit="return confirm('Remove break \'{{ _cbname }}\'?')">
+                      <input type="hidden" name="redirect" value="/settings?tab=company" />
+                      <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete break">×</button>
+                    </form>
+                  </span>
+                  {% endfor %}
+                  {% else %}
+                  <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
+                  {% endif %}
+                  <button type="button" onclick="toggleCoAddBreak({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
+                </div>
+                <!-- Per-break inline edit forms (one per break, hidden until ✏ clicked) -->
+                {% if company_breaks.get(cid) %}
+                {% for _cb in company_breaks[cid] %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
+                <div id="co-eb-{{ _cbid }}" style="display:none;padding:6px 18px;background:#fffbeb;border-top:1px dashed #fde68a;">
+                  <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:5px;">Edit break: {{ _cbname }}</div>
+                  <form method="POST" action="/update_break/{{ _cbid }}" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                    <input type="hidden" name="redirect"  value="/settings?tab=company" />
+                    <input type="hidden" name="is_active"  value="1" />
+                    <input type="text"   name="break_name"       value="{{ _cbname }}" required style="padding:6px 10px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time"   name="break_time"       value="{{ _cbtime }}" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="number" name="duration_minutes" value="{{ _cbdur }}"  min="1" max="240" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#d97706;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
+                    <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  </form>
+                </div>
+                {% endfor %}
+                {% endif %}
+                <!-- Inline add-break form (hidden until + Add clicked) -->
+                <div id="co-ab-{{ cid }}" style="display:none;padding:8px 18px 12px;">
+                  <form method="POST" action="/add_break" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                    <input type="hidden" name="redirect"    value="/settings?tab=company" />
+                    <input type="hidden" name="company_id"  value="{{ cid }}" />
+                    <input type="text"   name="break_name"  placeholder="Break name" required style="padding:6px 10px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="time"   name="break_time"  required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <input type="number" name="duration_minutes" value="15" min="1" max="240" placeholder="mins" required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+                    <button type="button" onclick="toggleCoAddBreak({{ cid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  </form>
                 </div>
               </div>
 
@@ -642,83 +755,6 @@
             </div>
           </div>
 
-          <!-- SHIFTS & BREAKS -->
-          <div class="s3-section" id="ss-shifts">
-            <div class="sec-header">
-              <div class="sec-icon" style="background:#fff7ed;"><i class="ti ti-clock" style="color:#ea580c;font-size:20px;"></i></div>
-              <div><div class="sec-title">Shifts &amp; Breaks</div><div class="sec-sub">Shifts are per company · breaks are per shift</div></div>
-            </div>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-              <div style="font-size:13px;font-weight:700;color:#475569;">{{ shifts|length }} shift{{ 's' if shifts|length != 1 else '' }} configured</div>
-              <button class="btn-add" style="font-size:12px;padding:7px 14px;" onclick="document.getElementById('addShiftModal').classList.add('open')">+ Add Shift</button>
-            </div>
-
-            {% set breaks_by_shift = {} %}
-            {% for b in breaks %}
-              {% set bid,bname,btime,bdur,bactive,bshift = b %}
-              {% if bshift not in breaks_by_shift %}{% set _ = breaks_by_shift.update({bshift: []}) %}{% endif %}
-              {% set _ = breaks_by_shift[bshift].append(b) %}
-            {% endfor %}
-
-            {% if shifts %}
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              {% for s in shifts %}
-              {% set sbreaks = breaks_by_shift.get(s.id, []) %}
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;">
-
-                <!-- Shift header -->
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <div style="width:36px;height:36px;border-radius:9px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-clock" style="color:#ea580c;font-size:17px;"></i></div>
-                    <div>
-                      <div style="font-size:13px;font-weight:800;color:#0f172a;">{{ s.name }}</div>
-                      <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
-                        <span style="font-size:11px;color:#16a34a;font-weight:700;">▶ {{ s.start }}</span>
-                        <span style="font-size:11px;color:#ca8a04;font-weight:700;">⚡ {{ s.half }}</span>
-                        <span style="font-size:11px;color:#dc2626;font-weight:700;">■ {{ s.end }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    <button class="btn-edit" onclick="openShiftEdit({{ s.id }},'{{ s.name|replace("'", "\\'") }}','{{ s.start }}','{{ s.half }}','{{ s.end }}',0)">Edit</button>
-                    <form method="POST" action="/delete_shift/{{ s.id }}" style="display:inline;" onsubmit="return confirm('Delete shift and its breaks?')"><input type="hidden" name="redirect" value="/settings?tab=shifts" /><button type="submit" class="btn-del">Delete</button></form>
-                    <button type="button" onclick="openAddBreak({{ s.id }},'{{ s.name|replace("'", "\\'") }}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add Break</button>
-                  </div>
-                </div>
-
-                <!-- Breaks -->
-                <div style="padding:10px 16px;">
-                  {% if sbreaks %}
-                  <div style="display:flex;flex-direction:column;gap:6px;">
-                    {% for b in sbreaks %}{% set bid,bname,btime,bdur,bactive,bshift = b %}{% set btype = 'lunch' if 'lunch' in bname.lower() else 'coffee' %}
-                    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:{% if bactive %}#f8fafc{% else %}#fafafa{% endif %};border:1px solid #f1f5f9;border-radius:9px;opacity:{% if bactive %}1{% else %}.6{% endif %};">
-                      <div style="width:28px;height:28px;border-radius:7px;background:{% if btype=='lunch' %}#fef3c7{% else %}#dbeafe{% endif %};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">{{ '🍽' if btype=='lunch' else '☕' }}</div>
-                      <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:700;color:#0f172a;">{{ bname }} <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;{% if btype=='lunch' %}background:#fef3c7;color:#92400e;{% else %}background:#dbeafe;color:#1e40af;{% endif %}">{{ 'Lunch' if btype=='lunch' else 'Coffee' }}</span></div>
-                        <div style="font-size:11px;color:#64748b;margin-top:1px;">🕐 {{ btime }} · ⏱ {{ bdur }} mins</div>
-                      </div>
-                      {% if not bactive %}<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#dc2626;">Inactive</span>{% endif %}
-                      <div style="display:flex;gap:5px;">
-                        <button class="btn-edit" onclick="openBreakEdit({{ bid }},'{{ bname|replace("'", "\\'") }}','{{ btime }}',{{ bdur }},{{ 1 if bactive else 0 }},{{ s.id }})">Edit</button>
-                        <form method="POST" action="/delete_break" style="display:inline;" onsubmit="return confirm('Delete break?')"><input type="hidden" name="break_id" value="{{ bid }}" /><input type="hidden" name="redirect" value="/settings?tab=shifts" /><button type="submit" class="btn-del">Del</button></form>
-                      </div>
-                    </div>
-                    {% endfor %}
-                  </div>
-                  {% else %}
-                  <div style="padding:8px 0;font-size:12px;color:#94a3b8;text-align:center;">No breaks — click <strong>Add Break</strong> above.</div>
-                  {% endif %}
-                </div>
-
-              </div>
-              {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-row">No shifts yet. Click <strong>+ Add Shift</strong> to create one.</div>
-            {% endif %}
-
-          </div>
 
     </div>
 
@@ -1126,64 +1162,6 @@
 
   </div><!-- /main -->
 
-  <!-- ══ ADD SHIFT MODAL (2-step) ══ -->
-  <div class="modal-bg" id="addShiftModal">
-    <div class="modal" style="max-width:520px;">
-      <div class="modal-title">🕐 Add New Shift</div>
-
-      <!-- Step 1: Shift details -->
-      <div id="asStep1">
-        <div class="field">
-          <label>Shift Name</label>
-          <input type="text" id="as_name" placeholder="e.g. Morning Shift" />
-        </div>
-        <div class="time-row">
-          <div class="field" style="margin:0;"><label>🟢 Start Time</label><input type="time" id="as_start" /></div>
-          <div class="field" style="margin:0;"><label>🟡 Late / Half Day</label><input type="time" id="as_half" /></div>
-          <div class="field" style="margin:0;"><label>🔴 End Time</label><input type="time" id="as_end" /></div>
-        </div>
-        <div id="asStep1Err" style="display:none;font-size:12px;color:#dc2626;margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:8px;">Please fill all fields.</div>
-        <div class="modal-actions" style="margin-top:16px;">
-          <button type="button" onclick="document.getElementById('addShiftModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
-          <button type="button" onclick="asNext()" class="btn-submit">Next →</button>
-        </div>
-      </div>
-
-      <!-- Step 2: Breaks question + add breaks -->
-      <div id="asStep2" style="display:none;">
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:700;color:#166534;" id="asShiftSummary"></div>
-        </div>
-        <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px;">Do you want to add breaks for this shift?</div>
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-          <button type="button" id="asBtnYes" onclick="asToggleBreaks(true)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">☕ Yes, add breaks</button>
-          <button type="button" id="asBtnNo"  onclick="asToggleBreaks(false)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">⏭ No, skip breaks</button>
-        </div>
-
-        <!-- Breaks form (hidden until Yes) -->
-        <div id="asBreakSection" style="display:none;">
-          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">Break Details</div>
-          <div id="asBreakRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
-          <button type="button" onclick="asAddBreakRow()" style="font-size:12px;font-weight:700;color:#1e3a8a;background:#eff6ff;border:1.5px dashed #bfdbfe;border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit;width:100%;">+ Add Another Break</button>
-        </div>
-
-        <form id="asForm" method="POST" action="/add_shift" style="display:none;">
-          <input type="hidden" name="redirect_to"  value="settings" />
-          <input type="hidden" name="name"         id="asf_name" />
-          <input type="hidden" name="start_time"   id="asf_start" />
-          <input type="hidden" name="half_time"    id="asf_half" />
-          <input type="hidden" name="end_time"     id="asf_end" />
-          <div id="asf_breaks_container"></div>
-        </form>
-
-        <div class="modal-actions" style="margin-top:16px;">
-          <button type="button" onclick="asBack()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">← Back</button>
-          <button type="button" id="asSaveBtn" onclick="asSave()" class="btn-submit" style="display:none;">💾 Save Shift</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ══ SET COMPANY PIN MODAL ══ -->
   <div id="setPinModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10002;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:20px;padding:28px;width:360px;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
@@ -1224,125 +1202,73 @@
 
   <!-- ══ ADD COMPANY MODAL ══ -->
   <div class="modal-bg" id="addCompanyModal">
-    <div class="modal">
-      <div class="modal-title">🏢 Add Company</div>
-      <form method="POST" action="/companies/add">
+    <div class="modal" style="max-width:580px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="flex-shrink:0;">🏢 Add Company</div>
+      <form method="POST" action="/companies/add" style="display:flex;flex-direction:column;flex:1;min-height:0;">
         <input type="hidden" name="redirect_to" value="settings" />
-        <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;">
-          <div class="field">
-            <label>Company Name</label>
-            <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
+        <div style="overflow-y:auto;flex:1;padding-right:2px;">
+          <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;">
+            <div class="field">
+              <label>Company Name</label>
+              <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
+            </div>
+            <div class="field">
+              <label>Code <span style="font-size:11px;color:#94a3b8;">(ID prefix)</span></label>
+              <input type="text" name="code" placeholder="e.g. MGZ" maxlength="20" style="font-family:monospace;letter-spacing:1px;" />
+            </div>
           </div>
           <div class="field">
-            <label>Code <span style="font-size:11px;color:#94a3b8;">(ID prefix)</span></label>
-            <input type="text" name="code" placeholder="e.g. MGZ" maxlength="20" style="font-family:monospace;letter-spacing:1px;" />
+            <label style="font-size:12px;font-weight:700;color:#475569;">📅 Working Days</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+              {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+              <label style="cursor:pointer;">
+                <input type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} style="display:none;" onchange="styleCoWd(this)" />
+                <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Affects payroll calculation for this company.</div>
+          </div>
+
+          <!-- Shifts -->
+          <div class="field" style="margin-bottom:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:700;color:#475569;margin:0;">🕐 Shifts</label>
+              <button type="button" onclick="acAddShiftRow()" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #c7d2fe;border-radius:8px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add</button>
+            </div>
+            <!-- header row -->
+            <div style="display:grid;grid-template-columns:1fr 82px 82px 82px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Name</span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Start</span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Half-day</span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">End</span>
+              <span></span>
+            </div>
+            <div id="acShiftsList" style="display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Optional — define shifts for this company.</div>
+          </div>
+
+          <!-- Breaks -->
+          <div class="field" style="margin-bottom:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:700;color:#475569;margin:0;">☕ Breaks</label>
+              <button type="button" onclick="acAddBreakRow()" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add</button>
+            </div>
+            <!-- header row -->
+            <div style="display:grid;grid-template-columns:1fr 90px 70px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Name</span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Time</span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Mins</span>
+              <span></span>
+            </div>
+            <div id="acBreaksList" style="display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Optional — define company-wide daily breaks.</div>
           </div>
         </div>
-        <div class="field">
-          <label style="font-size:12px;font-weight:700;color:#475569;">📅 Working Days</label>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
-            {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-            <label style="cursor:pointer;">
-              <input type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} style="display:none;" onchange="styleCoWd(this)" />
-              <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
-            </label>
-            {% endfor %}
-          </div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Affects payroll calculation for this company.</div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" onclick="document.getElementById('addCompanyModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+
+        <div class="modal-actions" style="flex-shrink:0;border-top:1px solid #f1f5f9;padding-top:14px;margin-top:4px;">
+          <button type="button" onclick="acCloseModal()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
           <button type="submit" class="btn-submit">Add Company</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ══ ADD BREAK MODAL ══ -->
-  <div class="modal-bg" id="addBreakModal">
-    <div class="modal">
-      <div class="modal-title">➕ Add Break</div>
-      <div id="addBreakShiftLabel" style="font-size:12px;color:#64748b;margin-bottom:14px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-weight:600;"></div>
-      <form method="POST" action="/add_break">
-        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
-        <input type="hidden" name="shift_id" id="ab_shift_id" />
-        <div class="field">
-          <label>Break Name</label>
-          <input type="text" name="break_name" id="ab_name" placeholder="e.g. Tea Break" required />
-        </div>
-        <div class="two-col" style="gap:12px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>Start Time</label>
-            <input type="time" name="break_time" id="ab_time" required />
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Duration (mins)</label>
-            <input type="number" name="duration_minutes" id="ab_duration" value="15" min="1" max="120" required />
-          </div>
-        </div>
-        <div class="modal-actions" style="margin-top:16px;">
-          <button type="button" onclick="document.getElementById('addBreakModal').classList.remove('open')" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
-          <button type="submit" class="btn-submit">Add Break</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ══ SHIFT EDIT MODAL ══ -->
-  <div class="modal-bg" id="shiftEditModal">
-    <div class="modal">
-      <div class="modal-title">✏️ Edit Shift</div>
-      <form id="shiftEditForm" method="POST" action="/edit_shift">
-        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
-        <input type="hidden" name="shift_id" id="se_shift_id" />
-        <div class="field">
-          <label>Shift Name</label>
-          <input type="text" name="name" id="se_name" required />
-        </div>
-        <div class="time-row">
-          <div class="field" style="margin:0;"><label>🟢 Start</label><input type="time" name="start_time" id="se_start" required /></div>
-          <div class="field" style="margin:0;"><label>🟡 Late/Half</label><input type="time" name="half_time" id="se_half" required /></div>
-          <div class="field" style="margin:0;"><label>🔴 End</label><input type="time" name="end_time" id="se_end" required /></div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" onclick="closeShiftEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
-          <button type="submit" class="btn-submit">💾 Save Changes</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ══ BREAK EDIT MODAL ══ -->
-  <div class="modal-bg" id="breakEditModal">
-    <div class="modal">
-      <div class="modal-title">✏️ Edit Break</div>
-      <form id="breakEditForm" method="POST" action="/update_break">
-        <input type="hidden" name="redirect" value="/settings?tab=shifts" />
-        <input type="hidden" name="break_id" id="be_break_id" />
-        <input type="hidden" name="is_active" id="be_active_hidden" value="1" />
-        <input type="hidden" name="shift_id" id="be_shift_id" />
-        <div class="field">
-          <label>Break Name</label>
-          <input type="text" name="break_name" id="be_name" required />
-        </div>
-        <div class="two-col" style="gap:12px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>Start Time</label>
-            <input type="time" name="break_time" id="be_time" required />
-          </div>
-          <div class="field" style="margin-bottom:0;">
-            <label>Duration (mins)</label>
-            <input type="number" name="duration_minutes" id="be_duration" min="1" max="120" required />
-          </div>
-        </div>
-        <div class="toggle-row" style="margin-top:12px;">
-          <input type="checkbox" id="be_active_cb"
-            onchange="document.getElementById('be_active_hidden').value=this.checked?'1':'0'" />
-          <span>Active</span>
-        </div>
-        <div class="modal-actions" style="margin-top:16px;">
-          <button type="button" onclick="closeBreakEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
-          <button type="submit" class="btn-save">Save Changes</button>
         </div>
       </form>
     </div>
@@ -1350,13 +1276,12 @@
 
   <script>
     /* ── 3-TAB + DROPDOWN SUB-NAV ── */
-    var groupMap  = { company:'org',attendance:'org',shifts:'org',payroll:'fin',salary:'fin',incentives:'fin',email:'sys',security:'sys',appearance:'sys' };
+    var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',incentives:'fin',email:'sys',security:'sys',appearance:'sys' };
     var firstSub  = { org:'company', fin:'payroll', sys:'email' };
     var crumbData = {
       company:    { icon:'<i class="ti ti-building" style="color:#1e3a8a;"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
       appearance: { icon:'<i class="ti ti-palette" style="color:#7c3aed;"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
       attendance: { icon:'<i class="ti ti-fingerprint" style="color:#16a34a;"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
-      shifts:     { icon:'<i class="ti ti-clock" style="color:#ea580c;"></i>',       bg:'#fff7ed', title:'Shifts & Breaks',sub:'Timings and breaks' },
       payroll:    { icon:'<i class="ti ti-coin" style="color:#ca8a04;"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
       salary:     { icon:'<i class="ti ti-cash" style="color:#16a34a;"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
       incentives: { icon:'<i class="ti ti-trophy" style="color:#ca8a04;"></i>',      bg:'#fefce8', title:'Incentives',     sub:'Goals and awards' },
@@ -1394,6 +1319,87 @@
     function closeEditCompany(id) {
       document.getElementById('co-edit-' + id).style.display = 'none';
       document.getElementById('co-view-' + id).style.display = 'block';
+    }
+
+    /* ── Add Company modal: dynamic shift & break rows ── */
+    var _acDefaultShifts = [
+      {name:'General Shift', start:'09:00', half:'13:00', end:'18:00'},
+    ];
+    var _acDefaultBreaks = [
+      {name:'Coffee Break 1', time:'11:00', dur:10},
+      {name:'Lunch Break',    time:'13:00', dur:60},
+      {name:'Coffee Break 2', time:'16:00', dur:10},
+    ];
+
+    function acMakeShiftRow(name, start, half, end) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 82px 82px 82px 28px;gap:6px;align-items:center;';
+      var inp = 'padding:7px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;';
+      row.innerHTML =
+        '<input type="text" name="shift_name[]"  value="'+name+'" placeholder="Shift name" style="'+inp+'" />' +
+        '<input type="time" name="shift_start[]" value="'+start+'" style="'+inp+'" />' +
+        '<input type="time" name="shift_half[]"  value="'+half+'"  style="'+inp+'" />' +
+        '<input type="time" name="shift_end[]"   value="'+end+'"   style="'+inp+'" />' +
+        '<button type="button" onclick="this.parentNode.remove()" style="width:26px;height:26px;border:1px solid #fecaca;border-radius:7px;background:#fff5f5;color:#dc2626;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">×</button>';
+      return row;
+    }
+    function acAddShiftRow() {
+      document.getElementById('acShiftsList').appendChild(acMakeShiftRow('','','',''));
+    }
+
+    function acMakeBreakRow(name, time, dur) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 70px 28px;gap:6px;align-items:center;';
+      row.innerHTML =
+        '<input type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
+        '<input type="time"   name="break_time[]"     value="'+time+'" style="padding:7px 8px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
+        '<input type="number" name="break_duration[]" value="'+dur+'"  min="1" max="240" placeholder="mins" style="padding:7px 8px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
+        '<button type="button" onclick="this.parentNode.remove()" style="width:26px;height:26px;border:1px solid #fecaca;border-radius:7px;background:#fff5f5;color:#dc2626;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">×</button>';
+      return row;
+    }
+    function acAddBreakRow() {
+      document.getElementById('acBreaksList').appendChild(acMakeBreakRow('','','15'));
+    }
+
+    function acOpenModal() {
+      var sList = document.getElementById('acShiftsList');
+      sList.innerHTML = '';
+      _acDefaultShifts.forEach(function(s) { sList.appendChild(acMakeShiftRow(s.name, s.start, s.half, s.end)); });
+      var bList = document.getElementById('acBreaksList');
+      bList.innerHTML = '';
+      _acDefaultBreaks.forEach(function(b) { bList.appendChild(acMakeBreakRow(b.name, b.time, b.dur)); });
+      document.getElementById('addCompanyModal').classList.add('open');
+    }
+    function acCloseModal() {
+      document.getElementById('addCompanyModal').classList.remove('open');
+    }
+    function toggleCoAddShift(cid) {
+      var el = document.getElementById('co-as-' + cid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="shift_name"]').focus();
+    }
+    function toggleCoEditShift(sid) {
+      var el = document.getElementById('co-es-' + sid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="name"]').focus();
+    }
+    function toggleCoAddBreak(cid) {
+      var el = document.getElementById('co-ab-' + cid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="break_name"]').focus();
+    }
+    function toggleCoEditBreak(bid) {
+      var el = document.getElementById('co-eb-' + bid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="break_name"]').focus();
     }
     function styleCoWd(cb) {
       var span = cb.nextElementSibling;
@@ -1592,136 +1598,6 @@
         .catch(function() { res.textContent = '❌ Network error.'; res.className = 'err'; });
     }
 
-    /* ── SHIFT EDIT MODAL ── */
-    function openShiftEdit(id, name, start, half, end, companyId) {
-      document.getElementById('shiftEditForm').action = '/edit_shift/' + id;
-      document.getElementById('se_shift_id').value = id;
-      document.getElementById('se_name').value    = name;
-      document.getElementById('se_start').value   = start;
-      document.getElementById('se_half').value    = half;
-      document.getElementById('se_end').value     = end;
-      document.getElementById('shiftEditModal').classList.add('open');
-    }
-    function closeShiftEdit() { document.getElementById('shiftEditModal').classList.remove('open'); }
-    document.getElementById('shiftEditModal').addEventListener('click', function(e) { if (e.target === this) closeShiftEdit(); });
-
-    /* ── ADD SHIFT MODAL (2-step) ── */
-    var _asBreakYes = false;
-    var _asBreakCount = 0;
-
-    document.getElementById('addShiftModal').addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('open');
-    });
-
-    function asNext() {
-      var n = document.getElementById('as_name').value.trim();
-      var s = document.getElementById('as_start').value;
-      var h = document.getElementById('as_half').value;
-      var e = document.getElementById('as_end').value;
-      if (!n || !s || !h || !e) {
-        document.getElementById('asStep1Err').style.display = 'block';
-        return;
-      }
-      document.getElementById('asStep1Err').style.display = 'none';
-      document.getElementById('asShiftSummary').textContent = '📋 ' + n + '  |  ▶ ' + s + '  ⚡ ' + h + '  ■ ' + e;
-      document.getElementById('asStep1').style.display = 'none';
-      document.getElementById('asStep2').style.display = 'block';
-      _asBreakYes = false;
-      _asBreakCount = 0;
-      document.getElementById('asBreakRows').innerHTML = '';
-      document.getElementById('asBreakSection').style.display = 'none';
-      document.getElementById('asSaveBtn').style.display = 'none';
-      styleAsBtn('asBtnYes', false); styleAsBtn('asBtnNo', false);
-    }
-
-    function asBack() {
-      document.getElementById('asStep2').style.display = 'none';
-      document.getElementById('asStep1').style.display = 'block';
-    }
-
-    function styleAsBtn(id, active) {
-      var b = document.getElementById(id);
-      b.style.borderColor = active ? '#1e3a8a' : '#e2e8f0';
-      b.style.background  = active ? '#eff6ff' : '#f8fafc';
-      b.style.color       = active ? '#1e3a8a' : '#374151';
-    }
-
-    function asToggleBreaks(yes) {
-      _asBreakYes = yes;
-      styleAsBtn('asBtnYes', yes);
-      styleAsBtn('asBtnNo', !yes);
-      document.getElementById('asBreakSection').style.display = yes ? 'block' : 'none';
-      document.getElementById('asSaveBtn').style.display = 'inline-flex';
-      if (yes && _asBreakCount === 0) asAddBreakRow();
-    }
-
-    function asAddBreakRow() {
-      _asBreakCount++;
-      var row = document.createElement('div');
-      row.style.cssText = 'display:grid;grid-template-columns:1fr 100px 80px 30px;gap:8px;align-items:center;';
-      row.innerHTML =
-        '<input type="text" placeholder="Break name (e.g. Tea Break)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
-        '<input type="time" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
-        '<input type="number" value="15" min="1" max="120" placeholder="mins" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />' +
-        '<button type="button" onclick="this.parentNode.remove()" style="border:none;background:#fee2e2;color:#dc2626;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;">×</button>';
-      document.getElementById('asBreakRows').appendChild(row);
-    }
-
-    function asSave() {
-      document.getElementById('asf_name').value    = document.getElementById('as_name').value.trim();
-      document.getElementById('asf_start').value   = document.getElementById('as_start').value;
-      document.getElementById('asf_half').value    = document.getElementById('as_half').value;
-      document.getElementById('asf_end').value     = document.getElementById('as_end').value;
-      // company auto-set server-side from active session
-      var cont = document.getElementById('asf_breaks_container');
-      cont.innerHTML = '';
-      if (_asBreakYes) {
-        document.getElementById('asBreakRows').querySelectorAll('div, div').forEach(function(row) {
-          var inputs = row.querySelectorAll('input');
-          if (inputs.length >= 3) {
-            var bn = inputs[0].value.trim();
-            var bt = inputs[1].value;
-            var bd = inputs[2].value;
-            if (bn && bt && bd) {
-              cont.innerHTML += '<input type="hidden" name="break_name[]" value="' + bn.replace(/"/g,'&quot;') + '" />';
-              cont.innerHTML += '<input type="hidden" name="break_time[]" value="' + bt + '" />';
-              cont.innerHTML += '<input type="hidden" name="break_duration[]" value="' + bd + '" />';
-            }
-          }
-        });
-      }
-      document.getElementById('asForm').submit();
-    }
-
-    /* ── ADD BREAK MODAL ── */
-    function openAddBreak(shiftId, shiftName) {
-      document.getElementById('ab_shift_id').value = shiftId;
-      document.getElementById('ab_name').value     = '';
-      document.getElementById('ab_time').value     = '';
-      document.getElementById('ab_duration').value = 15;
-      document.getElementById('addBreakShiftLabel').textContent = '🕐 Adding break for: ' + shiftName;
-      document.getElementById('addBreakModal').classList.add('open');
-    }
-    document.getElementById('addBreakModal').addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('open');
-    });
-
-    /* ── BREAK EDIT MODAL ── */
-    function openBreakEdit(id, name, time, duration, active, shiftId) {
-      document.getElementById('breakEditForm').action   = '/update_break/' + id;
-      document.getElementById('be_break_id').value      = id;
-      document.getElementById('be_name').value          = name;
-      document.getElementById('be_time').value          = time;
-      document.getElementById('be_duration').value      = duration;
-      document.getElementById('be_shift_id').value      = shiftId || '';
-      var cb = document.getElementById('be_active_cb');
-      cb.checked = !!active;
-      document.getElementById('be_active_hidden').value = active ? '1' : '0';
-      document.getElementById('breakEditModal').classList.add('open');
-    }
-    function closeBreakEdit() { document.getElementById('breakEditModal').classList.remove('open'); }
-    document.getElementById('breakEditModal').addEventListener('click', function(e) { if (e.target === this) closeBreakEdit(); });
-
     /* ── SHIFT ASSIGN ── */
     async function assignShift(empId, sel) {
       var shiftId   = sel.value;
@@ -1906,48 +1782,38 @@
 
 <script src="/static/darkmode.js"></script>
 
-  <!-- ══ COMPANY SWITCHER FLOAT ══ -->
-  <div id="co-float" style="position:fixed;top:14px;right:20px;z-index:10000;font-family:'Segoe UI',sans-serif;">
-    <button onclick="coFloatToggle(event)" id="co-float-btn" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1e3a8a;border:none;border-radius:30px;cursor:pointer;color:#fff;font-family:inherit;box-shadow:0 4px 16px rgba(30,58,138,0.35);transition:all .15s;">
-      <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:700;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="co-float-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;" id="co-float-chev"></i>
-    </button>
-
-    <div id="co-float-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:220px;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.15);overflow:hidden;">
-      <!-- All Companies -->
-      <form method="POST" action="/clear_company">
+<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+    <form method="POST" action="/clear_company">
+      <input type="hidden" name="next" value="{{ request.path }}" />
+      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+        All Companies
+      </button>
+    </form>
+    <div style="height:1px;background:#f1f5f9;"></div>
+    {% for c in all_companies %}
+    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+      {% if c.has_pin %}
+      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      </button>
+      {% else %}
+      <form method="POST" action="/switch_company">
+        <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if not active_company %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building-community" style="font-size:14px;color:#64748b;"></i></div>
-          All Companies
+        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
-      <div style="height:1px;background:#f1f5f9;"></div>
-      {% for c in all_companies %}
-      <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
-        {% if c.has_pin %}
-        <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#1e3a8a;"></i></div>
-          <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          <i class="ti ti-lock" style="font-size:12px;color:#f59e0b;"></i>
-        </button>
-        {% else %}
-        <form method="POST" action="/switch_company">
-          <input type="hidden" name="company_id" value="{{ c.id }}" />
-          <input type="hidden" name="next" value="{{ request.path }}" />
-          <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-            <div style="width:28px;height:28px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#16a34a;"></i></div>
-            <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          </button>
-        </form>
-        {% endif %}
-      </div>
-      {% endfor %}
-      {% if not all_companies %}
-      <div style="padding:14px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
       {% endif %}
     </div>
+    {% endfor %}
+    {% if not all_companies %}
+    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
@@ -1971,11 +1837,16 @@
   </div>
 
   <script>
-    /* Company float switcher */
+    /* Company sidebar switcher */
     var _coOpen = false;
-    function coFloatToggle(e){e&&e.stopPropagation();_coOpen=!_coOpen;document.getElementById('co-float-menu').style.display=_coOpen?'block':'none';}
-    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-float-menu').style.display='none';}});
-    document.getElementById('co-float-menu').addEventListener('click',function(e){e.stopPropagation();});
+    function coSwToggle(e){
+      e&&e.stopPropagation();_coOpen=!_coOpen;
+      var menu=document.getElementById('co-sw-menu');
+      if(_coOpen){var btn=document.getElementById('co-sw-btn');var r=btn.getBoundingClientRect();menu.style.top=(r.bottom+4)+'px';menu.style.left=r.left+'px';menu.style.width=r.width+'px';menu.style.display='block';}
+      else{menu.style.display='none';}
+    }
+    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-sw-menu').style.display='none';}});
+    document.getElementById('co-sw-menu').addEventListener('click',function(e){e.stopPropagation();});
 
     /* PIN modal */
     function coFloatPin(cid,name,next){
@@ -1984,7 +1855,7 @@
       document.getElementById('co-pin-name').textContent='Enter PIN to access: '+name;
       document.getElementById('co-pin-input').value='';
       document.getElementById('co-pin-modal').style.display='flex';
-      document.getElementById('co-float-menu').style.display='none';
+      document.getElementById('co-sw-menu').style.display='none';
       _coOpen=false;
       setTimeout(function(){document.getElementById('co-pin-input').focus();},120);
     }

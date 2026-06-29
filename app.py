@@ -1303,6 +1303,8 @@ def init_db():
         "ALTER TABLE company_settings ADD COLUMN location_enabled TINYINT(1) DEFAULT 1",
         "ALTER TABLE company_settings ADD COLUMN employee_password_auth TINYINT(1) DEFAULT 1",
         "ALTER TABLE employees ADD COLUMN fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN fingerprint_public_key TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN fingerprint_sign_count INT DEFAULT 0",
         "ALTER TABLE company_settings ADD COLUMN face_auth_enabled TINYINT(1) DEFAULT 0",
         "ALTER TABLE company_settings ADD COLUMN geo_enabled TINYINT(1) DEFAULT 0",
         "ALTER TABLE company_settings ADD COLUMN geo_radius INT DEFAULT 100",
@@ -1317,8 +1319,12 @@ def init_db():
         "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
         "ALTER TABLE break_config ADD COLUMN shift_id INT DEFAULT NULL",
         "ALTER TABLE companies ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE onboarding_templates ADD COLUMN role VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE shifts ADD COLUMN company_id INT DEFAULT NULL",
         "ALTER TABLE companies ADD COLUMN pin VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE break_config ADD COLUMN company_id INT DEFAULT NULL",
+        "ALTER TABLE announcements ADD COLUMN visibility ENUM('public','private') DEFAULT 'public'",
+        "ALTER TABLE announcements ADD COLUMN target_employee_id VARCHAR(50) DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -2203,6 +2209,7 @@ def setup_wizard():
             cursor.execute("INSERT INTO admin_users (username, password) VALUES (%s, %s)",
                            (admin_user, generate_password_hash(admin_pass)))
             db.commit(); cursor.close(); db.close()
+            invalidate_settings_cache()
             return redirect("/admin_login?setup=done")
 
     return render_template("setup.html", error=error)
@@ -2651,6 +2658,30 @@ def admin_action():
         work_lon        = float(work_lon_raw) if work_lon_raw else None
         company_id_raw  = request.form.get("company_id", "").strip()
         company_id      = int(company_id_raw) if company_id_raw.isdigit() else None
+        # Extended fields
+        department      = request.form.get("department", "").strip() or None
+        phone           = request.form.get("phone", "").strip() or None
+        manager_id      = request.form.get("manager_id", "").strip() or None
+        manager_name    = request.form.get("manager_name", "").strip() or None
+        salary_per_day_raw = request.form.get("salary_per_day", "").strip()
+        salary_per_day  = float(salary_per_day_raw) if salary_per_day_raw else None
+        gender          = request.form.get("gender", "").strip() or None
+        dob_raw         = request.form.get("dob", "").strip()
+        dob             = dob_raw if dob_raw else None
+        blood_group     = request.form.get("blood_group", "").strip() or None
+        address         = request.form.get("address", "").strip() or None
+        city            = request.form.get("city", "").strip() or None
+        state           = request.form.get("state", "").strip() or None
+        pincode         = request.form.get("pincode", "").strip() or None
+        ec_name         = request.form.get("emergency_contact_name", "").strip() or None
+        ec_phone        = request.form.get("emergency_contact_phone", "").strip() or None
+        ec_relation     = request.form.get("emergency_contact_relation", "").strip() or None
+        aadhar          = request.form.get("aadhar_number", "").strip() or None
+        pan             = request.form.get("pan_number", "").strip().upper() or None
+        bank_name       = request.form.get("bank_name", "").strip() or None
+        bank_account    = request.form.get("bank_account", "").strip() or None
+        bank_ifsc       = request.form.get("bank_ifsc", "").strip().upper() or None
+        uan             = request.form.get("uan_number", "").strip() or None
         # Auto-increment emp_id if it's already taken
         cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (emp_id,))
         if cursor.fetchone():
@@ -2691,12 +2722,41 @@ def admin_action():
         try:
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-                "date_of_joining, work_mode, work_lat, work_lon, company_id) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "date_of_joining, work_mode, work_lat, work_lon, company_id, "
+                "department, phone, manager_id, manager_name, "
+                "gender, dob, blood_group, "
+                "address, city, state, pincode, "
+                "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
+                "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+                "%s,%s,%s,%s,"
+                "%s,%s,%s,"
+                "%s,%s,%s,%s,"
+                "%s,%s,%s,"
+                "%s,%s,%s,%s,%s,%s)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
-                 date_of_joining, work_mode, work_lat, work_lon, company_id)
+                 date_of_joining, work_mode, work_lat, work_lon, company_id,
+                 department, phone, manager_id, manager_name,
+                 gender, dob, blood_group,
+                 address, city, state, pincode,
+                 ec_name, ec_phone, ec_relation,
+                 aadhar, pan, bank_name, bank_account, bank_ifsc, uan)
             )
             db.commit()
+            if salary_per_day is not None:
+                cursor.execute(
+                    "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s) "
+                    "ON DUPLICATE KEY UPDATE salary_per_day=%s",
+                    (emp_id, salary_per_day, salary_per_day)
+                )
+                db.commit()
+            fp_cred = request.form.get("fingerprint_credential_id", "").strip() or None
+            if fp_cred:
+                cursor.execute(
+                    "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
+                    (fp_cred, emp_id)
+                )
+                db.commit()
             assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -2850,8 +2910,33 @@ def settings_page():
     cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
     emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
 
+    # Company-specific shifts (company_id IS NOT NULL)
+    cursor.execute("SELECT id, name, start_time, half_time, end_time, company_id FROM shifts WHERE company_id IS NOT NULL ORDER BY company_id, start_time")
+    _co_shifts_raw = cursor.fetchall()
+    company_shifts = {}
+    for _csid, _csname, _csstart, _cshalf, _csend, _cscid in _co_shifts_raw:
+        def _tdfmt(v):
+            if v is None: return "--"
+            if isinstance(v, datetime.timedelta):
+                _s = int(v.total_seconds()); return "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+            if isinstance(v, datetime.time): return v.strftime("%H:%M")
+            return str(v)[:5]
+        company_shifts.setdefault(_cscid, []).append((_csid, _csname, _tdfmt(_csstart), _tdfmt(_cshalf), _tdfmt(_csend)))
+
+    # Company-specific breaks (company_id IS NOT NULL)
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, company_id FROM break_config WHERE company_id IS NOT NULL ORDER BY company_id, break_time")
+    _co_breaks_raw = cursor.fetchall()
+    company_breaks = {}
+    for _cbid, _cbname, _cbt, _cbdur, _cbactive, _cbcid in _co_breaks_raw:
+        if _cbt is None: _cbt_str = "--"
+        elif isinstance(_cbt, datetime.timedelta):
+            _s = int(_cbt.total_seconds()); _cbt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+        elif isinstance(_cbt, datetime.time): _cbt_str = _cbt.strftime("%H:%M")
+        else: _cbt_str = str(_cbt)[:5]
+        company_breaks.setdefault(_cbcid, []).append((_cbid, _cbname, _cbt_str, _cbdur, _cbactive))
+
     # Breaks (with shift_id) — pre-format break_time as HH:MM
-    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config ORDER BY shift_id, break_time")
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config WHERE company_id IS NULL ORDER BY shift_id, break_time")
     breaks = []
     for _bid, _bname, _bt, _bdur, _bactive, _bshift in cursor.fetchall():
         if _bt is None:
@@ -2874,9 +2959,21 @@ def settings_page():
     """)
     salaries = cursor.fetchall()
 
-    # Announcements
-    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
+    # Announcements (admin sees all; include visibility and target employee name)
+    cursor.execute("""
+        SELECT a.id, a.title, a.content, a.priority, a.created_at,
+               COALESCE(a.visibility,'public'), COALESCE(a.target_employee_id,''), COALESCE(e.name,'')
+        FROM announcements a
+        LEFT JOIN employees e ON e.employee_id = a.target_employee_id
+        ORDER BY a.created_at DESC
+    """)
     ann_list = cursor.fetchall()
+    pub_anns  = [r for r in ann_list if r[5] == 'public']
+    priv_anns = [r for r in ann_list if r[5] == 'private']
+
+    # Employee list for private announcement targeting
+    cursor.execute("SELECT employee_id, name FROM employees WHERE is_active=1 ORDER BY name")
+    ann_emp_list = cursor.fetchall()
 
     # Incentive goals
     cursor.execute("SELECT id, title, description, incentive_amount, is_active FROM incentive_goals ORDER BY created_at DESC")
@@ -2991,6 +3088,8 @@ def settings_page():
         total_departments=total_departments,
         total_shifts=total_shifts,
         companies=companies,
+        company_shifts=company_shifts,
+        company_breaks=company_breaks,
         shifts=shift_rows,
         emp_list=emp_list,
         breaks=breaks,
@@ -3304,7 +3403,38 @@ def add_company():
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s)", (name, code, w_days))
-    db.commit(); cursor.close(); db.close()
+    new_cid = cursor.lastrowid
+    db.commit()
+
+    shift_names  = request.form.getlist("shift_name[]")
+    shift_starts = request.form.getlist("shift_start[]")
+    shift_halfs  = request.form.getlist("shift_half[]")
+    shift_ends   = request.form.getlist("shift_end[]")
+    for sname, sstart, shalf, send in zip(shift_names, shift_starts, shift_halfs, shift_ends):
+        sname = sname.strip(); sstart = sstart.strip(); shalf = shalf.strip(); send = send.strip()
+        if sname and sstart and shalf and send:
+            cursor.execute(
+                "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
+                (sname,
+                 sstart + ":00" if len(sstart) == 5 else sstart,
+                 shalf  + ":00" if len(shalf)  == 5 else shalf,
+                 send   + ":00" if len(send)   == 5 else send,
+                 new_cid)
+            )
+    db.commit()
+
+    break_names = request.form.getlist("break_name[]")
+    break_times = request.form.getlist("break_time[]")
+    break_durs  = request.form.getlist("break_duration[]")
+    for bname, btime, bdur in zip(break_names, break_times, break_durs):
+        bname = bname.strip(); btime = btime.strip(); bdur = bdur.strip()
+        if bname and btime and bdur.isdigit():
+            cursor.execute(
+                "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
+                (bname, btime + ":00" if len(btime) == 5 else btime, int(bdur), new_cid)
+            )
+    db.commit()
+    cursor.close(); db.close()
     flash(f"Company '{name}' added.", "success")
     return redirect(dest)
 
@@ -3514,9 +3644,17 @@ def announcements_admin():
     if request.method == "POST":
         action = request.form.get("action")
         if action == "add":
+            visibility = request.form.get("visibility", "public")
+            target_emp = request.form.get("target_employee_id", "").strip() or None
+            if visibility == "private" and not target_emp:
+                flash("Please select an employee for a private announcement.", "error")
+                cursor.close(); db.close()
+                return redirect("/performance?tab=announcements")
+            if visibility == "public":
+                target_emp = None
             cursor.execute(
-                "INSERT INTO announcements (title, content, priority) VALUES (%s,%s,%s)",
-                (request.form["title"], request.form["content"], request.form.get("priority","Normal"))
+                "INSERT INTO announcements (title, content, priority, visibility, target_employee_id) VALUES (%s,%s,%s,%s,%s)",
+                (request.form["title"], request.form["content"], request.form.get("priority","Normal"), visibility, target_emp)
             )
             db.commit()
             flash("Announcement posted.", "success")
@@ -4708,15 +4846,23 @@ def add_shift():
     half  = request.form.get("half_time",  "").strip()
     end   = request.form.get("end_time",   "").strip()
     dest  = request.form.get("redirect") or ("/settings?tab=shifts" if request.form.get("redirect_to") == "settings" else "/settings?tab=shifts")
+    cid_raw = request.form.get("company_id", "").strip()
+    company_id = int(cid_raw) if cid_raw.isdigit() else None
     if not all([name, start, half, end]):
         return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
-        cursor.execute(
-            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
-            (name, start, half, end)
-        )
+        if company_id:
+            cursor.execute(
+                "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
+                (name, start, half, end, company_id)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
+                (name, start, half, end)
+            )
         db.commit()
     except Exception:
         pass
@@ -5071,10 +5217,18 @@ def add_break():
     btime    = request.form.get("break_time", "")
     duration = int(request.form.get("duration_minutes", 10) or 10)
     dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
+    cid_raw  = request.form.get("company_id", "").strip()
+    company_id = int(cid_raw) if cid_raw.isdigit() else None
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
-                   (name, btime, duration))
+    if company_id:
+        cursor.execute(
+            "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
+            (name, btime, duration, company_id)
+        )
+    else:
+        cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
+                       (name, btime, duration))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
     return redirect(dest)
@@ -5391,6 +5545,120 @@ def correct_attendance():
 
     flash(f"Attendance updated for {date_obj.strftime('%d %b %Y')}.", "success")
     return redirect(f"/employee_attendance_detail/{emp_id}/{year}/{month}")
+
+
+# ---------------- BULK MARK ATTENDANCE ----------------
+@app.route("/bulk_mark_attendance", methods=["GET", "POST"])
+@admin_required
+def bulk_mark_attendance():
+    today = datetime.date.today()
+
+    if request.method == "POST":
+        date_str = request.form.get("date", "").strip()
+        try:
+            date_obj = datetime.date.fromisoformat(date_str)
+        except ValueError:
+            flash("Invalid date.", "error")
+            return redirect("/bulk_mark_attendance")
+
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
+        emp_ids = [r[0] for r in cursor.fetchall()]
+
+        saved = 0
+        for eid in emp_ids:
+            att_type = request.form.get(f"att_{eid}", "").strip()
+            if not att_type:
+                continue
+            login_t  = request.form.get(f"login_{eid}", "").strip() or None
+            logout_t = request.form.get(f"logout_{eid}", "").strip() or None
+            cursor.execute("SELECT id FROM attendance WHERE employee_id=%s AND date=%s", (eid, date_obj))
+            if cursor.fetchone():
+                cursor.execute(
+                    "UPDATE attendance SET login_time=%s, logout_time=%s, attendance_type=%s, "
+                    "status='Manual', logout_status='Manual' WHERE employee_id=%s AND date=%s",
+                    (login_t, logout_t, att_type, eid, date_obj)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+                    "attendance_type, status, logout_status) VALUES (%s,%s,%s,%s,%s,'Manual','Manual')",
+                    (eid, date_obj, login_t, logout_t, att_type)
+                )
+            saved += 1
+        db.commit()
+        cursor.close(); db.close()
+        flash(f"Attendance saved for {saved} employee(s) on {date_obj.strftime('%d %b %Y')}.", "success")
+        return redirect(f"/bulk_mark_attendance?date={date_str}")
+
+    date_str = request.args.get("date", today.isoformat())
+    try:
+        date_obj = datetime.date.fromisoformat(date_str)
+    except ValueError:
+        date_obj = today
+        date_str = today.isoformat()
+
+    db     = get_db_connection()
+    cursor = db.cursor(buffered=True)
+
+    base_select = (
+        "SELECT e.employee_id, e.name, COALESCE(e.department,''), COALESCE(e.designation,''), "
+        "COALESCE(s.shift_name,''), COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),''), "
+        "COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),''), "
+        "COALESCE(e.phone,''), COALESCE(e.email,''), "
+        "COALESCE(e.work_mode,'office'), COALESCE(e.date_of_joining,''), "
+        "COALESCE(e.gender,''), COALESCE(e.role,'') "
+        "FROM employees e LEFT JOIN shifts s ON s.id=e.shift_id "
+    )
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute(base_select + "WHERE e.is_active=1 AND e.company_id=%s ORDER BY e.name", (active_cid,))
+    else:
+        cursor.execute(base_select + "WHERE e.is_active=1 ORDER BY e.name")
+    employees = cursor.fetchall()
+
+    cursor.execute(
+        "SELECT employee_id, login_time, logout_time, attendance_type "
+        "FROM attendance WHERE date=%s", (date_obj,)
+    )
+    att_map = {r[0]: r for r in cursor.fetchall()}
+
+    # Monthly summary for the selected date's month
+    cursor.execute(
+        """SELECT employee_id,
+             SUM(attendance_type IN ('Full Day','Late - Full Day')) AS present_days,
+             SUM(attendance_type = 'Half Day') AS half_days,
+             SUM(attendance_type = 'Absent') AS absent_days,
+             SUM(attendance_type = 'Leave') AS leave_days,
+             COUNT(*) AS total_marked
+           FROM attendance
+           WHERE YEAR(date)=%s AND MONTH(date)=%s
+           GROUP BY employee_id""",
+        (date_obj.year, date_obj.month)
+    )
+    month_summary = {r[0]: r for r in cursor.fetchall()}
+
+    co = get_company_settings()
+    pending_leaves      = 0
+    pending_resignations = 0
+    pending_tickets     = 0
+    try:
+        cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'"); pending_leaves = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'"); pending_resignations = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM tickets WHERE status='Open'"); pending_tickets = cursor.fetchone()[0]
+    except Exception:
+        pass
+    cursor.close(); db.close()
+
+    return render_template("bulk_attendance.html",
+        co=co, employees=employees, att_map=att_map,
+        month_summary=month_summary,
+        date_str=date_str, date_obj=date_obj,
+        today=today, pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
 
 
 # ---------------- MONTHLY REPORT EXCEL EXPORT ----------------
@@ -7140,11 +7408,14 @@ def employee_portal():
         leaves_used   = cursor.fetchone()[0] or 0
         leave_balance = max(0, annual_leave_quota - leaves_used)
 
-    # Announcements for dashboard
+    # Announcements for dashboard (public + private addressed to this employee)
     cursor.execute("""
         SELECT id, title, content, priority, created_at
-        FROM announcements ORDER BY created_at DESC LIMIT 10
-    """)
+        FROM announcements
+        WHERE COALESCE(visibility,'public') = 'public'
+           OR (visibility = 'private' AND target_employee_id = %s)
+        ORDER BY created_at DESC LIMIT 10
+    """, (emp_id,))
     announcements = cursor.fetchall()
 
     # Pending leave count for nav badge
@@ -7368,9 +7639,14 @@ def employee_portal():
         """, (emp_id,))
         incoming_swap_requests = cursor.fetchall()
         cursor.execute("""
-            SELECT employee_id, name FROM employees
-            WHERE employee_id != %s AND shift_id IS NOT NULL AND is_active=1
-            ORDER BY name
+            SELECT e.employee_id, e.name, COALESCE(s.shift_name,''),
+                   COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),''),
+                   COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),''),
+                   COALESCE(e.department,''), COALESCE(e.designation,'')
+            FROM employees e
+            LEFT JOIN shifts s ON s.id = e.shift_id
+            WHERE e.employee_id != %s AND e.is_active=1
+            ORDER BY e.name
         """, (emp_id,))
         swap_eligible_employees = cursor.fetchall()
     except Exception:
@@ -7832,9 +8108,20 @@ def performance():
         cursor.execute("SELECT department FROM employees WHERE is_active=1 AND department IS NOT NULL AND department!='' GROUP BY department ORDER BY MIN(id) ASC")
     departments = [r[0] for r in cursor.fetchall()]
 
-    # Announcements
-    cursor.execute("SELECT id, title, content, priority, created_at FROM announcements ORDER BY created_at DESC")
-    ann_list = cursor.fetchall()
+    # Announcements (admin sees all)
+    cursor.execute("""
+        SELECT a.id, a.title, a.content, a.priority, a.created_at,
+               COALESCE(a.visibility,'public'), COALESCE(a.target_employee_id,''), COALESCE(e.name,'')
+        FROM announcements a
+        LEFT JOIN employees e ON e.employee_id = a.target_employee_id
+        ORDER BY a.created_at DESC
+    """)
+    ann_list  = cursor.fetchall()
+    pub_anns  = [r for r in ann_list if r[5] == 'public']
+    priv_anns = [r for r in ann_list if r[5] == 'private']
+
+    cursor.execute("SELECT employee_id, name FROM employees WHERE is_active=1 ORDER BY name")
+    ann_emp_list = cursor.fetchall()
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
@@ -7893,6 +8180,9 @@ def performance():
         pending_tickets=pending_tickets, co=co,
         today=today,
         ann_list=ann_list,
+        pub_anns=pub_anns,
+        priv_anns=priv_anns,
+        ann_emp_list=ann_emp_list,
         active_tab=active_tab,
         hike_bands=hike_bands,
         hike_employees=hike_employees,
@@ -10082,8 +10372,10 @@ def api_employee_portal():
     unread_notifications = cursor.fetchone()[0]
     cursor.execute("""
         SELECT title, content, priority, created_at FROM announcements
+        WHERE COALESCE(visibility,'public') = 'public'
+           OR (visibility = 'private' AND target_employee_id = %s)
         ORDER BY created_at DESC LIMIT 5
-    """)
+    """, (emp_id,))
     ann_rows = cursor.fetchall()
     cursor.execute("SELECT role, department FROM employees WHERE employee_id=%s", (emp_id,))
     emp_extra = cursor.fetchone()
@@ -10340,13 +10632,140 @@ def api_employee_auth_config():
     return jsonify({"ok": True, **get_auth_config()})
 
 
+def _wa_rp_id():
+    """WebAuthn Relying Party ID — returns actual host (127.0.0.1 or localhost)."""
+    return request.host.split(":")[0]
+
+def _wa_origins():
+    """Return the set of acceptable WebAuthn origins for this host."""
+    host   = request.host  # includes port if non-standard
+    scheme = request.scheme
+    origins = {f"{scheme}://{host}"}
+    # accept both 127.0.0.1 and localhost as equivalent loopback origins
+    if "127.0.0.1" in host:
+        origins.add(f"{scheme}://{host.replace('127.0.0.1', 'localhost')}")
+    elif "localhost" in host:
+        origins.add(f"{scheme}://{host.replace('localhost', '127.0.0.1')}")
+    origin_header = request.headers.get("Origin", "")
+    if origin_header:
+        origins.add(origin_header)
+    return list(origins)
+
+def _wa_challenge_b64():
+    import base64 as _b64
+    return _b64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+
+
 @app.route("/webauthn/challenge", methods=["GET"])
 def webauthn_challenge():
-    """Return a fresh random base64url challenge for WebAuthn registration or assertion."""
-    import base64 as _b64
-    raw = secrets.token_bytes(32)
-    b64 = _b64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    """Return a fresh random base64url challenge (legacy endpoint — also stores in session)."""
+    b64 = _wa_challenge_b64()
+    session["wa_legacy_challenge"] = b64
     return jsonify({"challenge": b64})
+
+
+@app.route("/webauthn/registration-options", methods=["GET"])
+def webauthn_registration_options():
+    """Server-generated WebAuthn registration options with challenge stored in session."""
+    import base64 as _b64
+    emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
+    emp_name = (request.args.get("name") or emp_id).strip()
+    rp_id    = _wa_rp_id()
+    challenge_b64 = _wa_challenge_b64()
+    session["wa_reg_challenge"] = challenge_b64
+    options = {
+        "challenge": challenge_b64,
+        "rp": {"id": rp_id, "name": "Employee Attendance"},
+        "user": {
+            "id": _b64.urlsafe_b64encode(emp_id.encode()).rstrip(b"=").decode(),
+            "name": emp_id,
+            "displayName": emp_name,
+        },
+        "pubKeyCredParams": [
+            {"type": "public-key", "alg": -7},    # ES256
+            {"type": "public-key", "alg": -257},   # RS256
+        ],
+        "authenticatorSelection": {
+            "authenticatorAttachment": "platform",
+            "userVerification": "required",
+            "residentKey": "discouraged",
+        },
+        "timeout": 60000,
+        "attestation": "none",
+        "excludeCredentials": [],
+    }
+    return jsonify(options)
+
+
+@app.route("/webauthn/authentication-options", methods=["GET"])
+def webauthn_authentication_options():
+    """Server-generated WebAuthn authentication options with challenge stored in session."""
+    emp_id = (request.args.get("emp_id") or "").strip().upper()
+    rp_id  = _wa_rp_id()
+    challenge_b64 = _wa_challenge_b64()
+    session["wa_auth_challenge"] = challenge_b64
+    session["wa_auth_emp_id"]    = emp_id
+
+    allow_creds = []
+    if emp_id:
+        try:
+            db = get_db_connection(); cur = db.cursor(buffered=True)
+            cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
+            row = cur.fetchone(); cur.close(); db.close()
+            if row and row[0]:
+                allow_creds = [{"type": "public-key", "id": row[0], "transports": ["internal"]}]
+        except Exception:
+            pass
+
+    options = {
+        "challenge": challenge_b64,
+        "rpId": rp_id,
+        "allowCredentials": allow_creds,
+        "userVerification": "required",
+        "timeout": 60000,
+    }
+    return jsonify(options)
+
+
+@app.route("/api/employee/webauthn-verify-challenge", methods=["POST"])
+def webauthn_verify_challenge():
+    """
+    Lightweight server-side verification:
+    - checks clientDataJSON.challenge matches session challenge
+    - checks clientDataJSON.origin is expected
+    Returns ok:true so the kiosk can trust the result.
+    """
+    import base64 as _b64, json as _j
+    data    = request.get_json(force=True, silent=True) or {}
+    emp_id  = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
+    stored  = session.get("wa_auth_challenge", "") or session.get("wa_legacy_challenge", "")
+
+    client_data_b64 = (data.get("clientDataJSON") or "").strip()
+    if not client_data_b64 or not stored:
+        return jsonify({"ok": False, "msg": "Missing clientDataJSON or session challenge"}), 400
+
+    try:
+        pad = 4 - len(client_data_b64) % 4
+        client_json = _j.loads(_b64.urlsafe_b64decode(client_data_b64 + "=" * pad).decode())
+        received_challenge = client_json.get("challenge", "")
+        received_origin    = client_json.get("origin", "")
+        action             = client_json.get("type", "")
+
+        if received_challenge != stored:
+            return jsonify({"ok": False, "msg": "Challenge mismatch — possible replay"}), 401
+        if action != "webauthn.get":
+            return jsonify({"ok": False, "msg": f"Unexpected action: {action}"}), 401
+
+        expected = _wa_origins()
+        if received_origin not in expected:
+            return jsonify({"ok": False, "msg": f"Origin not allowed: {received_origin}"}), 401
+
+        session.pop("wa_auth_challenge", None)
+        session.pop("wa_legacy_challenge", None)
+        return jsonify({"ok": True, "emp_id": emp_id})
+
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 401
 
 
 @app.route("/api/employee/webauthn-register", methods=["POST"])
@@ -12499,7 +12918,7 @@ def onboarding():
     # Templates with task count
     cursor.execute("""
         SELECT ot.id, ot.name, ot.description, ot.is_active,
-               COUNT(tt.id) AS task_count
+               COUNT(tt.id) AS task_count, COALESCE(ot.role,'')
         FROM onboarding_templates ot
         LEFT JOIN onboarding_template_tasks tt ON tt.template_id = ot.id
         GROUP BY ot.id
@@ -12511,9 +12930,13 @@ def onboarding():
     cursor.execute("SELECT employee_id, name, role FROM employees WHERE is_active=1 ORDER BY name")
     emp_list = cursor.fetchall()
 
-    # Active templates for assign dropdown
-    cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
+    # Active templates for assign dropdown (include role for JS filtering)
+    cursor.execute("SELECT id, name, COALESCE(role,'') FROM onboarding_templates WHERE is_active=1 ORDER BY name")
     active_templates = cursor.fetchall()
+
+    # Distinct employee roles for role filter dropdown
+    cursor.execute("SELECT DISTINCT role FROM employees WHERE role IS NOT NULL AND role != '' ORDER BY role")
+    employee_roles = [r[0] for r in cursor.fetchall()]
 
     today = datetime.date.today()
     total_active    = sum(1 for o in active_onboardings if o[8] != 'Completed')
@@ -12531,6 +12954,7 @@ def onboarding():
         templates=templates,
         emp_list=emp_list,
         active_templates=active_templates,
+        employee_roles=employee_roles,
         active_tab=active_tab,
         co=co,
         today=today,
@@ -12548,14 +12972,15 @@ def onboarding_template_save():
     tid    = request.form.get("template_id")
     name   = request.form.get("name", "").strip()
     desc   = request.form.get("description", "").strip()
+    role   = request.form.get("role", "").strip() or None
     if not name:
         flash("Template name is required.", "error")
         return redirect("/onboarding?tab=templates")
     if tid:
-        cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s WHERE id=%s", (name, desc, tid))
+        cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s, role=%s WHERE id=%s", (name, desc, role, tid))
         flash("Template updated.", "success")
     else:
-        cursor.execute("INSERT INTO onboarding_templates (name, description) VALUES (%s,%s)", (name, desc))
+        cursor.execute("INSERT INTO onboarding_templates (name, description, role) VALUES (%s,%s,%s)", (name, desc, role))
         flash("Template created.", "success")
     db.commit(); cursor.close(); db.close()
     return redirect("/onboarding?tab=templates")
@@ -13119,8 +13544,31 @@ def my_onboarding_task_done():
 
 # ---------------- ADMIN TOOLS (Org Chart + Audit Logs combined) ----------------
 @app.route("/org_chart")
-def org_chart_redirect():
-    return redirect("/admin_tools?tab=org_chart")
+@admin_required
+def org_chart_page():
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    active_cid = session.get("active_company_id")
+    _co_sub = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
+    _co_args = (active_cid,) if active_cid else ()
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
+    pending_leaves = cursor.fetchone()[0]
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
+    pending_resignations = cursor.fetchone()[0]
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
+    pending_tickets = cursor.fetchone()[0]
+    if active_cid:
+        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
+    else:
+        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
+    departments = [r[0] for r in cursor.fetchall()]
+    co = get_company_settings()
+    cursor.close(); db.close()
+    return render_template("org_chart.html",
+        co=co, departments=departments,
+        pending_leaves=pending_leaves,
+        pending_resignations=pending_resignations,
+        pending_tickets=pending_tickets,
+    )
 
 @app.route("/audit_logs")
 def audit_logs_redirect():
