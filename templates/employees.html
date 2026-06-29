@@ -274,6 +274,13 @@
         <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
       </div>
+            <div id="co-sw" style="margin:0 0 12px;">
+        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
+          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
+          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+        </button>
+      </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item active" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
@@ -285,6 +292,7 @@
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
@@ -1577,23 +1585,11 @@
           status.style.color = '#f59e0b'; return;
         }
 
-        // WebAuthn rejects raw IP addresses as RP IDs — must use localhost or real domain
-        var hostname = window.location.hostname;
-        var isRawIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-        if (isRawIP) {
-          var localhostHref = window.location.href.replace(hostname, 'localhost');
-          status.innerHTML = '⚠ Fingerprint requires <strong>localhost</strong>, not an IP.<br>'
-            + '<a href="' + localhostHref + '" style="color:#6366f1;font-weight:700;">'
-            + '↗ Switch to localhost:' + window.location.port + '</a> and try again.';
-          status.style.color = '#f59e0b'; return;
-        }
-
         // Check for built-in fingerprint / biometric (Touch ID, Windows Hello, Android)
         var hasPlatform = await window.PublicKeyCredential
           .isUserVerifyingPlatformAuthenticatorAvailable().catch(function(){ return false; });
 
         if (!hasPlatform) {
-          // No built-in sensor — prompt for USB fingerprint reader (cross-platform)
           status.innerHTML = '🔌 No built-in fingerprint sensor detected.<br>'
             + 'Connect a <strong>USB fingerprint scanner</strong> then click Enroll.';
           status.style.color = '#f59e0b';
@@ -1610,12 +1606,12 @@
         }
 
         try {
-          var chalResp = await fetch('/webauthn/challenge');
-          var chalJson = await chalResp.json();
-          var challenge = chalJson.challenge;
-
-          var empId   = (document.getElementById('addEmpId').value || 'employee').trim();
+          var empId   = (document.getElementById('addEmpId').value || 'employee').trim().toUpperCase();
           var empName = (document.querySelector('[name="name"]').value || empId).trim();
+
+          // Fetch server-generated options — server normalises 127.0.0.1→localhost for rpId
+          var optResp = await fetch('/webauthn/registration-options?emp_id=' + encodeURIComponent(empId) + '&name=' + encodeURIComponent(empName));
+          var regOpts = await optResp.json();
 
           function toBytes(b64url) {
             var b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');
@@ -1623,27 +1619,20 @@
             return Uint8Array.from(atob(b64 + pad), function(c){ return c.charCodeAt(0); });
           }
 
-          // platform = built-in sensor; cross-platform = USB fingerprint reader
           var authSel = hasPlatform
             ? { authenticatorAttachment: 'platform',       userVerification: 'required'  }
             : { authenticatorAttachment: 'cross-platform', userVerification: 'preferred' };
 
           var cred = await navigator.credentials.create({
             publicKey: {
-              challenge: toBytes(challenge),
-              rp: { name: 'Employee Attendance', id: hostname },
-              user: {
-                id: new TextEncoder().encode(empId),
-                name: empId,
-                displayName: empName,
-              },
-              pubKeyCredParams: [
-                { type: 'public-key', alg: -7   },
-                { type: 'public-key', alg: -257 },
-              ],
+              challenge:            toBytes(regOpts.challenge),
+              rp:                   { name: regOpts.rp.name, id: regOpts.rp.id },
+              user:                 { id: toBytes(regOpts.user.id), name: regOpts.user.name, displayName: regOpts.user.displayName },
+              pubKeyCredParams:     regOpts.pubKeyCredParams,
               authenticatorSelection: authSel,
-              timeout: 60000,
-              attestation: 'none',
+              timeout:              regOpts.timeout || 60000,
+              attestation:          'none',
+              excludeCredentials:   [],
             }
           });
 
@@ -1910,48 +1899,38 @@
   });
   </script>
 
-  <!-- ══ COMPANY SWITCHER FLOAT ══ -->
-  <div id="co-float" style="position:fixed;top:14px;right:20px;z-index:10000;font-family:'Segoe UI',sans-serif;">
-    <button onclick="coFloatToggle(event)" id="co-float-btn" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1e3a8a;border:none;border-radius:30px;cursor:pointer;color:#fff;font-family:inherit;box-shadow:0 4px 16px rgba(30,58,138,0.35);transition:all .15s;">
-      <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:700;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="co-float-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;" id="co-float-chev"></i>
-    </button>
-
-    <div id="co-float-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:220px;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.15);overflow:hidden;">
-      <!-- All Companies -->
-      <form method="POST" action="/clear_company">
+<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+    <form method="POST" action="/clear_company">
+      <input type="hidden" name="next" value="{{ request.path }}" />
+      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+        All Companies
+      </button>
+    </form>
+    <div style="height:1px;background:#f1f5f9;"></div>
+    {% for c in all_companies %}
+    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+      {% if c.has_pin %}
+      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      </button>
+      {% else %}
+      <form method="POST" action="/switch_company">
+        <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if not active_company %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building-community" style="font-size:14px;color:#64748b;"></i></div>
-          All Companies
+        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
-      <div style="height:1px;background:#f1f5f9;"></div>
-      {% for c in all_companies %}
-      <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
-        {% if c.has_pin %}
-        <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#1e3a8a;"></i></div>
-          <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          <i class="ti ti-lock" style="font-size:12px;color:#f59e0b;"></i>
-        </button>
-        {% else %}
-        <form method="POST" action="/switch_company">
-          <input type="hidden" name="company_id" value="{{ c.id }}" />
-          <input type="hidden" name="next" value="{{ request.path }}" />
-          <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-            <div style="width:28px;height:28px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#16a34a;"></i></div>
-            <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          </button>
-        </form>
-        {% endif %}
-      </div>
-      {% endfor %}
-      {% if not all_companies %}
-      <div style="padding:14px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
       {% endif %}
     </div>
+    {% endfor %}
+    {% if not all_companies %}
+    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
@@ -1975,11 +1954,16 @@
   </div>
 
   <script>
-    /* Company float switcher */
+    /* Company sidebar switcher */
     var _coOpen = false;
-    function coFloatToggle(e){e&&e.stopPropagation();_coOpen=!_coOpen;document.getElementById('co-float-menu').style.display=_coOpen?'block':'none';}
-    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-float-menu').style.display='none';}});
-    document.getElementById('co-float-menu').addEventListener('click',function(e){e.stopPropagation();});
+    function coSwToggle(e){
+      e&&e.stopPropagation();_coOpen=!_coOpen;
+      var menu=document.getElementById('co-sw-menu');
+      if(_coOpen){var btn=document.getElementById('co-sw-btn');var r=btn.getBoundingClientRect();menu.style.top=(r.bottom+4)+'px';menu.style.left=r.left+'px';menu.style.width=r.width+'px';menu.style.display='block';}
+      else{menu.style.display='none';}
+    }
+    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-sw-menu').style.display='none';}});
+    document.getElementById('co-sw-menu').addEventListener('click',function(e){e.stopPropagation();});
 
     /* PIN modal */
     function coFloatPin(cid,name,next){
@@ -1988,7 +1972,7 @@
       document.getElementById('co-pin-name').textContent='Enter PIN to access: '+name;
       document.getElementById('co-pin-input').value='';
       document.getElementById('co-pin-modal').style.display='flex';
-      document.getElementById('co-float-menu').style.display='none';
+      document.getElementById('co-sw-menu').style.display='none';
       _coOpen=false;
       setTimeout(function(){document.getElementById('co-pin-input').focus();},120);
     }

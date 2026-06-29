@@ -189,14 +189,20 @@
         display: block; font-size: 11px; font-weight: 700; color: #64748b;
         text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
       }
-      .field input {
+      .field input, .field select, .field textarea {
         width: 100%; padding: 10px 13px;
         border: 1px solid #e2e8f0; border-radius: 9px;
         background: #f8fafc; color: #0f172a; font-size: 14px;
-        outline: none; transition: 0.2s;
+        outline: none; transition: 0.2s; font-family: inherit;
       }
-      .field input::placeholder { color: #94a3b8; }
-      .field input:focus { border-color: #93c5fd; background: #fff; }
+      .field input::placeholder, .field textarea::placeholder { color: #94a3b8; }
+      .field input:focus, .field select:focus, .field textarea:focus { border-color: #93c5fd; background: #fff; }
+      .field textarea { resize: vertical; min-height: 70px; }
+      .form-sub-section { border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 12px; overflow: hidden; }
+      .form-sub-header { padding: 10px 14px; background: #f8fafc; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: #374151; transition: 0.15s; -webkit-user-select: none; user-select: none; }
+      .form-sub-header:hover { background: #eff6ff; color: #1e3a8a; }
+      .form-sub-header i { transition: transform 0.2s; font-size: 14px; }
+      .form-sub-body { padding: 14px 14px 2px; }
 
       /* ── BUTTONS ── */
       .btn { width: 100%; padding: 11px; border: none; border-radius: 9px; cursor: pointer; font-weight: 700; font-size: 14px; transition: 0.2s; }
@@ -292,10 +298,18 @@
           <div class="brand-sub">{{ co.company_name }}</div>
         </div></div>
 
+            <div id="co-sw" style="margin:0 0 12px;">
+        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
+          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
+          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+        </button>
+      </div>
       <a class="nav-item active" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+      <a class="nav-item" href="/bulk_mark_attendance"><span class="nav-icon"><i class="ti ti-pencil-check"></i></span>Mark Attendance</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
       <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
       <hr class="nav-sep" style="margin-top:12px;" />
@@ -303,6 +317,7 @@
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
     
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
@@ -590,7 +605,190 @@
                 </div>
 
               </div>
-              <button type="submit" class="btn btn-navy" style="max-width:200px;margin-top:12px;">✅ Register Employee</button>
+
+              <!-- ── PROFESSIONAL DETAILS ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-professional')">
+                  <span>💼 Professional Details</span>
+                  <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
+                </div>
+                <div id="sec-professional" style="display:none;" class="form-sub-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+                    <div class="field">
+                      <label>Department</label>
+                      <input type="text" name="department" placeholder="e.g. Engineering" />
+                    </div>
+                    <div class="field">
+                      <label>Phone</label>
+                      <input type="tel" name="phone" placeholder="+91 98765 43210" />
+                    </div>
+                    <div class="field">
+                      <label>Manager ID</label>
+                      <input type="text" name="manager_id" placeholder="e.g. GRD001" />
+                    </div>
+                    <div class="field">
+                      <label>Manager Name</label>
+                      <input type="text" name="manager_name" placeholder="e.g. Ramesh Kumar" />
+                    </div>
+                    <div class="field" style="grid-column:1 / -1;">
+                      <label>Daily Salary (₹)</label>
+                      <input type="number" name="salary_per_day" placeholder="e.g. 1500.00" step="0.01" min="0" style="max-width:260px;" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── PERSONAL DETAILS ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-personal')">
+                  <span>👤 Personal Details</span>
+                  <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
+                </div>
+                <div id="sec-personal" style="display:none;" class="form-sub-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                    <div class="field">
+                      <label>Gender</label>
+                      <select name="gender">
+                        <option value="">-- Select --</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>Date of Birth</label>
+                      <input type="date" name="dob" />
+                    </div>
+                    <div class="field">
+                      <label>Blood Group</label>
+                      <select name="blood_group">
+                        <option value="">-- Select --</option>
+                        <option>A+</option><option>A-</option>
+                        <option>B+</option><option>B-</option>
+                        <option>O+</option><option>O-</option>
+                        <option>AB+</option><option>AB-</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── ADDRESS ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-address')">
+                  <span>🏠 Address</span>
+                  <i class="ti ti-chevron-down" id="sec-address-icon"></i>
+                </div>
+                <div id="sec-address" style="display:none;" class="form-sub-body">
+                  <div class="field">
+                    <label>Street Address</label>
+                    <textarea name="address" placeholder="Flat / House no, Street, Area"></textarea>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                    <div class="field">
+                      <label>City</label>
+                      <input type="text" name="city" placeholder="e.g. Hyderabad" />
+                    </div>
+                    <div class="field">
+                      <label>State</label>
+                      <input type="text" name="state" placeholder="e.g. Telangana" />
+                    </div>
+                    <div class="field">
+                      <label>Pincode</label>
+                      <input type="text" name="pincode" placeholder="e.g. 500001" maxlength="10" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── EMERGENCY CONTACT ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-emergency')">
+                  <span>🚨 Emergency Contact</span>
+                  <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
+                </div>
+                <div id="sec-emergency" style="display:none;" class="form-sub-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                    <div class="field">
+                      <label>Contact Name</label>
+                      <input type="text" name="emergency_contact_name" placeholder="e.g. Ramesh Kumar" />
+                    </div>
+                    <div class="field">
+                      <label>Contact Phone</label>
+                      <input type="tel" name="emergency_contact_phone" placeholder="+91 98765 43210" />
+                    </div>
+                    <div class="field">
+                      <label>Relation</label>
+                      <input type="text" name="emergency_contact_relation" placeholder="e.g. Father" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── DOCUMENTS & FINANCE ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-docs')">
+                  <span>📄 Documents &amp; Finance</span>
+                  <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
+                </div>
+                <div id="sec-docs" style="display:none;" class="form-sub-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+                    <div class="field">
+                      <label>Aadhar Number</label>
+                      <input type="text" name="aadhar_number" placeholder="XXXX XXXX XXXX" maxlength="14" />
+                    </div>
+                    <div class="field">
+                      <label>PAN Number</label>
+                      <input type="text" name="pan_number" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase;" />
+                    </div>
+                    <div class="field">
+                      <label>Bank Name</label>
+                      <input type="text" name="bank_name" placeholder="e.g. State Bank of India" />
+                    </div>
+                    <div class="field">
+                      <label>Account Number</label>
+                      <input type="text" name="bank_account" placeholder="12-digit account number" />
+                    </div>
+                    <div class="field">
+                      <label>IFSC Code</label>
+                      <input type="text" name="bank_ifsc" placeholder="e.g. SBIN0001234" maxlength="11" style="text-transform:uppercase;" />
+                    </div>
+                    <div class="field">
+                      <label>UAN Number</label>
+                      <input type="text" name="uan_number" placeholder="12-digit UAN" maxlength="12" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── FINGERPRINT ENROLLMENT ── -->
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-fingerprint')">
+                  <span>👆 Fingerprint Enrollment</span>
+                  <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
+                </div>
+                <div id="sec-fingerprint" style="display:none;" class="form-sub-body">
+                  <input type="hidden" name="fingerprint_credential_id" id="regFpCredentialId" />
+                  <div id="regFpEnrollBox" style="border:1.5px dashed #bfdbfe;border-radius:10px;padding:14px 16px;background:#f8fafc;margin-bottom:10px;">
+                    <div style="font-size:12px;color:#64748b;margin-bottom:10px;">
+                      Enroll the employee's fingerprint now (optional). The employee can also enroll later from their portal.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                      <button type="button" id="regFpEnrollBtn" onclick="regEnrollFingerprint()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                        👆 Enroll Fingerprint
+                      </button>
+                      <button type="button" id="regFpClearBtn" onclick="regClearFingerprint()" style="display:none;padding:9px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                        ✕ Clear
+                      </button>
+                    </div>
+                    <div id="regFpEnrollStatus" style="margin-top:8px;font-size:12px;color:#64748b;">
+                      Not enrolled — employee can use QR + Face by default
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-navy" style="max-width:200px;margin-top:16px;">✅ Register Employee</button>
             </div>
 
             <!-- Right: Face Photo -->
@@ -917,8 +1115,114 @@
       }
       document.getElementById("cameraModal").addEventListener("click", e => { if (e.target===e.currentTarget) closeCameraModal(); });
 
+      function toggleSubSection(id) {
+        var el   = document.getElementById(id);
+        var icon = document.getElementById(id + '-icon');
+        var open = el.style.display === 'none';
+        el.style.display = open ? 'block' : 'none';
+        if (icon) icon.style.transform = open ? 'rotate(180deg)' : '';
+      }
+
       function validateRegForm() {
         if (!document.getElementById("regFaceFile").files.length) { alert("Please take or upload a face photo."); return false; } return true;
+      }
+
+      // ── Fingerprint enrollment for registration form ──
+      async function regEnrollFingerprint() {
+        var btn    = document.getElementById('regFpEnrollBtn');
+        var status = document.getElementById('regFpEnrollStatus');
+        var box    = document.getElementById('regFpEnrollBox');
+
+        if (!window.PublicKeyCredential) {
+          status.textContent = '⚠ WebAuthn not supported. Use Chrome or Edge.';
+          status.style.color = '#f59e0b'; return;
+        }
+
+        var hasPlatform = await window.PublicKeyCredential
+          .isUserVerifyingPlatformAuthenticatorAvailable().catch(function(){ return false; });
+
+        if (!hasPlatform) {
+          status.innerHTML = '🔌 No built-in fingerprint sensor detected.<br>Connect a <strong>USB fingerprint scanner</strong> then click Enroll.';
+          status.style.color = '#f59e0b';
+          btn.textContent = '🔌 Enroll via USB Scanner';
+        }
+
+        btn.disabled = true;
+        if (hasPlatform) {
+          btn.textContent = '⏳ Waiting for fingerprint…';
+          status.textContent = 'Touch your fingerprint sensor when prompted…';
+          status.style.color = '#6366f1';
+        } else {
+          btn.textContent = '⏳ Waiting for USB scanner…';
+        }
+
+        try {
+          var empId   = (document.getElementById('dashEmpId').value || 'employee').trim().toUpperCase();
+          var empName = (document.querySelector('#regForm [name="name"]').value || empId).trim();
+
+          // Fetch server-generated options — server normalises 127.0.0.1→localhost for rpId
+          var optResp  = await fetch('/webauthn/registration-options?emp_id=' + encodeURIComponent(empId) + '&name=' + encodeURIComponent(empName));
+          var regOpts  = await optResp.json();
+
+          function toBytes(b64url) {
+            var b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');
+            var pad = b64.length % 4 ? '='.repeat(4 - b64.length % 4) : '';
+            return Uint8Array.from(atob(b64 + pad), function(c){ return c.charCodeAt(0); });
+          }
+
+          var authSel = hasPlatform
+            ? { authenticatorAttachment: 'platform',       userVerification: 'required'  }
+            : { authenticatorAttachment: 'cross-platform', userVerification: 'preferred' };
+
+          var cred = await navigator.credentials.create({
+            publicKey: {
+              challenge:            toBytes(regOpts.challenge),
+              rp:                   { name: regOpts.rp.name, id: regOpts.rp.id },
+              user:                 { id: toBytes(regOpts.user.id), name: regOpts.user.name, displayName: regOpts.user.displayName },
+              pubKeyCredParams:     regOpts.pubKeyCredParams,
+              authenticatorSelection: authSel,
+              timeout:              regOpts.timeout || 60000,
+              attestation:          'none',
+              excludeCredentials:   [],
+            }
+          });
+
+          document.getElementById('regFpCredentialId').value = cred.id;
+          var label = hasPlatform ? 'Fingerprint enrolled!' : 'USB fingerprint enrolled!';
+          status.innerHTML = '✅ <strong>' + label + '</strong> Will be saved when you register the employee.';
+          status.style.color = '#16a34a';
+          btn.textContent    = '✅ Enrolled';
+          btn.style.background = '#16a34a';
+          box.style.borderColor = '#22c55e';
+          box.style.background  = '#f0fdf4';
+          document.getElementById('regFpClearBtn').style.display = 'inline-block';
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = hasPlatform ? '👆 Enroll Fingerprint' : '🔌 Enroll via USB Scanner';
+          status.style.color = '#dc2626';
+          if (e.name === 'NotAllowedError') {
+            status.textContent = '❌ Cancelled or not recognised. Click to try again.';
+          } else if (e.name === 'InvalidStateError') {
+            status.textContent = '❌ Already enrolled on this device for this employee.';
+          } else {
+            status.textContent = '❌ ' + (e.message || 'Enrollment failed. Try a different browser.');
+          }
+        }
+      }
+
+      function regClearFingerprint() {
+        document.getElementById('regFpCredentialId').value = '';
+        var status = document.getElementById('regFpEnrollStatus');
+        var box    = document.getElementById('regFpEnrollBox');
+        var btn    = document.getElementById('regFpEnrollBtn');
+        status.textContent    = 'Not enrolled — employee can use QR + Face by default';
+        status.style.color    = '#64748b';
+        btn.disabled          = false;
+        btn.textContent       = '👆 Enroll Fingerprint';
+        btn.style.background  = '#6366f1';
+        box.style.borderColor = '#bfdbfe';
+        box.style.background  = '#f8fafc';
+        document.getElementById('regFpClearBtn').style.display = 'none';
       }
       function validateUpdForm() {
         if (!document.getElementById("updFaceFile").files.length) { alert("Please take or upload a face photo."); return false; } return true;
@@ -1189,48 +1493,38 @@
     </script>
   <script src="/static/darkmode.js"></script>
 
-  <!-- ══ COMPANY SWITCHER FLOAT ══ -->
-  <div id="co-float" style="position:fixed;top:14px;right:20px;z-index:10000;font-family:'Segoe UI',sans-serif;">
-    <button onclick="coFloatToggle(event)" id="co-float-btn" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1e3a8a;border:none;border-radius:30px;cursor:pointer;color:#fff;font-family:inherit;box-shadow:0 4px 16px rgba(30,58,138,0.35);transition:all .15s;">
-      <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:700;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="co-float-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;" id="co-float-chev"></i>
-    </button>
-
-    <div id="co-float-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:220px;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.15);overflow:hidden;">
-      <!-- All Companies -->
-      <form method="POST" action="/clear_company">
+<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+    <form method="POST" action="/clear_company">
+      <input type="hidden" name="next" value="{{ request.path }}" />
+      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+        All Companies
+      </button>
+    </form>
+    <div style="height:1px;background:#f1f5f9;"></div>
+    {% for c in all_companies %}
+    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+      {% if c.has_pin %}
+      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      </button>
+      {% else %}
+      <form method="POST" action="/switch_company">
+        <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if not active_company %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building-community" style="font-size:14px;color:#64748b;"></i></div>
-          All Companies
+        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
-      <div style="height:1px;background:#f1f5f9;"></div>
-      {% for c in all_companies %}
-      <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
-        {% if c.has_pin %}
-        <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-          <div style="width:28px;height:28px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#1e3a8a;"></i></div>
-          <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          <i class="ti ti-lock" style="font-size:12px;color:#f59e0b;"></i>
-        </button>
-        {% else %}
-        <form method="POST" action="/switch_company">
-          <input type="hidden" name="company_id" value="{{ c.id }}" />
-          <input type="hidden" name="next" value="{{ request.path }}" />
-          <button type="submit" style="width:100%;padding:10px 14px;background:none;border:none;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;color:#0f172a;font-family:inherit;{% if active_company and active_company.id==c.id %}background:#eff6ff;color:#1e3a8a;{% endif %}">
-            <div style="width:28px;height:28px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-building" style="font-size:14px;color:#16a34a;"></i></div>
-            <span style="flex:1;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;font-weight:500;">({{ c.code }})</span>{% endif %}</span>
-          </button>
-        </form>
-        {% endif %}
-      </div>
-      {% endfor %}
-      {% if not all_companies %}
-      <div style="padding:14px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
       {% endif %}
     </div>
+    {% endfor %}
+    {% if not all_companies %}
+    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
@@ -1254,11 +1548,16 @@
   </div>
 
   <script>
-    /* Company float switcher */
+    /* Company sidebar switcher */
     var _coOpen = false;
-    function coFloatToggle(e){e&&e.stopPropagation();_coOpen=!_coOpen;document.getElementById('co-float-menu').style.display=_coOpen?'block':'none';}
-    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-float-menu').style.display='none';}});
-    document.getElementById('co-float-menu').addEventListener('click',function(e){e.stopPropagation();});
+    function coSwToggle(e){
+      e&&e.stopPropagation();_coOpen=!_coOpen;
+      var menu=document.getElementById('co-sw-menu');
+      if(_coOpen){var btn=document.getElementById('co-sw-btn');var r=btn.getBoundingClientRect();menu.style.top=(r.bottom+4)+'px';menu.style.left=r.left+'px';menu.style.width=r.width+'px';menu.style.display='block';}
+      else{menu.style.display='none';}
+    }
+    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-sw-menu').style.display='none';}});
+    document.getElementById('co-sw-menu').addEventListener('click',function(e){e.stopPropagation();});
 
     /* PIN modal */
     function coFloatPin(cid,name,next){
@@ -1267,7 +1566,7 @@
       document.getElementById('co-pin-name').textContent='Enter PIN to access: '+name;
       document.getElementById('co-pin-input').value='';
       document.getElementById('co-pin-modal').style.display='flex';
-      document.getElementById('co-float-menu').style.display='none';
+      document.getElementById('co-sw-menu').style.display='none';
       _coOpen=false;
       setTimeout(function(){document.getElementById('co-pin-input').focus();},120);
     }

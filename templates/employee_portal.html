@@ -738,9 +738,6 @@
 
       <div class="sb-bottom">
         <hr class="sb-sep" />
-        <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()">
-          <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
-        </button>
         <a class="sb-item danger" href="/employee_logout">
           <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
         </a>
@@ -1501,21 +1498,75 @@
         {% if emp[7] %}
         <div class="swap-section-heading">🔄 Request a Swap</div>
         <div class="swap-form-card">
-          <form method="POST" action="/submit_shift_swap">
-            <div class="swap-form-row">
-              <label>Select Colleague to Swap With</label>
-              <select name="target_id" required>
-                <option value="" disabled selected>— Choose employee —</option>
-                {% for eid, ename in swap_eligible_employees %}
-                <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
-                {% endfor %}
-              </select>
+          <form method="POST" action="/submit_shift_swap" id="swapForm">
+            <input type="hidden" name="target_id" id="swapTargetId">
+
+            <!-- Search bar -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Search by Name</label>
+                <input type="text" id="ssName" placeholder="e.g. Ravi" oninput="filterSwapCards()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Search by Emp ID</label>
+                <input type="text" id="ssEmpId" placeholder="e.g. EMP001" oninput="filterSwapCards()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Filter by Shift</label>
+                <select id="ssShift" onchange="filterSwapCards()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;">
+                  <option value="">All Shifts</option>
+                  {% set seen_shifts = namespace(v=[]) %}
+                  {% for eid, ename, shift, st, et, dept, desig in swap_eligible_employees %}
+                    {% if shift and shift not in seen_shifts.v %}
+                      {% set seen_shifts.v = seen_shifts.v + [shift] %}
+                      <option value="{{ shift }}">{{ shift }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </div>
             </div>
+
+            <!-- Employee cards grid -->
+            <div id="swapCardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:340px;overflow-y:auto;padding:2px 0 10px;margin-bottom:14px;">
+              {% for eid, ename, shift, st, et, dept, desig in swap_eligible_employees %}
+              <div class="swap-emp-card" data-id="{{ eid }}" data-name="{{ ename|lower }}" data-shift="{{ shift|lower }}" data-dept="{{ dept|lower }}"
+                   onclick="selectSwapCard(this,'{{ eid }}','{{ ename }}','{{ shift }}','{{ st }}','{{ et }}','{{ dept }}','{{ desig }}')"
+                   style="border:2px solid #e2e8f0;border-radius:12px;padding:12px 14px;cursor:pointer;transition:.15s;background:#fff;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                  <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ ename[0]|upper }}</div>
+                  <div style="min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ename }}</div>
+                    <div style="font-size:11px;color:#94a3b8;">{{ eid }}</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;background:{% if shift %}#eff6ff{% else %}#f1f5f9{% endif %};color:{% if shift %}#1e40af{% else %}#94a3b8{% endif %};border-radius:6px;padding:4px 8px;font-weight:600;margin-bottom:4px;">🕐 {% if shift %}{{ shift }}{% if st %} &nbsp;{{ st }}–{{ et }}{% endif %}{% else %}No shift assigned{% endif %}</div>
+                {% if dept %}<div style="font-size:11px;color:#64748b;">{{ dept }}{% if desig %} · {{ desig }}{% endif %}</div>{% endif %}
+              </div>
+              {% else %}
+              <div style="grid-column:1/-1;text-align:center;padding:30px;color:#94a3b8;font-size:13px;">No eligible colleagues found.</div>
+              {% endfor %}
+            </div>
+            <div id="swapNoResults" style="display:none;text-align:center;padding:24px;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px;margin-bottom:14px;">No employees match your search.</div>
+
+            <!-- Selected employee preview -->
+            <div id="swapSelectedPreview" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+              <div style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Selected Colleague</div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div id="spAvatar" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;"></div>
+                <div>
+                  <div id="spName" style="font-size:14px;font-weight:700;color:#1e293b;"></div>
+                  <div id="spId" style="font-size:12px;color:#64748b;"></div>
+                  <div id="spShift" style="font-size:12px;font-weight:600;color:#1e40af;margin-top:2px;"></div>
+                  <div id="spDept" style="font-size:11px;color:#64748b;"></div>
+                </div>
+              </div>
+            </div>
+
             <div class="swap-form-row">
               <label>Reason <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
               <textarea name="reason" rows="2" maxlength="500" placeholder="Why do you want to swap shifts?"></textarea>
             </div>
-            <button type="submit" class="swap-submit-btn">🔄 Send Swap Request</button>
+            <button type="submit" class="swap-submit-btn" id="swapSubmitBtn" disabled style="opacity:.5;cursor:not-allowed;">🔄 Send Swap Request</button>
           </form>
         </div>
         {% endif %}
@@ -2783,20 +2834,23 @@
             btn.textContent = '&#9203; Waiting for sensor...';
 
             try {
-              const chalR    = await fetch('/webauthn/challenge');
-              const { challenge } = await chalR.json();
-
               const empId   = {{ emp[0] | tojson }};
               const empName = {{ emp[1] | tojson }};
 
+              // Fetch server-generated registration options (challenge stored in session)
+              const optR = await fetch('/webauthn/registration-options?emp_id=' + encodeURIComponent(empId) + '&name=' + encodeURIComponent(empName));
+              const regOpts = await optR.json();
+
               const cred = await navigator.credentials.create({
                 publicKey: {
-                  challenge:              toBytes(challenge),
-                  rp:                     { name: 'Attendance System', id: window.location.hostname },
-                  user:                   { id: toBytes(btoa(empId)), name: empId, displayName: empName },
-                  pubKeyCredParams:       [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-                  authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-                  timeout:                60000,
+                  challenge:              toBytes(regOpts.challenge),
+                  rp:                     { name: regOpts.rp.name, id: regOpts.rp.id },
+                  user:                   { id: toBytes(regOpts.user.id), name: regOpts.user.name, displayName: regOpts.user.displayName },
+                  pubKeyCredParams:       regOpts.pubKeyCredParams,
+                  authenticatorSelection: regOpts.authenticatorSelection,
+                  timeout:                regOpts.timeout || 60000,
+                  attestation:            regOpts.attestation || 'none',
+                  excludeCredentials:     [],
                 }
               });
 
@@ -2867,6 +2921,7 @@
           <button onclick="showPolicy('limitations')" id="ptab-limitations" style="padding:8px 16px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;">⚠️ Limitations</button>
           <button onclick="showPolicy('instructions')" id="ptab-instructions" style="padding:8px 16px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;">📌 Instructions</button>
           <button onclick="showPolicy('posh')" id="ptab-posh" style="padding:8px 16px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;">🛡️ POSH</button>
+          <button onclick="showPolicy('resignation')" id="ptab-resignation" style="padding:8px 16px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;">🚪 Resignation</button>
         </div>
 
         <!-- Terms & Conditions -->
@@ -3153,6 +3208,49 @@
             <strong style="color:#92400e;">Zero Tolerance Statement:</strong> Our organisation has a <strong>zero-tolerance policy</strong> towards sexual harassment in any form. Every employee deserves to work in an environment of respect, dignity, and safety.
           </div>
         </div>
+
+        <!-- Resignation Policy -->
+        <div id="policy-resignation" style="display:none;line-height:1.8;color:#334155;">
+          <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:14px 18px;border-radius:0 10px 10px 0;margin-bottom:22px;">
+            <strong style="color:#92400e;">Important:</strong> Resignation is a formal process. Please read this policy carefully before submitting your resignation through this portal.
+          </div>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">1. Notice Period</h3>
+          <ul style="margin-bottom:16px;padding-left:20px;">
+            <li>Employees are required to serve the notice period as specified in their employment contract.</li>
+            <li>Standard notice period is typically <strong>30 to 90 days</strong> depending on your role and grade.</li>
+            <li>The exact notice period applicable to you is mentioned in your offer letter or employment agreement.</li>
+            <li>Failure to serve the notice period may result in forfeiture of dues or recovery of notice pay.</li>
+          </ul>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">2. How to Submit Your Resignation</h3>
+          <ul style="margin-bottom:16px;padding-left:20px;">
+            <li>Use the <strong>Resignation</strong> section in your portal sidebar to submit your resignation formally.</li>
+            <li>Your resignation request will be reviewed and acknowledged by HR within <strong>2 working days</strong>.</li>
+            <li>Do not consider your resignation accepted until you receive a formal confirmation from HR.</li>
+          </ul>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">3. Exit Process</h3>
+          <ul style="margin-bottom:16px;padding-left:20px;">
+            <li>An exit interview will be scheduled with HR before your last working day.</li>
+            <li>All company assets (laptop, ID card, access cards, uniforms) must be returned before the full and final settlement.</li>
+            <li>Pending tasks must be handed over to your reporting manager or designated colleague.</li>
+            <li>Ensure all leaves, expenses, and reimbursements are cleared before your last day.</li>
+          </ul>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">4. Full &amp; Final Settlement</h3>
+          <ul style="margin-bottom:16px;padding-left:20px;">
+            <li>Full and final settlement will be processed within <strong>30–45 days</strong> of your last working day.</li>
+            <li>Settlement includes remaining salary, encashable leave balance, and any outstanding reimbursements.</li>
+            <li>Any dues owed to the organisation (salary advance, notice pay shortfall) will be deducted from the settlement.</li>
+          </ul>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">5. Experience &amp; Relieving Letter</h3>
+          <ul style="margin-bottom:16px;padding-left:20px;">
+            <li>A relieving letter and experience certificate will be issued after successful completion of the exit process.</li>
+            <li>Documents will be provided only after all dues are cleared and company property is returned.</li>
+          </ul>
+          <h3 style="color:#1e3a8a;margin-bottom:10px;">6. Withdrawal of Resignation</h3>
+          <p style="margin-bottom:16px;">An employee may request to withdraw their resignation by contacting HR, provided the withdrawal is made before HR issues the formal acceptance. Withdrawal is subject to management discretion.</p>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin-top:10px;">
+            <strong style="color:#b91c1c;">Note:</strong> Absconding (leaving without completing the notice period and without informing HR) will be treated as misconduct and may affect your full and final settlement, reference letters, and future employment prospects.
+          </div>
+        </div>
       </div><!-- /view-policies -->
 
 
@@ -3264,8 +3362,54 @@
           overlay.classList.add("open");
         }
       }
+      function filterSwapCards() {
+        var name  = document.getElementById('ssName').value.toLowerCase().trim();
+        var empid = document.getElementById('ssEmpId').value.toLowerCase().trim();
+        var shift = document.getElementById('ssShift').value.toLowerCase().trim();
+        var cards = document.querySelectorAll('.swap-emp-card');
+        var visible = 0;
+        cards.forEach(function(c) {
+          var match = (!name  || c.dataset.name.includes(name))
+                   && (!empid || c.dataset.id.toLowerCase().includes(empid))
+                   && (!shift || c.dataset.shift === shift);
+          c.style.display = match ? '' : 'none';
+          if (match) visible++;
+        });
+        document.getElementById('swapNoResults').style.display = visible === 0 ? 'block' : 'none';
+        document.getElementById('swapCardGrid').style.display  = visible === 0 ? 'none' : 'grid';
+      }
+
+      function selectSwapCard(el, eid, ename, shift, st, et, dept, desig) {
+        document.querySelectorAll('.swap-emp-card').forEach(function(c) {
+          c.style.border = '2px solid #e2e8f0';
+          c.style.background = '#fff';
+        });
+        el.style.border = '2px solid #3b82f6';
+        el.style.background = '#eff6ff';
+
+        document.getElementById('swapTargetId').value = eid;
+        document.getElementById('spAvatar').textContent = ename.charAt(0).toUpperCase();
+        document.getElementById('spName').textContent   = ename;
+        document.getElementById('spId').textContent     = eid;
+        document.getElementById('spShift').textContent  = '🕐 ' + shift + (st ? '  ' + st + '–' + et : '');
+        document.getElementById('spDept').textContent   = dept + (desig ? ' · ' + desig : '');
+        document.getElementById('swapSelectedPreview').style.display = 'block';
+
+        var btn = document.getElementById('swapSubmitBtn');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor  = 'pointer';
+      }
+
+      document.getElementById('swapForm') && document.getElementById('swapForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('swapTargetId').value) {
+          e.preventDefault();
+          alert('Please select a colleague to swap with.');
+        }
+      });
+
       function showPolicy(tab) {
-        var tabs = ['terms','rules','limitations','instructions','posh'];
+        var tabs = ['terms','rules','limitations','instructions','posh','resignation'];
         tabs.forEach(function(t) {
           var el = document.getElementById('policy-' + t);
           var btn = document.getElementById('ptab-' + t);
