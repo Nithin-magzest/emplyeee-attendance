@@ -2,6 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Redirect raw-IP loopback → localhost so WebAuthn rpId matches origin -->
+    <script>if(location.hostname==="127.0.0.1"||location.hostname==="::1"){location.replace(location.href.replace(location.hostname,"localhost"));}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Portal — {{ emp[1] }}</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
