@@ -10633,8 +10633,9 @@ def api_employee_auth_config():
 
 
 def _wa_rp_id():
-    """WebAuthn Relying Party ID — returns actual host (127.0.0.1 or localhost)."""
-    return request.host.split(":")[0]
+    """WebAuthn Relying Party ID — Chrome/Edge reject raw IPs; normalise loopback to localhost."""
+    host = request.host.split(":")[0]
+    return "localhost" if host in ("127.0.0.1", "::1") else host
 
 def _wa_origins():
     """Return the set of acceptable WebAuthn origins for this host."""
