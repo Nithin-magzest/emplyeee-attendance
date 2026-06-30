@@ -1,3 +1,10 @@
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -2964,17 +2971,17 @@ def settings_page():
             return str(v)[:5]
         company_shifts.setdefault(_cscid, []).append((_csid, _csname, _tdfmt(_csstart), _tdfmt(_cshalf), _tdfmt(_csend)))
 
-    # Company-specific breaks (company_id IS NOT NULL)
-    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, company_id FROM break_config WHERE company_id IS NOT NULL ORDER BY company_id, break_time")
+    # Company-specific breaks (company_id IS NOT NULL), nested per shift
+    cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, company_id, COALESCE(shift_id,0) FROM break_config WHERE company_id IS NOT NULL ORDER BY company_id, shift_id, break_time")
     _co_breaks_raw = cursor.fetchall()
     company_breaks = {}
-    for _cbid, _cbname, _cbt, _cbdur, _cbactive, _cbcid in _co_breaks_raw:
+    for _cbid, _cbname, _cbt, _cbdur, _cbactive, _cbcid, _cbsid in _co_breaks_raw:
         if _cbt is None: _cbt_str = "--"
         elif isinstance(_cbt, datetime.timedelta):
             _s = int(_cbt.total_seconds()); _cbt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
         elif isinstance(_cbt, datetime.time): _cbt_str = _cbt.strftime("%H:%M")
         else: _cbt_str = str(_cbt)[:5]
-        company_breaks.setdefault(_cbcid, []).append((_cbid, _cbname, _cbt_str, _cbdur, _cbactive))
+        company_breaks.setdefault(_cbcid, {}).setdefault(_cbsid, []).append((_cbid, _cbname, _cbt_str, _cbdur, _cbactive))
 
     # Breaks (with shift_id) — pre-format break_time as HH:MM
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config WHERE company_id IS NULL ORDER BY shift_id, break_time")
@@ -3015,21 +3022,6 @@ def settings_page():
     # Employee list for private announcement targeting
     cursor.execute("SELECT employee_id, name FROM employees WHERE is_active=1 ORDER BY name")
     ann_emp_list = cursor.fetchall()
-
-    # Incentive goals
-    cursor.execute("SELECT id, title, description, incentive_amount, is_active FROM incentive_goals ORDER BY created_at DESC")
-    incentive_goals = cursor.fetchall()
-
-    # Recent incentive awards (last 100)
-    cursor.execute("""
-        SELECT ei.id, e.name, ig.title, ei.month, ei.year, ei.amount, ei.notes, ei.awarded_at
-        FROM employee_incentives ei
-        JOIN employees e ON ei.employee_id = e.employee_id
-        JOIN incentive_goals ig ON ei.goal_id = ig.id
-        ORDER BY ei.awarded_at DESC
-        LIMIT 100
-    """)
-    recent_incentives = cursor.fetchall()
 
     # Pending counts
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
@@ -3136,8 +3128,6 @@ def settings_page():
         breaks=breaks,
         salaries=salaries,
         ann_list=ann_list,
-        incentive_goals=incentive_goals,
-        recent_incentives=recent_incentives,
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
@@ -3582,99 +3572,6 @@ def delete_company(cid):
     flash("Company deleted.", "success")
     return redirect(dest)
 
-
-# ---------------- INCENTIVES ----------------
-
-@app.route("/add_incentive_goal", methods=["POST"])
-@admin_required
-def add_incentive_goal():
-    title  = request.form.get("title", "").strip()
-    desc   = request.form.get("description", "").strip()
-    amount = request.form.get("incentive_amount", "0").strip()
-    if not title:
-        return redirect("/settings?tab=incentives")
-    try:
-        amount = float(amount)
-    except ValueError:
-        amount = 0.0
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "INSERT INTO incentive_goals (title, description, incentive_amount) VALUES (%s,%s,%s)",
-        (title, desc, amount)
-    )
-    db.commit(); cursor.close(); db.close()
-    flash("Incentive goal added.", "success")
-    return redirect("/settings?tab=incentives")
-
-@app.route("/edit_incentive_goal", methods=["POST"])
-@admin_required
-def edit_incentive_goal():
-    gid    = request.form.get("goal_id")
-    title  = request.form.get("title", "").strip()
-    desc   = request.form.get("description", "").strip()
-    amount = request.form.get("incentive_amount", "0").strip()
-    active = 1 if request.form.get("is_active") else 0
-    try:
-        amount = float(amount)
-    except ValueError:
-        amount = 0.0
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "UPDATE incentive_goals SET title=%s, description=%s, incentive_amount=%s, is_active=%s WHERE id=%s",
-        (title, desc, amount, active, gid)
-    )
-    db.commit(); cursor.close(); db.close()
-    flash("Incentive goal updated.", "success")
-    return redirect("/settings?tab=incentives")
-
-@app.route("/delete_incentive_goal", methods=["POST"])
-@admin_required
-def delete_incentive_goal():
-    gid = request.form.get("goal_id")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("DELETE FROM employee_incentives WHERE goal_id=%s", (gid,))
-    cursor.execute("DELETE FROM incentive_goals WHERE id=%s", (gid,))
-    db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=incentives")
-
-@app.route("/award_incentive", methods=["POST"])
-@admin_required
-def award_incentive():
-    emp_id = request.form.get("employee_id", "").strip()
-    goal_id = request.form.get("goal_id", "").strip()
-    month  = int(request.form.get("month", datetime.date.today().month))
-    year   = int(request.form.get("year",  datetime.date.today().year))
-    amount = request.form.get("amount", "").strip()
-    notes  = request.form.get("notes", "").strip()
-    if not emp_id or not goal_id:
-        return redirect("/settings?tab=incentives")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    # If amount not given, use the goal's default amount
-    if not amount:
-        cursor.execute("SELECT incentive_amount FROM incentive_goals WHERE id=%s", (goal_id,))
-        row = cursor.fetchone()
-        amount = float(row[0]) if row else 0.0
-    else:
-        try:
-            amount = float(amount)
-        except ValueError:
-            amount = 0.0
-    cursor.execute(
-        "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",
-        (emp_id, goal_id, month, year, amount, notes)
-    )
-    db.commit(); cursor.close(); db.close()
-    flash("Incentive awarded.", "success")
-    return redirect("/settings?tab=incentives")
-
-@app.route("/delete_incentive", methods=["POST"])
-@admin_required
-def delete_incentive():
-    inc_id = request.form.get("incentive_id")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("DELETE FROM employee_incentives WHERE id=%s", (inc_id,))
-    db.commit(); cursor.close(); db.close()
-    return redirect("/settings?tab=incentives")
 
 # ---------------- ANNOUNCEMENTS ----------------
 @app.route("/announcements", methods=["GET", "POST"])
@@ -5254,16 +5151,18 @@ def add_break():
     dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
     cid_raw  = request.form.get("company_id", "").strip()
     company_id = int(cid_raw) if cid_raw.isdigit() else None
+    sid_raw  = request.form.get("shift_id", "").strip()
+    shift_id = int(sid_raw) if sid_raw.isdigit() else None
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     if company_id:
         cursor.execute(
-            "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
-            (name, btime, duration, company_id)
+            "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id, shift_id) VALUES (%s,%s,%s,%s,%s)",
+            (name, btime, duration, company_id, shift_id)
         )
     else:
-        cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s,%s,%s)",
-                       (name, btime, duration))
+        cursor.execute("INSERT INTO break_config (break_name, break_time, duration_minutes, shift_id) VALUES (%s,%s,%s,%s)",
+                       (name, btime, duration, shift_id))
     db.commit(); cursor.close(); db.close()
     flash("Break added successfully.", "success")
     return redirect(dest)
@@ -5280,12 +5179,19 @@ def update_break(bid=None):
     duration = int(request.form.get("duration_minutes", 10) or 10)
     active   = 1 if request.form.get("is_active") else 0
     dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
+    sid_raw  = request.form.get("shift_id", "").strip()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s WHERE id=%s",
-        (name, btime, duration, active, bid)
-    )
+    if sid_raw.isdigit():
+        cursor.execute(
+            "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s, shift_id=%s WHERE id=%s",
+            (name, btime, duration, active, int(sid_raw), bid)
+        )
+    else:
+        cursor.execute(
+            "UPDATE break_config SET break_name=%s, break_time=%s, duration_minutes=%s, is_active=%s WHERE id=%s",
+            (name, btime, duration, active, bid)
+        )
     db.commit(); cursor.close(); db.close()
     flash("Break updated.", "success")
     return redirect(dest)
