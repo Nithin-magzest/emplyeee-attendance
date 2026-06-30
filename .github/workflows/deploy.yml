@@ -41,7 +41,7 @@ jobs:
 
       - name: Check DevOps files exist
         run: |
-          for f in Dockerfile entrypoint.sh docker-compose.yml nginx/nginx.conf generate_cert.py; do
+          for f in Dockerfile entrypoint.sh docker-compose.yml docker-compose.prod.yml nginx/nginx.conf.template generate_cert.py init-letsencrypt.sh deploy.sh; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
@@ -68,3 +68,28 @@ jobs:
           sleep 5
           docker logs test-app 2>&1 | tail -20
           docker rm -f test-app || true
+
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: docker
+    # Only deploy on a direct push to master, never on pull_request runs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/employee-attendance
+            git pull origin master
+            COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+            $COMPOSE build app
+            $COMPOSE up -d --no-deps app nginx certbot redis
+            docker image prune -f
+            echo "Deploy complete at $(date)"

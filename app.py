@@ -4,6 +4,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import uuid
 from werkzeug.utils import secure_filename
+from urllib.parse import urlparse
 import datetime
 import html as _html
 try:
@@ -13,6 +14,19 @@ except Exception as _fr_err:
     face_recognition = None
     _face_recognition_available = False
     print(f"⚠  face_recognition unavailable ({_fr_err}). Face features disabled.")
+try:
+    import webauthn
+    from webauthn.helpers.structs import (
+        AuthenticatorSelectionCriteria, AuthenticatorAttachment, UserVerificationRequirement,
+        ResidentKeyRequirement, PublicKeyCredentialDescriptor, AuthenticatorTransport,
+        COSEAlgorithmIdentifier,
+    )
+    _webauthn_available = True
+except Exception as _wa_err:
+    webauthn = None
+    _webauthn_available = False
+    print(f"⚠  webauthn unavailable ({_wa_err}). Fingerprint features disabled. (Needs Python 3.8+; "
+          f"runs fine in the production Docker image, which uses Python 3.11.)")
 from database import get_db_connection
 from qr_generator import generate_qr
 from werkzeug.security import check_password_hash
@@ -37,6 +51,8 @@ from email import encoders
 import threading
 import io as _io
 import hashlib
+import time
+import base64
 from werkzeug.exceptions import HTTPException
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -109,6 +125,7 @@ def healthz():
         conn = _hc_get_db()
         cur = conn.cursor()
         cur.execute("SELECT 1")
+        cur.fetchone()
         cur.close(); conn.close()
         return jsonify({"status": "ok", "db": "connected"}), 200
     except Exception as e:
@@ -129,14 +146,22 @@ def fmt_time_filter(value):
     return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
 
 # ---------------- CONFIG ----------------
-_key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
-if os.path.exists(_key_file):
-    with open(_key_file) as _f:
-        app.secret_key = _f.read().strip()
+# SECRET_KEY from the environment takes priority (and is what makes the key
+# stable across container recreates in production — set it in .env). Falls
+# back to a locally-generated, file-persisted key for local dev where it's
+# not set.
+_env_secret_key = os.environ.get("SECRET_KEY", "").strip()
+if _env_secret_key:
+    app.secret_key = _env_secret_key
 else:
-    app.secret_key = secrets.token_hex(32)
-    with open(_key_file, "w") as _f:
-        _f.write(app.secret_key)
+    _key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
+    if os.path.exists(_key_file):
+        with open(_key_file) as _f:
+            app.secret_key = _f.read().strip()
+    else:
+        app.secret_key = secrets.token_hex(32)
+        with open(_key_file, "w") as _f:
+            _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -296,6 +321,15 @@ _SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
                    "/save_security_settings", "/toggle_auth_feature",
                    "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
                    "/save_company_info", "/toggle_feature"}
+
+@app.after_request
+def _security_headers(response):
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if request.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 @app.after_request
 def _bust_settings_cache(response):
@@ -1130,6 +1164,14 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mobile_biometric_proofs (
+            employee_id VARCHAR(50) PRIMARY KEY,
+            nonce VARCHAR(64) DEFAULT NULL,
+            nonce_expires_at DATETIME DEFAULT NULL,
+            verified_at DATETIME DEFAULT NULL
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS regularization_requests (
             id INT AUTO_INCREMENT PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
@@ -1465,7 +1507,7 @@ def assign_leave_balances_for_employee(cursor, employee_id, year=None):
         cursor.execute("""
             INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
             VALUES (%s, %s, %s, %s, 0)
-            ON DUPLICATE KEY UPDATE total_days=IF(total_days=0, VALUES(total_days), total_days)
+            ON DUPLICATE KEY UPDATE total_days=IF(used_days=0, VALUES(total_days), total_days)
         """, (employee_id, lt_id, year, quota))
 
 
@@ -2248,7 +2290,7 @@ def admin_login():
             emp_row = cursor.fetchone()
         if emp_row:
             stored_pwd = emp_row[3]
-            if stored_pwd and not check_password_hash(stored_pwd, password):
+            if not stored_pwd or not check_password_hash(stored_pwd, password):
                 return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
             session.clear()
             session["employee_id"]   = emp_row[0]
@@ -2646,42 +2688,48 @@ def admin_action():
     cursor = db.cursor(buffered=True)
 
     if action == "register":
-        name            = request.form["name"]
-        emp_id          = request.form["emp_id"].strip()
-        email           = request.form.get("email", "").strip() or None
-        role            = request.form.get("role", "").strip() or None
-        date_of_joining = request.form.get("date_of_joining", "").strip() or None
-        work_mode       = request.form.get("work_mode", "office").strip() or "office"
-        work_lat_raw    = request.form.get("work_lat", "").strip()
-        work_lon_raw    = request.form.get("work_lon", "").strip()
-        work_lat        = float(work_lat_raw) if work_lat_raw else None
-        work_lon        = float(work_lon_raw) if work_lon_raw else None
-        company_id_raw  = request.form.get("company_id", "").strip()
-        company_id      = int(company_id_raw) if company_id_raw.isdigit() else None
-        # Extended fields
-        department      = request.form.get("department", "").strip() or None
-        phone           = request.form.get("phone", "").strip() or None
-        manager_id      = request.form.get("manager_id", "").strip() or None
-        manager_name    = request.form.get("manager_name", "").strip() or None
-        salary_per_day_raw = request.form.get("salary_per_day", "").strip()
-        salary_per_day  = float(salary_per_day_raw) if salary_per_day_raw else None
-        gender          = request.form.get("gender", "").strip() or None
-        dob_raw         = request.form.get("dob", "").strip()
-        dob             = dob_raw if dob_raw else None
-        blood_group     = request.form.get("blood_group", "").strip() or None
-        address         = request.form.get("address", "").strip() or None
-        city            = request.form.get("city", "").strip() or None
-        state           = request.form.get("state", "").strip() or None
-        pincode         = request.form.get("pincode", "").strip() or None
-        ec_name         = request.form.get("emergency_contact_name", "").strip() or None
-        ec_phone        = request.form.get("emergency_contact_phone", "").strip() or None
-        ec_relation     = request.form.get("emergency_contact_relation", "").strip() or None
-        aadhar          = request.form.get("aadhar_number", "").strip() or None
-        pan             = request.form.get("pan_number", "").strip().upper() or None
-        bank_name       = request.form.get("bank_name", "").strip() or None
-        bank_account    = request.form.get("bank_account", "").strip() or None
-        bank_ifsc       = request.form.get("bank_ifsc", "").strip().upper() or None
-        uan             = request.form.get("uan_number", "").strip() or None
+        try:
+            name            = request.form["name"]
+            emp_id          = request.form["emp_id"].strip()
+            email           = request.form.get("email", "").strip() or None
+            role            = request.form.get("role", "").strip() or None
+            date_of_joining = request.form.get("date_of_joining", "").strip() or None
+            work_mode       = request.form.get("work_mode", "office").strip() or "office"
+            work_lat_raw    = request.form.get("work_lat", "").strip()
+            work_lon_raw    = request.form.get("work_lon", "").strip()
+            work_lat        = float(work_lat_raw) if work_lat_raw else None
+            work_lon        = float(work_lon_raw) if work_lon_raw else None
+            company_id_raw  = request.form.get("company_id", "").strip()
+            company_id      = int(company_id_raw) if company_id_raw.isdigit() else None
+            # Extended fields
+            department      = request.form.get("department", "").strip() or None
+            phone           = request.form.get("phone", "").strip() or None
+            manager_id      = request.form.get("manager_id", "").strip() or None
+            manager_name    = request.form.get("manager_name", "").strip() or None
+            salary_per_day_raw = request.form.get("salary_per_day", "").strip()
+            salary_per_day  = float(salary_per_day_raw) if salary_per_day_raw else None
+            gender          = request.form.get("gender", "").strip() or None
+            dob_raw         = request.form.get("dob", "").strip()
+            dob             = dob_raw if dob_raw else None
+            blood_group     = request.form.get("blood_group", "").strip() or None
+            address         = request.form.get("address", "").strip() or None
+            city            = request.form.get("city", "").strip() or None
+            state           = request.form.get("state", "").strip() or None
+            pincode         = request.form.get("pincode", "").strip() or None
+            ec_name         = request.form.get("emergency_contact_name", "").strip() or None
+            ec_phone        = request.form.get("emergency_contact_phone", "").strip() or None
+            ec_relation     = request.form.get("emergency_contact_relation", "").strip() or None
+            aadhar          = request.form.get("aadhar_number", "").strip() or None
+            pan             = request.form.get("pan_number", "").strip().upper() or None
+            bank_name       = request.form.get("bank_name", "").strip() or None
+            bank_account    = request.form.get("bank_account", "").strip() or None
+            bank_ifsc       = request.form.get("bank_ifsc", "").strip().upper() or None
+            uan             = request.form.get("uan_number", "").strip() or None
+            file            = request.files["face"]
+        except (KeyError, ValueError) as _e:
+            cursor.close(); db.close()
+            flash(f"Missing or invalid field in registration form: {_e}", "error")
+            return redirect("/admin")
         # Auto-increment emp_id if it's already taken
         cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (emp_id,))
         if cursor.fetchone():
@@ -2697,7 +2745,6 @@ def admin_action():
                     if sfx.isdigit():
                         max_seq = max(max_seq, int(sfx))
                 emp_id = f"{prefix}{max_seq + 1:03d}"
-        file = request.files["face"]
         _img_ok, _img_err = _validate_image_file(file)
         if not _img_ok:
             flash(_img_err, "error")
@@ -2750,13 +2797,7 @@ def admin_action():
                     (emp_id, salary_per_day, salary_per_day)
                 )
                 db.commit()
-            fp_cred = request.form.get("fingerprint_credential_id", "").strip() or None
-            if fp_cred:
-                cursor.execute(
-                    "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
-                    (fp_cred, emp_id)
-                )
-                db.commit()
+            _enroll_fingerprint_from_form(emp_id, cursor, db)
             assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             flash(f"✅ Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -4374,13 +4415,7 @@ def add_employee_page():
                  _mgr_id, _mgr_name, _dept)
             )
             db.commit()
-            _fp_cred = request.form.get("fingerprint_credential_id", "").strip() or None
-            if _fp_cred:
-                cursor.execute(
-                    "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
-                    (_fp_cred, emp_id)
-                )
-                db.commit()
+            _enroll_fingerprint_from_form(emp_id, cursor, db)
             assign_leave_balances_for_employee(cursor, emp_id)
             db.commit()
             registered = True
@@ -6341,22 +6376,23 @@ def attendance():
     user_lat   = data.get("lat")
     user_lon   = data.get("lon")
     auth_combo = data.get("auth_combo", "qr_face")
-    fingerprint_verified = bool(data.get("fingerprint_verified", False))
 
     if auth_combo not in ("qr_face", "qr_only", "qr_fingerprint", "fingerprint_only"):
         return jsonify({"ok": False, "msg": "Invalid auth combination."})
+
+    if not emp_id:
+        err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
+        return jsonify({"ok": False, "msg": err_msg})
 
     cfg = get_auth_config()
 
     if auth_combo in ("qr_fingerprint", "fingerprint_only"):
         if not cfg["fingerprint_enabled"]:
             return jsonify({"ok": False, "msg": "Fingerprint not enabled. Ask your admin to enable it in Settings."}), 403
-        if not fingerprint_verified:
+        # Real, server-verified, one-time, employee-bound proof from
+        # /api/employee/webauthn-verify-challenge — not a client-supplied flag.
+        if not _wa_fingerprint_recently_verified(emp_id):
             return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
-
-    if not emp_id:
-        err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
-        return jsonify({"ok": False, "msg": err_msg})
 
     needs_face = (auth_combo == "qr_face")
     if needs_face and not face_b64:
@@ -10633,7 +10669,15 @@ def api_employee_auth_config():
 
 
 def _wa_rp_id():
-    """WebAuthn Relying Party ID — Chrome/Edge reject raw IPs; normalise loopback to localhost."""
+    """WebAuthn Relying Party ID — Chrome/Edge reject raw IPs; normalise loopback to localhost.
+    When ALLOWED_ORIGINS pins this deployment to specific domain(s) (production),
+    always use the first configured domain rather than trusting request.host —
+    otherwise a misrouted/alternate hostname (e.g. EC2's default public DNS, a
+    stale DNS entry during a domain cutover) could silently become a valid RP ID."""
+    if _allowed_origins != "*" and _allowed_origins:
+        canonical = urlparse(_allowed_origins[0]).hostname
+        if canonical:
+            return canonical
     host = request.host.split(":")[0]
     return "localhost" if host in ("127.0.0.1", "::1") else host
 
@@ -10647,65 +10691,183 @@ def _wa_origins():
         origins.add(f"{scheme}://{host.replace('127.0.0.1', 'localhost')}")
     elif "localhost" in host:
         origins.add(f"{scheme}://{host.replace('localhost', '127.0.0.1')}")
+    # Only trust the client-supplied Origin header when it's in the configured
+    # ALLOWED_ORIGINS allowlist (or ALLOWED_ORIGINS is "*", i.e. local dev) —
+    # otherwise a direct (non-browser) API caller could set any Origin header
+    # and have it self-validate against this same check.
     origin_header = request.headers.get("Origin", "")
-    if origin_header:
+    if origin_header and (_allowed_origins == "*" or origin_header in _allowed_origins):
         origins.add(origin_header)
     return list(origins)
 
-def _wa_challenge_b64():
-    import base64 as _b64
-    return _b64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+def _wa_b64url_decode(s):
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+def _wa_b64url_encode(b):
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+# How long a real, just-completed WebAuthn assertion stays usable to authorize
+# a single subsequent check-in call, scoped to the specific employee_id that
+# completed it. Prevents both replay across employees and indefinite reuse.
+_WA_FP_VERIFY_WINDOW_SEC = 120
+
+def _wa_fingerprint_recently_verified(emp_id):
+    """One-time, employee-bound check: did this employee just complete a real
+    WebAuthn signature verification in this session? Consumes the proof."""
+    emp_id = (emp_id or "").strip().upper()
+    verified_emp = session.pop("wa_fp_verified_emp_id", None)
+    verified_at  = session.pop("wa_fp_verified_at", 0)
+    return bool(emp_id) and verified_emp == emp_id and (time.time() - verified_at) <= _WA_FP_VERIFY_WINDOW_SEC
 
 
-@app.route("/webauthn/challenge", methods=["GET"])
-def webauthn_challenge():
-    """Return a fresh random base64url challenge (legacy endpoint — also stores in session)."""
-    b64 = _wa_challenge_b64()
-    session["wa_legacy_challenge"] = b64
-    return jsonify({"challenge": b64})
+# ---- Mobile-app biometric attestation -------------------------------------
+# The mobile app has no browser, so it can't do real WebAuthn (no native
+# platform-authenticator API in React Native) and has no Flask session
+# cookie to piggyback the proof above on. Instead it gets a weaker but still
+# meaningfully-bound proof: a server-issued, single-use nonce minted only to
+# the holder of a valid employee Bearer token, consumed by a second
+# Bearer-authenticated call right after the device's local biometric/PIN
+# check succeeds. This is NOT a cryptographic signature — it cannot detect a
+# cloned/replayed device biometric — but unlike the old flow it cannot be
+# satisfied without first proving possession of that exact employee's token.
+_MOBILE_BIO_NONCE_TTL_SEC    = 60
+_MOBILE_BIO_VERIFY_WINDOW_SEC = 120
+
+def _mobile_biometric_issue_nonce(emp_id):
+    """Mint a fresh single-use nonce for emp_id, replacing any prior one."""
+    nonce = secrets.token_hex(16)
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "INSERT INTO mobile_biometric_proofs (employee_id, nonce, nonce_expires_at, verified_at) "
+            "VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL %s SECOND), NULL) "
+            "ON DUPLICATE KEY UPDATE nonce=VALUES(nonce), nonce_expires_at=VALUES(nonce_expires_at), verified_at=NULL",
+            (emp_id, nonce, _MOBILE_BIO_NONCE_TTL_SEC)
+        )
+        conn.commit()
+    return nonce
+
+def _mobile_biometric_attest(emp_id, nonce):
+    """Consume a nonce after the mobile app confirms a local biometric/device
+    check for this exact authenticated employee. Returns (ok, err_msg)."""
+    if not nonce:
+        return False, "Missing nonce"
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "SELECT nonce, nonce_expires_at FROM mobile_biometric_proofs WHERE employee_id=%s",
+            (emp_id,)
+        )
+        row = cursor.fetchone()
+        if not row or row[0] != nonce or not row[1] or row[1] < datetime.datetime.now():
+            return False, "Invalid or expired nonce"
+        cursor.execute(
+            "UPDATE mobile_biometric_proofs SET nonce=NULL, nonce_expires_at=NULL, verified_at=NOW() "
+            "WHERE employee_id=%s",
+            (emp_id,)
+        )
+        conn.commit()
+    return True, None
+
+def _mobile_biometric_recently_verified(emp_id):
+    """One-time, employee-bound check mirroring _wa_fingerprint_recently_verified,
+    but DB-backed (mobile has no Flask session) and gated by a real employee
+    Bearer token at both the nonce-issue and attest steps above."""
+    emp_id = (emp_id or "").strip().upper()
+    if not emp_id:
+        return False
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "SELECT verified_at FROM mobile_biometric_proofs WHERE employee_id=%s",
+            (emp_id,)
+        )
+        row = cursor.fetchone()
+        if not row or not row[0]:
+            return False
+        verified_at = row[0]
+        cursor.execute(
+            "UPDATE mobile_biometric_proofs SET verified_at=NULL WHERE employee_id=%s",
+            (emp_id,)
+        )
+        conn.commit()
+    return (datetime.datetime.now() - verified_at).total_seconds() <= _MOBILE_BIO_VERIFY_WINDOW_SEC
+
+
+def _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db):
+    """Verify a WebAuthn registration response (real signature/attestation
+    check) and persist the credential id + public key + sign count.
+    `credential` may be a dict or a JSON string. Returns (ok, err_msg)."""
+    if not _webauthn_available:
+        return False, "Fingerprint enrollment is not available on this server."
+    if not credential or not challenge_b64:
+        return False, "Missing credential or challenge"
+    try:
+        if isinstance(credential, str):
+            credential = json.loads(credential)
+        verified = webauthn.verify_registration_response(
+            credential=credential,
+            expected_challenge=_wa_b64url_decode(challenge_b64),
+            expected_rp_id=_wa_rp_id(),
+            expected_origin=_wa_origins(),
+        )
+    except Exception as e:
+        return False, str(e)
+    cred_id_b64 = _wa_b64url_encode(verified.credential_id)
+    pubkey_b64  = base64.b64encode(verified.credential_public_key).decode()
+    cursor.execute(
+        "UPDATE employees SET fingerprint_credential_id=%s, fingerprint_public_key=%s, "
+        "fingerprint_sign_count=%s WHERE employee_id=%s",
+        (cred_id_b64, pubkey_b64, verified.sign_count, emp_id)
+    )
+    db.commit()
+    return True, None
+
+
+def _enroll_fingerprint_from_form(emp_id, cursor, db):
+    """Shared by admin_action()/add_employee_page(): read the WebAuthn
+    attestation posted by the registration form (if any), verify and store
+    it, flashing a warning on failure. No-op if the field is empty."""
+    fp_attestation = request.form.get("fingerprint_attestation", "").strip()
+    if not fp_attestation:
+        return
+    _ok, _err = _wa_verify_and_store_registration(
+        emp_id, fp_attestation, session.get("wa_reg_challenge"), cursor, db
+    )
+    session.pop("wa_reg_challenge", None)
+    if not _ok:
+        flash(f"⚠️ Fingerprint enrollment failed verification: {_err}", "error")
 
 
 @app.route("/webauthn/registration-options", methods=["GET"])
 def webauthn_registration_options():
     """Server-generated WebAuthn registration options with challenge stored in session."""
-    import base64 as _b64
+    if not _webauthn_available:
+        return jsonify({"ok": False, "msg": "Fingerprint enrollment is not available on this server."}), 503
     emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
     emp_name = (request.args.get("name") or emp_id).strip()
     rp_id    = _wa_rp_id()
-    challenge_b64 = _wa_challenge_b64()
-    session["wa_reg_challenge"] = challenge_b64
-    options = {
-        "challenge": challenge_b64,
-        "rp": {"id": rp_id, "name": "Employee Attendance"},
-        "user": {
-            "id": _b64.urlsafe_b64encode(emp_id.encode()).rstrip(b"=").decode(),
-            "name": emp_id,
-            "displayName": emp_name,
-        },
-        "pubKeyCredParams": [
-            {"type": "public-key", "alg": -7},    # ES256
-            {"type": "public-key", "alg": -257},   # RS256
-        ],
-        "authenticatorSelection": {
-            "authenticatorAttachment": "platform",
-            "userVerification": "required",
-            "residentKey": "discouraged",
-        },
-        "timeout": 60000,
-        "attestation": "none",
-        "excludeCredentials": [],
-    }
-    return jsonify(options)
+    options = webauthn.generate_registration_options(
+        rp_id=rp_id,
+        rp_name="Employee Attendance",
+        user_name=emp_id,
+        user_display_name=emp_name,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            user_verification=UserVerificationRequirement.REQUIRED,
+            resident_key=ResidentKeyRequirement.DISCOURAGED,
+        ),
+        supported_pub_key_algs=[COSEAlgorithmIdentifier.ECDSA_SHA_256, COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256],
+    )
+    session["wa_reg_challenge"] = _wa_b64url_encode(options.challenge)
+    return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/webauthn/authentication-options", methods=["GET"])
 def webauthn_authentication_options():
     """Server-generated WebAuthn authentication options with challenge stored in session."""
+    if not _webauthn_available:
+        return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
     emp_id = (request.args.get("emp_id") or "").strip().upper()
     rp_id  = _wa_rp_id()
-    challenge_b64 = _wa_challenge_b64()
-    session["wa_auth_challenge"] = challenge_b64
-    session["wa_auth_emp_id"]    = emp_id
 
     allow_creds = []
     if emp_id:
@@ -10714,59 +10876,89 @@ def webauthn_authentication_options():
             cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
             row = cur.fetchone(); cur.close(); db.close()
             if row and row[0]:
-                allow_creds = [{"type": "public-key", "id": row[0], "transports": ["internal"]}]
+                allow_creds = [PublicKeyCredentialDescriptor(
+                    id=_wa_b64url_decode(row[0]), transports=[AuthenticatorTransport.INTERNAL]
+                )]
         except Exception:
             pass
 
-    options = {
-        "challenge": challenge_b64,
-        "rpId": rp_id,
-        "allowCredentials": allow_creds,
-        "userVerification": "required",
-        "timeout": 60000,
-    }
-    return jsonify(options)
+    options = webauthn.generate_authentication_options(
+        rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    session["wa_auth_challenge"] = _wa_b64url_encode(options.challenge)
+    session["wa_auth_emp_id"]    = emp_id
+    return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/employee/webauthn-verify-challenge", methods=["POST"])
 def webauthn_verify_challenge():
     """
-    Lightweight server-side verification:
-    - checks clientDataJSON.challenge matches session challenge
-    - checks clientDataJSON.origin is expected
-    Returns ok:true so the kiosk can trust the result.
+    Real server-side WebAuthn assertion verification: checks the ECDSA/RSA
+    signature in the assertion against the employee's stored public key (not
+    just the clientDataJSON fields, which are trivially forgeable on their
+    own). On success, sets a short-lived, one-time, employee-bound session
+    flag that /attendance and /api/employee/qr-face-checkin consume to allow
+    the actual check-in — this stops a verified fingerprint for employee A
+    from being reused to check in as employee B.
     """
-    import base64 as _b64, json as _j
-    data    = request.get_json(force=True, silent=True) or {}
-    emp_id  = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
-    stored  = session.get("wa_auth_challenge", "") or session.get("wa_legacy_challenge", "")
+    if not _webauthn_available:
+        return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
+    data       = request.get_json(force=True, silent=True) or {}
+    emp_id     = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
+    credential = data.get("credential")
+    challenge_b64 = session.get("wa_auth_challenge")
 
-    client_data_b64 = (data.get("clientDataJSON") or "").strip()
-    if not client_data_b64 or not stored:
-        return jsonify({"ok": False, "msg": "Missing clientDataJSON or session challenge"}), 400
+    if not credential or not challenge_b64 or not emp_id:
+        return jsonify({"ok": False, "msg": "Missing credential, challenge, or emp_id"}), 400
 
     try:
-        pad = 4 - len(client_data_b64) % 4
-        client_json = _j.loads(_b64.urlsafe_b64decode(client_data_b64 + "=" * pad).decode())
-        received_challenge = client_json.get("challenge", "")
-        received_origin    = client_json.get("origin", "")
-        action             = client_json.get("type", "")
+        db = get_db_connection(); cur = db.cursor(buffered=True)
+        cur.execute(
+            "SELECT fingerprint_public_key, fingerprint_sign_count FROM employees WHERE employee_id=%s",
+            (emp_id,)
+        )
+        row = cur.fetchone()
+        if not row or not row[0]:
+            cur.close(); db.close()
+            return jsonify({"ok": False, "msg": "No fingerprint enrolled for this employee"}), 401
+        stored_pubkey = base64.b64decode(row[0])
+        stored_sign_count = row[1] or 0
 
-        if received_challenge != stored:
-            return jsonify({"ok": False, "msg": "Challenge mismatch — possible replay"}), 401
-        if action != "webauthn.get":
-            return jsonify({"ok": False, "msg": f"Unexpected action: {action}"}), 401
-
-        expected = _wa_origins()
-        if received_origin not in expected:
-            return jsonify({"ok": False, "msg": f"Origin not allowed: {received_origin}"}), 401
-
-        session.pop("wa_auth_challenge", None)
-        session.pop("wa_legacy_challenge", None)
-        return jsonify({"ok": True, "emp_id": emp_id})
-
+        verified = webauthn.verify_authentication_response(
+            credential=credential,
+            expected_challenge=_wa_b64url_decode(challenge_b64),
+            expected_rp_id=_wa_rp_id(),
+            expected_origin=_wa_origins(),
+            credential_public_key=stored_pubkey,
+            credential_current_sign_count=stored_sign_count,
+        )
     except Exception as e:
-        return jsonify({"ok": False, "msg": str(e)}), 401
+        try: cur.close(); db.close()
+        except Exception: pass
+        return jsonify({"ok": False, "msg": f"Verification failed: {e}"}), 401
+
+    session.pop("wa_auth_challenge", None)
+    session.pop("wa_auth_emp_id", None)
+
+    # Persisting the new sign count is best-effort bookkeeping (anti-clone
+    # detection) — a failure here doesn't invalidate a verification that
+    # already succeeded above, so it's swallowed rather than failing the
+    # whole request. Reuses the connection from the SELECT above instead of
+    # opening a second one.
+    try:
+        cur.execute(
+            "UPDATE employees SET fingerprint_sign_count=%s WHERE employee_id=%s",
+            (verified.new_sign_count, emp_id)
+        )
+        db.commit()
+    except Exception:
+        pass
+    finally:
+        cur.close(); db.close()
+
+    session["wa_fp_verified_emp_id"] = emp_id
+    session["wa_fp_verified_at"]     = time.time()
+    return jsonify({"ok": True, "emp_id": emp_id})
 
 
 @app.route("/api/employee/webauthn-register", methods=["POST"])
@@ -10775,22 +10967,20 @@ def webauthn_register():
     emp_id = session.get("employee_id")
     if not emp_id:
         return jsonify({"ok": False, "msg": "Not logged in"}), 401
-    data          = request.get_json(force=True, silent=True) or {}
-    credential_id = (data.get("credential_id") or "").strip()
-    if not credential_id:
-        return jsonify({"ok": False, "msg": "credential_id required"}), 400
+    data       = request.get_json(force=True, silent=True) or {}
+    credential = data.get("credential")
+    challenge_b64 = session.get("wa_reg_challenge")
     try:
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute(
-            "UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
-            (credential_id, emp_id)
-        )
-        db.commit()
+        ok, err = _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db)
         cursor.close(); db.close()
-        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
+    session.pop("wa_reg_challenge", None)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 401
+    return jsonify({"ok": True})
 
 
 @app.route("/api/employee/webauthn-unenroll", methods=["POST"])
@@ -10814,6 +11004,7 @@ def webauthn_unenroll():
 
 
 @app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id for an employee (public, used by kiosk)."""
     emp_id = emp_id.strip().upper()
@@ -10829,6 +11020,35 @@ def get_employee_webauthn_credential(emp_id):
         return jsonify({"ok": True, "credential_id": None})
 
 
+@app.route("/api/employee/mobile-biometric-nonce", methods=["POST"])
+@limiter.limit("10 per minute")
+@employee_api_required
+def api_mobile_biometric_nonce():
+    """Mobile app calls this (with its employee Bearer token) right before
+    prompting the device's local biometric/PIN check. The returned nonce
+    must be echoed back to /mobile-biometric-attest within 60s."""
+    from flask import g as _g
+    nonce = _mobile_biometric_issue_nonce(_g.api_emp_id)
+    return jsonify({"ok": True, "nonce": nonce})
+
+
+@app.route("/api/employee/mobile-biometric-attest", methods=["POST"])
+@limiter.limit("10 per minute")
+@employee_api_required
+def api_mobile_biometric_attest():
+    """Mobile app calls this immediately after a successful local
+    LocalAuthentication.authenticateAsync(), turning that local-only signal
+    into a server-side, employee-bound, single-use, time-boxed proof that
+    /api/employee/qr-face-checkin will accept for fingerprint combos."""
+    from flask import g as _g
+    data  = request.get_json(force=True, silent=True) or {}
+    nonce = (data.get("nonce") or "").strip()
+    ok, err = _mobile_biometric_attest(_g.api_emp_id, nonce)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 401
+    return jsonify({"ok": True})
+
+
 @app.route("/api/employee/qr-face-checkin", methods=["POST"])
 def api_employee_qr_face_checkin():
     """Public kiosk endpoint — supports auth_combo: qr_face | qr_fingerprint | face_fingerprint."""
@@ -10837,10 +11057,12 @@ def api_employee_qr_face_checkin():
     lon                = request.form.get("lon")
     face_photo         = request.files.get("face_photo")
     auth_combo         = request.form.get("auth_combo", "qr_face")
-    fingerprint_verified = request.form.get("fingerprint_verified", "false").lower() == "true"
 
     if auth_combo not in ("qr_face", "qr_fingerprint", "face_fingerprint"):
         return jsonify({"ok": False, "msg": "Invalid auth_combo"}), 400
+
+    if not employee_id:
+        return jsonify({"ok": False, "msg": "employee_id required"}), 400
 
     cfg = get_auth_config()
 
@@ -10851,11 +11073,13 @@ def api_employee_qr_face_checkin():
     if auth_combo in ("qr_fingerprint", "face_fingerprint"):
         if not cfg["fingerprint_enabled"]:
             return jsonify({"ok": False, "msg": "Fingerprint authentication is not enabled"}), 403
-        if not fingerprint_verified:
+        # Real, server-verified, one-time, employee-bound proof from either
+        # /api/employee/webauthn-verify-challenge (web kiosk, session-based)
+        # or /api/employee/mobile-biometric-attest (mobile app, Bearer-token-
+        # bound) — never a raw client-supplied flag.
+        if not (_wa_fingerprint_recently_verified(employee_id)
+                or _mobile_biometric_recently_verified(employee_id)):
             return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
-
-    if not employee_id:
-        return jsonify({"ok": False, "msg": "employee_id required"}), 400
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -11147,7 +11371,9 @@ def api_employee_salary():
     _, days_in_month = cal.monthrange(year, month)
     billable = sum(
         1 for d in range(1, days_in_month + 1)
-        if datetime.date(year, month, d).weekday() < 5
+        # weekday() != 6 excludes only Sunday, matching get_working_days() —
+        # the real payroll engine treats Saturday as a billable working day.
+        if datetime.date(year, month, d).weekday() != 6
         and datetime.date(year, month, d) not in holiday_set
     )
     cursor.execute("""
@@ -13720,8 +13946,8 @@ if __name__ == "__main__":
     load_default_shift()
     load_salary_rules()
     import os as _os
-    _cert = _os.path.join(_os.path.dirname(__file__), "cert.pem")
-    _key  = _os.path.join(_os.path.dirname(__file__), "key.pem")
+    _cert = _os.environ.get("SSL_CERT_PATH") or _os.path.join(_os.path.dirname(__file__), "cert.pem")
+    _key  = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("🔒  SSL cert found — starting on https://0.0.0.0:5000")
         app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,

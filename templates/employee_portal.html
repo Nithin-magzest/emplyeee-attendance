@@ -2856,11 +2856,23 @@
                 }
               });
 
-              const credentialId = toB64url(cred.rawId);
+              function regCredentialToJSON(c) {
+                if (c.toJSON) return c.toJSON();
+                return {
+                  id: c.id,
+                  rawId: toB64url(c.rawId),
+                  type: c.type,
+                  response: {
+                    clientDataJSON:    toB64url(c.response.clientDataJSON),
+                    attestationObject: toB64url(c.response.attestationObject),
+                  },
+                  clientExtensionResults: c.getClientExtensionResults ? c.getClientExtensionResults() : {},
+                };
+              }
               const saveR  = await fetch('/api/employee/webauthn-register', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ credential_id: credentialId }),
+                body:    JSON.stringify({ credential: regCredentialToJSON(cred) }),
               });
               const saved = await saveR.json();
               if (!saved.ok) throw new Error(saved.msg || 'Save failed');

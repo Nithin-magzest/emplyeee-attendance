@@ -54,6 +54,12 @@ export const qrFaceCheckin = (formData) =>
 export const getAuthConfig = () =>
   client.get('/api/employee/auth-config');
 
+export const getMobileBiometricNonce = () =>
+  client.post('/api/employee/mobile-biometric-nonce');
+
+export const attestMobileBiometric = (nonce) =>
+  client.post('/api/employee/mobile-biometric-attest', { nonce });
+
 export const attendanceCheckin = (formData) =>
   client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 

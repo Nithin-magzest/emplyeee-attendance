@@ -770,7 +770,7 @@
                   <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
                 <div id="sec-fingerprint" style="display:none;" class="form-sub-body">
-                  <input type="hidden" name="fingerprint_credential_id" id="regFpCredentialId" />
+                  <input type="hidden" name="fingerprint_attestation" id="regFpAttestation" />
                   <div id="regFpEnrollBox" style="border:1.5px dashed #bfdbfe;border-radius:10px;padding:14px 16px;background:#f8fafc;margin-bottom:10px;">
                     <div style="font-size:12px;color:#64748b;margin-bottom:10px;">
                       Enroll the employee's fingerprint now (optional). The employee can also enroll later from their portal.
@@ -1171,6 +1171,10 @@
             var pad = b64.length % 4 ? '='.repeat(4 - b64.length % 4) : '';
             return Uint8Array.from(atob(b64 + pad), function(c){ return c.charCodeAt(0); });
           }
+          function toB64url(buf) {
+            var s = ''; new Uint8Array(buf).forEach(function(b){ s += String.fromCharCode(b); });
+            return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+          }
 
           var authSel = hasPlatform
             ? { authenticatorAttachment: 'platform',       userVerification: 'required'  }
@@ -1189,7 +1193,20 @@
             }
           });
 
-          document.getElementById('regFpCredentialId').value = cred.id;
+          function regCredentialToJSON(c) {
+            if (c.toJSON) return c.toJSON();
+            return {
+              id: c.id,
+              rawId: toB64url(c.rawId),
+              type: c.type,
+              response: {
+                clientDataJSON:    toB64url(c.response.clientDataJSON),
+                attestationObject: toB64url(c.response.attestationObject),
+              },
+              clientExtensionResults: c.getClientExtensionResults ? c.getClientExtensionResults() : {},
+            };
+          }
+          document.getElementById('regFpAttestation').value = JSON.stringify(regCredentialToJSON(cred));
           var label = hasPlatform ? 'Fingerprint enrolled!' : 'USB fingerprint enrolled!';
           status.innerHTML = '✅ <strong>' + label + '</strong> Will be saved when you register the employee.';
           status.style.color = '#16a34a';
@@ -1213,7 +1230,7 @@
       }
 
       function regClearFingerprint() {
-        document.getElementById('regFpCredentialId').value = '';
+        document.getElementById('regFpAttestation').value = '';
         var status = document.getElementById('regFpEnrollStatus');
         var box    = document.getElementById('regFpEnrollBox');
         var btn    = document.getElementById('regFpEnrollBtn');
