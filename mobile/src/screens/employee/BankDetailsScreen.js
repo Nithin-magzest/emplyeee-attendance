@@ -9,10 +9,10 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-
+import SaveButton from "../../components/profile/SaveButton.js";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import DetailCard from "../../components/profile/DetailCard";
-import SaveButton from "../../components/profile/SaveButton";
+
 
 export default function BankDetailsScreen() {
   const [bankDetails] = useState({
