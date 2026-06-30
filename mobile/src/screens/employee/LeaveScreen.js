@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import ProfileHeader from "../../components/profile/ProfileHeader";
 import { useFocusEffect } from "@react-navigation/native";
 import { submitLeaveRequest, fetchEmployeeLeaves, cancelLeaveRequest } from "../../api/client";
 
@@ -127,11 +128,10 @@ export default function LeaveScreen() {
 
   return (
     <LinearGradient colors={["#F8FAFC", "#F3F7FD", "#EDF4FF"]} style={styles.bg}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Ionicons name="document-text-outline" size={22} color="#173B8C" />
-        <Text style={styles.headerTitle}>Leave Management</Text>
-      </View>
+      <ProfileHeader
+  title="Leave Management"
+  showBack={false}
+/>
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
@@ -295,7 +295,7 @@ export default function LeaveScreen() {
               })}
             </>
           )}
-          <View style={{ height: 40 }} />
+          <View style={{ height: 110 }} />
         </ScrollView>
       )}
     </LinearGradient>

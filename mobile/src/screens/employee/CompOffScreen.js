@@ -93,9 +93,7 @@ const today = new Date();
 
       <View style={styles.headerCenter}>
 
-        <Text style={styles.smallTitle}>
-          Employee Portal
-        </Text>
+        
 
         <Text style={styles.title}>
           Comp-Off
@@ -199,7 +197,7 @@ smallTitle: {
 
 title: {
   marginTop: 3,
-  fontSize: 28,
+  fontSize: 18,
   color: "#0F172A",
   fontWeight: "800",
 },

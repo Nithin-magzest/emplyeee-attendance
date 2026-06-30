@@ -139,10 +139,7 @@ export default function AttendanceScreen() {
   </TouchableOpacity>
 
   <View style={styles.headerCenter}>
-    <Text style={styles.smallTitle}>
-      Employee Portal
-    </Text>
-
+    
     <Text style={styles.title}>
       Attendance
     </Text>
@@ -284,12 +281,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     textAlign: "center",
-    fontWeight: "600",
+    fontWeight: "800",
   },
 
   title: {
     marginTop: 3,
-    fontSize: 28,
+    fontSize: 18,
     color: "#0F172A",
     fontWeight: "800",
     textAlign: "center",

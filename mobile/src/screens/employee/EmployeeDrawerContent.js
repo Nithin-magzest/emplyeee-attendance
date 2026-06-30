@@ -35,12 +35,7 @@ const activeRoute =
 
   const menuItems = [
   // MAIN
-  {
-    title: "Dashboard",
-    icon: "grid-outline",
-    route: "Home",
-    section: "MAIN",
-  },
+  
   {
   title: "My Profile",
   icon: "person-circle-outline",
@@ -57,7 +52,7 @@ const activeRoute =
   {
     title: "Earnings",
     icon: "wallet-outline",
-    route: "Payslips",
+    route: "Earnings",
     section: "MAIN",
   },
 
@@ -86,14 +81,14 @@ const activeRoute =
     route: "Onboarding",
     section: "ACCOUNT",
   },
-
+{
+  title: "Policies & Guidelines",
+  icon: "document-text-outline",
+  route: "Policies",
+  section: "ACCOUNT",
+},
   // DANGER
-  {
-    title: "Resignation",
-    icon: "warning-outline",
-    route: "Resignation",
-    section: "DANGER",
-  },
+  
 ];
   const renderMenuItem = (item) => {
     const active = activeRoute === item.route;
@@ -118,7 +113,9 @@ const activeRoute =
       break;
 
     case "Attendance":
-  navigation.navigate("Attendance");
+  navigation.navigate("EmployeeTabs", {
+    screen: "Attendance",
+  });
   break;
 
     case "Leave":
@@ -126,14 +123,27 @@ const activeRoute =
         screen: "Leave",
       });
       break;
+      
       case "CompOff":
   navigation.navigate("EmployeeTabs", {
     screen: "CompOff",
   });
   break;
+  case "Earnings":
+  navigation.navigate("EmployeeTabs", {
+    screen: "Earnings",
+  });
+  break;
+  case "Onboarding":
+  navigation.navigate("EmployeeTabs", {
+    screen: "Onboarding",
+  });
+  break;
 
   case "Profile":
-  navigation.navigate("Profile");
+  navigation.navigate("EmployeeTabs", {
+    screen: "Profile",
+  });
   break;
 
     case "Tickets":
@@ -141,12 +151,27 @@ const activeRoute =
         screen: "Tickets",
       });
       break;
+      case "Holidays":
+  navigation.navigate("EmployeeTabs", {
+    screen: "Holidays",
+  });
+  break;
 
     case "Notifications":
       navigation.navigate("EmployeeTabs", {
         screen: "Notifications",
       });
       break;
+      case "Performance":
+  navigation.navigate("EmployeeTabs", {
+    screen: "Performance",
+  });
+  break;
+  case "Policies":
+  navigation.navigate("EmployeeTabs", {
+    screen: "Policies",
+  });
+  break;
 
     default:
       navigation.navigate(item.route);
@@ -255,7 +280,7 @@ const activeRoute =
 
 {renderSection("ACCOUNT", "ACCOUNT")}
 
-{renderSection("OTHER", "DANGER")}
+
 
       </DrawerContentScrollView>
       <View style={styles.bottomContainer}>
