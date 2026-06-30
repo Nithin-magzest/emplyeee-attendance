@@ -19,8 +19,14 @@ import DocumentsScreen from "../screens/employee/DocumentsScreen";
 import BankDetailsScreen from "../screens/employee/BankDetailsScreen";
 import SecurityScreen from "../screens/employee/SecurityScreen";
 import SettingsScreen from "../screens/employee/SettingsScreen";
+import EarningsScreen from "../screens/employee/EarningsScreen";
 // Replace this with your actual QR screen
 import AttendanceScreen from "../screens/employee/AttendanceScreen";
+import ProfileNavigator from "./ProfileNavigator";
+import HolidaysScreen from "../screens/employee/HolidaysScreen";
+import PerformanceScreen from "../screens/employee/PerformanceScreen";
+import OnboardingScreen from "../screens/employee/OnboardingScreen";
+import PoliciesScreen from "../screens/employee/PoliciesScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -140,6 +146,20 @@ tabBarLabelStyle: {
           tabBarLabel: "Home",
         }}
       />
+      <Tab.Screen
+  name="Holidays"
+  component={HolidaysScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
+<Tab.Screen
+  name="Onboarding"
+  component={OnboardingScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
 
       <Tab.Screen
         name="Leave"
@@ -148,6 +168,13 @@ tabBarLabelStyle: {
           tabBarLabel: "Leave",
         }}
       />
+      <Tab.Screen
+  name="Performance"
+  component={PerformanceScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
 
       <Tab.Screen
         name="Scan"
@@ -256,6 +283,34 @@ tabBarLabelStyle: {
   component={CompOffScreen}
   options={{
     tabBarButton: () => null, // Hide from bottom bar
+  }}
+/>
+<Tab.Screen
+  name="Earnings"
+  component={EarningsScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
+<Tab.Screen
+  name="Profile"
+  component={ProfileNavigator}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
+<Tab.Screen
+  name="Attendance"
+  component={AttendanceScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
+<Tab.Screen
+  name="Policies"
+  component={PoliciesScreen}
+  options={{
+    tabBarButton: () => null,
   }}
 />
     </Tab.Navigator>

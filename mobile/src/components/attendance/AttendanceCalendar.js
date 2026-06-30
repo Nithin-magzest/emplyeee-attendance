@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
     color: "#0F172A",
   },

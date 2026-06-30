@@ -112,9 +112,9 @@ const styles = StyleSheet.create({
 
   title: {
     marginTop: 3,
-    fontSize: 30,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#111827",
     letterSpacing: -0.8,
   },
 
