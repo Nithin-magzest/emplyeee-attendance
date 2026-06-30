@@ -1,0 +1,11 @@
+aws_region             = "ap-south-1"
+vpc_id                 = "vpc-xxxxxxxx"
+subnet_ids             = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
+ec2_security_group_id  = "sg-xxxxxxxx"
+ec2_instance_id        = "i-xxxxxxxxxxxxxxxxx"
+alert_email            = "you@example.com"
+
+# Do NOT put the real db_password here if this file is ever committed.
+# Prefer: export TF_VAR_db_password="..." instead, or copy this file to
+# terraform.tfvars (already gitignored) and fill it in there.
+# db_password = "..."

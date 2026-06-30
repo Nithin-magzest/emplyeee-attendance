@@ -6,7 +6,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
-import { attendanceCheckin, getAuthConfig } from '../api/client';
+import {
+  attendanceCheckin, getAuthConfig, getMobileBiometricNonce, attestMobileBiometric,
+} from '../api/client';
 import { useAuth } from '../store/AuthContext';
 
 const COMBO_QR_FACE        = 'qr_face';
@@ -50,7 +52,6 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   const [authConfig, setAuthConfig] = useState(DEFAULT_AUTH_CONFIG);
   const [availCombos, setAvailCombos] = useState([COMBO_QR_FACE]);
   const [authMethod, setAuthMethod] = useState(COMBO_QR_FACE);
-  const [fpVerified, setFpVerified] = useState(false);
 
   const cameraRef = useRef(null);
 
@@ -66,7 +67,6 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       setAuthConfig(DEFAULT_AUTH_CONFIG);
       setAvailCombos([COMBO_QR_FACE]);
       setAuthMethod(COMBO_QR_FACE);
-      setFpVerified(false);
       initModal();
     }
   }, [visible]);
@@ -118,13 +118,12 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────────
-  const submitAttendance = async ({ face, fingerprintOk = false, combo, empId }) => {
+  const submitAttendance = async ({ face, combo, empId }) => {
     setProcessing(true);
     try {
       const formData = new FormData();
       formData.append('employee_id',        empId || employeeId);
       formData.append('auth_combo',         combo || authMethod);
-      formData.append('fingerprint_verified', fingerprintOk ? 'true' : 'false');
       if (coords) {
         formData.append('lat', String(coords.lat));
         formData.append('lon', String(coords.lon));
@@ -201,12 +200,11 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     }
 
     if (authMethod === COMBO_QR_FACE) {
-      await submitAttendance({ face: photo, fingerprintOk: false });
+      await submitAttendance({ face: photo });
     } else {
-      // Face + Fingerprint: fingerprint already done, submit now
+      // Face + Fingerprint: fingerprint already attested, submit now
       await submitAttendance({
         face: photo,
-        fingerprintOk: fpVerified,
         empId: user?.employeeId,
         combo: COMBO_FACE_FP,
       });
@@ -231,6 +229,21 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
         return;
       }
 
+      // Mint a server-side nonce bound to this logged-in employee before
+      // prompting the sensor, so the attestation below can't be replayed.
+      let nonce;
+      try {
+        const nonceRes = await getMobileBiometricNonce();
+        nonce = nonceRes.data?.nonce;
+      } catch {
+        setProcessing(false);
+        Alert.alert('Server Error', 'Could not start fingerprint verification. Please check your connection and try again.', [
+          { text: 'Retry', onPress: () => setProcessing(false) },
+          { text: 'Cancel', onPress: onClose },
+        ]);
+        return;
+      }
+
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Verify your identity to mark attendance',
         cancelLabel:   'Cancel',
@@ -238,11 +251,22 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       });
 
       if (result.success) {
-        setFpVerified(true);
+        // Turn the local-only signal into a server-side, employee-bound proof.
+        try {
+          const attestRes = await attestMobileBiometric(nonce);
+          if (!attestRes.data?.ok) throw new Error();
+        } catch {
+          setProcessing(false);
+          Alert.alert('Fingerprint Failed', 'Could not confirm your fingerprint with the server. Please try again.', [
+            { text: 'Retry', onPress: () => setProcessing(false) },
+            { text: 'Cancel', onPress: onClose },
+          ]);
+          return;
+        }
         if (authMethod === COMBO_QR_FINGERPRINT) {
-          await submitAttendance({ fingerprintOk: true, combo: COMBO_QR_FINGERPRINT });
+          await submitAttendance({ combo: COMBO_QR_FINGERPRINT });
         } else {
-          // Face + Fingerprint — fingerprint done, now capture face
+          // Face + Fingerprint — fingerprint attested, now capture face
           setStep('face');
           setFacing('front');
         }
@@ -265,7 +289,6 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     setProcessing(false);
     setFacing('back');
     setEmployeeId(null);
-    setFpVerified(false);
     if (availCombos.length > 1) {
       setStep('method');
     } else {

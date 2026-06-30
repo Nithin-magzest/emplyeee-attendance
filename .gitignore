@@ -17,3 +17,11 @@ static/employee_docs/
 venv/
 cert.pem
 key.pem
+data/certbot/
+nginx/nginx.conf
+
+# Personal local MySQL troubleshooting scripts (hardcode local root password)
+FIX_MYSQL.bat
+READ_MYSQL_LOG.bat
+RESET_MYSQL_PASSWORD.bat
+reset_mysql_password.ps1
