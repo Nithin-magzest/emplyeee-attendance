@@ -426,9 +426,9 @@
         <div class="s3-tab-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Finances</div>
-          <div class="s3-tab-sub">Payroll · Salary · Incentives</div>
+          <div class="s3-tab-sub">Payroll · Salary</div>
         </div>
-        <span class="s3-tab-count">3</span>
+        <span class="s3-tab-count">2</span>
       </button>
       <button class="s3-tab" id="s3tab-sys" onclick="switchGroup('sys')">
         <div class="s3-tab-icon" style="background:#f0f9ff;"><i class="ti ti-settings" style="color:#0284c7;"></i></div>
@@ -522,39 +522,11 @@
                 <!-- Shifts strip -->
                 <div style="padding:5px 18px 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                   <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">🕐 Shifts:</span>
-                  {% if company_shifts.get(cid) %}
-                  {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
-                  <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;" title="{{ _csstart }} – {{ _csend }} (half: {{ _cshalf }})">
-                    {{ _csname }}
-                    <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit shift">✏</button>
-                    <form method="POST" action="/delete_shift/{{ _csid }}" style="display:inline;margin:0;" onsubmit="return confirm('Delete shift \'{{ _csname }}\'? Employees assigned to it will be unassigned.')">
-                      <input type="hidden" name="redirect" value="/settings?tab=company" />
-                      <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete shift">×</button>
-                    </form>
-                  </span>
-                  {% endfor %}
-                  {% else %}
+                  {% if not company_shifts.get(cid) %}
                   <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
                   {% endif %}
-                  <button type="button" onclick="toggleCoAddShift({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
+                  <button type="button" onclick="toggleCoAddShift({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Shift</button>
                 </div>
-                <!-- Per-shift inline edit forms -->
-                {% if company_shifts.get(cid) %}
-                {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
-                <div id="co-es-{{ _csid }}" style="display:none;padding:6px 18px;background:#f0fdf4;border-top:1px dashed #bbf7d0;">
-                  <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">Edit shift: {{ _csname }}</div>
-                  <form method="POST" action="/edit_shift/{{ _csid }}" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
-                    <input type="hidden" name="redirect" value="/settings?tab=company" />
-                    <input type="text" name="name"       value="{{ _csname }}"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="start_time" value="{{ _csstart }}" required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="half_time"  value="{{ _cshalf }}"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="end_time"   value="{{ _csend }}"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
-                    <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-                  </form>
-                </div>
-                {% endfor %}
-                {% endif %}
                 <!-- Inline add-shift form -->
                 <div id="co-as-{{ cid }}" style="display:none;padding:8px 18px;">
                   <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">New shift</div>
@@ -577,54 +549,89 @@
                   </div>
                 </div>
 
-                <!-- Breaks strip -->
-                <div style="padding:5px 18px 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">☕ Breaks:</span>
-                  {% if company_breaks.get(cid) %}
-                  {% for _cb in company_breaks[cid] %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
-                  <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:{% if 'lunch' in _cbname.lower() %}#fef9c3;color:#92400e;border:1px solid #fde68a;{% else %}#dbeafe;color:#1e40af;border:1px solid #bfdbfe;{% endif %}" title="{{ _cbtime }} · {{ _cbdur }} mins">
-                    {{ _cbname }}
-                    <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit break">✏</button>
-                    <form method="POST" action="/delete_break/{{ _cbid }}" style="display:inline;margin:0;" onsubmit="return confirm('Remove break \'{{ _cbname }}\'?')">
+                <!-- Per-shift blocks: each shift owns its own breaks -->
+                {% if company_shifts.get(cid) %}
+                {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
+                <div style="margin:6px 18px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 12px;background:#f0fdf4;">
+                    <span style="font-size:12px;font-weight:700;color:#15803d;" title="{{ _csstart }} – {{ _csend }} (half: {{ _cshalf }})">🕐 {{ _csname }} <span style="font-weight:500;color:#4d7c0f;">({{ _csstart }}–{{ _csend }})</span></span>
+                    <span style="display:flex;gap:8px;flex-shrink:0;">
+                      <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="border:none;background:transparent;cursor:pointer;color:#15803d;font-size:12px;opacity:.7;" title="Edit shift">✏</button>
+                      <form method="POST" action="/delete_shift/{{ _csid }}" style="display:inline;margin:0;" onsubmit="return confirm('Delete shift \'{{ _csname }}\'? Its breaks and assigned employees will be unassigned.')">
+                        <input type="hidden" name="redirect" value="/settings?tab=company" />
+                        <button type="submit" style="border:none;background:transparent;cursor:pointer;color:#15803d;font-size:13px;opacity:.7;" title="Delete shift">×</button>
+                      </form>
+                    </span>
+                  </div>
+                  <div id="co-es-{{ _csid }}" style="display:none;padding:8px 12px;background:#f0fdf4;border-top:1px dashed #bbf7d0;">
+                    <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">Edit shift: {{ _csname }}</div>
+                    <form method="POST" action="/edit_shift/{{ _csid }}" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
                       <input type="hidden" name="redirect" value="/settings?tab=company" />
-                      <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete break">×</button>
+                      <input type="text" name="name"       value="{{ _csname }}"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="time" name="start_time" value="{{ _csstart }}" required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="time" name="half_time"  value="{{ _cshalf }}"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="time" name="end_time"   value="{{ _csend }}"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
+                      <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
                     </form>
-                  </span>
+                  </div>
+
+                  <!-- Breaks belonging to this shift -->
+                  <div style="padding:7px 12px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                    <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">☕ Breaks:</span>
+                    {% set _shift_breaks = company_breaks.get(cid, {}).get(_csid) %}
+                    {% if _shift_breaks %}
+                    {% for _cb in _shift_breaks %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
+                    <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:{% if 'lunch' in _cbname.lower() %}#fef9c3;color:#92400e;border:1px solid #fde68a;{% else %}#dbeafe;color:#1e40af;border:1px solid #bfdbfe;{% endif %}" title="{{ _cbtime }} · {{ _cbdur }} mins">
+                      {{ _cbname }}
+                      <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit break">✏</button>
+                      <form method="POST" action="/delete_break/{{ _cbid }}" style="display:inline;margin:0;" onsubmit="return confirm('Remove break \'{{ _cbname }}\'?')">
+                        <input type="hidden" name="redirect" value="/settings?tab=company" />
+                        <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete break">×</button>
+                      </form>
+                    </span>
+                    {% endfor %}
+                    {% else %}
+                    <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
+                    {% endif %}
+                    <button type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
+                  </div>
+                  <!-- Per-break inline edit forms for this shift -->
+                  {% if _shift_breaks %}
+                  {% for _cb in _shift_breaks %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
+                  <div id="co-eb-{{ _cbid }}" style="display:none;padding:6px 12px;background:#fffbeb;border-top:1px dashed #fde68a;">
+                    <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:5px;">Edit break: {{ _cbname }}</div>
+                    <form method="POST" action="/update_break/{{ _cbid }}" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                      <input type="hidden" name="redirect"  value="/settings?tab=company" />
+                      <input type="hidden" name="is_active"  value="1" />
+                      <input type="hidden" name="shift_id"  value="{{ _csid }}" />
+                      <input type="text"   name="break_name"       value="{{ _cbname }}" required style="padding:6px 10px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="time"   name="break_time"       value="{{ _cbtime }}" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="number" name="duration_minutes" value="{{ _cbdur }}"  min="1" max="240" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#d97706;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
+                      <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                    </form>
+                  </div>
                   {% endfor %}
-                  {% else %}
-                  <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
                   {% endif %}
-                  <button type="button" onclick="toggleCoAddBreak({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
-                </div>
-                <!-- Per-break inline edit forms (one per break, hidden until ✏ clicked) -->
-                {% if company_breaks.get(cid) %}
-                {% for _cb in company_breaks[cid] %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
-                <div id="co-eb-{{ _cbid }}" style="display:none;padding:6px 18px;background:#fffbeb;border-top:1px dashed #fde68a;">
-                  <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:5px;">Edit break: {{ _cbname }}</div>
-                  <form method="POST" action="/update_break/{{ _cbid }}" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
-                    <input type="hidden" name="redirect"  value="/settings?tab=company" />
-                    <input type="hidden" name="is_active"  value="1" />
-                    <input type="text"   name="break_name"       value="{{ _cbname }}" required style="padding:6px 10px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time"   name="break_time"       value="{{ _cbtime }}" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="number" name="duration_minutes" value="{{ _cbdur }}"  min="1" max="240" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#d97706;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
-                    <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-                  </form>
+                  <!-- Inline add-break form for this shift (hidden until + Add clicked) -->
+                  <div id="co-ab-{{ cid }}-{{ _csid }}" style="display:none;padding:8px 12px 12px;">
+                    <form method="POST" action="/add_break" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                      <input type="hidden" name="redirect"    value="/settings?tab=company" />
+                      <input type="hidden" name="company_id"  value="{{ cid }}" />
+                      <input type="hidden" name="shift_id"    value="{{ _csid }}" />
+                      <input type="text"   name="break_name"  placeholder="Break name" required style="padding:6px 10px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="time"   name="break_time"  required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <input type="number" name="duration_minutes" value="15" min="1" max="240" placeholder="mins" required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
+                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+                      <button type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                    </form>
+                  </div>
                 </div>
                 {% endfor %}
+                {% else %}
+                <div style="margin:4px 18px 0;font-size:11px;color:#94a3b8;font-style:italic;">Add a shift first to attach breaks to it.</div>
                 {% endif %}
-                <!-- Inline add-break form (hidden until + Add clicked) -->
-                <div id="co-ab-{{ cid }}" style="display:none;padding:8px 18px 12px;">
-                  <form method="POST" action="/add_break" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
-                    <input type="hidden" name="redirect"    value="/settings?tab=company" />
-                    <input type="hidden" name="company_id"  value="{{ cid }}" />
-                    <input type="text"   name="break_name"  placeholder="Break name" required style="padding:6px 10px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time"   name="break_time"  required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="number" name="duration_minutes" value="15" min="1" max="240" placeholder="mins" required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
-                    <button type="button" onclick="toggleCoAddBreak({{ cid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-                  </form>
-                </div>
               </div>
 
               <!-- Inline edit row -->
@@ -769,7 +776,6 @@
         <div class="subnav-dd-menu" id="dd-fin">
           <button class="subnav-dd-item active" id="ddi-payroll"    onclick="switchSub('fin','payroll')">   <i class="ti ti-coin"></i>   Payroll</button>
           <button class="subnav-dd-item"        id="ddi-salary"     onclick="switchSub('fin','salary')">    <i class="ti ti-cash"></i>   Salary</button>
-          <button class="subnav-dd-item"        id="ddi-incentives" onclick="switchSub('fin','incentives')"><i class="ti ti-trophy"></i> Incentives</button>
         </div>
       </div>
     </div>
@@ -969,37 +975,6 @@
                   {% endfor %}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- INCENTIVES -->
-          <div class="s3-section" id="ss-incentives">
-            <div class="sec-header">
-              <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-trophy" style="color:#ca8a04;font-size:20px;"></i></div>
-              <div><div class="sec-title">Incentives</div><div class="sec-sub">Manage incentive goals and employee awards</div></div>
-            </div>
-            <div class="section" style="margin-bottom:16px;">
-              <div class="section-title">🎯 Add Incentive Goal</div>
-              <form method="POST" action="/add_incentive_goal">
-                <div class="two-col"><div class="field"><label>Goal Title</label><input type="text" name="title" placeholder="e.g. Perfect Attendance" required /></div><div class="field"><label>Incentive Amount (&#8377;)</label><input type="number" name="incentive_amount" placeholder="500" step="0.01" /></div></div>
-                <div class="field"><label>Description</label><textarea name="description" placeholder="Describe the goal criteria..."></textarea></div>
-                <button type="submit" class="btn-submit">Add Goal</button>
-              </form>
-            </div>
-            <div class="section">
-              <div class="section-title">📋 Active Goals</div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
-                {% for g in incentive_goals %}{% set gid,gtitle,gdesc,gamount,gactive = g %}
-                <div class="feat-card">
-                  <div class="feat-icon" style="background:#fefce8;font-size:18px;">🏆</div>
-                  <div class="feat-body"><div class="feat-name">{{ gtitle }}{% if gamount %} <span style="color:#ca8a04;font-size:12px;font-weight:700;">&#8377;{{ "%.0f"|format(gamount) }}</span>{% endif %}</div><div class="feat-desc">{{ gdesc or '—' }}</div></div>
-                  <div style="display:flex;gap:6px;">
-                    <button class="btn-edit" onclick="openGoalEdit({{ gid }},'{{ gtitle|replace("'","\\'") }}','{{ gdesc|replace("'","\\'") if gdesc else "" }}',{{ gamount or 0 }},{{ 1 if gactive else 0 }})">Edit</button>
-                    <form method="POST" action="/delete_incentive_goal" style="display:inline;" onsubmit="return confirm('Delete goal?')"><input type="hidden" name="goal_id" value="{{ gid }}" /><button type="submit" class="btn-del">Del</button></form>
-                  </div>
-                </div>
-                {% else %}<div class="empty-row">No incentive goals yet.</div>{% endfor %}
               </div>
             </div>
           </div>
@@ -1276,7 +1251,7 @@
 
   <script>
     /* ── 3-TAB + DROPDOWN SUB-NAV ── */
-    var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',incentives:'fin',email:'sys',security:'sys',appearance:'sys' };
+    var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',email:'sys',security:'sys',appearance:'sys' };
     var firstSub  = { org:'company', fin:'payroll', sys:'email' };
     var crumbData = {
       company:    { icon:'<i class="ti ti-building" style="color:#1e3a8a;"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
@@ -1284,7 +1259,6 @@
       attendance: { icon:'<i class="ti ti-fingerprint" style="color:#16a34a;"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
       payroll:    { icon:'<i class="ti ti-coin" style="color:#ca8a04;"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
       salary:     { icon:'<i class="ti ti-cash" style="color:#16a34a;"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
-      incentives: { icon:'<i class="ti ti-trophy" style="color:#ca8a04;"></i>',      bg:'#fefce8', title:'Incentives',     sub:'Goals and awards' },
       email:      { icon:'<i class="ti ti-mail" style="color:#0284c7;"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
       security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
     };
@@ -1387,8 +1361,8 @@
       el.style.display = shown ? 'none' : 'block';
       if (!shown) el.querySelector('input[name="name"]').focus();
     }
-    function toggleCoAddBreak(cid) {
-      var el = document.getElementById('co-ab-' + cid);
+    function toggleCoAddBreak(cid, sid) {
+      var el = document.getElementById('co-ab-' + cid + '-' + sid);
       if (!el) return;
       var shown = el.style.display !== 'none';
       el.style.display = shown ? 'none' : 'block';
@@ -1563,24 +1537,6 @@
     }
     document.addEventListener('DOMContentLoaded', updatePreviews);
 
-    /* ── INCENTIVE GOAL EDIT ── */
-    function openGoalEdit(id, title, desc, amount, active) {
-      document.getElementById('ge_id').value     = id;
-      document.getElementById('ge_title').value  = title;
-      document.getElementById('ge_desc').value   = desc;
-      document.getElementById('ge_amount').value = amount;
-      document.getElementById('ge_active').checked = !!active;
-      document.getElementById('goalEditModal').style.display = 'flex';
-    }
-    function closeGoalEdit() { document.getElementById('goalEditModal').style.display = 'none'; }
-
-    /* ── AWARD AMOUNT PREFILL ── */
-    function prefillAwardAmount(sel) {
-      var opt = sel.options[sel.selectedIndex];
-      var amt = opt ? opt.getAttribute('data-amount') : '';
-      var inp = document.getElementById('awardAmount');
-      if (inp) inp.placeholder = amt ? '₹' + parseFloat(amt).toFixed(2) + ' (default)' : 'Auto';
-    }
 
     /* ── TEST EMAIL ── */
     function sendTestEmail() {
@@ -1749,36 +1705,6 @@
 
     function toggleFingerprint(on) { toggleAuthMethod('fingerprint', on); }
   </script>
-
-  <!-- ══ GOAL EDIT MODAL ══ -->
-  <div class="modal-bg" id="goalEditModal" style="display:none;">
-    <div class="modal">
-      <div class="modal-title">✏️ Edit Incentive Goal</div>
-      <form method="POST" action="/edit_incentive_goal">
-        <input type="hidden" name="goal_id" id="ge_id" />
-        <div class="field">
-          <label>Goal Title</label>
-          <input type="text" name="title" id="ge_title" required maxlength="150" />
-        </div>
-        <div class="field">
-          <label>Description</label>
-          <textarea name="description" id="ge_desc" rows="2"></textarea>
-        </div>
-        <div class="field">
-          <label>Default Incentive Amount (₹)</label>
-          <input type="number" name="incentive_amount" id="ge_amount" min="0" step="0.01" required />
-        </div>
-        <div class="toggle-row">
-          <input type="checkbox" id="ge_active" name="is_active" value="1" />
-          <span>Active (available for awarding)</span>
-        </div>
-        <div class="modal-actions">
-          <button type="button" onclick="closeGoalEdit()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
-          <button type="submit" class="btn-submit">💾 Save Changes</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
 <script src="/static/darkmode.js"></script>
 
