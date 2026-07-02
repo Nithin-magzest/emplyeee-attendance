@@ -73,20 +73,27 @@ fi
 echo "==> Setting up .env file"
 if [ ! -f "$APP_DIR/.env" ]; then
     cat > "$APP_DIR/.env" <<EOF
-# Production: point DB_HOST at the RDS endpoint from 'terraform output rds_endpoint'.
-# DB_USER / DB_PASS must match what you set for db_username / db_password in terraform.tfvars.
-DB_HOST=REPLACE_WITH_RDS_ENDPOINT
+# DB_HOST: use 'db' for the bundled MySQL container (quick-start / no RDS).
+# For AWS RDS: set to the RDS endpoint from 'terraform output rds_endpoint'
+# and change COMPOSE in this script to use docker-compose.prod.yml overlay.
+DB_HOST=db
 DB_USER=attendance_admin
-DB_PASS=REPLACE_WITH_RDS_PASSWORD
+DB_PASS=REPLACE_WITH_STRONG_PASSWORD
 DB_NAME=employee_attendance
 SECRET_KEY=$(openssl rand -hex 32)
 # Encrypts PII (Aadhar/PAN/bank account) at rest — without this it's stored in plaintext.
 ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 APP_ENV=production
-# Set to your real domain, e.g. https://yourdomain.com
-ALLOWED_ORIGINS=REPLACE_WITH_DOMAIN
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=REPLACE_WITH_ADMIN_PASSWORD
+# Public URL for password-reset and offer-letter email links.
+# Use https://yourdomain.com when you have a domain; use http://YOUR_SERVER_IP for now.
+APP_URL=REPLACE_WITH_URL
+# CORS: set to your domain when live, e.g. https://yourdomain.com
+ALLOWED_ORIGINS=*
+REDIS_URL=redis://redis:6379/0
 EOF
-    echo "    .env created — fill in the RDS/domain placeholders at $APP_DIR/.env, then re-run this script"
+    echo "    .env created — fill in the REPLACE_WITH_* values at $APP_DIR/.env, then re-run this script"
 fi
 
 cd "$APP_DIR"
@@ -109,13 +116,47 @@ if [ ! -f cert.pem ] || [ ! -f key.pem ]; then
         -keyout key.pem -out cert.pem -subj "/CN=localhost"
 fi
 
-echo "==> Building and starting app + redis (production stack, RDS-backed)"
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+echo "==> Rendering nginx.conf (HTTP-only for IP access; will be replaced by init-letsencrypt.sh once you have a domain)"
+if [ ! -f "$APP_DIR/nginx/nginx.conf" ]; then
+    cat > "$APP_DIR/nginx/nginx.conf" <<'NGINXEOF'
+upstream app {
+    server app:5000;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    client_max_body_size 20M;
+
+    location /static/ {
+        alias /app/static/;
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        proxy_pass         https://app;
+        proxy_ssl_verify   off;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+    }
+}
+NGINXEOF
+    echo "    nginx.conf written (HTTP-only). Run ./init-letsencrypt.sh <domain> <email> later to add HTTPS."
+fi
+
+echo "==> Building and starting full stack (app + MySQL + Redis + nginx)"
+COMPOSE="docker compose"
 $COMPOSE build app
-$COMPOSE up -d --no-deps app redis
-# nginx/certbot are intentionally not started here — nginx.conf doesn't
-# exist yet (it's rendered from nginx/nginx.conf.template by
-# init-letsencrypt.sh, which also brings up nginx + certbot).
+$COMPOSE up -d
+# When you add a domain and want HTTPS + RDS, switch to:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps app nginx certbot redis
+# (after editing DB_HOST in .env to point at your RDS endpoint)
 
 echo "==> Scheduling daily nginx reload (so renewed certs take effect)"
 # `crontab -l` fails (no crontab yet) on a fresh box — `|| true` keeps that
@@ -125,12 +166,17 @@ echo "==> Scheduling daily nginx reload (so renewed certs take effect)"
 
 echo ""
 echo "====================================================="
-echo "  App + Redis running. Next: run"
-echo "    ./init-letsencrypt.sh <domain> <email>"
-echo "  once to render nginx.conf, get a trusted HTTPS cert, and start nginx."
+echo "  Stack is up! Access the app at:"
+echo "    http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo YOUR_SERVER_IP)"
+echo ""
+echo "  NEXT STEPS:"
+echo "  1. Complete setup at http://YOUR_IP/setup"
+echo "  2. When you add a domain, run:"
+echo "       ./init-letsencrypt.sh yourdomain.com your@email.com"
+echo "     This switches nginx to HTTPS + gets a trusted cert."
 echo "====================================================="
 echo "  Useful commands:"
-echo "    docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f app"
-echo "    docker compose -f docker-compose.yml -f docker-compose.prod.yml restart app"
-echo "    docker compose -f docker-compose.yml -f docker-compose.prod.yml down"
+echo "    docker compose logs -f app"
+echo "    docker compose restart app"
+echo "    docker compose down"
 echo "====================================================="
