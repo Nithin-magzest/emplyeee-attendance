@@ -498,9 +498,9 @@
                   {% if role %}<span class="badge badge-role">{{ role }}</span>
                   {% else %}<span class="muted">—</span>{% endif %}
                 </td>
-                <td>{{ department or '<span class="muted">—</span>'|safe }}</td>
-                <td>{{ shift_name or '<span class="muted">—</span>'|safe }}</td>
-                <td>{{ phone or '<span class="muted">—</span>'|safe }}</td>
+                <td>{% if department %}{{ department }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{% if shift_name %}{{ shift_name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{% if phone %}{{ phone }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td>
                   <span class="badge
                     {% if emp_status == 'Active' %}status-active
@@ -509,7 +509,7 @@
                     {{ emp_status }}
                   </span>
                 </td>
-                <td>{{ doj.strftime('%d %b %Y') if doj else '<span class="muted">—</span>'|safe }}</td>
+                <td>{% if doj %}{{ doj.strftime('%d %b %Y') }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td>
                   {% if total_days %}<span class="badge badge-green">{{ total_days }}d</span>
                   {% else %}<span class="muted">0</span>{% endif %}

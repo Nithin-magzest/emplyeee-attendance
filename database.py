@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _log = logging.getLogger("attendance")
+# Logger is configured in app.py; database.py uses the same named logger so
+# output is consistent without adding a second handler here.
 
 _DB_CONFIG = dict(
     host=os.environ.get("DB_HOST", "localhost"),

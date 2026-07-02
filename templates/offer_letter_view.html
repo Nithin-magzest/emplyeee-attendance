@@ -157,6 +157,8 @@
     body.dark-mode .footer { border-color: #30363d !important; color: #768390 !important; }
     body.dark-mode .seal { border-color: #30363d !important; color: #30363d !important; }
     body.dark-mode .hbadge { background: #1e3a8a !important; color: #93c5fd !important; }
+    .status-accepted { color: #16a34a; font-weight: 700; }
+    .status-rejected { color: #dc2626; font-weight: 700; }
   </style>
   <link rel="stylesheet" href="/static/shared.css" />
 </head>
@@ -172,7 +174,9 @@
   <div class="toolbar-info">
     <h2>Offer Letter &nbsp;·&nbsp; {{ letter[17] }}</h2>
     <p>
-      {% if letter[14]=='sent' %}Sent {{ letter[13].strftime('%d %b %Y') }}
+      {% if letter[14]=='accepted' %}<span class="status-accepted">&#10003; Accepted</span>
+      {% elif letter[14]=='rejected' %}<span class="status-rejected">&#10005; Declined</span>
+      {% elif letter[14]=='sent' %}Sent {{ letter[13].strftime('%d %b %Y') }}
       {% else %}Draft — not yet sent{% endif %}
       &nbsp;·&nbsp; Ref: OL/{{ letter[2]|upper }}/{{ letter[12].strftime('%Y') if letter[12] else '' }}/{{ '%04d'|format(letter[0]) }}
     </p>

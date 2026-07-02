@@ -187,14 +187,14 @@
                     {% if role %}<span class="badge badge-blue">{{ role }}</span>
                     {% else %}<span class="muted">—</span>{% endif %}
                   </td>
-                  <td>{{ login_t | fmt_time if login_t else '<span class="muted">—</span>' | safe }}</td>
+                  <td>{% if login_t %}{{ login_t | fmt_time }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td>
                     {% if status == 'Full Day Login' %}<span class="badge badge-green">Full Day Login</span>
                     {% elif status == 'Late Login' %}<span class="badge badge-yellow">Late Login</span>
                     {% elif status == 'Half Day Login' %}<span class="badge badge-red">Half Day Login</span>
                     {% else %}<span class="badge badge-gray">{{ status or '—' }}</span>{% endif %}
                   </td>
-                  <td>{{ logout_t | fmt_time if logout_t else '<span class="muted">—</span>' | safe }}</td>
+                  <td>{% if logout_t %}{{ logout_t | fmt_time }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td>
                     {% if logout_s == 'Completed' %}<span class="badge badge-green">Completed</span>
                     {% elif logout_s == 'Early Logout' %}<span class="badge badge-yellow">Early Logout</span>
@@ -227,7 +227,7 @@
                     {% if role %}<span class="badge badge-blue">{{ role }}</span>
                     {% else %}<span class="muted">—</span>{% endif %}
                   </td>
-                  <td>{{ login_t | fmt_time if login_t else '<span class="muted">—</span>' | safe }}</td>
+                  <td>{% if login_t %}{{ login_t | fmt_time }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td>
                     {% if status == 'Late Login' %}<span class="badge badge-yellow">Late Login</span>
                     {% elif status == 'Half Day Login' %}<span class="badge badge-red">Half Day Login</span>
