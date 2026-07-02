@@ -483,12 +483,18 @@
           var respEl = card.querySelector('.existing-response');
           var newResp = form.querySelector('textarea[name="admin_response"]').value.trim();
           if (newResp) {
+            var label = document.createElement('strong');
+            label.textContent = 'Current Response: ';
+            var text = document.createTextNode(newResp);
             if (respEl) {
-              respEl.innerHTML = '<strong>Current Response</strong>' + newResp;
+              respEl.textContent = '';
+              respEl.appendChild(label);
+              respEl.appendChild(text);
             } else {
               var div = document.createElement('div');
               div.className = 'existing-response';
-              div.innerHTML = '<strong>Current Response</strong>' + newResp;
+              div.appendChild(label);
+              div.appendChild(text);
               form.parentNode.insertBefore(div, form);
             }
           }

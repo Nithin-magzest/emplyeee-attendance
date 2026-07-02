@@ -22,6 +22,11 @@ except Exception as _fr_err:
     _face_recognition_available = False
     print(f"⚠  face_recognition unavailable ({_fr_err}). Face features disabled.")
 try:
+    # typing.Literal was added in Python 3.8; backport it for 3.7 so webauthn imports cleanly
+    import typing as _typing
+    if not hasattr(_typing, "Literal"):
+        from typing_extensions import Literal as _Literal
+        _typing.Literal = _Literal
     import webauthn
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria, AuthenticatorAttachment, UserVerificationRequirement,
@@ -36,10 +41,24 @@ except Exception as _wa_err:
           f"runs fine in the production Docker image, which uses Python 3.11.)")
 from database import get_db_connection
 from qr_generator import generate_qr
-from werkzeug.security import check_password_hash
-from werkzeug.security import generate_password_hash as _gen_pw_hash
-def generate_password_hash(pw, **kw):
-    return _gen_pw_hash(pw, method='pbkdf2:sha256')
+import bcrypt as _bcrypt
+from werkzeug.security import check_password_hash as _wz_check_pw
+
+def generate_password_hash(pw: str, **_) -> str:
+    """Hash a password with bcrypt (work factor 12)."""
+    return _bcrypt.hashpw(pw.encode(), _bcrypt.gensalt(rounds=12)).decode()
+
+def check_password_hash(pw_hash: str, pw: str) -> bool:
+    """Verify a password against bcrypt or legacy werkzeug hash."""
+    if not pw_hash:
+        return False
+    if pw_hash.startswith("$2b$") or pw_hash.startswith("$2a$"):
+        try:
+            return _bcrypt.checkpw(pw.encode(), pw_hash.encode())
+        except Exception:
+            return False
+    # Legacy pbkdf2/scrypt hash from werkzeug — still valid on upgrade
+    return _wz_check_pw(pw_hash, pw)
 from functools import wraps
 from contextlib import contextmanager
 import os
@@ -54,6 +73,7 @@ import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
+from email.mime.application import MIMEApplication
 from email import encoders
 import threading
 import io as _io
@@ -69,15 +89,18 @@ load_dotenv()
 
 import logging
 import sys
+from pythonjsonlogger import jsonlogger
 
-# Structured logging
 _log_handler = logging.StreamHandler(sys.stdout)
-_log_handler.setFormatter(logging.Formatter(
-    '{"time":"%(asctime)s","level":"%(levelname)s","module":"%(module)s","msg":%(message)s}'
+_log_handler.setFormatter(jsonlogger.JsonFormatter(
+    fmt="%(asctime)s %(levelname)s %(module)s %(message)s",
+    rename_fields={"asctime": "time", "levelname": "level"},
 ))
 app_log = logging.getLogger("attendance")
-app_log.addHandler(_log_handler)
+if not app_log.handlers:
+    app_log.addHandler(_log_handler)
 app_log.setLevel(logging.INFO)
+app_log.propagate = False
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -92,6 +115,9 @@ if _missing_env:
 app = Flask(__name__)
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else "*"
+if _raw_origins == "*" and os.environ.get("APP_ENV", "production") == "production":
+    import warnings
+    warnings.warn("ALLOWED_ORIGINS is '*' in production — set it to your domain(s) to restrict CORS.", stacklevel=1)
 CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 
 _REDIS_URL = os.environ.get("REDIS_URL", "memory://")
@@ -136,7 +162,8 @@ def healthz():
         cur.close(); conn.close()
         return jsonify({"status": "ok", "db": "connected"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "db": str(e)}), 503
+        app_log.error("Health check DB error: %s", e)
+        return jsonify({"status": "error", "db": "unavailable"}), 503
 
 
 # Jinja2 filter: handles both datetime.time and datetime.timedelta from MySQL
@@ -170,7 +197,7 @@ else:
         with open(_key_file, "w") as _f:
             _f.write(app.secret_key)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "development") == "production"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "production") != "development"
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
 
@@ -233,6 +260,23 @@ def inject_overdue_onboardings():
         return {"overdue_onboardings": count}
     except Exception:
         return {"overdue_onboardings": 0}
+
+_SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute — stolen cookie cannot be used indefinitely
+
+@app.before_request
+def _enforce_session_lifetime():
+    """Expire sessions that are older than the absolute max age, regardless of activity."""
+    if request.path.startswith("/static/") or request.path == "/healthz":
+        return
+    created = session.get("_session_created")
+    if created and (time.time() - created) > _SESSION_MAX_AGE:
+        session.clear()
+        if request.path.startswith("/api/"):
+            from flask import jsonify as _jfy
+            return _jfy({"ok": False, "msg": "Session expired. Please log in again."}), 401
+        flash("Your session expired. Please log in again.", "warning")
+        return redirect(url_for("admin_login"))
+
 
 @app.before_request
 def _enforce_csrf():
@@ -336,6 +380,17 @@ def _security_headers(response):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if request.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    ct = response.content_type or ""
+    if "text/html" in ct:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "font-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
     return response
 
 @app.after_request
@@ -366,7 +421,7 @@ def _audit(action, table=None, record_id=None, detail=None):
     try:
         actor      = session.get("admin_username") or session.get("employee_id") or "system"
         actor_type = "admin" if session.get("admin_logged_in") else "employee"
-        ip         = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        ip         = request.remote_addr or ""
         db = get_db_connection(); cursor = db.cursor()
         cursor.execute("""INSERT INTO audit_logs (actor, actor_type, action, target_table, target_id, detail, ip_address)
                           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
@@ -571,9 +626,19 @@ def get_co_features(company_id=None):
         pass
     return _read_global_features()
 
+_VALID_CFS_COLS = frozenset({
+    "face_auth_enabled", "geo_enabled", "geo_radius", "qr_enabled", "pin_enabled",
+    "fingerprint_enabled", "biometric_enabled", "notify_leave", "notify_payslip",
+    "notify_resignation", "notify_doc_expiry", "session_timeout",
+    "late_deduction_pct", "half_day_deduction_pct", "grace_minutes",
+})
+
 def _upsert_co_feature(company_id, field, value):
     """Insert or update a single field in company_feature_settings."""
     if not company_id:
+        return
+    if field not in _VALID_CFS_COLS:
+        app_log.error("_upsert_co_feature: rejected unknown column %s", field)
         return
     try:
         db = get_db_connection(); cur = db.cursor(buffered=True)
@@ -589,6 +654,9 @@ def _upsert_co_feature(company_id, field, value):
 def _upsert_co_features(company_id, fields_dict):
     """Insert or update multiple fields in company_feature_settings."""
     if not company_id or not fields_dict:
+        return
+    if not all(k in _VALID_CFS_COLS for k in fields_dict.keys()):
+        app_log.error("_upsert_co_features: rejected unknown columns %s", list(fields_dict.keys()))
         return
     try:
         cols   = ", ".join(fields_dict.keys())
@@ -744,6 +812,66 @@ def decrypt_pii(value: str) -> str:
 
 
 # ---------------- DB CONTEXT MANAGER ----------------
+def _hash_token(token: str) -> str:
+    """SHA-256 hash a Bearer token before storing/comparing in DB."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+_LOGIN_MAX_ATTEMPTS = 10
+_LOGIN_LOCKOUT_MINUTES = 15
+
+def _check_login_lockout(identifier: str, attempt_type: str = "admin"):
+    """Return (is_locked, locked_until_str). Raises nothing."""
+    try:
+        with _db() as (cur, _):
+            cur.execute(
+                "SELECT locked_until FROM login_attempts WHERE identifier=%s AND attempt_type=%s",
+                (identifier, attempt_type)
+            )
+            row = cur.fetchone()
+        if row and row[0] and row[0] > datetime.datetime.now():
+            return True, row[0].strftime("%H:%M")
+    except Exception:
+        pass
+    return False, None
+
+def _record_login_failure(identifier: str, attempt_type: str = "admin"):
+    """Increment failure counter; lock account after _LOGIN_MAX_ATTEMPTS."""
+    try:
+        with _db() as (cur, conn):
+            cur.execute(
+                "INSERT INTO login_attempts (identifier, attempt_type, failed_count, last_attempt) "
+                "VALUES (%s, %s, 1, NOW()) "
+                "ON DUPLICATE KEY UPDATE failed_count=failed_count+1, last_attempt=NOW()",
+                (identifier, attempt_type)
+            )
+            conn.commit()
+            cur.execute(
+                "SELECT failed_count FROM login_attempts WHERE identifier=%s AND attempt_type=%s",
+                (identifier, attempt_type)
+            )
+            row = cur.fetchone()
+            if row and row[0] >= _LOGIN_MAX_ATTEMPTS:
+                lockout_until = datetime.datetime.now() + datetime.timedelta(minutes=_LOGIN_LOCKOUT_MINUTES)
+                cur.execute(
+                    "UPDATE login_attempts SET locked_until=%s WHERE identifier=%s AND attempt_type=%s",
+                    (lockout_until, identifier, attempt_type)
+                )
+                conn.commit()
+    except Exception:
+        pass
+
+def _clear_login_failures(identifier: str, attempt_type: str = "admin"):
+    """Reset failure counter on successful login."""
+    try:
+        with _db() as (cur, conn):
+            cur.execute(
+                "DELETE FROM login_attempts WHERE identifier=%s AND attempt_type=%s",
+                (identifier, attempt_type)
+            )
+            conn.commit()
+    except Exception:
+        pass
+
 @contextmanager
 def _db():
     """Open a DB connection + buffered cursor; always close both on exit."""
@@ -1120,6 +1248,10 @@ def init_db():
     for _col, _sql in [
         ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30"),
         ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT"),
+        ("response_token",         "ALTER TABLE offer_letters ADD COLUMN response_token VARCHAR(64) DEFAULT NULL"),
+        ("candidate_response",     "ALTER TABLE offer_letters ADD COLUMN candidate_response VARCHAR(20) DEFAULT NULL"),
+        ("responded_at",           "ALTER TABLE offer_letters ADD COLUMN responded_at DATETIME DEFAULT NULL"),
+        ("response_token_expiry",  "ALTER TABLE offer_letters ADD COLUMN response_token_expiry DATETIME DEFAULT NULL"),
     ]:
         try:
             cursor.execute(_sql); db.commit()
@@ -1139,6 +1271,34 @@ def init_db():
             INDEX idx_actor (actor),
             INDEX idx_action (action),
             INDEX idx_created (created_at)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            identifier VARCHAR(150) NOT NULL,
+            attempt_type VARCHAR(20) DEFAULT 'admin',
+            failed_count INT DEFAULT 0,
+            last_attempt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            locked_until DATETIME DEFAULT NULL,
+            UNIQUE KEY uq_ident_type (identifier, attempt_type)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS email_queue (
+            id           INT AUTO_INCREMENT PRIMARY KEY,
+            to_email     VARCHAR(255) NOT NULL,
+            subject      VARCHAR(500) NOT NULL,
+            html_body    MEDIUMTEXT   NOT NULL,
+            attachment_b64 LONGTEXT   DEFAULT NULL,
+            attachment_filename VARCHAR(255) DEFAULT NULL,
+            status       ENUM('pending','sending','done','failed') DEFAULT 'pending',
+            attempts     TINYINT DEFAULT 0,
+            last_error   TEXT DEFAULT NULL,
+            created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sent_at      DATETIME DEFAULT NULL,
+            INDEX idx_eq_status (status),
+            INDEX idx_eq_created (created_at)
         )
     """)
     cursor.execute("""
@@ -1374,6 +1534,8 @@ def init_db():
         "ALTER TABLE break_config ADD COLUMN company_id INT DEFAULT NULL",
         "ALTER TABLE announcements ADD COLUMN visibility ENUM('public','private') DEFAULT 'public'",
         "ALTER TABLE announcements ADD COLUMN target_employee_id VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -1491,10 +1653,10 @@ def init_db():
             (_admin_user, generate_password_hash(_admin_pass))
         )
         db.commit()
-        app_log.info('"Admin created: username=%s"', _admin_user)
+        app_log.info("Admin created: username=%s", _admin_user)
         admin_count = 1
     elif admin_count == 0 and not _admin_pass:
-        app_log.warning('"ADMIN_PASSWORD not set in .env — complete setup via /setup"')
+        app_log.warning("ADMIN_PASSWORD not set in .env — complete setup via /setup")
 
     # Auto-mark setup done for existing installs that already have an admin
     if admin_count > 0:
@@ -1546,7 +1708,7 @@ def init_master_db():
         cur.close()
         root_conn.close()
     except Exception as _e:
-        app_log.warning('"init_master_db failed (non-fatal for single-tenant mode): %s"', _e)
+        app_log.warning("init_master_db failed (non-fatal for single-tenant mode): %s", _e)
 
 
 def init_tenant_db(db_name: str):
@@ -1813,6 +1975,15 @@ def get_email_config():
         }
     return None
 
+def get_admin_emails():
+    """Return a list of all admin email addresses that have been set."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT email FROM admin_users WHERE email IS NOT NULL AND email != ''")
+    emails = [row[0] for row in cursor.fetchall()]
+    cursor.close(); db.close()
+    return emails
+
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
                            pan="", uan="", bank_account="", bank_name="",
@@ -1865,12 +2036,14 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
     net_pay       = max(0, round(gross_earned - pf_ded - pt_monthly - tds_ded, 2))
 
     emp_row_extra = ""
-    if emp_designation: emp_row_extra += f"<tr><td>Designation</td><td>{emp_designation}</td></tr>"
-    if emp_dept:        emp_row_extra += f"<tr><td>Department</td><td>{emp_dept}</td></tr>"
-    if pan:             emp_row_extra += f"<tr><td>PAN</td><td>{pan}</td></tr>"
-    if uan:             emp_row_extra += f"<tr><td>UAN</td><td>{uan}</td></tr>"
-    if bank_account:    emp_row_extra += f"<tr><td>Bank A/C</td><td>{'*'*len(bank_account[:-4]) + bank_account[-4:]}</td></tr>"
-    if bank_name:       emp_row_extra += f"<tr><td>Bank</td><td>{bank_name}</td></tr>"
+    if emp_designation: emp_row_extra += f"<tr><td>Designation</td><td>{_html.escape(str(emp_designation))}</td></tr>"
+    if emp_dept:        emp_row_extra += f"<tr><td>Department</td><td>{_html.escape(str(emp_dept))}</td></tr>"
+    if pan:             emp_row_extra += f"<tr><td>PAN</td><td>{_html.escape(str(pan))}</td></tr>"
+    if uan:             emp_row_extra += f"<tr><td>UAN</td><td>{_html.escape(str(uan))}</td></tr>"
+    if bank_account:
+        masked = '*'*len(bank_account[:-4]) + bank_account[-4:]
+        emp_row_extra += f"<tr><td>Bank A/C</td><td>{_html.escape(masked)}</td></tr>"
+    if bank_name:       emp_row_extra += f"<tr><td>Bank</td><td>{_html.escape(str(bank_name))}</td></tr>"
 
     incentive_row = ""
     if e.get("incentive", 0) > 0:
@@ -2036,20 +2209,99 @@ def send_email_smtp(to_email, subject, html_body, config, attachment_bytes=None,
         msg.attach(part)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(config["host"], config["port"], timeout=20) as server:
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
-        server.login(config["user"], config["password"])
-        server.sendmail(from_addr, to_email, msg.as_string())
+    port = int(config.get("port", 587))
+    if port == 465:
+        # Implicit SSL (port 465)
+        with smtplib.SMTP_SSL(config["host"], port, context=context, timeout=20) as server:
+            server.login(config["user"], config["password"])
+            server.sendmail(from_addr, to_email, msg.as_string())
+    else:
+        # STARTTLS (port 587 / 25)
+        with smtplib.SMTP(config["host"], port, timeout=20) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(config["user"], config["password"])
+            server.sendmail(from_addr, to_email, msg.as_string())
 
-def send_email_async(to_email, subject, html_body, config, **kwargs):
-    def _send():
+def send_email_async(to_email, subject, html_body, config,
+                     attachment_bytes=None, attachment_filename=None, **_):
+    """Enqueue an email for reliable delivery via the DB-backed email worker."""
+    att_b64 = None
+    if attachment_bytes:
+        att_b64 = base64.b64encode(attachment_bytes).decode()
+    try:
+        db  = get_db_connection()
+        cur = db.cursor()
+        cur.execute(
+            "INSERT INTO email_queue (to_email, subject, html_body, attachment_b64, attachment_filename) "
+            "VALUES (%s,%s,%s,%s,%s)",
+            (to_email, subject, html_body, att_b64, attachment_filename)
+        )
+        db.commit()
+        cur.close(); db.close()
+    except Exception as e:
+        app_log.error("Failed to enqueue email to %s: %s", to_email, e)
+        # Fall back to in-process send so the email is not silently dropped
+        threading.Thread(
+            target=lambda: send_email_smtp(to_email, subject, html_body, config,
+                                           attachment_bytes=attachment_bytes,
+                                           attachment_filename=attachment_filename),
+            daemon=True
+        ).start()
+
+
+def _email_queue_worker():
+    """Background thread: dequeues and sends emails, retries up to 3 times."""
+    import time as _time
+    while True:
         try:
-            send_email_smtp(to_email, subject, html_body, config, **kwargs)
-        except Exception as e:
-            app_log.error('"Email send failed to %s: %s"', to_email, e)
-    threading.Thread(target=_send, daemon=True).start()
+            cfg = get_email_config()
+            if not cfg:
+                _time.sleep(30)
+                continue
+            db  = get_db_connection()
+            cur = db.cursor(buffered=True)
+            cur.execute(
+                "SELECT id, to_email, subject, html_body, attachment_b64, attachment_filename "
+                "FROM email_queue WHERE status='pending' AND attempts < 3 "
+                "ORDER BY created_at LIMIT 10"
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                eid, to_email, subject, html_body, att_b64, att_name = row
+                cur.execute(
+                    "UPDATE email_queue SET status='sending', attempts=attempts+1 WHERE id=%s", (eid,)
+                )
+                db.commit()
+                try:
+                    att_bytes = base64.b64decode(att_b64) if att_b64 else None
+                    send_email_smtp(to_email, subject, html_body, cfg,
+                                    attachment_bytes=att_bytes,
+                                    attachment_filename=att_name)
+                    cur.execute(
+                        "UPDATE email_queue SET status='done', sent_at=NOW() WHERE id=%s", (eid,)
+                    )
+                except Exception as exc:
+                    app_log.error("Email queue: send failed to %s: %s", to_email, exc)
+                    cur.execute(
+                        "UPDATE email_queue SET status='pending', last_error=%s WHERE id=%s",
+                        (str(exc)[:500], eid)
+                    )
+                db.commit()
+            cur.execute(
+                "UPDATE email_queue SET status='failed' "
+                "WHERE status='pending' AND attempts >= 3"
+            )
+            db.commit()
+            cur.close(); db.close()
+        except Exception as _we:
+            app_log.error("Email queue worker error: %s", _we)
+        _time.sleep(15)
+
+
+# Start the email queue worker once (gunicorn spawns multiple workers; each gets its own thread)
+threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
 
 def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
     color = "#16a34a" if action == "login" else "#2563eb"
@@ -2205,7 +2457,7 @@ def forbidden(e):
 @app.errorhandler(500)
 def internal_error(e):
     tb = _traceback.format_exc()
-    app_log.error('"500 error: %s"', tb.replace('\n', '\\n'))
+    app_log.error("500 error: %s", tb.replace('\n', '\\n'))
     return _error_page(500, "⚙️", "Internal Server Error",
         "Something went wrong on our end. The error has been logged.",
         "Please try again in a moment or contact your administrator.")
@@ -2213,13 +2465,14 @@ def internal_error(e):
 @app.errorhandler(Exception)
 def unhandled_exception(e):
     if isinstance(e, HTTPException):
-        return _error_page(e.code, "⚠️", e.name, e.description,
+        return _error_page(e.code, "⚠️", e.name,
+            "The page you requested could not be processed.",
             "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
-    app_log.error('"Unhandled exception: %s"', tb.replace('\n', '\\n'))
-    return _error_page(500, "⚙️", "Unexpected Error",
-        f"{type(e).__name__}: {e}",
-        "The error has been logged. Please try again or contact your administrator.")
+    app_log.error("Unhandled exception: %s", tb.replace('\n', '\\n'))
+    return _error_page(500, "⚙️", "Internal Server Error",
+        "An unexpected error occurred. The team has been notified.",
+        "Please try again or contact your administrator.")
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -2265,7 +2518,8 @@ def setup_wizard():
 
 
 @app.route("/admin_login", methods=["GET", "POST"])
-@limiter.limit("15 per minute")
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
 def admin_login():
     co = get_company_settings()
     if not co["setup_done"]:
@@ -2277,15 +2531,28 @@ def admin_login():
     if request.method == "POST":
         identifier = request.form.get("identifier", "").strip()
         password   = request.form.get("password", "").strip()
+        # Check lockout before attempting any credential check
+        locked, until = _check_login_lockout(identifier)
+        if locked:
+            return render_template("admin_login.html",
+                error=f"Account locked until {until} due to too many failed attempts.")
         # Try admin credentials first
         with _db() as (cursor, db):
             cursor.execute("SELECT password, COALESCE(role,'admin') FROM admin_users WHERE username=%s", (identifier,))
             admin_row = cursor.fetchone()
         if admin_row and check_password_hash(admin_row[0], password):
+            _clear_login_failures(identifier)
+            # Upgrade legacy hash to bcrypt on first successful login
+            if admin_row[0] and not admin_row[0].startswith("$2"):
+                with _db() as (_uc, _ud):
+                    _uc.execute("UPDATE admin_users SET password=%s WHERE username=%s",
+                                (generate_password_hash(password), identifier))
+                    _ud.commit()
             session.clear()
             session["admin_logged_in"] = True
             session["admin_username"] = identifier
             session["admin_role"] = admin_row[1]
+            session["_session_created"] = time.time()
             session.permanent = True
             return redirect("/admin")
         # Try employee credentials
@@ -2298,15 +2565,26 @@ def admin_login():
         if emp_row:
             stored_pwd = emp_row[3]
             if not stored_pwd or not check_password_hash(stored_pwd, password):
+                _record_login_failure(identifier)
                 return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
+            _clear_login_failures(identifier)
+            # Upgrade legacy hash to bcrypt on first successful login
+            if stored_pwd and not stored_pwd.startswith("$2"):
+                with _db() as (_uc, _ud):
+                    _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
+                                (generate_password_hash(password), emp_row[0]))
+                    _ud.commit()
             session.clear()
-            session["employee_id"]   = emp_row[0]
-            session["employee_name"] = emp_row[1]
-            session["employee_role"] = emp_row[2] or ""
+            session["employee_id"]     = emp_row[0]
+            session["employee_name"]   = emp_row[1]
+            session["employee_role"]   = emp_row[2] or ""
+            session["_session_created"] = time.time()
+            session["_fpc"]            = bool(emp_row[4])  # force_pin_change flag in session
             session.permanent = True
             if emp_row[4]:
                 return redirect("/force_change_pin")
             return redirect("/employee_portal")
+        _record_login_failure(identifier)
         return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
     return render_template("admin_login.html")
 
@@ -2781,13 +3059,14 @@ def admin_action():
                 "gender, dob, blood_group, "
                 "address, city, state, pincode, "
                 "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
-                "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number) "
+                "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number, "
+                "force_pin_change) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
                 "%s,%s,%s,%s,"
                 "%s,%s,%s,"
                 "%s,%s,%s,%s,"
                 "%s,%s,%s,"
-                "%s,%s,%s,%s,%s,%s)",
+                "%s,%s,%s,%s,%s,%s,1)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
                  date_of_joining, work_mode, work_lat, work_lon, company_id,
                  department, phone, manager_id, manager_name,
@@ -3251,6 +3530,10 @@ def toggle_auth_method():
     if active_cid and cfs_col:
         _upsert_co_feature(active_cid, cfs_col, 1 if enabled else 0)
     else:
+        _VALID_CS_TOGGLE = frozenset(_TOGGLE_COLUMN_MAP.values())
+        if column not in _VALID_CS_TOGGLE:
+            flash("Invalid setting.", "danger")
+            return redirect("/settings?tab=attendance")
         db = get_db_connection(); cursor = db.cursor(buffered=True)
         cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
         db.commit(); cursor.close(); db.close()
@@ -3288,10 +3571,22 @@ def save_company_code():
 @app.route("/save_company_info", methods=["POST"])
 @admin_required
 def save_company_info():
-    name     = request.form.get("company_name", "").strip()
+    import pytz as _pytz
+    _VALID_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+    name     = request.form.get("company_name", "").strip()[:200]
     code     = request.form.get("company_code", "").strip().upper()[:10]
     timezone = request.form.get("timezone", "Asia/Kolkata").strip()
-    w_days   = ",".join(request.form.getlist("working_days"))
+    w_days_raw = request.form.getlist("working_days")
+    # Validate timezone against pytz database
+    if timezone not in _pytz.all_timezones_set:
+        flash("Invalid timezone selected.", "danger")
+        return redirect("/settings?tab=company")
+    # Validate day names
+    w_days_set = set(w_days_raw)
+    if w_days_set and not w_days_set.issubset(_VALID_DAYS):
+        flash("Invalid working days selected.", "danger")
+        return redirect("/settings?tab=company")
+    w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS)
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     cursor.execute(
         "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
@@ -3317,18 +3612,27 @@ def toggle_feature():
     if feature not in allowed:
         return jsonify({"ok": False, "error": "unknown feature"}), 400
     active_cid = session.get("active_company_id")
-    # Map company_settings col names → company_feature_settings col names
-    _cfs_col_map = {"face_auth_enabled": "face_auth_enabled", "geo_enabled": "geo_enabled",
-                    "qr_enabled": "qr_enabled", "pin_enabled": "pin_enabled",
-                    "fingerprint_enabled": "fingerprint_enabled", "biometric_enabled": "biometric_enabled",
-                    "notify_leave": "notify_leave", "notify_payslip": "notify_payslip",
-                    "notify_resignation": "notify_resignation", "notify_doc_expiry": "notify_doc_expiry"}
-    cfs_col = _cfs_col_map.get(feature, feature)
-    if active_cid and cfs_col in _cfs_col_map:
-        _upsert_co_feature(active_cid, cfs_col, value)
+    # Explicit allowlist maps feature name → exact DB column (no dynamic interpolation)
+    _CS_COL_MAP = {
+        "face_auth_enabled":  "face_auth_enabled",
+        "geo_enabled":        "geo_enabled",
+        "qr_enabled":         "qr_enabled",
+        "pin_enabled":        "pin_enabled",
+        "fingerprint_enabled":"fingerprint_enabled",
+        "biometric_enabled":  "biometric_enabled",
+        "notify_leave":       "notify_leave",
+        "notify_payslip":     "notify_payslip",
+        "notify_resignation": "notify_resignation",
+        "notify_doc_expiry":  "notify_doc_expiry",
+    }
+    cs_col = _CS_COL_MAP.get(feature)
+    if not cs_col:
+        return jsonify({"ok": False, "error": "unknown feature"}), 400
+    if active_cid:
+        _upsert_co_feature(active_cid, cs_col, value)
     else:
         db = get_db_connection(); cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))
+        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))
         db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True})
 
@@ -3336,7 +3640,13 @@ def toggle_feature():
 @app.route("/save_geo_radius", methods=["POST"])
 @admin_required
 def save_geo_radius():
-    radius = int(request.form.get("geo_radius", 100))
+    try:
+        radius = int(request.form.get("geo_radius", 100))
+        if not (50 <= radius <= 5000):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("Geo radius must be between 50 and 5000 metres.", "danger")
+        return redirect("/settings?tab=attendance")
     active_cid = session.get("active_company_id")
     if active_cid:
         _upsert_co_feature(active_cid, "geo_radius", radius)
@@ -3351,7 +3661,13 @@ def save_geo_radius():
 @app.route("/save_security_settings", methods=["POST"])
 @admin_required
 def save_security_settings():
-    timeout = int(request.form.get("session_timeout", 30))
+    try:
+        timeout = int(request.form.get("session_timeout", 30))
+        if not (5 <= timeout <= 1440):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("Session timeout must be between 5 and 1440 minutes.", "danger")
+        return redirect("/settings?tab=security")
     active_cid = session.get("active_company_id")
     if active_cid:
         _upsert_co_feature(active_cid, "session_timeout", timeout)
@@ -4305,8 +4621,9 @@ def add_employee_page():
             _dept     = request.form.get("department", "").strip() or None
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
-                "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department, "
+                "force_pin_change) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
                  date_of_joining, work_mode, work_lat, work_lon, company_id,
                  _mgr_id, _mgr_name, _dept)
@@ -4627,29 +4944,20 @@ def employee_forgot_password():
     if request.method == "GET":
         return render_template("employee_forgot_password.html", sent=False, error=None)
     emp_id = request.form.get("employee_id", "").strip()
-    email  = request.form.get("email", "").strip().lower()
-    if not emp_id or not email:
-        return render_template("employee_forgot_password.html", sent=False, error="Both Employee ID and email are required.")
+    if not emp_id:
+        return render_template("employee_forgot_password.html", sent=False, error="Please enter your Employee ID.")
     db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, email FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT employee_id, email, name FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
-    if not row or not row[1] or row[1].lower() != email:
+    if not row or not row[1]:
         cursor.close(); db.close()
-        return render_template("employee_forgot_password.html", sent=False,
-                               error="Employee ID and email do not match our records.")
+        # Generic message to avoid account enumeration; also covers "no email on file"
+        return render_template("employee_forgot_password.html", sent=True, error=None)
+    db_email = row[1]
+    emp_name = row[2] or emp_id
     token       = secrets.token_hex(32)
     token_hash  = hashlib.sha256(token.encode()).hexdigest()
     expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
-    try:
-        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80)")
-        db.commit()
-    except mysql.connector.errors.DatabaseError:
-        db.rollback()
-    try:
-        cursor.execute("ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME")
-        db.commit()
-    except mysql.connector.errors.DatabaseError:
-        db.rollback()
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
                    (token_hash, expiry, emp_id))
     db.commit(); cursor.close(); db.close()
@@ -4665,18 +4973,15 @@ def employee_forgot_password():
     <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Portal</div>
   </div>
   <div style="padding:28px;">
-    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">You requested a password reset for Employee ID <strong>{emp_id}</strong>.</p>
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{emp_name}</strong>, you requested a password reset for Employee ID <strong>{emp_id}</strong>.</p>
     <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
       Reset My Password
     </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, ignore this email.</p>
-    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy: {reset_url}</p>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, please ignore this email.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""
-    try:
-        send_email_smtp(email, "Password Reset — Employee Portal", html_body, cfg)
-    except Exception as ex:
-        return render_template("employee_forgot_password.html", sent=False, error=f"Failed to send email: {ex}")
+    send_email_async(db_email, "Password Reset — Employee Portal", html_body, cfg)
     return render_template("employee_forgot_password.html", sent=True, error=None)
 
 
@@ -5118,7 +5423,12 @@ def generate_emp_id():
 
 # ---------------- BREAK CONFIG ----------------
 @app.route("/api/breaks")
+@limiter.limit("30 per minute")
 def api_breaks():
+    if not (session.get("admin_logged_in") or session.get("employee_id")):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"ok": False, "msg": "Unauthorized"}), 401
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id, break_name, break_time, duration_minutes FROM break_config WHERE is_active=1 ORDER BY break_time")
@@ -6526,6 +6836,7 @@ def force_change_pin():
                 (generate_password_hash(new_pwd), emp_id)
             )
             db.commit(); cursor.close(); db.close()
+            session.pop("_fpc", None)  # clear forced-change flag so portal is accessible
             return redirect("/employee_portal")
     return render_template("force_change_pin.html", error=error,
                            emp_name=session.get("employee_name", ""))
@@ -7915,13 +8226,15 @@ def request_leave():
   </div>
 </div>"""
         try:
-            send_email_async(
-                config.get("from_email", config["user"]),
-                f"Leave Request — {emp_name} ({date_label})",
-                html_body, config
-            )
+            admin_emails = get_admin_emails()
+            for admin_email in admin_emails:
+                send_email_async(
+                    admin_email,
+                    f"Leave Request — {emp_name} ({date_label})",
+                    html_body, config
+                )
         except Exception as e:
-            app_log.error('"Leave request notification email failed: %s"', e)
+            app_log.error("Leave request notification email failed: %s", e)
 
     return redirect("/employee_portal?leave_sent=1#apply-leave")
 
@@ -9227,11 +9540,12 @@ def request_resignation():
     </p>
   </div>
 </div>"""
-        send_email_async(
-            config.get("from_email", config["user"]),
-            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-            html_body, config
-        )
+        for admin_email in get_admin_emails():
+            send_email_async(
+                admin_email,
+                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+                html_body, config
+            )
 
     return redirect("/employee_portal?resigned=1#resign")
 
@@ -9521,14 +9835,13 @@ def api_required(f):
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-        token = auth[7:]
+        token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            # Clean up expired tokens opportunistically
             cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
             _conn.commit()
             cursor.execute(
                 "SELECT identity FROM api_tokens WHERE token=%s AND token_type='admin' AND expires_at > NOW()",
-                (token,)
+                (token_hash,)
             )
             row = cursor.fetchone()
         if not row:
@@ -9540,7 +9853,8 @@ def api_required(f):
 
 
 @app.route("/api/login", methods=["POST"])
-@limiter.limit("20 per minute")
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
 def api_login():
     data     = request.get_json() or {}
     username = data.get("username", "")
@@ -9553,7 +9867,7 @@ def api_login():
             cursor.execute(
                 "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
                 "VALUES (%s, 'admin', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
-                (token, username)
+                (_hash_token(token), username)
             )
             conn.commit()
             return jsonify({"ok": True, "token": token, "username": username})
@@ -9565,7 +9879,7 @@ def api_logout():
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         with _db() as (cursor, conn):
-            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (auth[7:],))
+            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(auth[7:]),))
             conn.commit()
     return jsonify({"ok": True})
 
@@ -9628,17 +9942,24 @@ def api_dashboard():
 @app.route("/api/employees", methods=["GET"])
 @api_required
 def api_employees():
+    page     = max(1, int(request.args.get("page", 1)))
+    per_page = min(100, max(1, int(request.args.get("per_page", 50))))
+    offset   = (page - 1) * per_page
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COUNT(*) FROM employees")
+    total = cursor.fetchone()[0]
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
-    """)
+        LIMIT %s OFFSET %s
+    """, (per_page, offset))
     rows = cursor.fetchall()
     cursor.close(); db.close()
-    return jsonify({"ok": True, "employees": [
+    return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
+                    "employees": [
         {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(r[3])}
         for r in rows
     ]})
@@ -9671,8 +9992,8 @@ def api_register_employee():
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute(
-            "INSERT INTO employees (name, employee_id, email, face_image, qr_code, password) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO employees (name, employee_id, email, face_image, qr_code, password, force_pin_change) "
+            "VALUES (%s,%s,%s,%s,%s,%s,1)",
             (name, emp_id, email, filepath, qr_path, hashed_pwd)
         )
         db.commit()
@@ -10173,14 +10494,13 @@ def employee_api_required(f):
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-        token = auth[7:]
+        token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            # Clean up expired tokens opportunistically
             cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
             _conn.commit()
             cursor.execute(
                 "SELECT identity FROM api_tokens WHERE token=%s AND token_type='employee' AND expires_at > NOW()",
-                (token,)
+                (token_hash,)
             )
             row = cursor.fetchone()
         if not row:
@@ -10192,30 +10512,44 @@ def employee_api_required(f):
 
 
 @app.route("/api/employee/login", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
 def api_employee_login():
     data   = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
     password = data.get("password", "").strip()
     if not emp_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
+    # Check lockout before hitting the DB with credentials
+    locked, until = _check_login_lockout(emp_id, "employee")
+    if locked:
+        return jsonify({"ok": False, "msg": f"Account locked until {until}. Try again later."}), 429
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name, email, password FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     cursor.close(); db.close()
     if not row:
-        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+        _record_login_failure(emp_id, "employee")
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     if not password:
         return jsonify({"ok": False, "msg": "Password required"}), 400
     if not row[2] or not check_password_hash(row[2], password):
-        return jsonify({"ok": False, "msg": "Invalid password"}), 401
+        _record_login_failure(emp_id, "employee")
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    _clear_login_failures(emp_id, "employee")
+    # Upgrade legacy hash to bcrypt transparently
+    if row[2] and not row[2].startswith("$2"):
+        with _db() as (_uc, _ud):
+            _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
+                        (generate_password_hash(password), emp_id))
+            _ud.commit()
     token = secrets.token_hex(32)
     with _db() as (cursor, conn):
         cursor.execute(
             "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
             "VALUES (%s, 'employee', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
-            (token, emp_id)
+            (_hash_token(token), emp_id)
         )
         conn.commit()
     return jsonify({"ok": True, "token": token, "employee_id": emp_id,
@@ -10227,7 +10561,7 @@ def api_employee_logout():
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         with _db() as (cursor, conn):
-            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (auth[7:],))
+            cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(auth[7:]),))
             conn.commit()
     return jsonify({"ok": True})
 
@@ -10868,6 +11202,7 @@ def webauthn_verify_challenge():
 
 
 @app.route("/api/employee/webauthn-register", methods=["POST"])
+@limiter.limit("10 per minute")
 def webauthn_register():
     """Save a WebAuthn credential after successful enrollment. Requires active employee session."""
     emp_id = session.get("employee_id")
@@ -10890,6 +11225,7 @@ def webauthn_register():
 
 
 @app.route("/api/employee/webauthn-unenroll", methods=["POST"])
+@limiter.limit("10 per minute")
 def webauthn_unenroll():
     """Remove the stored WebAuthn credential for the logged-in employee."""
     emp_id = session.get("employee_id")
@@ -10912,7 +11248,20 @@ def webauthn_unenroll():
 @app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 @limiter.limit("30 per minute")
 def get_employee_webauthn_credential(emp_id):
-    """Return the stored WebAuthn credential_id for an employee (public, used by kiosk)."""
+    """Return the stored WebAuthn credential_id — requires an active admin or employee session."""
+    if not (session.get("admin_logged_in") or session.get("employee_id")):
+        # Also accept a valid Bearer token (kiosk uses admin token)
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token_hash = _hash_token(auth[7:])
+            with _db() as (cursor, _):
+                cursor.execute(
+                    "SELECT 1 FROM api_tokens WHERE token=%s AND expires_at > NOW()", (token_hash,)
+                )
+                if not cursor.fetchone():
+                    return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+        else:
+            return jsonify({"ok": False, "msg": "Unauthorized"}), 401
     emp_id = emp_id.strip().upper()
     try:
         db = get_db_connection(); cursor = db.cursor(buffered=True)
@@ -10956,6 +11305,7 @@ def api_mobile_biometric_attest():
 
 
 @app.route("/api/employee/qr-face-checkin", methods=["POST"])
+@limiter.limit("20 per minute")
 def api_employee_qr_face_checkin():
     """Public kiosk endpoint — supports auth_combo: qr_face | qr_fingerprint | face_fingerprint."""
     employee_id        = request.form.get("employee_id", "").strip().upper()
@@ -11196,11 +11546,12 @@ def api_employee_resign():
             f'<tr><td style="padding:10px;color:#555;font-weight:600;">Reason</td><td style="padding:10px;">{reason}</td></tr>'
             f'</table></div></div>'
         )
-        send_email_async(
-            config.get("from_email", config["user"]),
-            f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
-            html_body, config
-        )
+        for admin_email in get_admin_emails():
+            send_email_async(
+                admin_email,
+                f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
+                html_body, config
+            )
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 
@@ -12961,7 +13312,8 @@ def create_org():
             return redirect("/create_org")
         mcur.close(); mconn.close()
     except Exception as exc:
-        flash(f"Could not check subdomain availability: {exc}", "error")
+        app_log.error("create_org subdomain check failed: %s", exc)
+        flash("Could not check subdomain availability. Please try again.", "error")
         return redirect("/create_org")
 
     # Derive DB name
@@ -12971,7 +13323,8 @@ def create_org():
         from database import create_tenant_database
         create_tenant_database(db_name)
     except Exception as exc:
-        flash(f"Failed to create tenant database: {exc}", "error")
+        app_log.error("create_org DB creation failed: %s", exc)
+        flash("Failed to create organisation. Please contact support.", "error")
         return redirect("/create_org")
 
     try:
@@ -12979,7 +13332,8 @@ def create_org():
         _g.tenant_db = db_name
         init_tenant_db(db_name)
     except Exception as exc:
-        flash(f"Failed to initialize tenant schema: {exc}", "error")
+        app_log.error("create_org schema init failed: %s", exc)
+        flash("Failed to initialise organisation schema. Please contact support.", "error")
         return redirect("/create_org")
 
     # Insert company settings and admin user into the new tenant DB
@@ -13503,6 +13857,226 @@ def offer_letter_view(letter_id):
         return redirect("/onboarding")
     return render_template("offer_letter_view.html", letter=letter, co=co)
 
+def _generate_offer_letter_pdf(letter, co):
+    """Build offer letter PDF with ReportLab and return bytes."""
+    from io import BytesIO
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Table,
+                                    TableStyle, Spacer, HRFlowable)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+    BLUE  = rl_colors.HexColor("#1d4ed8")
+    DARK  = rl_colors.HexColor("#111827")
+    GRAY  = rl_colors.HexColor("#6b7280")
+    LIGHT = rl_colors.HexColor("#f3f4f6")
+
+    emp_name      = letter[17]
+    designation   = letter[3] or "the offered position"
+    department    = letter[4] or ""
+    work_location = letter[5] or ""
+    monthly_ctc   = float(letter[6]) if letter[6] else 0
+    joining_date  = letter[7].strftime("%d %B %Y") if letter[7] else "—"
+    valid_until   = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
+    probation     = letter[9] or 6
+    reporting_to  = letter[10] or "the Department Head"
+    notes         = letter[11] or ""
+    gen_date      = letter[12].strftime("%d %B %Y") if letter[12] else ""
+    notice_days   = letter[15] or 30
+    ref_num       = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
+    company       = co.get("company_name", "Company")
+    co_address    = co.get("address", "")
+    co_email_val  = co.get("email", "")
+
+    def ps(name, **kw):
+        base = dict(fontName="Helvetica", fontSize=10, leading=14, textColor=DARK)
+        base.update(kw)
+        return ParagraphStyle(name, **base)
+
+    sNormal  = ps("normal")
+    sBold    = ps("bold",   fontName="Helvetica-Bold")
+    sSmall   = ps("small",  fontSize=8,  textColor=GRAY)
+    sLabel   = ps("label",  fontSize=8,  fontName="Helvetica-Bold", textColor=BLUE, spaceAfter=4)
+    sCenter  = ps("center", alignment=TA_CENTER)
+    sRight   = ps("right",  alignment=TA_RIGHT)
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=20*mm, rightMargin=20*mm,
+                            topMargin=14*mm, bottomMargin=16*mm)
+    story = []
+
+    # ── Blue top rule ──────────────────────────────────────────────────────
+    story.append(HRFlowable(width="100%", thickness=4, color=BLUE, spaceAfter=8))
+
+    # ── Letterhead row ─────────────────────────────────────────────────────
+    addr_line = co_address
+    if co_email_val:
+        addr_line += f"  ·  {co_email_val}" if addr_line else co_email_val
+    lh_data = [[
+        [Paragraph(f"<b>{company}</b>", ps("co", fontSize=14, fontName="Helvetica-Bold")),
+         Paragraph(addr_line, sSmall)],
+        [Paragraph(f"<b>Date:</b> {gen_date}", sRight),
+         Paragraph(f"<b>Ref:</b> {ref_num}", sRight)],
+    ]]
+    lh_tbl = Table(lh_data, colWidths=["55%", "45%"])
+    lh_tbl.setStyle(TableStyle([
+        ("VALIGN",  (0,0), (-1,-1), "TOP"),
+        ("ALIGN",   (1,0), (1,-1),  "RIGHT"),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+    ]))
+    story.append(lh_tbl)
+    story.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#e5e7eb"), spaceAfter=10))
+
+    # ── To block ───────────────────────────────────────────────────────────
+    story.append(Paragraph("<b>To,</b>", sNormal))
+    story.append(Paragraph(emp_name, sNormal))
+    story.append(Paragraph(f"Employee ID: {letter[2]}", sNormal))
+    story.append(Spacer(1, 8))
+
+    # ── Subject ────────────────────────────────────────────────────────────
+    story.append(Paragraph(f"<u><b>Sub: Offer of Employment — {designation}</b></u>", sNormal))
+    story.append(Spacer(1, 10))
+
+    # ── Salutation ─────────────────────────────────────────────────────────
+    story.append(Paragraph(f"Dear <b>{emp_name}</b>,", sNormal))
+    story.append(Spacer(1, 8))
+
+    # ── Opening paragraphs ─────────────────────────────────────────────────
+    dept_txt  = f" in the <b>{department}</b> department" if department else ""
+    loc_txt   = f", located at <b>{work_location}</b>" if work_location else ""
+    story.append(Paragraph(
+        f"We are pleased to offer you the position of <b>{designation}</b>{dept_txt} "
+        f"at <b>{company}</b>{loc_txt}. You will be reporting to <b>{reporting_to}</b>.",
+        sNormal))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"Your date of joining will be <b>{joining_date}</b>. Please report to the HR Department "
+        f"on the joining date with your original documents for verification.",
+        sNormal))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"At <b>{company}</b>, we believe in fostering a collaborative, growth-oriented environment "
+        f"where every team member is empowered to make an impact. As a <b>{designation}</b>, "
+        f"you will play a key role in driving our mission forward. We look forward to the "
+        f"valuable perspective and expertise you will bring to the team.",
+        sNormal))
+    story.append(Spacer(1, 12))
+
+    # ── Compensation ───────────────────────────────────────────────────────
+    if monthly_ctc > 0:
+        story.append(Paragraph("COMPENSATION DETAILS", sLabel))
+        basic = round(monthly_ctc * 0.40, 2)
+        hra   = round(monthly_ctc * 0.20, 2)
+        sa    = round(monthly_ctc * 0.33, 2)
+        pf    = round(monthly_ctc * 0.04, 2)
+        gr    = round(monthly_ctc * 0.03, 2)
+        def fmt(n): return f"₹{n:,.2f}"
+        ctc_data = [
+            ["Salary Component", "Monthly", "Annual"],
+            ["Basic Salary",            fmt(basic),       fmt(basic*12)],
+            ["House Rent Allowance",     fmt(hra),         fmt(hra*12)],
+            ["Special Allowance",        fmt(sa),          fmt(sa*12)],
+            ["PF — Employer (12%)",      fmt(pf),          fmt(pf*12)],
+            ["Gratuity (4.81%)",         fmt(gr),          fmt(gr*12)],
+            ["GROSS CTC",                fmt(monthly_ctc), fmt(monthly_ctc*12)],
+        ]
+        ctc_tbl = Table(ctc_data, colWidths=["50%", "25%", "25%"])
+        ctc_tbl.setStyle(TableStyle([
+            ("BACKGROUND",   (0, 0), (-1, 0),  LIGHT),
+            ("BACKGROUND",   (0, -1), (-1, -1), DARK),
+            ("TEXTCOLOR",    (0, 0), (-1, 0),  GRAY),
+            ("TEXTCOLOR",    (0, -1), (-1, -1), rl_colors.white),
+            ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTNAME",     (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, -1), 9),
+            ("ALIGN",        (1, 0), (-1, -1),  "RIGHT"),
+            ("ROWBACKGROUNDS",(0,1), (-1,-2),  [rl_colors.white, rl_colors.HexColor("#f9fafb")]),
+            ("GRID",         (0, 0), (-1, -2),  0.3, rl_colors.HexColor("#e5e7eb")),
+            ("TOPPADDING",   (0, 0), (-1, -1),  6),
+            ("BOTTOMPADDING",(0, 0), (-1, -1),  6),
+            ("LEFTPADDING",  (0, 0), (-1, -1),  8),
+            ("RIGHTPADDING", (0, 0), (-1, -1),  8),
+        ]))
+        story.append(ctc_tbl)
+        story.append(Spacer(1, 10))
+
+    # ── Notes ──────────────────────────────────────────────────────────────
+    if notes:
+        note_tbl = Table([[Paragraph(f"<b>Note:</b> {notes}", ps("note", fontSize=9, textColor=rl_colors.HexColor("#1e40af")))]],
+                         colWidths=["100%"])
+        note_tbl.setStyle(TableStyle([
+            ("BACKGROUND",  (0,0), (-1,-1), rl_colors.HexColor("#eff6ff")),
+            ("LEFTPADDING", (0,0), (-1,-1), 10),
+            ("TOPPADDING",  (0,0), (-1,-1), 8),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 8),
+        ]))
+        story.append(note_tbl)
+        story.append(Spacer(1, 10))
+
+    # ── Terms & Conditions ─────────────────────────────────────────────────
+    story.append(Paragraph("TERMS &amp; CONDITIONS", sLabel))
+    tc_items = [
+        "This offer is subject to satisfactory verification of your educational qualifications, credentials, and prior employment history.",
+        f"You will serve a probationary period of <b>{probation} months</b> from the date of joining. Confirmation is subject to satisfactory performance.",
+        f"Post-confirmation, either party may terminate employment by providing <b>{notice_days} days'</b> written notice or salary in lieu thereof. During probation, 7 days' notice applies.",
+        "All compensation is subject to applicable statutory deductions (TDS, PF, ESI, Professional Tax) as per prevailing Indian law.",
+        f"This offer is valid until <b>{valid_until}</b>. Non-acceptance by this date shall render this offer null and void.",
+        "You shall maintain strict confidentiality of all proprietary and sensitive information of the Company during and after your employment.",
+        "You will abide by the Company's HR policies, Code of Conduct, and all applicable rules as amended from time to time.",
+        "A formal Appointment Letter will be issued upon joining. This offer letter does not constitute a contract of employment.",
+    ]
+    tc_data = [
+        [Paragraph(f"{i+1}.&nbsp;&nbsp;{item}", ps(f"tc{i}", fontSize=9, leading=13, textColor=rl_colors.HexColor("#4b5563")))]
+        for i, item in enumerate(tc_items)
+    ]
+    tc_tbl = Table(tc_data, colWidths=["100%"])
+    tc_tbl.setStyle(TableStyle([
+        ("TOPPADDING",    (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+    ]))
+    story.append(tc_tbl)
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(
+        f"We look forward to welcoming you to <b>{company}</b>. "
+        "Please sign and return one copy of this letter to confirm your acceptance.",
+        sNormal))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("Warm regards,", sNormal))
+    story.append(Spacer(1, 24))
+
+    # ── Signature row ──────────────────────────────────────────────────────
+    sig_data = [[
+        [HRFlowable(width="80%", thickness=1, color=DARK),
+         Paragraph("<b>Authorised Signatory</b>", ps("sig", fontSize=9)),
+         Paragraph(company, ps("sigt", fontSize=8, textColor=GRAY)),
+         Paragraph("Human Resources", ps("sigt2", fontSize=8, textColor=GRAY))],
+        [Paragraph("I hereby accept this offer and agree to all terms stated above.", ps("accnote", fontSize=8, textColor=GRAY)),
+         HRFlowable(width="80%", thickness=1, color=DARK),
+         Paragraph(f"<b>{emp_name}</b>", ps("csig", fontSize=9)),
+         Paragraph("Candidate Signature", ps("csigt", fontSize=8, textColor=GRAY)),
+         Paragraph("Date: _______________", ps("cdate", fontSize=8, textColor=GRAY))],
+    ]]
+    sig_tbl = Table(sig_data, colWidths=["48%", "52%"])
+    sig_tbl.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("TOPPADDING", (0,0), (-1,-1), 0)]))
+    story.append(sig_tbl)
+
+    # ── Footer rule ────────────────────────────────────────────────────────
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#e5e7eb")))
+    foot_txt = company
+    if co_address:
+        foot_txt += f"  ·  {co_address}"
+    story.append(Paragraph(f'<font size="8" color="#9ca3af">{foot_txt}&nbsp;&nbsp;&nbsp;Confidential — For addressee only</font>', sCenter))
+    story.append(HRFlowable(width="100%", thickness=4, color=DARK, spaceBefore=6))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 @app.route("/offer_letter_send/<int:letter_id>", methods=["POST"])
 @admin_required
 def offer_letter_send(letter_id):
@@ -13520,7 +14094,7 @@ def offer_letter_send(letter_id):
     """, (letter_id,))
     letter = cursor.fetchone()
     co = get_company_settings()
-    if not letter or not letter[18]:  # email at index 18
+    if not letter or not letter[18]:
         flash("Employee email not found.", "error")
         cursor.close(); db.close()
         return redirect(f"/offer_letter_view/{letter_id}")
@@ -13530,40 +14104,361 @@ def offer_letter_send(letter_id):
         cursor.close(); db.close()
         return redirect(f"/offer_letter_view/{letter_id}")
     try:
-        emp_name     = letter[17]
-        emp_email    = letter[18]
-        designation  = letter[3] or "the offered position"
-        joining_date = letter[7].strftime("%d %b %Y") if letter[7] else "—"
-        ctc          = f"₹{float(letter[6]):,.2f}" if letter[6] else "—"
-        company      = co.get("company_name","Company")
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Offer Letter — {company}"
-        msg["From"]    = f"{cfg['from_name']} <{cfg['from_email']}>"
-        msg["To"]      = emp_email
-        html_body = f"""
-        <div style="font-family:Segoe UI,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1e293b;">
-          <h2 style="color:#0f2460;margin-bottom:8px;">Congratulations, {emp_name}!</h2>
-          <p style="color:#64748b;margin-bottom:24px;">We are pleased to extend this offer of employment.</p>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
-            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Position</td><td style="font-weight:700;">{designation}</td></tr>
-            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">CTC (Annual)</td><td style="font-weight:700;">{ctc}</td></tr>
-            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Date of Joining</td><td style="font-weight:700;">{joining_date}</td></tr>
-          </table>
-          <p style="font-size:13px;color:#475569;">Please find your detailed offer letter attached. Contact HR for any queries.</p>
-          <p style="margin-top:32px;font-size:13px;color:#64748b;">Regards,<br><strong>{company} HR Team</strong></p>
-        </div>"""
-        msg.attach(MIMEText(html_body, "html"))
-        with smtplib.SMTP(cfg["host"], cfg["port"]) as s:
-            s.starttls()
-            s.login(cfg["user"], cfg["password"])
-            s.sendmail(cfg["from_email"], emp_email, msg.as_string())
-        cursor.execute("UPDATE offer_letters SET sent_at=NOW(), status='sent' WHERE id=%s", (letter_id,))
+        emp_name      = letter[17]
+        emp_email     = letter[18]
+        designation   = letter[3] or "the offered position"
+        department    = letter[4] or ""
+        work_location = letter[5] or ""
+        monthly_ctc   = float(letter[6]) if letter[6] else 0
+        joining_date  = letter[7].strftime("%d %B %Y") if letter[7] else "—"
+        valid_until   = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
+        probation     = letter[9] or 6
+        reporting_to  = letter[10] or "the Department Head"
+        notes         = letter[11] or ""
+        gen_date      = letter[12].strftime("%d %B %Y") if letter[12] else ""
+        notice_days   = letter[15] or 30
+        ref_num       = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
+        company       = co.get("company_name", "Company")
+        co_address    = co.get("address", "")
+        co_email      = co.get("email", "")
+
+        # Secure one-time token (shared by accept/reject AND pdf view)
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        base_url    = request.host_url.rstrip("/")
+        accept_url  = f"{base_url}/offer_letter_respond/{token}/accept"
+        reject_url  = f"{base_url}/offer_letter_respond/{token}/reject"
+        pdf_view_url = f"{base_url}/offer_letter_pdf/{token}"
+        pdf_dl_url   = f"{base_url}/offer_letter_pdf/{token}?dl=1"
+
+        # ── Salary breakdown helper ────────────────────────────────────────
+        def fmt(n): return f"{n:,.2f}"
+        ctc_section = ""
+        if monthly_ctc > 0:
+            basic = round(monthly_ctc * 0.40, 2)
+            hra   = round(monthly_ctc * 0.20, 2)
+            sa    = round(monthly_ctc * 0.33, 2)
+            pf    = round(monthly_ctc * 0.04, 2)
+            gr    = round(monthly_ctc * 0.03, 2)
+            ctc_section = f"""
+            <p style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#1d4ed8;margin:20px 0 8px;">Compensation Details</p>
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px;">
+              <thead><tr>
+                <th style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:left;border-bottom:1px solid #e5e7eb;">Salary Component</th>
+                <th style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">Monthly (&#8377;)</th>
+                <th style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;padding:9px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">Annual (&#8377;)</th>
+              </tr></thead>
+              <tbody>
+                <tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;">Basic Salary</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(basic)}</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(basic*12)}</td></tr>
+                <tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;">House Rent Allowance (HRA)</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(hra)}</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(hra*12)}</td></tr>
+                <tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;">Special Allowance</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(sa)}</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(sa*12)}</td></tr>
+                <tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;">PF — Employer Contribution</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(pf)}</td><td style="padding:9px 12px;text-align:right;font-weight:600;border-bottom:1px solid #f3f4f6;">{fmt(pf*12)}</td></tr>
+                <tr><td style="padding:9px 12px;">Gratuity (4.81% of Basic)</td><td style="padding:9px 12px;text-align:right;font-weight:600;">{fmt(gr)}</td><td style="padding:9px 12px;text-align:right;font-weight:600;">{fmt(gr*12)}</td></tr>
+              </tbody>
+              <tfoot><tr>
+                <td style="padding:10px 12px;font-weight:800;background:#111827;color:#fff;">Gross CTC</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:800;background:#111827;color:#fff;">&#8377;{fmt(monthly_ctc)}</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:800;background:#111827;color:#fff;">&#8377;{fmt(monthly_ctc*12)}</td>
+              </tr></tfoot>
+            </table>"""
+
+        notes_section = ""
+        if notes:
+            notes_section = f"""<div style="background:#eff6ff;border-left:3px solid #1d4ed8;padding:11px 16px;font-size:12.5px;color:#1e40af;border-radius:0 6px 6px 0;margin-bottom:16px;line-height:1.7;">
+              <strong>Note:</strong> {notes}</div>"""
+
+        dept_html = f' in the <strong>{department}</strong> department' if department else ''
+        loc_html  = f', located at <strong>{work_location}</strong>' if work_location else ''
+
+        html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  @keyframes burst {{
+    0%   {{ transform:translate(var(--tx,0),0) rotate(0deg) scale(1); opacity:1; }}
+    100% {{ transform:translate(var(--tx,0),var(--ty,-70px)) rotate(var(--rot,360deg)) scale(0); opacity:0; }}
+  }}
+  .cw {{ position:relative; display:inline-block; cursor:default; }}
+  .cw:hover .cp {{ animation:burst .75s ease-out forwards; }}
+  .cp {{ position:absolute; width:7px; height:7px; border-radius:2px;
+         top:0; left:50%; opacity:0; pointer-events:none; }}
+</style>
+</head>
+<body style="margin:0;padding:0;background:#e5e7eb;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:680px;margin:32px auto;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.13);">
+
+  <!-- Top accent -->
+  <div style="height:4px;background:#1d4ed8;"></div>
+
+  <!-- Hero banner -->
+  <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);padding:40px 48px 32px;text-align:center;">
+    <div class="cw">
+      <span style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-.5px;">
+        &#127881; Congratulations, {emp_name}!
+      </span>
+      <!-- confetti pieces -->
+      <span class="cp" style="background:#ff6b6b;--tx:-38px;--ty:-75px;--rot:240deg;animation-delay:.00s;"></span>
+      <span class="cp" style="background:#ffd93d;--tx:-18px;--ty:-82px;--rot:180deg;animation-delay:.05s;"></span>
+      <span class="cp" style="background:#6bcb77;--tx:  5px;--ty:-78px;--rot:300deg;animation-delay:.10s;"></span>
+      <span class="cp" style="background:#4d96ff;--tx: 24px;--ty:-70px;--rot:120deg;animation-delay:.05s;"></span>
+      <span class="cp" style="background:#ff6b6b;--tx: 42px;--ty:-80px;--rot: 60deg;animation-delay:.00s;"></span>
+      <span class="cp" style="background:#c77dff;--tx:-50px;--ty:-60px;--rot:200deg;animation-delay:.12s;"></span>
+      <span class="cp" style="background:#ffd93d;--tx: 55px;--ty:-65px;--rot:160deg;animation-delay:.08s;"></span>
+      <span class="cp" style="background:#6bcb77;--tx:-25px;--ty:-90px;--rot:280deg;animation-delay:.03s;"></span>
+      <span class="cp" style="background:#4d96ff;--tx: 30px;--ty:-88px;--rot:330deg;animation-delay:.15s;"></span>
+      <span class="cp" style="background:#ff9f1c;--tx:  0px;--ty:-95px;--rot:  0deg;animation-delay:.07s;"></span>
+    </div>
+    <p style="color:#bfdbfe;font-size:14px;margin-top:10px;margin-bottom:0;">
+      We are thrilled to welcome you to the <strong style="color:#fff;">{company}</strong> family!
+    </p>
+  </div>
+
+  <!-- Letterhead meta -->
+  <div style="padding:20px 48px 0;display:table;width:100%;box-sizing:border-box;">
+    <div style="display:table-cell;vertical-align:top;">
+      <div style="font-size:16px;font-weight:800;color:#111827;">{company}</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:3px;">{co_address}{(' &nbsp;·&nbsp; ' + co_email) if co_email else ''}</div>
+    </div>
+    <div style="display:table-cell;vertical-align:top;text-align:right;font-size:11px;color:#6b7280;line-height:1.8;">
+      <div><strong style="color:#111827;">Date:</strong> {gen_date}</div>
+      <div><strong style="color:#111827;">Ref:</strong> {ref_num}</div>
+    </div>
+  </div>
+  <hr style="border:none;border-top:1.5px solid #e5e7eb;margin:14px 48px 0;"/>
+
+  <!-- Address + Subject -->
+  <div style="padding:18px 48px 0;font-size:13px;color:#374151;line-height:1.8;">
+    <div style="font-weight:700;">To,</div>
+    <div>{emp_name}</div>
+    <div>Employee ID: {letter[2]}</div>
+  </div>
+  <div style="padding:12px 48px 0;font-size:13px;font-weight:700;color:#111827;text-decoration:underline;">
+    Sub: Offer of Employment — {designation}
+  </div>
+
+  <!-- Letter body -->
+  <div style="padding:18px 48px 32px;">
+
+    <p style="font-size:13px;color:#374151;line-height:1.9;margin-bottom:14px;">
+      Dear <strong>{emp_name}</strong>,
+    </p>
+
+    <p style="font-size:13px;color:#374151;line-height:1.9;margin-bottom:14px;">
+      We are pleased to offer you the position of <strong>{designation}</strong>{dept_html}
+      at <strong>{company}</strong>{loc_html}.
+      You will be reporting to <strong>{reporting_to}</strong>.
+    </p>
+
+    <p style="font-size:13px;color:#374151;line-height:1.9;margin-bottom:14px;">
+      Your date of joining will be <strong>{joining_date}</strong>. Please report to the HR Department
+      on the joining date with your original documents for verification.
+    </p>
+
+    <!-- About the role -->
+    <div style="background:#f8fafc;border-radius:8px;padding:18px 20px;margin-bottom:18px;">
+      <p style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1d4ed8;margin:0 0 10px;">About Your Role</p>
+      <p style="font-size:13px;color:#374151;line-height:1.85;margin:0;">
+        As a <strong>{designation}</strong>{dept_html} at <strong>{company}</strong>, you will be entrusted with
+        responsibilities that directly contribute to our organisational goals. You will collaborate with
+        cross-functional teams, lead initiatives within your domain, and contribute to building a high-performance
+        culture. We expect you to bring creativity, ownership, and a commitment to excellence to every task.
+      </p>
+    </div>
+
+    <!-- What we offer -->
+    <div style="background:#f0fdf4;border-radius:8px;padding:18px 20px;margin-bottom:18px;">
+      <p style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#15803d;margin:0 0 10px;">What We Offer</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <tr>
+          <td style="padding:5px 8px;width:50%;vertical-align:top;">&#127775; Competitive CTC &amp; annual reviews</td>
+          <td style="padding:5px 8px;width:50%;vertical-align:top;">&#128218; Learning &amp; development budget</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px;vertical-align:top;">&#127968; Flexible work environment</td>
+          <td style="padding:5px 8px;vertical-align:top;">&#129303; Inclusive &amp; collaborative culture</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px;vertical-align:top;">&#127775; Performance bonuses &amp; incentives</td>
+          <td style="padding:5px 8px;vertical-align:top;">&#128200; Clear growth &amp; promotion path</td>
+        </tr>
+      </table>
+    </div>
+
+    {ctc_section}
+    {notes_section}
+
+    <!-- Terms & Conditions -->
+    <p style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#1d4ed8;margin:20px 0 8px;">Terms &amp; Conditions</p>
+    <ol style="padding-left:18px;font-size:12.5px;color:#4b5563;line-height:1.85;margin-bottom:20px;">
+      <li style="margin-bottom:7px;">This offer is subject to satisfactory verification of your educational qualifications, credentials, and prior employment history.</li>
+      <li style="margin-bottom:7px;">You will serve a probationary period of <strong>{probation} months</strong> from the date of joining. Confirmation is subject to satisfactory performance.</li>
+      <li style="margin-bottom:7px;">Post-confirmation, either party may terminate employment by providing <strong>{notice_days} days'</strong> written notice or salary in lieu thereof. During probation, 7 days' notice applies.</li>
+      <li style="margin-bottom:7px;">All compensation is subject to applicable statutory deductions (TDS, PF, ESI, Professional Tax) as per prevailing Indian law.</li>
+      <li style="margin-bottom:7px;">This offer is valid until <strong>{valid_until}</strong>. Non-acceptance by this date shall render this offer null and void.</li>
+      <li style="margin-bottom:7px;">You shall maintain strict confidentiality of all proprietary and sensitive information of the Company during and after your employment.</li>
+      <li style="margin-bottom:7px;">You will abide by the Company's HR policies, Code of Conduct, and all applicable rules as amended from time to time.</li>
+      <li style="margin-bottom:7px;">A formal Appointment Letter will be issued upon joining. This offer letter does not constitute a contract of employment.</li>
+    </ol>
+
+    <p style="font-size:13px;color:#374151;line-height:1.9;margin-bottom:20px;">
+      We look forward to welcoming you to <strong>{company}</strong>.
+      Please review your complete offer letter PDF below and respond using the buttons at the bottom.
+    </p>
+
+    <!-- PDF section -->
+    <div style="border:2px solid #e5e7eb;border-radius:10px;padding:20px 24px;margin-bottom:24px;background:#fafafa;">
+      <div style="display:table;width:100%;">
+        <div style="display:table-cell;vertical-align:middle;">
+          <div style="font-size:32px;display:inline-block;vertical-align:middle;margin-right:12px;">&#128196;</div>
+          <div style="display:inline-block;vertical-align:middle;">
+            <div style="font-size:13px;font-weight:700;color:#111827;">Offer Letter — {emp_name}.pdf</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Complete offer letter with salary breakdown &amp; terms</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        <a href="{pdf_view_url}"
+           style="display:inline-block;padding:10px 22px;background:#1d4ed8;color:#fff;font-size:12px;font-weight:700;text-decoration:none;border-radius:7px;">
+          &#128065; &nbsp;View PDF
+        </a>
+        <a href="{pdf_dl_url}"
+           style="display:inline-block;padding:10px 22px;background:#fff;color:#111827;font-size:12px;font-weight:700;text-decoration:none;border-radius:7px;border:1.5px solid #d1d5db;margin-left:10px;">
+          &#8681; &nbsp;Download PDF
+        </a>
+      </div>
+    </div>
+
+    <!-- Accept / Reject -->
+    <div style="margin:0 0 16px;text-align:center;">
+      <a href="{accept_url}"
+         style="display:inline-block;padding:14px 40px;background:#16a34a;color:#fff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;margin-right:14px;letter-spacing:.3px;">
+        &#10003;&nbsp; Accept Offer
+      </a>
+      <a href="{reject_url}"
+         style="display:inline-block;padding:14px 40px;background:#dc2626;color:#fff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:.3px;">
+        &#10005;&nbsp; Decline Offer
+      </a>
+    </div>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:24px;">
+      Each response button can be used only once. Contact HR to change your response.
+    </p>
+
+    <p style="font-size:13px;color:#374151;line-height:1.9;">Warm regards,</p>
+    <p style="font-size:13px;color:#374151;font-weight:700;margin-top:4px;">{company} HR Team</p>
+  </div>
+
+  <!-- Footer -->
+  <div style="border-top:1px solid #e5e7eb;padding:10px 48px;font-size:10px;color:#9ca3af;display:table;width:100%;box-sizing:border-box;">
+    <span style="display:table-cell;">{company}{(' · ' + co_address) if co_address else ''}</span>
+    <span style="display:table-cell;text-align:right;">Confidential — For addressee only</span>
+  </div>
+  <div style="height:4px;background:#111827;"></div>
+</div>
+</body></html>"""
+
+        # Generate PDF
+        pdf_bytes = _generate_offer_letter_pdf(letter, co)
+        safe_name = emp_name.replace(" ", "_")
+        send_email_smtp(
+            emp_email,
+            f"Offer Letter — {company}",
+            html_body,
+            cfg,
+            attachment_bytes=pdf_bytes,
+            attachment_filename=f"Offer_Letter_{safe_name}.pdf",
+        )
+
+        token_expiry = datetime.datetime.now() + datetime.timedelta(days=30)
+        cursor.execute(
+            "UPDATE offer_letters SET sent_at=NOW(), status='sent', response_token=%s, "
+            "response_token_expiry=%s, candidate_response=NULL, responded_at=NULL WHERE id=%s",
+            (token_hash, token_expiry, letter_id)
+        )
         db.commit()
         flash(f"Offer letter emailed to {emp_email}.", "success")
     except Exception as ex:
         flash(f"Email failed: {ex}", "error")
     cursor.close(); db.close()
     return redirect(f"/offer_letter_view/{letter_id}")
+
+
+@app.route("/offer_letter_pdf/<token>")
+def offer_letter_pdf(token):
+    """Serve the offer letter PDF to the candidate (view or download) using their email token."""
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
+               ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
+               ol.probation_months,ol.reporting_to,ol.additional_notes,ol.generated_at,
+               ol.sent_at,ol.status,
+               COALESCE(ol.notice_period_days,30),COALESCE(ol.candidate_address,''),
+               e.name, e.email
+        FROM offer_letters ol
+        JOIN employees e ON e.employee_id = ol.employee_id
+        WHERE ol.response_token = %s
+          AND (ol.response_token_expiry IS NULL OR ol.response_token_expiry > NOW())
+    """, (hashlib.sha256(token.encode()).hexdigest(),))
+    letter = cursor.fetchone()
+    cursor.close(); db.close()
+    if not letter:
+        return "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>" \
+               "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>" \
+               "<p>Please contact HR for a copy of your offer letter.</p></body></html>", 404
+    co = get_company_settings()
+    pdf_bytes = _generate_offer_letter_pdf(letter, co)
+    emp_name  = letter[17]
+    safe_name = secure_filename(emp_name.replace(" ", "_")) or "Employee"
+    dl = request.args.get("dl", "0")
+    disposition = "attachment" if dl == "1" else "inline"
+    from flask import Response
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f'{disposition}; filename="Offer_Letter_{safe_name}.pdf"'
+    return resp
+
+
+@app.route("/offer_letter_respond/<token>/<action>")
+def offer_letter_respond(token, action):
+    if action not in ("accept", "reject"):
+        return "Invalid action.", 400
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id, employee_id, candidate_response, status FROM offer_letters "
+        "WHERE response_token=%s AND (response_token_expiry IS NULL OR response_token_expiry > NOW())",
+        (hashlib.sha256(token.encode()).hexdigest(),)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); db.close()
+        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+          <h2 style="color:#dc2626;">Invalid or expired link.</h2>
+          <p>This offer letter link is not valid. Please contact HR.</p></body></html>""", 404
+    letter_id, emp_id, existing_response, status = row
+    if existing_response:
+        label = "accepted" if existing_response == "accept" else "declined"
+        color = "#16a34a" if existing_response == "accept" else "#dc2626"
+        cursor.close(); db.close()
+        return f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+          <h2 style="color:{color};">You have already {label} this offer.</h2>
+          <p>Please contact HR if you wish to change your response.</p></body></html>"""
+    cursor.execute(
+        "UPDATE offer_letters SET candidate_response=%s, responded_at=NOW(), status=%s WHERE id=%s",
+        (action, "accepted" if action == "accept" else "rejected", letter_id)
+    )
+    db.commit()
+    cursor.close(); db.close()
+    if action == "accept":
+        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+          <div style="font-size:56px;">&#127881;</div>
+          <h2 style="color:#16a34a;margin-top:16px;">Offer Accepted!</h2>
+          <p style="font-size:15px;margin-top:8px;">Thank you for accepting the offer. HR will reach out to you with next steps.</p>
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
+    else:
+        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+          <div style="font-size:56px;">&#128533;</div>
+          <h2 style="color:#dc2626;margin-top:16px;">Offer Declined</h2>
+          <p style="font-size:15px;margin-top:8px;">We have noted your decision. Thank you for considering us. We wish you the best.</p>
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
 
 # Employee portal onboarding
 @app.route("/my_onboarding")
@@ -13844,6 +14739,33 @@ def api_org_chart_data():
 
 
 
+
+# ── /api/v1/ aliases ──────────────────────────────────────────────────────────
+# Register every /api/<path> route also under /api/v1/<path>.  Existing mobile
+# clients keep using /api/ with no changes; new integrations can start on v1.
+# The view functions (and their decorators: @limiter, @api_required, etc.) are
+# shared, so rate-limits and auth are identical on both prefixes.
+def _register_api_v1_aliases():
+    _seen = set()
+    for _rule in list(app.url_map.iter_rules()):
+        if not _rule.rule.startswith("/api/") or _rule.rule.startswith("/api/v"):
+            continue
+        _v1_rule = "/api/v1" + _rule.rule[4:]
+        _vf      = app.view_functions.get(_rule.endpoint)
+        if _vf is None:
+            continue
+        _ep_v1 = "v1_" + _rule.endpoint
+        if _ep_v1 in _seen:
+            continue
+        _seen.add(_ep_v1)
+        app.add_url_rule(
+            _v1_rule,
+            endpoint=_ep_v1,
+            view_func=_vf,
+            methods=_rule.methods,
+        )
+
+_register_api_v1_aliases()
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
