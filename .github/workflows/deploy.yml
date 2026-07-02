@@ -18,8 +18,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies (for import checks)
+        run: pip install --no-cache-dir -r requirements.txt
+
       - name: Check Python syntax
-        run: python -m py_compile app.py && echo "✅ app.py syntax OK"
+        run: |
+          for f in app.py wsgi.py extensions.py \
+                   utils/auth.py utils/helpers.py utils/config.py \
+                   utils/email_utils.py utils/attendance_utils.py; do
+            python -m py_compile "$f" && echo "✅ $f" || (echo "❌ $f syntax error" && exit 1)
+          done
 
       - name: Check key templates exist
         run: |
@@ -41,14 +49,63 @@ jobs:
 
       - name: Check DevOps files exist
         run: |
-          for f in Dockerfile entrypoint.sh docker-compose.yml docker-compose.prod.yml nginx/nginx.conf.template generate_cert.py init-letsencrypt.sh deploy.sh; do
+          for f in Dockerfile entrypoint.sh wsgi.py extensions.py \
+                   docker-compose.yml docker-compose.prod.yml \
+                   nginx/nginx.conf.template \
+                   generate_cert.py init-letsencrypt.sh deploy.sh; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
+
+      - name: Check utils package exists
+        run: |
+          for f in utils/__init__.py utils/auth.py utils/helpers.py \
+                   utils/config.py utils/email_utils.py utils/attendance_utils.py; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_testpass
+          MYSQL_DATABASE: att_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci_testpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt pytest pytest-cov
+
+      - name: Run pytest
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASS: ci_testpass
+          DB_NAME: att_test
+          SECRET_KEY: ci-test-secret-key-not-used-in-prod
+          FLASK_ENV: testing
+        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
 
   docker:
     name: Docker build
     runs-on: ubuntu-latest
-    needs: lint
+    needs: test
 
     steps:
       - uses: actions/checkout@v4
