@@ -113,6 +113,22 @@ if _missing_env:
     )
 
 app = Flask(__name__)
+
+# ── Trusted base URL for email links (avoids Host-header injection) ───────────
+# Set APP_URL=https://yourdomain.com in .env for production.
+# Falls back to request.host_url only when the env var is absent (local dev).
+_APP_URL = os.environ.get("APP_URL", "").rstrip("/")
+
+def _safe_app_url() -> str:
+    """Return a trusted base URL, never derived from the Host header."""
+    return _APP_URL if _APP_URL else request.host_url.rstrip("/")
+
+def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
+    """Validate that a redirect target is a relative path (prevents open redirect)."""
+    if dest and dest.startswith("/") and not dest.startswith("//"):
+        return dest
+    return fallback
+
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
 _allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else "*"
 if _raw_origins == "*" and os.environ.get("APP_ENV", "production") == "production":
@@ -3686,7 +3702,7 @@ def save_security_settings():
 def switch_company():
     cid  = request.form.get("company_id", "").strip()
     pin  = request.form.get("pin", "").strip()
-    dest = request.form.get("next", "/admin")
+    dest = _safe_redirect(request.form.get("next", ""), "/admin")
     if not cid:
         session.pop("active_company_id", None)
         flash("Switched to: All Companies", "success")
@@ -3715,7 +3731,7 @@ def switch_company():
 def clear_company():
     session.pop("active_company_id", None)
     flash("Viewing all companies.", "success")
-    return redirect(request.form.get("next", "/admin"))
+    return redirect(_safe_redirect(request.form.get("next", ""), "/admin"))
 
 @app.route("/set_company_pin", methods=["POST"])
 @admin_required
@@ -4878,7 +4894,7 @@ def admin_forgot_password():
     if not cfg:
         return render_template("admin_forgot_password.html", sent=False,
                                error="Email service not configured. Go to Admin → Email Settings first.")
-    reset_url = f"{request.host_url}admin_reset_password/{token}"
+    reset_url = f"{_safe_app_url()}/admin_reset_password/{token}"
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
@@ -4965,7 +4981,7 @@ def employee_forgot_password():
     if not cfg:
         return render_template("employee_forgot_password.html", sent=False,
                                error="Email service not configured. Please contact HR.")
-    reset_url = f"{request.host_url}employee_reset_password/{token}"
+    reset_url = f"{_safe_app_url()}/employee_reset_password/{token}"
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
@@ -14125,7 +14141,7 @@ def offer_letter_send(letter_id):
         # Secure one-time token (shared by accept/reject AND pdf view)
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        base_url    = request.host_url.rstrip("/")
+        base_url    = _safe_app_url()
         accept_url  = f"{base_url}/offer_letter_respond/{token}/accept"
         reject_url  = f"{base_url}/offer_letter_respond/{token}/reject"
         pdf_view_url = f"{base_url}/offer_letter_pdf/{token}"
