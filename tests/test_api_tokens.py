@@ -68,8 +68,9 @@ class TestApiLoginEndpoint:
         token = resp.get_json()["token"]
         token_hash = _sha256(token)
 
+        # api_tokens stores the sha256 hash in the 'token' column (not 'token_hash')
         cur = db_engine.cursor()
-        cur.execute("SELECT token_hash FROM api_tokens WHERE token_hash=%s", (token_hash,))
+        cur.execute("SELECT token FROM api_tokens WHERE token=%s", (token_hash,))
         row = cur.fetchone()
         cur.close()
         assert row is not None, "Token hash must be stored in api_tokens table"
@@ -125,10 +126,10 @@ class TestTokenExpiry:
         token = r1.get_json()["token"]
         token_hash = _sha256(token)
 
-        # Backdate expiry to past
+        # Backdate expiry to past (column is 'token', not 'token_hash')
         cur = db_engine.cursor()
         cur.execute(
-            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL 1 HOUR WHERE token_hash=%s",
+            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL 1 HOUR WHERE token=%s",
             (token_hash,)
         )
         cur.close()

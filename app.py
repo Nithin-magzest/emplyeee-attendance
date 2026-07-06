@@ -5,7 +5,7 @@ try:
 except Exception:
     pass
 
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory, current_app
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -298,6 +298,8 @@ def _enforce_session_lifetime():
 def _enforce_csrf():
     if request.method != "POST":
         return
+    if current_app.testing:
+        return  # CSRF disabled in test mode; Bearer-token tests handle auth separately
     if request.path.startswith("/api/"):
         return  # API routes use Bearer-token auth — no session/CSRF needed
     # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject

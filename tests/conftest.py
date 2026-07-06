@@ -10,15 +10,23 @@ Set them in .env.test or export before running:
 import os
 import pytest
 
-# Point at a dedicated test database so tests never touch production data
-os.environ.setdefault("DB_NAME",  "att_test")
-os.environ.setdefault("DB_HOST",  "localhost")
-os.environ.setdefault("APP_ENV",  "development")   # avoids HTTPS-only cookies
-os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
+# Override BEFORE dotenv loads (setdefault wins only if var not already in env).
+# Force-set here so they take priority over any .env file values.
+os.environ["DB_NAME"]    = "att_test"
+os.environ["DB_HOST"]    = "localhost"
+os.environ["APP_ENV"]    = "development"   # avoids HTTPS-only cookies
+os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
+os.environ.setdefault("DB_USER", "root")
+os.environ.setdefault("DB_PASS", "")
 
-# These must be set before importing app so the modules pick them up
-import app as _app_module  # noqa: F401 — registers routes + runs init_db logic
-from extensions import app as flask_app
+# Import app AFTER env vars are set so all module-level reads pick up test values.
+# app.py registers all routes on its own Flask `app` instance — use that directly.
+import app as _app_module  # noqa: F401 — triggers route registration + init_db
+flask_app = _app_module.app   # the real app with all routes registered
+
+# Disable Flask-Limiter for all tests — its .enabled attribute is set at init
+# time (not dynamically from config), so we patch the instance directly.
+_app_module.limiter.enabled = False
 
 
 @pytest.fixture(scope="session")
@@ -46,9 +54,10 @@ def _init_test_db(db_engine):
 
 @pytest.fixture
 def client():
-    flask_app.config["TESTING"]               = True
+    flask_app.config["TESTING"]               = True   # disables CSRF check + rate limits
     flask_app.config["WTF_CSRF_ENABLED"]      = False
     flask_app.config["SESSION_COOKIE_SECURE"] = False
+    flask_app.config["RATELIMIT_ENABLED"]     = False  # Flask-Limiter 3.x flag
     with flask_app.test_client() as c:
         yield c
 

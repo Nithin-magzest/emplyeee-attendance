@@ -124,9 +124,9 @@ class TestGetWorkingDays:
 
     def test_january_2025_day_count(self):
         from utils.attendance_utils import get_working_days
-        # Jan 2025: 31 days, 5 Sundays → 26 working days
+        # Jan 2025: 31 days, 4 Sundays (5,12,19,26) → 27 working days
         days = get_working_days(2025, 1)
-        assert len(days) == 26
+        assert len(days) == 27
 
     def test_february_2025_day_count(self):
         from utils.attendance_utils import get_working_days
