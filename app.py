@@ -10734,13 +10734,19 @@ def api_employee_checkin():
     employee_name, work_mode, work_lat, work_lon = result
 
     if lat and lon:
+        try:
+            lat_f = float(lat)
+            lon_f = float(lon)
+        except (ValueError, TypeError):
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Invalid lat/lon values."}), 400
         if work_mode == 'wfh':
             if work_lat and work_lon:
-                if not is_within_range(float(lat), float(lon), float(work_lat), float(work_lon)):
+                if not is_within_range(lat_f, lon_f, float(work_lat), float(work_lon)):
                     cursor.close(); db.close()
                     return jsonify({"ok": False, "msg": "You are outside your registered home location."})
         else:
-            if not is_within_range(float(lat), float(lon), OFFICE_LAT, OFFICE_LON):
+            if not is_within_range(lat_f, lon_f, OFFICE_LAT, OFFICE_LON):
                 cursor.close(); db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
