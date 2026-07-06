@@ -464,13 +464,11 @@ class TestCheckinAPI:
         assert resp.status_code in (400, 422)
 
     def test_checkin_bad_location_format(self, client, seed_employee):
-        # Non-numeric lat/lon causes unhandled ValueError (known bug: missing input validation)
         token = _emp_token(client, seed_employee)
         resp = client.post("/api/employee/checkin", json={
             "lat": "not_a_number", "lon": "not_a_number", "type": "checkin"
         }, headers={"Authorization": f"Bearer {token}"})
-        # 500 = unhandled float() conversion — should be 400; bug noted
-        assert resp.status_code in (400, 422, 500)
+        assert resp.status_code == 400
 
     def test_qr_face_checkin_missing_data(self, client):
         resp = client.post("/api/employee/qr-face-checkin", json={})
