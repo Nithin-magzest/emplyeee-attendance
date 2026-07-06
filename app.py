@@ -10925,17 +10925,20 @@ def api_employee_auth_config():
 
 
 def _wa_rp_id():
-    """WebAuthn Relying Party ID — Chrome/Edge reject raw IPs; normalise loopback to localhost.
-    When ALLOWED_ORIGINS pins this deployment to specific domain(s) (production),
-    always use the first configured domain rather than trusting request.host —
-    otherwise a misrouted/alternate hostname (e.g. EC2's default public DNS, a
-    stale DNS entry during a domain cutover) could silently become a valid RP ID."""
+    """WebAuthn Relying Party ID.
+    Loopback origins: return the exact host the browser used — localhost and
+    127.0.0.1 are NOT interchangeable for WebAuthn; the RP ID must equal the
+    origin's effective domain exactly.
+    Production: pin to ALLOWED_ORIGINS[0] so an attacker-controlled Host header
+    cannot register a rogue RP ID."""
+    host = request.host.split(":")[0]
+    if host in ("127.0.0.1", "::1", "localhost"):
+        return host
     if _allowed_origins != "*" and _allowed_origins:
         canonical = urlparse(_allowed_origins[0]).hostname
         if canonical:
             return canonical
-    host = request.host.split(":")[0]
-    return "localhost" if host in ("127.0.0.1", "::1") else host
+    return host
 
 def _wa_origins():
     """Return the set of acceptable WebAuthn origins for this host."""
