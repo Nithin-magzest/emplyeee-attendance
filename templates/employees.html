@@ -141,6 +141,8 @@
       .btn-qr:hover { background: #ede9fe; }
       .btn-photo { background: #fef9c3; color: #92400e; }
       .btn-photo:hover { background: #fef08a; }
+      .btn-idcard { background: #d1fae5; color: #065f46; }
+      .btn-idcard:hover { background: #a7f3d0; }
 
       /* MODALS */
       .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -527,6 +529,10 @@
                     <button class="btn-icon btn-qr" title="QR Code"
                       onclick="openQR('{{ emp_id }}', '{{ name }}', '{{ qr_code|qr_url }}')">
                       <i class="ti ti-qrcode"></i>
+                    </button>
+                    <button class="btn-icon btn-idcard" title="ID Card"
+                      onclick="openIDCard('{{ emp_id }}')">
+                      <i class="ti ti-id-badge"></i>
                     </button>
                     <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
                           onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
@@ -1167,6 +1173,46 @@
       </div>
     </div>
 
+    <!-- ================================================================
+         ID CARD MODAL
+    ================================================================ -->
+    <div class="modal-backdrop" id="idCardModal">
+      <div class="modal-box" style="max-width:560px;padding:20px;text-align:center;">
+        <button class="modal-close" onclick="closeModal('idCardModal')">&times;</button>
+        <h3 style="justify-content:center;margin-bottom:14px;">
+          <i class="ti ti-id-badge" style="color:#065f46;"></i> Employee ID Card
+        </h3>
+        <div id="idCardLoading" style="padding:40px 0;color:#64748b;font-size:14px;">
+          <i class="ti ti-loader" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+          Generating ID card…
+        </div>
+        <img id="idCardImg" src="" alt="ID Card"
+          style="display:none;max-width:100%;border-radius:12px;box-shadow:0 4px 24px rgba(30,58,138,0.15);"
+          onload="document.getElementById('idCardLoading').style.display='none';this.style.display='block';"
+          onerror="document.getElementById('idCardLoading').textContent='Failed to generate ID card.';" />
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:18px;">
+          <a id="idCardDownload" href="#" download=""
+            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
+              border:none;border-radius:10px;background:#065f46;color:#fff;
+              font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;">
+            <i class="ti ti-download"></i> Download PNG
+          </a>
+          <button id="idCardPrintBtn" onclick="printIDCard()"
+            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
+              border:none;border-radius:10px;background:#1e3a8a;color:#fff;
+              font-size:13px;font-weight:700;cursor:pointer;">
+            <i class="ti ti-printer"></i> Print
+          </button>
+          <button onclick="closeModal('idCardModal')"
+            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
+              border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;
+              font-size:13px;font-weight:700;cursor:pointer;">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script>
       // ========== FILTERS ==========
       let activeStatusFilter = '';
@@ -1570,10 +1616,44 @@
         }
         openModal('qrModal');
       }
+      // ========== ID CARD MODAL ==========
+      var _idCardEmpId = '';
+      function openIDCard(empId) {
+        _idCardEmpId = empId;
+        var img     = document.getElementById('idCardImg');
+        var loading = document.getElementById('idCardLoading');
+        var dlBtn   = document.getElementById('idCardDownload');
+
+        img.style.display = 'none';
+        loading.style.display = 'block';
+        loading.textContent = 'Generating ID card…';
+
+        var viewUrl = '/admin_view_id_card/' + encodeURIComponent(empId);
+        var dlUrl   = '/admin_id_card/'      + encodeURIComponent(empId);
+
+        img.src         = viewUrl + '?t=' + Date.now();
+        dlBtn.href      = dlUrl;
+        dlBtn.download  = 'IDCard_' + empId + '.png';
+
+        openModal('idCardModal');
+      }
+
+      function printIDCard() {
+        var img = document.getElementById('idCardImg');
+        if (!img.src || img.style.display === 'none') return;
+        var win = window.open('', '_blank', 'width=620,height=900');
+        win.document.write('<html><head><title>ID Card - ' + _idCardEmpId + '</title>'
+          + '<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
+          + 'img{max-width:520px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);}'
+          + '@media print{body{background:#fff;}}</style></head>'
+          + '<body><img src="' + img.src + '" onload="window.print();" /></body></html>');
+        win.document.close();
+      }
+
       document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
         closeLightbox();
-        ['addModal','editModal','photoModal','qrModal'].forEach(closeModal);
+        ['addModal','editModal','photoModal','qrModal','idCardModal'].forEach(id => closeModal(id));
       });
 
       // ========== FINGERPRINT ENROLLMENT ==========
