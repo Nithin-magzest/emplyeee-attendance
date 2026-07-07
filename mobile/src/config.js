@@ -1,20 +1,21 @@
-// ─────────────────────────────────────────────
-//  SECURITY: Use HTTPS in production.
-//  HTTP exposes Bearer tokens to anyone on the
-//  same network. Set up Nginx + SSL on the server
-//  and change the URL scheme to https://.
+// ─────────────────────────────────────────────────────────────
+//  API_BASE_URL — set this before building a release APK/IPA.
 //
-//  PRODUCTION:  'https://yourdomain.com'
+//  PRODUCTION:
+//    export const API_BASE_URL = 'https://yourdomain.com';
 //
-//  LOCAL DEV ONLY (real device / Android emulator):
-//  Find your LAN IP with: ipconfig (Windows)
-//  Example: 'http://192.168.1.x:5000'
+//  LOCAL DEV — USB debugging (adb reverse tcp:5000 tcp:5000):
+//    export const API_BASE_URL = 'http://localhost:5000';
 //
-//  iOS Simulator: 'http://localhost:5000'
-// ─────────────────────────────────────────────
+//  LOCAL DEV — real Android device on same Wi-Fi:
+//    export const API_BASE_URL = 'http://192.168.1.x:5000';
+//
+//  SECURITY: Never ship a build pointing at http:// — Bearer
+//  tokens are visible to anyone on the same network.
+// ─────────────────────────────────────────────────────────────
 
-export const API_BASE_URL = 'http://localhost:5000'; // USB debugging via adb reverse
-// SECURITY NOTE: Change to https:// for production deployment
+// ⚠  LOCAL DEV ONLY — change to production URL before release
+export const API_BASE_URL = 'http://localhost:5000';
 
 
 
