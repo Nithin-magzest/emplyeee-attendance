@@ -363,7 +363,7 @@
       <div class="dept-tabs" id="deptTabs">
         <button class="dept-tab all-tab active" onclick="filterByDept('')" data-dept="">All</button>
         {% for dept in departments %}
-          <button class="dept-tab" onclick="filterByDept('{{ dept }}')" data-dept="{{ dept }}">{{ dept }}</button>
+          <button class="dept-tab" onclick="filterByDept(this.dataset.dept)" data-dept="{{ dept }}">{{ dept }}</button>
         {% endfor %}
       </div>
       {% endif %}
@@ -387,6 +387,7 @@
             <i class="ti ti-search"></i>
             <input class="search-box" type="text" id="searchInput"
                    placeholder="Search name, ID, email, phone…"
+                   autocomplete="off"
                    oninput="applyFilters()" />
           </div>
           <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
@@ -448,7 +449,7 @@
           <table id="empTable">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
+                <th><label style="display:contents"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
                 <th>#</th>
                 <th>Photo</th>
                 <th>Employee ID</th>
@@ -478,14 +479,14 @@
                 <td class="muted">{{ loop.index }}</td>
                 <td>
                   {% if face_image %}
-                    <button class="avatar-btn" onclick="openLightbox('{{ emp_id }}','{{ name | e }}',true)" title="View photo">
+                    <button class="avatar-btn" onclick="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
                       <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
                            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
                       <div class="avatar-ph" style="display:none;"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-eye"></i></div>
                     </button>
                   {% else %}
-                    <button class="avatar-btn" onclick="openPhotoModal('{{ emp_id }}','{{ name | e }}')" title="Upload photo">
+                    <button class="avatar-btn" onclick="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="Upload photo">
                       <div class="avatar-ph"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-camera-plus"></i></div>
                     </button>
@@ -519,23 +520,23 @@
                 <td>
                   <div class="actions-cell">
                     <button class="btn-icon btn-edit"
-                      onclick="openEdit('{{ emp_id }}')">
+                      onclick="openEdit(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
                     <button class="btn-icon btn-photo" title="Update Photo"
-                      onclick="openPhotoModal('{{ emp_id }}', '{{ name }}')">
+                      onclick="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}">
                       <i class="ti ti-camera"></i>
                     </button>
                     <button class="btn-icon btn-qr" title="QR Code"
-                      onclick="openQR('{{ emp_id }}', '{{ name }}', '{{ qr_code|qr_url }}')">
+                      onclick="openQR(this.dataset.empId,this.dataset.empName,this.dataset.qrUrl)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-qr-url="{{ qr_code|qr_url|e }}">
                       <i class="ti ti-qrcode"></i>
                     </button>
                     <button class="btn-icon btn-idcard" title="ID Card"
-                      onclick="openIDCard('{{ emp_id }}')">
+                      onclick="openIDCard(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
                       <i class="ti ti-id-badge"></i>
                     </button>
                     <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
-                          onsubmit="return confirm('Delete {{ name }} ({{ emp_id }})? This cannot be undone.')">
+                          onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
                       <button type="submit" class="btn-icon btn-del" title="Delete">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -597,11 +598,11 @@
                 <div style="font-size:11px;color:#94a3b8;margin-top:2px;">ID #{{ s.id }}</div>
               </div>
               <div style="display:flex;gap:5px;flex-shrink:0;">
-                <button onclick="openEditShiftModal({{ s.id }},'{{ s.name }}','{{ s.start }}','{{ s.half }}','{{ s.end }}')"
+                <button onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}"
                   style="padding:5px 10px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
-                <form method="POST" action="/delete_shift" style="display:inline;" onsubmit="return confirm('Delete shift {{ s.name }}?')">
+                <form method="POST" action="/delete_shift" style="display:inline;" onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
                   <input type="hidden" name="shift_id" value="{{ s.id }}" />
                   <button type="submit" style="padding:5px 10px;border:1px solid #fecaca;border-radius:8px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;">
                     <i class="ti ti-trash"></i>
@@ -680,7 +681,7 @@
                 </td>
                 <td style="padding:11px 14px;">
                   <div style="display:flex;gap:5px;">
-                    <button onclick="openEditBreakModal({{ b.id }},'{{ b.name }}','{{ b.time }}',{{ b.duration }},{{ b.active }})"
+                    <button onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}"
                       style="padding:4px 10px;border:1px solid #dbeafe;border-radius:7px;background:#eff6ff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
@@ -725,6 +726,7 @@
           </div>
         </div>
         <canvas id="empCamCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
+        <div id="empCamError" style="display:none;padding:14px 16px;background:#7f1d1d;border-radius:10px;color:#fecaca;font-size:13px;margin-bottom:12px;text-align:left;line-height:1.6;"></div>
         <div style="display:flex;gap:10px;">
           <button id="empCaptureBtn" onclick="empCapturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
           <button id="empRetakeBtn"  onclick="empRetakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
@@ -1112,6 +1114,22 @@
             </div>
           </div>
 
+          <!-- Fingerprint status — populated dynamically by openEdit() -->
+          <div id="editFpSection" style="display:none;margin:0 0 12px;padding:12px 16px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div style="font-size:13px;font-weight:600;color:#374151;">
+                <span style="margin-right:6px;">&#128400;</span> Fingerprint
+                <span id="editFpStatus" style="font-weight:400;color:#64748b;margin-left:4px;"></span>
+              </div>
+              <button type="button" id="editFpResetBtn"
+                onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)"
+                style="padding:6px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">
+                Reset Fingerprint
+              </button>
+            </div>
+            <div id="editFpMsg" style="font-size:12px;margin-top:6px;display:none;"></div>
+          </div>
+
           <div class="modal-actions">
             <button type="submit" class="btn-save">Save Changes</button>
             <button type="button" class="btn-cancel" onclick="closeModal('editModal')">Cancel</button>
@@ -1442,12 +1460,21 @@
         document.getElementById('empCaptureBtn').style.display = 'inline-block';
         document.getElementById('empRetakeBtn').style.display  = 'none';
         document.getElementById('empUseBtn').style.display     = 'none';
+        document.getElementById('empCamError').style.display   = 'none';
         try {
           _empCamStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
           document.getElementById('empCamVideo').srcObject = _empCamStream;
         } catch(e) {
-          alert('Camera not accessible: '+e.message+'\nUse Upload Photo instead.');
-          closeEmpCameraModal();
+          var errDiv = document.getElementById('empCamError');
+          if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+            errDiv.innerHTML = '<strong>Camera blocked by browser.</strong><br>'
+              + 'Click the <strong>lock icon</strong> in the address bar &rarr; <strong>Camera</strong> &rarr; <strong>Allow</strong>, then click the Camera button again.<br>'
+              + 'Or use <strong>Upload Photo</strong> to select an image from your device.';
+          } else {
+            errDiv.innerHTML = '<strong>Camera not available:</strong> ' + e.message + '<br>Use Upload Photo instead.';
+          }
+          errDiv.style.display = 'block';
+          document.getElementById('empCaptureBtn').style.display = 'none';
         }
       }
       function empCapturePhoto() {
@@ -1584,7 +1611,54 @@
           document.getElementById('emp_edit_work_lat').value    = d.work_lat || '';
           document.getElementById('emp_edit_work_lon').value    = d.work_lon || '';
           toggleEditLocation(wm);
+          // Check fingerprint enrollment status
+          const fpSection = document.getElementById('editFpSection');
+          const fpStatus  = document.getElementById('editFpStatus');
+          const fpMsg     = document.getElementById('editFpMsg');
+          fpSection.style.display = 'none';
+          fpMsg.style.display = 'none';
+          try {
+            const fpR = await fetch('/api/employee/' + encodeURIComponent(empId) + '/webauthn-credential');
+            const fpD = await fpR.json();
+            if (fpD.ok) {
+              fpSection.style.display = 'block';
+              if (fpD.credential_id) {
+                fpStatus.textContent = '— Enrolled';
+                fpStatus.style.color = '#15803d';
+                document.getElementById('editFpResetBtn').style.display = 'inline-block';
+              } else {
+                fpStatus.textContent = '— Not enrolled';
+                fpStatus.style.color = '#94a3b8';
+                document.getElementById('editFpResetBtn').style.display = 'none';
+              }
+            }
+          } catch(_) {}
         } catch(e) { alert('Could not load employee data.'); closeModal('editModal'); }
+      }
+
+      async function resetEmployeeFingerprint(empId) {
+        if (!confirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.')) return;
+        const fpMsg = document.getElementById('editFpMsg');
+        fpMsg.style.display = 'none';
+        try {
+          const r = await fetch('/api/admin/employee/' + encodeURIComponent(empId) + '/reset-fingerprint', { method: 'POST' });
+          const d = await r.json();
+          fpMsg.style.display = 'block';
+          if (d.ok) {
+            fpMsg.textContent = '✓ Fingerprint reset. Employee can re-enroll from their portal.';
+            fpMsg.style.color = '#15803d';
+            document.getElementById('editFpStatus').textContent = '— Not enrolled';
+            document.getElementById('editFpStatus').style.color = '#94a3b8';
+            document.getElementById('editFpResetBtn').style.display = 'none';
+          } else {
+            fpMsg.textContent = '✗ ' + (d.msg || 'Reset failed.');
+            fpMsg.style.color = '#dc2626';
+          }
+        } catch(e) {
+          fpMsg.style.display = 'block';
+          fpMsg.textContent = '✗ Network error.';
+          fpMsg.style.color = '#dc2626';
+        }
       }
 
       // ========== PHOTO MODAL ==========
@@ -1642,11 +1716,11 @@
         var img = document.getElementById('idCardImg');
         if (!img.src || img.style.display === 'none') return;
         var win = window.open('', '_blank', 'width=620,height=900');
-        win.document.write('<html><head><title>ID Card - ' + _idCardEmpId + '</title>'
+        win.document.write('<html><head><title>ID Card - ' + _idCardEmpId + '<\/title>'
           + '<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
           + 'img{max-width:520px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);}'
-          + '@media print{body{background:#fff;}}</style></head>'
-          + '<body><img src="' + img.src + '" onload="window.print();" /></body></html>');
+          + '@media print{body{background:#fff;}}<\/style><\/head>'
+          + '<body><img src="' + img.src + '" onload="window.print();" \/><\/body><\/html>');
         win.document.close();
       }
 
@@ -2010,7 +2084,7 @@
     {% for c in all_companies %}
     <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
+      <button onclick="coFloatPin(this.dataset.cid,this.dataset.name,this.dataset.next)" data-cid="{{ c.id }}" data-name="{{ c.name|e }}" data-next="{{ request.path|e }}" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
         <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
         <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
@@ -2041,7 +2115,7 @@
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
+        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •" autocomplete="new-password"
           style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
         <div style="display:flex;gap:8px;">

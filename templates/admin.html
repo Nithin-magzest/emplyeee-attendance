@@ -887,6 +887,7 @@
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:22px;">
             <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:16px;">🔒 Change Admin Password</div>
             <form action="/change_admin_password" method="POST" class="pwd-form">
+              <input type="hidden" autocomplete="username" value="admin" />
               <div class="field">
                 <label>Current Password</label>
                 <input type="password" name="current_password" placeholder="Enter current password" autocomplete="current-password" required />
