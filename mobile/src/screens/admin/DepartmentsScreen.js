@@ -13,12 +13,12 @@ import DashboardStatCard from "../../components/admin/DashboardStatCard";
 
 import THEME from "../../constants/theme";
 
-export default function PayrollScreen() {
+export default function DepartmentsScreen() {
   const [search, setSearch] = useState("");
 
   return (
     <SafeAreaView style={styles.container}>
-      <AdminHeader title="Payroll" />
+      <AdminHeader title="Departments" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -27,71 +27,66 @@ export default function PayrollScreen() {
         <AdminSearchBar
           value={search}
           onChangeText={setSearch}
-          placeholder="Search employee..."
+          placeholder="Search departments..."
         />
 
-        {/* Payroll Summary */}
+        {/* Department Summary */}
 
         <View style={styles.grid}>
           <DashboardStatCard
-            title="Processed"
-            value="248"
-            subtitle="Employees Paid"
-            icon="wallet-outline"
-            iconColor={THEME.colors.success}
-            iconBackground={THEME.colors.greenBg}
-            trend="+12"
-          />
-
-          <DashboardStatCard
-            title="Pending"
-            value="12"
-            subtitle="Awaiting Payroll"
-            icon="time-outline"
-            iconColor={THEME.colors.warning}
-            iconBackground={THEME.colors.yellowBg}
-          />
-
-          <DashboardStatCard
-            title="Total Payroll"
-            value="₹24.8L"
-            subtitle="Current Month"
-            icon="cash-outline"
+            title="Departments"
+            value="8"
+            subtitle="Total Departments"
+            icon="business-outline"
             iconColor={THEME.colors.primary}
             iconBackground={THEME.colors.blueBg}
           />
 
           <DashboardStatCard
-            title="Bonuses"
-            value="₹2.1L"
-            subtitle="Distributed"
-            icon="gift-outline"
+            title="Employees"
+            value="248"
+            subtitle="Across Departments"
+            icon="people-outline"
+            iconColor={THEME.colors.success}
+            iconBackground={THEME.colors.greenBg}
+          />
+
+          <DashboardStatCard
+            title="Managers"
+            value="14"
+            subtitle="Department Heads"
+            icon="person-outline"
             iconColor={THEME.colors.payroll}
             iconBackground={THEME.colors.purpleBg}
           />
+
+          <DashboardStatCard
+            title="Budget"
+            value="₹18.6L"
+            subtitle="Monthly Budget"
+            icon="cash-outline"
+            iconColor={THEME.colors.warning}
+            iconBackground={THEME.colors.yellowBg}
+          />
         </View>
 
-        {/* Employee Payroll */}
-                <View style={styles.payrollCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>RK</Text>
-          </View>
-
-          <View style={styles.employeeInfo}>
-            <Text style={styles.employeeName}>
-              Rahul Kumar
+        {/* Department Cards */}
+                <View style={styles.departmentCard}>
+          <View style={styles.departmentInfo}>
+            <Text style={styles.departmentName}>
+              Engineering
             </Text>
 
-            <Text style={styles.employeeId}>
-              EMP-1001
+            <Text style={styles.departmentHead}>
+              Head: Rahul Verma
             </Text>
 
-            <Text style={styles.salaryText}>
-              Gross: ₹58,000
+            <Text style={styles.departmentDetails}>
+              Employees: 82
             </Text>
 
-            <Text style={styles.netSalary}>
-              Net Pay: ₹54,850
+            <Text style={styles.departmentBudget}>
+              Monthly Budget: ₹8.4L
             </Text>
           </View>
 
@@ -114,32 +109,28 @@ export default function PayrollScreen() {
                   },
                 ]}
               >
-                Paid
+                Active
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.payrollCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>PS</Text>
-          </View>
-
-          <View style={styles.employeeInfo}>
-            <Text style={styles.employeeName}>
-              Priya Sharma
+        <View style={styles.departmentCard}>
+          <View style={styles.departmentInfo}>
+            <Text style={styles.departmentName}>
+              Human Resources
             </Text>
 
-            <Text style={styles.employeeId}>
-              EMP-1002
+            <Text style={styles.departmentHead}>
+              Head: Priya Sharma
             </Text>
 
-            <Text style={styles.salaryText}>
-              Gross: ₹62,500
+            <Text style={styles.departmentDetails}>
+              Employees: 18
             </Text>
 
-            <Text style={styles.netSalary}>
-              Net Pay: ₹58,940
+            <Text style={styles.departmentBudget}>
+              Monthly Budget: ₹1.8L
             </Text>
           </View>
 
@@ -162,32 +153,72 @@ export default function PayrollScreen() {
                   },
                 ]}
               >
-                Paid
+                Active
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.payrollCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>AJ</Text>
+        <View style={styles.departmentCard}>
+          <View style={styles.departmentInfo}>
+            <Text style={styles.departmentName}>
+              Finance
+            </Text>
+
+            <Text style={styles.departmentHead}>
+              Head: Arjun Mehta
+            </Text>
+
+            <Text style={styles.departmentDetails}>
+              Employees: 26
+            </Text>
+
+            <Text style={styles.departmentBudget}>
+              Monthly Budget: ₹2.6L
+            </Text>
           </View>
 
-          <View style={styles.employeeInfo}>
-            <Text style={styles.employeeName}>
-              Arjun Joshi
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.greenBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      THEME.colors.success,
+                  },
+                ]}
+              >
+                Active
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.departmentCard}>
+          <View style={styles.departmentInfo}>
+            <Text style={styles.departmentName}>
+              Marketing
             </Text>
 
-            <Text style={styles.employeeId}>
-              EMP-1003
+            <Text style={styles.departmentHead}>
+              Head: Neha Kapoor
             </Text>
 
-            <Text style={styles.salaryText}>
-              Gross: ₹48,000
+            <Text style={styles.departmentDetails}>
+              Employees: 15
             </Text>
 
-            <Text style={styles.netSalary}>
-              Net Pay: ₹45,320
+            <Text style={styles.departmentBudget}>
+              Monthly Budget: ₹1.5L
             </Text>
           </View>
 
@@ -210,55 +241,7 @@ export default function PayrollScreen() {
                   },
                 ]}
               >
-                Pending
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.payrollCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>VN</Text>
-          </View>
-
-          <View style={styles.employeeInfo}>
-            <Text style={styles.employeeName}>
-              Vikram Nair
-            </Text>
-
-            <Text style={styles.employeeId}>
-              EMP-1004
-            </Text>
-
-            <Text style={styles.salaryText}>
-              Gross: ₹71,000
-            </Text>
-
-            <Text style={styles.netSalary}>
-              Net Pay: ₹66,540
-            </Text>
-          </View>
-
-          <View style={styles.rightSection}>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    THEME.colors.greenBg,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusText,
-                  {
-                    color:
-                      THEME.colors.success,
-                  },
-                ]}
-              >
-                Paid
+                Inactive
               </Text>
             </View>
           </View>
@@ -288,8 +271,9 @@ const styles = StyleSheet.create({
     marginBottom: THEME.spacing.sectionGap,
   },
 
-  payrollCard: {
+  departmentCard: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
 
     backgroundColor: THEME.colors.card,
@@ -306,55 +290,38 @@ const styles = StyleSheet.create({
     ...THEME.shadows.sm,
   },
 
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-
-    backgroundColor: THEME.colors.blueBg,
-
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: THEME.colors.primary,
-  },
-
-  employeeInfo: {
+  departmentInfo: {
     flex: 1,
-    marginLeft: 16,
   },
 
-  employeeName: {
+  departmentName: {
     ...THEME.typography.cardTitle,
     color: THEME.colors.text,
   },
 
-  employeeId: {
-    marginTop: 4,
-    ...THEME.typography.caption,
-    color: THEME.colors.textSecondary,
-  },
-
-  salaryText: {
+  departmentHead: {
     marginTop: 6,
     ...THEME.typography.body,
     color: THEME.colors.textSecondary,
   },
 
-  netSalary: {
+  departmentDetails: {
     marginTop: 4,
+    ...THEME.typography.caption,
+    color: THEME.colors.textSecondary,
+  },
+
+  departmentBudget: {
+    marginTop: 8,
     ...THEME.typography.bodyMedium,
-    color: THEME.colors.success,
+    color: THEME.colors.primary,
     fontWeight: "700",
   },
 
   rightSection: {
     alignItems: "flex-end",
     justifyContent: "center",
+    marginLeft: 16,
   },
 
   statusBadge: {

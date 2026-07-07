@@ -1,174 +1,368 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from "react";
+
 import {
-  View, Text, ScrollView, StyleSheet, RefreshControl,
-  TouchableOpacity, Alert, ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
-import { fetchLeaveRequests, leaveAction } from '../../api/client';
-import Badge from '../../components/Badge';
-import { COLORS } from '../../config';
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+
+import AdminHeader from "../../components/admin/AdminHeader";
+import AdminSearchBar from "../../components/admin/AdminSearchBar";
+import DashboardStatCard from "../../components/admin/DashboardStatCard";
+
+import THEME from "../../constants/theme";
 
 export default function LeaveRequestsScreen() {
-  const [leaves, setLeaves]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [acting, setActing]       = useState(null);
-
-  const load = async () => {
-    try {
-      const res = await fetchLeaveRequests();
-      if (res.data.ok) setLeaves(res.data.leaves);
-    } catch (_) {}
-    setLoading(false);
-    setRefreshing(false);
-  };
-
-  useFocusEffect(useCallback(() => { load(); }, []));
-
-  const handle = (lid, action) => {
-    Alert.alert(
-      action === 'Approved' ? 'Approve Leave' : 'Decline Leave',
-      `${action === 'Approved' ? 'Approve' : 'Decline'} this leave request?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: action === 'Approved' ? 'Approve' : 'Decline',
-          style: action === 'Approved' ? 'default' : 'destructive',
-          onPress: async () => {
-            setActing(lid);
-            try {
-              await leaveAction(lid, action);
-              await load();
-            } catch (_) {
-              Alert.alert('Error', 'Action failed.');
-            }
-            setActing(null);
-          },
-        },
-      ]
-    );
-  };
-
-  if (loading) {
-    return (
-      <LinearGradient colors={COLORS.adminBg} style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
-      </LinearGradient>
-    );
-  }
-
-  const pending  = leaves.filter(l => l.status === 'Pending');
-  const resolved = leaves.filter(l => l.status !== 'Pending');
+  const [search, setSearch] = useState("");
 
   return (
-    <LinearGradient colors={COLORS.adminBg} style={styles.bg}>
+    <SafeAreaView style={styles.container}>
+      <AdminHeader title="Leave Requests" />
+
       <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#fff" />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
       >
-        <Text style={styles.pageTitle}>📋 Leave Requests</Text>
-        <Text style={styles.pageSubtitle}>{leaves.length} total · {pending.length} pending</Text>
+        <AdminSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search leave requests..."
+        />
 
-        {leaves.length === 0 && (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTxt}>No leave requests yet.</Text>
+        {/* Summary */}
+
+        <View style={styles.grid}>
+          <DashboardStatCard
+            title="Pending"
+            value="12"
+            subtitle="Awaiting Approval"
+            icon="time-outline"
+            iconColor={THEME.colors.warning}
+            iconBackground={THEME.colors.yellowBg}
+          />
+
+          <DashboardStatCard
+            title="Approved"
+            value="38"
+            subtitle="This Month"
+            icon="checkmark-circle-outline"
+            iconColor={THEME.colors.success}
+            iconBackground={THEME.colors.greenBg}
+          />
+
+          <DashboardStatCard
+            title="Rejected"
+            value="5"
+            subtitle="This Month"
+            icon="close-circle-outline"
+            iconColor={THEME.colors.danger}
+            iconBackground={THEME.colors.redBg}
+          />
+
+          <DashboardStatCard
+            title="Total"
+            value="55"
+            subtitle="Leave Requests"
+            icon="document-text-outline"
+            iconColor={THEME.colors.primary}
+            iconBackground={THEME.colors.blueBg}
+          />
+        </View>
+
+        {/* Leave Requests */}
+                <View style={styles.leaveCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>RK</Text>
           </View>
-        )}
 
-        {/* Pending */}
-        {pending.map(l => (
-          <View key={l.id} style={[styles.card, styles.pendingCard]}>
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.name}>{l.name}</Text>
-                <Text style={styles.empId}>{l.employee_id}</Text>
-              </View>
-              <Badge label={l.status} />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.lbl}>📅 Date</Text>
-              <Text style={styles.val}>{l.leave_date}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.lbl}>📝 Reason</Text>
-              <Text style={[styles.val, { flex: 1, textAlign: 'right' }]}>{l.reason}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.lbl}>🕐 Requested</Text>
-              <Text style={styles.val}>{l.requested_at?.slice(0, 10)}</Text>
-            </View>
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.approveBtn]}
-                onPress={() => handle(l.id, 'Approved')}
-                disabled={acting === l.id}
+          <View style={styles.employeeInfo}>
+            <Text style={styles.employeeName}>
+              Rahul Kumar
+            </Text>
+
+            <Text style={styles.leaveType}>
+              Casual Leave
+            </Text>
+
+            <Text style={styles.leaveDates}>
+              10 Jul 2026 • 12 Jul 2026
+            </Text>
+
+            <Text style={styles.leaveReason}>
+              Family Function
+            </Text>
+          </View>
+
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.yellowBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      THEME.colors.warning,
+                  },
+                ]}
               >
-                {acting === l.id
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Text style={styles.actionTxt}>✅ Approve</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.declineBtn]}
-                onPress={() => handle(l.id, 'Declined')}
-                disabled={acting === l.id}
-              >
-                <Text style={styles.actionTxt}>❌ Decline</Text>
-              </TouchableOpacity>
+                Pending
+              </Text>
             </View>
           </View>
-        ))}
+        </View>
 
-        {/* Resolved */}
-        {resolved.map(l => (
-          <View key={l.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.name}>{l.name}</Text>
-                <Text style={styles.empId}>{l.employee_id}</Text>
-              </View>
-              <Badge label={l.status} />
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.lbl}>📅 Date</Text>
-              <Text style={styles.val}>{l.leave_date}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.lbl}>📝 Reason</Text>
-              <Text style={[styles.val, { flex: 1, textAlign: 'right' }]}>{l.reason}</Text>
+        <View style={styles.leaveCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>PS</Text>
+          </View>
+
+          <View style={styles.employeeInfo}>
+            <Text style={styles.employeeName}>
+              Priya Sharma
+            </Text>
+
+            <Text style={styles.leaveType}>
+              Sick Leave
+            </Text>
+
+            <Text style={styles.leaveDates}>
+              08 Jul 2026 • 09 Jul 2026
+            </Text>
+
+            <Text style={styles.leaveReason}>
+              Viral Fever
+            </Text>
+          </View>
+
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.greenBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      THEME.colors.success,
+                  },
+                ]}
+              >
+                Approved
+              </Text>
             </View>
           </View>
-        ))}
+        </View>
+
+        <View style={styles.leaveCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>AJ</Text>
+          </View>
+
+          <View style={styles.employeeInfo}>
+            <Text style={styles.employeeName}>
+              Arjun Joshi
+            </Text>
+
+            <Text style={styles.leaveType}>
+              Earned Leave
+            </Text>
+
+            <Text style={styles.leaveDates}>
+              15 Jul 2026 • 18 Jul 2026
+            </Text>
+
+            <Text style={styles.leaveReason}>
+              Personal Work
+            </Text>
+          </View>
+
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.redBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      THEME.colors.danger,
+                  },
+                ]}
+              >
+                Rejected
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.leaveCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>VN</Text>
+          </View>
+
+          <View style={styles.employeeInfo}>
+            <Text style={styles.employeeName}>
+              Vikram Nair
+            </Text>
+
+            <Text style={styles.leaveType}>
+              Maternity Leave
+            </Text>
+
+            <Text style={styles.leaveDates}>
+              20 Jul 2026 • 20 Aug 2026
+            </Text>
+
+            <Text style={styles.leaveReason}>
+              Maternity Benefits
+            </Text>
+          </View>
+
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.greenBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      THEME.colors.success,
+                  },
+                ]}
+              >
+                Approved
+              </Text>
+            </View>
+          </View>
+        </View>
+                <View style={{ height: 110 }} />
       </ScrollView>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  bg:     { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 20, paddingTop: 60 },
+  container: {
+    flex: 1,
+    backgroundColor: THEME.colors.background,
+  },
 
-  pageTitle:    { color: '#fff', fontSize: 22, fontWeight: '700' },
-  pageSubtitle: { color: COLORS.textMuted, fontSize: 13, marginBottom: 20, marginTop: 4 },
+  content: {
+    paddingHorizontal: THEME.spacing.screenHorizontal,
+    paddingTop: THEME.spacing.screenVertical,
+    paddingBottom: 30,
+  },
 
-  emptyBox: { backgroundColor: COLORS.card, borderRadius: 14, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  emptyTxt: { color: COLORS.textMuted },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: THEME.spacing.sectionGap,
+  },
 
-  card:        { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  pendingCard: { borderColor: 'rgba(251,191,36,0.3)', backgroundColor: 'rgba(251,191,36,0.05)' },
+  leaveCard: {
+    flexDirection: "row",
+    alignItems: "center",
 
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  name:   { color: '#fff', fontWeight: '700', fontSize: 15 },
-  empId:  { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+    backgroundColor: THEME.colors.card,
 
-  row:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  lbl:  { color: COLORS.textMuted, fontSize: 13 },
-  val:  { color: '#fff', fontSize: 13 },
+    borderRadius: THEME.radius.card,
 
-  actions:    { flexDirection: 'row', gap: 10, marginTop: 14 },
-  actionBtn:  { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  approveBtn: { backgroundColor: 'rgba(34,197,94,0.25)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.4)' },
-  declineBtn: { backgroundColor: 'rgba(239,68,68,0.20)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' },
-  actionTxt:  { color: '#fff', fontWeight: '600', fontSize: 13 },
+    padding: THEME.spacing.cardPadding,
+
+    marginBottom: THEME.spacing.cardGap,
+
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+
+    ...THEME.shadows.sm,
+  },
+
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+
+    backgroundColor: THEME.colors.blueBg,
+
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  avatarText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: THEME.colors.primary,
+  },
+
+  employeeInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
+
+  employeeName: {
+    ...THEME.typography.cardTitle,
+    color: THEME.colors.text,
+  },
+
+  leaveType: {
+    marginTop: 4,
+    ...THEME.typography.bodyMedium,
+    color: THEME.colors.primary,
+  },
+
+  leaveDates: {
+    marginTop: 4,
+    ...THEME.typography.caption,
+    color: THEME.colors.textSecondary,
+  },
+
+  leaveReason: {
+    marginTop: 6,
+    ...THEME.typography.body,
+    color: THEME.colors.textSecondary,
+  },
+
+  rightSection: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+
+  statusBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
 });
