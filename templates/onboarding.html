@@ -112,13 +112,6 @@
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
   </div>
-    <div class="u-m-0-0-12" id="co-sw">
-    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
-      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
-      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
-    </button>
-  </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
   <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
 
@@ -441,85 +434,6 @@ function assignFilterTemplates(role) {
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
-    <form method="POST" action="/clear_company">
-      <input type="hidden" name="next" value="{{ request.path }}" />
-      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
-        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
-        All Companies
-      </button>
-    </form>
-    <div class="u-h-1 u-bg-f1f5f9"></div>
-    {% for c in all_companies %}
-    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
-      {% if c.has_pin %}
-      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
-        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
-        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
-      </button>
-      {% else %}
-      <form method="POST" action="/switch_company">
-        <input type="hidden" name="company_id" value="{{ c.id }}" />
-        <input type="hidden" name="next" value="{{ request.path }}" />
-        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
-          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
-          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
-        </button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
-    {% if not all_companies %}
-    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
-    {% endif %}
-  </div>
-
-  <!-- PIN entry modal (global) -->
-  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
-    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
-      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
-      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
-      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
-      <form method="POST" action="/switch_company" id="co-pin-form">
-        <input type="hidden" name="company_id" id="co-pin-cid" />
-        <input type="hidden" name="next" id="co-pin-next" />
-        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div class="u-d-flex u-gap-8">
-          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
-          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    /* Company sidebar switcher */
-    var _coOpen = false;
-    function coSwToggle(e){
-      e&&e.stopPropagation();_coOpen=!_coOpen;
-      var menu=document.getElementById('co-sw-menu');
-      if(_coOpen){var btn=document.getElementById('co-sw-btn');var r=btn.getBoundingClientRect();menu.style.top=(r.bottom+4)+'px';menu.style.left=r.left+'px';menu.style.width=r.width+'px';menu.style.display='block';}
-      else{menu.style.display='none';}
-    }
-    document.addEventListener('click',function(){if(_coOpen){_coOpen=false;document.getElementById('co-sw-menu').style.display='none';}});
-    document.getElementById('co-sw-menu').addEventListener('click',function(e){e.stopPropagation();});
-
-    /* PIN modal */
-    function coFloatPin(cid,name,next){
-      document.getElementById('co-pin-cid').value=cid;
-      document.getElementById('co-pin-next').value=next;
-      document.getElementById('co-pin-name').textContent='Enter PIN to access: '+name;
-      document.getElementById('co-pin-input').value='';
-      document.getElementById('co-pin-modal').style.display='flex';
-      document.getElementById('co-sw-menu').style.display='none';
-      _coOpen=false;
-      setTimeout(function(){document.getElementById('co-pin-input').focus();},120);
-    }
-    function coPinClose(){document.getElementById('co-pin-modal').style.display='none';}
-    document.getElementById('co-pin-modal').addEventListener('click',function(e){if(e.target===this)coPinClose();});
-  </script>
 
 </body>
 </html>
