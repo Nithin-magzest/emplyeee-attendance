@@ -207,51 +207,51 @@
 
 
       <div class="sb-nav-label">Main</div>
-      <a href="/employee_portal#dashboard" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#dashboard" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
       </a>
-      <a href="/employee_portal#attendance" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#attendance" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
       </a>
-      <a href="/employee_portal#apply-leave" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#apply-leave" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
       </a>
-      <a href="/employee_portal#earnings" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#earnings" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
       </a>
-      <a href="/employee_portal#holidays" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#holidays" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
       </a>
 
       <div class="sb-nav-label">Account</div>
-      <a href="/my_compoff" class="sb-item" style="text-decoration:none;">
+      <a href="/my_compoff" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
       </a>
-      <a href="/my_performance" class="sb-item" style="text-decoration:none;">
+      <a href="/my_performance" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
       </a>
-      <a href="/my_onboarding" class="sb-item active" style="text-decoration:none;">
+      <a href="/my_onboarding" class="sb-item active u-tdec-none">
         <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
       </a>
-      <a href="/employee_portal#tickets" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#tickets" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
       </a>
-      <a href="/employee_portal#my-profile" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#my-profile" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
       </a>
 
       <div class="sb-nav-label">Policies</div>
-      <a href="/employee_portal#policies" class="sb-item" style="text-decoration:none;">
+      <a href="/employee_portal#policies" class="sb-item u-tdec-none">
         <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
       </a>
       </div>
 
       <div class="sb-bottom">
         <hr class="sb-sep" />
-        <a href="/employee_portal#resign" class="sb-item danger" style="text-decoration:none;">
+        <a href="/employee_portal#resign" class="sb-item danger u-tdec-none">
           <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
         </a>
-        <a href="/employee_logout" class="sb-item danger" style="text-decoration:none;">
+        <a href="/employee_logout" class="sb-item danger u-tdec-none">
         <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
       </a>
   
@@ -294,15 +294,15 @@
   <!-- Header card -->
   <div class="card">
     <div class="card-title">
-      <i class="ti ti-template" style="color:#1e3a8a;"></i>
+      <i class="ti ti-template u-c-1e3a8a"></i>
       {{ selected_ob[1] }}
       {% if selected_ob[4]=='Completed' %}
-        <span class="badge-status badge-green" style="margin-left:8px;">Completed</span>
+        <span class="badge-status badge-green u-ml-8">Completed</span>
       {% else %}
-        <span class="badge-status badge-blue" style="margin-left:8px;">In Progress</span>
+        <span class="badge-status badge-blue u-ml-8">In Progress</span>
       {% endif %}
     </div>
-    <div style="font-size:12px;color:#64748b;">Assigned: {{ selected_ob[2] }}{% if selected_ob[3] %} &bull; Due: {{ selected_ob[3] }}{% endif %}</div>
+    <div class="u-fs-12 u-c-64748b">Assigned: {{ selected_ob[2] }}{% if selected_ob[3] %} &bull; Due: {{ selected_ob[3] }}{% endif %}</div>
     <div class="progress-wrap">
       <div class="progress-label">
         <span>{{ done_count }} of {{ total }} tasks completed</span>
@@ -318,53 +318,52 @@
   {% set overdue_tasks = tasks | selectattr(5, 'ne', 'Done') | list | selectattr(4, 'ne', None) | list %}
   {% set pending_tasks = tasks | selectattr(5, 'ne', 'Done') | list %}
   {% set done_tasks    = tasks | selectattr(5, 'equalto', 'Done') | list %}
-  <div style="display:flex;gap:10px;margin-bottom:16px;">
-    <div style="flex:1;background:#fef9c3;border-radius:12px;padding:12px 14px;text-align:center;">
-      <div style="font-size:20px;font-weight:800;color:#854d0e;">{{ pending_tasks|length }}</div>
-      <div style="font-size:11px;color:#854d0e;font-weight:600;">Pending</div>
+  <div class="u-d-flex u-gap-10 u-mb-16">
+    <div class="u-fx-1 u-bg-fef9c3 u-br-12 u-p-12-14 u-ta-center">
+      <div class="u-fs-20 u-fw-800 u-c-854d0e">{{ pending_tasks|length }}</div>
+      <div class="u-fs-11 u-c-854d0e u-fw-600">Pending</div>
     </div>
-    <div style="flex:1;background:#dcfce7;border-radius:12px;padding:12px 14px;text-align:center;">
-      <div style="font-size:20px;font-weight:800;color:#15803d;">{{ done_tasks|length }}</div>
-      <div style="font-size:11px;color:#15803d;font-weight:600;">Done</div>
+    <div class="u-fx-1 u-bg-dcfce7 u-br-12 u-p-12-14 u-ta-center">
+      <div class="u-fs-20 u-fw-800 u-c-15803d">{{ done_tasks|length }}</div>
+      <div class="u-fs-11 u-c-15803d u-fw-600">Done</div>
     </div>
-    <div style="flex:1;background:#dbeafe;border-radius:12px;padding:12px 14px;text-align:center;">
-      <div style="font-size:20px;font-weight:800;color:#1e3a8a;">{{ pct }}%</div>
-      <div style="font-size:11px;color:#1e3a8a;font-weight:600;">Complete</div>
+    <div class="u-fx-1 u-bg-dbeafe u-br-12 u-p-12-14 u-ta-center">
+      <div class="u-fs-20 u-fw-800 u-c-1e3a8a">{{ pct }}%</div>
+      <div class="u-fs-11 u-c-1e3a8a u-fw-600">Complete</div>
     </div>
   </div>
 
   <!-- Task list -->
   <div class="card">
-    <div class="card-title" style="margin-bottom:16px;"><i class="ti ti-list-check" style="color:#1e3a8a;"></i> Tasks</div>
+    <div class="card-title u-mb-16"><i class="ti ti-list-check u-c-1e3a8a"></i> Tasks</div>
     <ul class="task-list">
       {% for t in tasks | sort(attribute=5) %}
       {% set task_due = selected_ob[2] + timedelta(days=t[4]) if selected_ob[2] and t[4] else None %}
       {% set is_overdue = task_due and task_due < today and t[5] != 'Done' %}
       <li class="task-item" style="{% if is_overdue %}background:#fff5f5;border-radius:10px;padding:14px;margin:0 -6px 6px;border:1px solid #fecaca;{% endif %}">
-        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %}"
-             style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% endif %}">
+        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %} {% if is_overdue %}row--overdue{% endif %}">
           <i class="ti ti-{% if t[5]=='Done' %}circle-check{% elif is_overdue %}alert-circle{% else %}circle-dashed{% endif %}"></i>
         </div>
-        <div class="task-body" style="flex:1;">
+        <div class="task-body u-fx-1">
           <div class="task-name" style="{% if t[5]=='Done' %}text-decoration:line-through;color:#94a3b8;{% elif is_overdue %}color:#dc2626;{% endif %}">
             {{ t[1] }}
-            {% if is_overdue %}<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:5px;font-weight:700;margin-left:6px;">OVERDUE</span>{% endif %}
+            {% if is_overdue %}<span class="u-fs-10 u-bg-fee2e2 u-c-dc2626 u-p-2-6 u-br-5 u-fw-700 u-ml-6">OVERDUE</span>{% endif %}
           </div>
           {% if t[2] %}<div class="task-desc">{{ t[2] }}</div>{% endif %}
           <div class="task-meta">
             {% if t[5]=='Done' %}
-              <span class="tag tag-done"><i class="ti ti-check" style="font-size:10px;"></i> Completed</span>
+              <span class="tag tag-done"><i class="ti ti-check u-fs-10"></i> Completed</span>
               {% if t[6] %}<span class="tag tag-done">{{ t[6].strftime('%d %b %Y') }}</span>{% endif %}
             {% else %}
-              <span class="tag tag-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>
+              <span class="tag tag-pending"><i class="ti ti-clock u-fs-10"></i> Pending</span>
             {% endif %}
             {% if task_due and t[5] != 'Done' %}
               <span class="tag" style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% else %}background:#f1f5f9;color:#475569;{% endif %}">
-                <i class="ti ti-calendar" style="font-size:10px;"></i> Due {{ task_due.strftime('%d %b') }}
+                <i class="ti ti-calendar u-fs-10"></i> Due {{ task_due.strftime('%d %b') }}
               </span>
             {% endif %}
-            {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip" style="font-size:10px;"></i> Doc required</span>{% endif %}
-            {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="tag tag-doc" style="text-decoration:none;"><i class="ti ti-download" style="font-size:10px;"></i> View doc</a>{% endif %}
+            {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip u-fs-10"></i> Doc required</span>{% endif %}
+            {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="tag tag-doc u-tdec-none"><i class="ti ti-download u-fs-10"></i> View doc</a>{% endif %}
           </div>
         </div>
         {% if t[5] != 'Done' %}
@@ -389,16 +388,16 @@
     <form action="/my_onboarding_task_done" method="POST" enctype="multipart/form-data">
       <input type="hidden" name="task_id" id="done_task_id" />
       <input type="hidden" name="ob_id" id="done_ob_id" />
-      <div id="doc_field" class="field" style="display:none;">
+      <div id="doc_field" class="field u-d-none">
         <label>Upload Document *</label>
         <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-        <p style="font-size:11px;color:#64748b;margin-top:6px;">Accepted: PDF, JPG, PNG, DOC</p>
+        <p class="u-fs-11 u-c-64748b u-mt-6">Accepted: PDF, JPG, PNG, DOC</p>
       </div>
-      <div class="field" style="margin-bottom:12px;">
-        <label style="font-size:13px;font-weight:600;color:#374151;">Your Note <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
-        <textarea name="employee_note" rows="2" maxlength="500" placeholder="Add a comment about how you completed this task…" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;margin-top:4px;box-sizing:border-box;"></textarea>
+      <div class="field u-mb-12">
+        <label class="u-fs-13 u-fw-600 u-c-374151">Your Note <span class="u-c-94a3b8 u-fw-400">(optional)</span></label>
+        <textarea class="u-w-100pct u-p-8-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-rsz-vertical u-ff-inherit u-mt-4 u-bxs-border-box" name="employee_note" rows="2" maxlength="500" placeholder="Add a comment about how you completed this task…"></textarea>
       </div>
-      <p style="font-size:13px;color:#475569;margin-bottom:16px;">Confirm that you have completed this task.</p>
+      <p class="u-fs-13 u-c-475569 u-mb-16">Confirm that you have completed this task.</p>
       <button type="submit" class="btn-submit"><i class="ti ti-circle-check"></i> Confirm — Mark as Done</button>
       <button type="button" class="btn-cancel" onclick="closeModal('doneModal')">Cancel</button>
     </form>
@@ -423,55 +422,54 @@ function openDoneModal(taskId, obId, reqDoc, title){
   </div><!-- /main-area -->
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

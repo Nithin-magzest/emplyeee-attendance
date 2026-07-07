@@ -348,14 +348,14 @@
   <!-- ══ SIDEBAR ══ -->
   <div class="sidebar">
     <div class="brand-wrap">
-      <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+      <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
       <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 </div>
-            <div id="co-sw" style="margin:0 0 12px;">
-        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+            <div class="u-m-0-0-12" id="co-sw">
+        <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+          <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+          <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
         </button>
       </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -364,10 +364,10 @@
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
       <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-      <hr class="nav-sep" style="margin-top:12px;" />
+      <hr class="nav-sep u-mt-12" />
       <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
@@ -383,11 +383,11 @@
     <div class="page-header">
       <h1>⚙️ Settings</h1>
       {% if active_company %}
-      <p style="display:flex;align-items:center;gap:8px;color:#1e3a8a;font-weight:600;">
-        <i class="ti ti-building" style="font-size:15px;"></i>
+      <p class="u-d-flex u-ai-center u-gap-8 u-c-1e3a8a u-fw-600">
+        <i class="ti ti-building u-fs-15"></i>
         Editing settings for: <strong>{{ active_company.name }}</strong>
-        {% if active_company.code %}<span style="font-size:11px;color:#64748b;font-weight:400;">({{ active_company.code }})</span>{% endif %}
-        — <span style="font-size:12px;color:#64748b;font-weight:400;">changes apply to this company only</span>
+        {% if active_company.code %}<span class="u-fs-11 u-c-64748b u-fw-400">({{ active_company.code }})</span>{% endif %}
+        — <span class="u-fs-12 u-c-64748b u-fw-400">changes apply to this company only</span>
       </p>
       {% else %}
       <p>Global settings — applied to all companies unless overridden per company.</p>
@@ -395,13 +395,13 @@
     </div>
 
     {% if active_company %}
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:16px;">
-      <i class="ti ti-building-community" style="color:#1e3a8a;font-size:16px;flex-shrink:0;"></i>
-      <div style="font-size:13px;color:#1e3a8a;font-weight:600;">Company Scope: <strong>{{ active_company.name }}</strong></div>
-      <div style="font-size:12px;color:#64748b;margin-left:4px;">All settings below (attendance modes, salary rules, security) are specific to this company.</div>
-      <form method="POST" action="/clear_company" style="margin-left:auto;">
+    <div class="u-d-flex u-ai-center u-gap-10 u-p-11-16 u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-mb-16">
+      <i class="ti ti-building-community u-c-1e3a8a u-fs-16 u-fxs-0"></i>
+      <div class="u-fs-13 u-c-1e3a8a u-fw-600">Company Scope: <strong>{{ active_company.name }}</strong></div>
+      <div class="u-fs-12 u-c-64748b u-ml-4">All settings below (attendance modes, salary rules, security) are specific to this company.</div>
+      <form class="u-ml-auto" method="POST" action="/clear_company">
         <input type="hidden" name="next" value="/settings" />
-        <button type="submit" style="padding:4px 12px;border:1px solid #bfdbfe;border-radius:20px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Switch to Global</button>
+        <button class="u-p-4-12 u-bd-1-solid-bfdbfe u-br-20 u-bg-fff u-c-1e3a8a u-fs-11 u-fw-600 u-cur-pointer u-ff-inherit" type="submit">Switch to Global</button>
       </form>
     </div>
     {% endif %}
@@ -415,7 +415,7 @@
     <!-- ══ 3-TAB SETTINGS NAV ══ -->
     <div class="s3-nav">
       <button class="s3-tab active" id="s3tab-org" onclick="switchGroup('org')">
-        <div class="s3-tab-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;"></i></div>
+        <div class="s3-tab-icon u-bg-eff6ff"><i class="ti ti-building u-c-1e3a8a"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Organisation</div>
           <div class="s3-tab-sub">Company · Attendance</div>
@@ -423,7 +423,7 @@
         <span class="s3-tab-count">3</span>
       </button>
       <button class="s3-tab" id="s3tab-fin" onclick="switchGroup('fin')">
-        <div class="s3-tab-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;"></i></div>
+        <div class="s3-tab-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Finances</div>
           <div class="s3-tab-sub">Payroll · Salary</div>
@@ -431,7 +431,7 @@
         <span class="s3-tab-count">2</span>
       </button>
       <button class="s3-tab" id="s3tab-sys" onclick="switchGroup('sys')">
-        <div class="s3-tab-icon" style="background:#f0f9ff;"><i class="ti ti-settings" style="color:#0284c7;"></i></div>
+        <div class="s3-tab-icon u-bg-f0f9ff"><i class="ti ti-settings u-c-0284c7"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">System</div>
           <div class="s3-tab-sub">Email · Security</div>
@@ -460,91 +460,91 @@
           <!-- COMPANY -->
           <div class="s3-section active" id="ss-company">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#eff6ff;"><i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-eff6ff"><i class="ti ti-building u-c-1e3a8a u-fs-20"></i></div>
               <div><div class="sec-title">Company</div><div class="sec-sub">Organisation details, timezone and working schedule</div></div>
             </div>
 
 
           <!-- Companies — merged: name, code, employee count, add/edit/delete -->
-          <div class="section" style="margin-bottom:20px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="section u-mb-20">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
               <div>
-                <div class="section-title" style="margin-bottom:2px;">🏢 Companies</div>
-                <div style="font-size:12px;color:#64748b;">Manage company name, code and details</div>
+                <div class="section-title u-mb-2">🏢 Companies</div>
+                <div class="u-fs-12 u-c-64748b">Manage company name, code and details</div>
               </div>
-              <button type="button" onclick="acOpenModal()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
-                <i class="ti ti-plus" style="font-size:14px;"></i> Add Company
+              <button class="u-d-flex u-ai-center u-gap-6 u-p-8-14 u-bd-1d5-solid-bfdbfe u-br-10 u-bg-eff6ff u-c-1e3a8a u-fs-13 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acOpenModal()">
+                <i class="ti ti-plus u-fs-14"></i> Add Company
               </button>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="u-d-flex u-fxd-column u-gap-12">
               {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}{% set cwd_list = cwd.split(',') %}
 
               <!-- View card -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;" id="co-view-{{ cid }}">
-                <div style="padding:14px 18px;display:flex;align-items:center;gap:14px;">
-                  <div style="width:42px;height:42px;border-radius:11px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ti ti-building" style="color:#1e3a8a;font-size:20px;"></i>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-ov-hidden" id="co-view-{{ cid }}">
+                <div class="u-p-14-18 u-d-flex u-ai-center u-gap-14">
+                  <div class="u-w-42 u-h-42 u-br-11 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0">
+                    <i class="ti ti-building u-c-1e3a8a u-fs-20"></i>
                   </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;">{{ cname }}</div>
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div class="u-fx-1 u-minw-0">
+                    <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-4">{{ cname }}</div>
+                    <div class="u-d-flex u-ai-center u-gap-10 u-fxw-wrap">
                       {% if ccode %}
-                      <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;background:#fefce8;border:1px solid #fde68a;color:#92400e;font-family:monospace;letter-spacing:1px;">{{ ccode }}</span>
+                      <span class="u-fs-11 u-fw-700 u-p-3-10 u-br-8 u-bg-fefce8 u-bd-1-solid-fde68a u-c-92400e u-ff-monospace u-ls-1">{{ ccode }}</span>
                       {% else %}
-                      <span style="font-size:11px;color:#94a3b8;">No code set</span>
+                      <span class="u-fs-11 u-c-94a3b8">No code set</span>
                       {% endif %}
-                      <span style="font-size:11px;color:#64748b;"><i class="ti ti-users" style="font-size:11px;"></i> {{ cemp }} employee{{ 's' if cemp != 1 else '' }}</span>
+                      <span class="u-fs-11 u-c-64748b"><i class="ti ti-users u-fs-11"></i> {{ cemp }} employee{{ 's' if cemp != 1 else '' }}</span>
                     </div>
                   </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                  <div class="u-d-flex u-gap-6 u-fxs-0">
                     <button type="button" onclick="openSetPin({{ cid }},'{{ cname }}',{{ cpin }})"
                       style="display:flex;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid {{ '#fde68a' if cpin else '#e2e8f0' }};border-radius:8px;background:{{ '#fffbeb' if cpin else '#f8fafc' }};color:{{ '#d97706' if cpin else '#64748b' }};font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"
                       title="{{ 'PIN set — click to change' if cpin else 'Set PIN protection' }}">
-                      <i class="ti ti-lock{{ '-open' if not cpin else '' }}" style="font-size:12px;"></i> PIN{{ ' ✓' if cpin else '' }}
+                      <i class="ti ti-lock{{ '-open' if not cpin else '' }} u-fs-12"></i> PIN{{ ' ✓' if cpin else '' }}
                     </button>
-                    <button type="button" onclick="openEditCompany({{ cid }})" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-                      <i class="ti ti-pencil" style="font-size:12px;"></i> Edit
+                    <button class="u-d-flex u-ai-center u-gap-5 u-p-6-12 u-bd-1d5-solid-e2e8f0 u-br-8 u-bg-f8fafc u-c-475569 u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="openEditCompany({{ cid }})">
+                      <i class="ti ti-pencil u-fs-12"></i> Edit
                     </button>
-                    <form method="POST" action="/companies/{{ cid }}/delete" style="display:inline;" onsubmit="return confirm('Delete company {{ cname }}?')">
+                    <form class="u-d-inline" method="POST" action="/companies/{{ cid }}/delete" onsubmit="return confirm('Delete company {{ cname }}?')">
                       <input type="hidden" name="redirect_to" value="settings" />
-                      <button type="submit" class="btn-del" style="padding:6px 12px;font-size:12px;">Delete</button>
+                      <button type="submit" class="btn-del u-p-6-12 u-fs-12">Delete</button>
                     </form>
                   </div>
                 </div>
                 <!-- Working days strip -->
-                <div style="padding:8px 18px 4px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px;">📅 Working days:</span>
+                <div class="u-p-8-18-4 u-bdt-1-solid-f1f5f9 u-d-flex u-ai-center u-gap-6 u-fxw-wrap">
+                  <span class="u-fs-11 u-fw-600 u-c-64748b u-mr-4">📅 Working days:</span>
                   {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
                   <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;{% if d in cwd_list %}background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;{% else %}background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;text-decoration:line-through;{% endif %}">{{ d }}</span>
                   {% endfor %}
                 </div>
                 <!-- Shifts strip -->
-                <div style="padding:5px 18px 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                  <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">🕐 Shifts:</span>
+                <div class="u-p-5-18-0 u-d-flex u-ai-center u-gap-5 u-fxw-wrap">
+                  <span class="u-fs-11 u-fw-600 u-c-64748b u-mr-2 u-fxs-0">🕐 Shifts:</span>
                   {% if not company_shifts.get(cid) %}
-                  <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
+                  <span class="u-fs-11 u-c-cbd5e1 u-fst-italic">None</span>
                   {% endif %}
-                  <button type="button" onclick="toggleCoAddShift({{ cid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Shift</button>
+                  <button class="u-d-flex u-ai-center u-gap-3 u-p-2-8 u-bd-1d5-dashed-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-15803d u-fs-10 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoAddShift({{ cid }})">+ Add Shift</button>
                 </div>
                 <!-- Inline add-shift form -->
-                <div id="co-as-{{ cid }}" style="display:none;padding:8px 18px;">
-                  <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">New shift</div>
-                  <form method="POST" action="/add_shift" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
+                <div class="u-d-none u-p-8-18" id="co-as-{{ cid }}">
+                  <div class="u-fs-10 u-fw-700 u-c-15803d u-mb-5">New shift</div>
+                  <form class="u-d-grid u-gtc-1fr-82-82-82-auto-auto u-gap-6 u-ai-center" method="POST" action="/add_shift">
                     <input type="hidden" name="redirect"    value="/settings?tab=company" />
                     <input type="hidden" name="company_id"  value="{{ cid }}" />
-                    <input type="text" name="shift_name"  placeholder="Shift name"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="start_time"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="half_time"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <input type="time" name="end_time"    required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                    <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
-                    <button type="button" onclick="toggleCoAddShift({{ cid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                    <input class="u-p-6-10 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="text" name="shift_name"  placeholder="Shift name"  required />
+                    <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="start_time"  required />
+                    <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="half_time"   required />
+                    <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="end_time"    required />
+                    <button class="u-p-6-12 u-bd-none u-br-8 u-bg-15803d u-c-fff u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
+                    <button class="u-p-6-10 u-bd-1-solid-e2e8f0 u-br-8 u-bg-fff u-c-64748b u-fs-12 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoAddShift({{ cid }})">Cancel</button>
                   </form>
-                  <div style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;margin-top:2px;padding:0 2px;">
-                    <span style="font-size:10px;color:#94a3b8;">Name</span>
-                    <span style="font-size:10px;color:#94a3b8;">Start</span>
-                    <span style="font-size:10px;color:#94a3b8;">Half-day</span>
-                    <span style="font-size:10px;color:#94a3b8;">End</span>
+                  <div class="u-d-grid u-gtc-1fr-82-82-82-auto-auto u-gap-6 u-mt-2 u-p-0-2">
+                    <span class="u-fs-10 u-c-94a3b8">Name</span>
+                    <span class="u-fs-10 u-c-94a3b8">Start</span>
+                    <span class="u-fs-10 u-c-94a3b8">Half-day</span>
+                    <span class="u-fs-10 u-c-94a3b8">End</span>
                     <span></span><span></span>
                   </div>
                 </div>
@@ -552,124 +552,124 @@
                 <!-- Per-shift blocks: each shift owns its own breaks -->
                 {% if company_shifts.get(cid) %}
                 {% for _cs in company_shifts[cid] %}{% set _csid,_csname,_csstart,_cshalf,_csend = _cs %}
-                <div style="margin:6px 18px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 12px;background:#f0fdf4;">
-                    <span style="font-size:12px;font-weight:700;color:#15803d;" title="{{ _csstart }} – {{ _csend }} (half: {{ _cshalf }})">🕐 {{ _csname }} <span style="font-weight:500;color:#4d7c0f;">({{ _csstart }}–{{ _csend }})</span></span>
-                    <span style="display:flex;gap:8px;flex-shrink:0;">
-                      <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="border:none;background:transparent;cursor:pointer;color:#15803d;font-size:12px;opacity:.7;" title="Edit shift">✏</button>
-                      <form method="POST" action="/delete_shift/{{ _csid }}" style="display:inline;margin:0;" onsubmit="return confirm('Delete shift \'{{ _csname }}\'? Its breaks and assigned employees will be unassigned.')">
+                <div class="u-m-6-18-0 u-bd-1-solid-e2e8f0 u-br-10 u-ov-hidden">
+                  <div class="u-d-flex u-ai-center u-jc-space-between u-gap-8 u-p-7-12 u-bg-f0fdf4">
+                    <span class="u-fs-12 u-fw-700 u-c-15803d" title="{{ _csstart }} – {{ _csend }} (half: {{ _cshalf }})">🕐 {{ _csname }} <span class="u-fw-500 u-c-4d7c0f">({{ _csstart }}–{{ _csend }})</span></span>
+                    <span class="u-d-flex u-gap-8 u-fxs-0">
+                      <button class="u-bd-none u-bg-transparent u-cur-pointer u-c-15803d u-fs-12 u-op-d7" type="button" onclick="toggleCoEditShift({{ _csid }})" title="Edit shift">✏</button>
+                      <form class="u-d-inline u-m-0" method="POST" action="/delete_shift/{{ _csid }}" onsubmit="return confirm('Delete shift \'{{ _csname }}\'? Its breaks and assigned employees will be unassigned.')">
                         <input type="hidden" name="redirect" value="/settings?tab=company" />
-                        <button type="submit" style="border:none;background:transparent;cursor:pointer;color:#15803d;font-size:13px;opacity:.7;" title="Delete shift">×</button>
+                        <button class="u-bd-none u-bg-transparent u-cur-pointer u-c-15803d u-fs-13 u-op-d7" type="submit" title="Delete shift">×</button>
                       </form>
                     </span>
                   </div>
-                  <div id="co-es-{{ _csid }}" style="display:none;padding:8px 12px;background:#f0fdf4;border-top:1px dashed #bbf7d0;">
-                    <div style="font-size:10px;font-weight:700;color:#15803d;margin-bottom:5px;">Edit shift: {{ _csname }}</div>
-                    <form method="POST" action="/edit_shift/{{ _csid }}" style="display:grid;grid-template-columns:1fr 82px 82px 82px auto auto;gap:6px;align-items:center;">
+                  <div class="u-d-none u-p-8-12 u-bg-f0fdf4 u-bdt-1-dashed-bbf7d0" id="co-es-{{ _csid }}">
+                    <div class="u-fs-10 u-fw-700 u-c-15803d u-mb-5">Edit shift: {{ _csname }}</div>
+                    <form class="u-d-grid u-gtc-1fr-82-82-82-auto-auto u-gap-6 u-ai-center" method="POST" action="/edit_shift/{{ _csid }}">
                       <input type="hidden" name="redirect" value="/settings?tab=company" />
-                      <input type="text" name="name"       value="{{ _csname }}"  required style="padding:6px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="time" name="start_time" value="{{ _csstart }}" required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="time" name="half_time"  value="{{ _cshalf }}"  required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="time" name="end_time"   value="{{ _csend }}"   required style="padding:6px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#15803d;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
-                      <button type="button" onclick="toggleCoEditShift({{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                      <input class="u-p-6-10 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="text" name="name"       value="{{ _csname }}"  required />
+                      <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="start_time" value="{{ _csstart }}" required />
+                      <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="half_time"  value="{{ _cshalf }}"  required />
+                      <input class="u-p-6-8 u-bd-1-solid-bbf7d0 u-br-8 u-fs-12 u-ff-inherit" type="time" name="end_time"   value="{{ _csend }}"   required />
+                      <button class="u-p-6-12 u-bd-none u-br-8 u-bg-15803d u-c-fff u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update</button>
+                      <button class="u-p-6-10 u-bd-1-solid-e2e8f0 u-br-8 u-bg-fff u-c-64748b u-fs-12 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoEditShift({{ _csid }})">Cancel</button>
                     </form>
                   </div>
 
                   <!-- Breaks belonging to this shift -->
-                  <div style="padding:7px 12px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                    <span style="font-size:11px;font-weight:600;color:#64748b;margin-right:2px;flex-shrink:0;">☕ Breaks:</span>
+                  <div class="u-p-7-12 u-d-flex u-ai-center u-gap-5 u-fxw-wrap">
+                    <span class="u-fs-11 u-fw-600 u-c-64748b u-mr-2 u-fxs-0">☕ Breaks:</span>
                     {% set _shift_breaks = company_breaks.get(cid, {}).get(_csid) %}
                     {% if _shift_breaks %}
                     {% for _cb in _shift_breaks %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
                     <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:2px 4px 2px 9px;border-radius:8px;background:{% if 'lunch' in _cbname.lower() %}#fef9c3;color:#92400e;border:1px solid #fde68a;{% else %}#dbeafe;color:#1e40af;border:1px solid #bfdbfe;{% endif %}" title="{{ _cbtime }} · {{ _cbdur }} mins">
                       {{ _cbname }}
-                      <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Edit break">✏</button>
-                      <form method="POST" action="/delete_break/{{ _cbid }}" style="display:inline;margin:0;" onsubmit="return confirm('Remove break \'{{ _cbname }}\'?')">
+                      <button class="u-w-16 u-h-16 u-bd-none u-bg-transparent u-cur-pointer u-c-inherit u-fs-10 u-lh-1 u-p-0 u-d-flex u-ai-center u-jc-center u-op-d55 u-fxs-0" type="button" onclick="toggleCoEditBreak({{ _cbid }})" title="Edit break">✏</button>
+                      <form class="u-d-inline u-m-0" method="POST" action="/delete_break/{{ _cbid }}" onsubmit="return confirm('Remove break \'{{ _cbname }}\'?')">
                         <input type="hidden" name="redirect" value="/settings?tab=company" />
-                        <button type="submit" style="width:16px;height:16px;border:none;background:transparent;cursor:pointer;color:inherit;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;opacity:.55;flex-shrink:0;" title="Delete break">×</button>
+                        <button class="u-w-16 u-h-16 u-bd-none u-bg-transparent u-cur-pointer u-c-inherit u-fs-12 u-lh-1 u-p-0 u-d-flex u-ai-center u-jc-center u-op-d55 u-fxs-0" type="submit" title="Delete break">×</button>
                       </form>
                     </span>
                     {% endfor %}
                     {% else %}
-                    <span style="font-size:11px;color:#cbd5e1;font-style:italic;">None</span>
+                    <span class="u-fs-11 u-c-cbd5e1 u-fst-italic">None</span>
                     {% endif %}
-                    <button type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})" style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px dashed #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add</button>
+                    <button class="u-d-flex u-ai-center u-gap-3 u-p-2-8 u-bd-1d5-dashed-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-10 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})">+ Add</button>
                   </div>
                   <!-- Per-break inline edit forms for this shift -->
                   {% if _shift_breaks %}
                   {% for _cb in _shift_breaks %}{% set _cbid,_cbname,_cbtime,_cbdur,_cbact = _cb %}
-                  <div id="co-eb-{{ _cbid }}" style="display:none;padding:6px 12px;background:#fffbeb;border-top:1px dashed #fde68a;">
-                    <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:5px;">Edit break: {{ _cbname }}</div>
-                    <form method="POST" action="/update_break/{{ _cbid }}" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                  <div class="u-d-none u-p-6-12 u-bg-fffbeb u-bdt-1-dashed-fde68a" id="co-eb-{{ _cbid }}">
+                    <div class="u-fs-10 u-fw-700 u-c-92400e u-mb-5">Edit break: {{ _cbname }}</div>
+                    <form class="u-d-grid u-gtc-1fr-90-70-auto-auto u-gap-6 u-ai-center" method="POST" action="/update_break/{{ _cbid }}">
                       <input type="hidden" name="redirect"  value="/settings?tab=company" />
                       <input type="hidden" name="is_active"  value="1" />
                       <input type="hidden" name="shift_id"  value="{{ _csid }}" />
-                      <input type="text"   name="break_name"       value="{{ _cbname }}" required style="padding:6px 10px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="time"   name="break_time"       value="{{ _cbtime }}" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="number" name="duration_minutes" value="{{ _cbdur }}"  min="1" max="240" required style="padding:6px 8px;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#d97706;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Update</button>
-                      <button type="button" onclick="toggleCoEditBreak({{ _cbid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                      <input class="u-p-6-10 u-bd-1-solid-fde68a u-br-8 u-fs-12 u-ff-inherit" type="text"   name="break_name"       value="{{ _cbname }}" required />
+                      <input class="u-p-6-8 u-bd-1-solid-fde68a u-br-8 u-fs-12 u-ff-inherit" type="time"   name="break_time"       value="{{ _cbtime }}" required />
+                      <input class="u-p-6-8 u-bd-1-solid-fde68a u-br-8 u-fs-12 u-ff-inherit" type="number" name="duration_minutes" value="{{ _cbdur }}"  min="1" max="240" required />
+                      <button class="u-p-6-12 u-bd-none u-br-8 u-bg-d97706 u-c-fff u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update</button>
+                      <button class="u-p-6-10 u-bd-1-solid-e2e8f0 u-br-8 u-bg-fff u-c-64748b u-fs-12 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoEditBreak({{ _cbid }})">Cancel</button>
                     </form>
                   </div>
                   {% endfor %}
                   {% endif %}
                   <!-- Inline add-break form for this shift (hidden until + Add clicked) -->
-                  <div id="co-ab-{{ cid }}-{{ _csid }}" style="display:none;padding:8px 12px 12px;">
-                    <form method="POST" action="/add_break" style="display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center;">
+                  <div class="u-d-none u-p-8-12-12" id="co-ab-{{ cid }}-{{ _csid }}">
+                    <form class="u-d-grid u-gtc-1fr-90-70-auto-auto u-gap-6 u-ai-center" method="POST" action="/add_break">
                       <input type="hidden" name="redirect"    value="/settings?tab=company" />
                       <input type="hidden" name="company_id"  value="{{ cid }}" />
                       <input type="hidden" name="shift_id"    value="{{ _csid }}" />
-                      <input type="text"   name="break_name"  placeholder="Break name" required style="padding:6px 10px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="time"   name="break_time"  required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <input type="number" name="duration_minutes" value="15" min="1" max="240" placeholder="mins" required style="padding:6px 8px;border:1px solid #d1fae5;border-radius:8px;font-size:12px;font-family:inherit;" />
-                      <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
-                      <button type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                      <input class="u-p-6-10 u-bd-1-solid-d1fae5 u-br-8 u-fs-12 u-ff-inherit" type="text"   name="break_name"  placeholder="Break name" required />
+                      <input class="u-p-6-8 u-bd-1-solid-d1fae5 u-br-8 u-fs-12 u-ff-inherit" type="time"   name="break_time"  required />
+                      <input class="u-p-6-8 u-bd-1-solid-d1fae5 u-br-8 u-fs-12 u-ff-inherit" type="number" name="duration_minutes" value="15" min="1" max="240" placeholder="mins" required />
+                      <button class="u-p-6-12 u-bd-none u-br-8 u-bg-16a34a u-c-fff u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
+                      <button class="u-p-6-10 u-bd-1-solid-e2e8f0 u-br-8 u-bg-f8fafc u-c-64748b u-fs-12 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="toggleCoAddBreak({{ cid }}, {{ _csid }})">Cancel</button>
                     </form>
                   </div>
                 </div>
                 {% endfor %}
                 {% else %}
-                <div style="margin:4px 18px 0;font-size:11px;color:#94a3b8;font-style:italic;">Add a shift first to attach breaks to it.</div>
+                <div class="u-m-4-18-0 u-fs-11 u-c-94a3b8 u-fst-italic">Add a shift first to attach breaks to it.</div>
                 {% endif %}
               </div>
 
               <!-- Inline edit row -->
-              <div id="co-edit-{{ cid }}" style="display:none;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:18px;">
-                <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:14px;">✏️ Edit {{ cname }}</div>
+              <div class="u-d-none u-bg-f0f7ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-18" id="co-edit-{{ cid }}">
+                <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-14">✏️ Edit {{ cname }}</div>
                 <form method="POST" action="/companies/{{ cid }}/edit">
                   <input type="hidden" name="redirect_to" value="settings" />
-                  <div style="display:grid;grid-template-columns:1fr 180px;gap:10px;margin-bottom:14px;">
-                    <div class="field" style="margin:0;">
-                      <label style="font-size:12px;">Company Name</label>
+                  <div class="u-d-grid u-gtc-1fr-180 u-gap-10 u-mb-14">
+                    <div class="field u-m-0">
+                      <label class="u-fs-12">Company Name</label>
                       <input type="text" name="name" value="{{ cname }}" required />
                     </div>
-                    <div class="field" style="margin:0;">
-                      <label style="font-size:12px;">Code <span style="font-weight:400;color:#94a3b8;">(ID prefix)</span></label>
-                      <input type="text" name="code" value="{{ ccode or '' }}" maxlength="20" placeholder="e.g. MGZ" style="font-family:monospace;letter-spacing:1px;" />
+                    <div class="field u-m-0">
+                      <label class="u-fs-12">Code <span class="u-fw-400 u-c-94a3b8">(ID prefix)</span></label>
+                      <input class="u-ff-monospace u-ls-1" type="text" name="code" value="{{ ccode or '' }}" maxlength="20" placeholder="e.g. MGZ" />
                     </div>
                   </div>
-                  <div style="margin-bottom:14px;">
-                    <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">📅 Working Days</label>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <div class="u-mb-14">
+                    <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">📅 Working Days</label>
+                    <div class="u-d-flex u-fxw-wrap u-gap-6">
                       {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-                      <label style="cursor:pointer;">
-                        <input type="checkbox" name="working_days" value="{{ d }}" {% if d in cwd_list %}checked{% endif %} style="display:none;" onchange="styleCoWd(this)" />
+                      <label class="u-cur-pointer">
+                        <input class="u-d-none" type="checkbox" name="working_days" value="{{ d }}" {% if d in cwd_list %}checked{% endif %} onchange="styleCoWd(this)" />
                         <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;border:1.5px solid {% if d in cwd_list %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if d in cwd_list %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if d in cwd_list %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ d }}</span>
                       </label>
                       {% endfor %}
                     </div>
-                    <div style="font-size:11px;color:#94a3b8;margin-top:6px;">Affects payroll calculation for this company.</div>
+                    <div class="u-fs-11 u-c-94a3b8 u-mt-6">Affects payroll calculation for this company.</div>
                   </div>
-                  <div style="display:flex;gap:8px;">
-                    <button type="submit" style="padding:8px 18px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Save Changes</button>
-                    <button type="button" onclick="closeEditCompany({{ cid }})" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                  <div class="u-d-flex u-gap-8">
+                    <button class="u-p-8-18 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" type="submit">Save Changes</button>
+                    <button class="u-p-8-14 u-bd-1d5-solid-e2e8f0 u-br-8 u-bg-fff u-c-64748b u-fs-13 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeEditCompany({{ cid }})">Cancel</button>
                   </div>
                 </form>
               </div>
 
               {% else %}
-              <div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">No companies yet — click <strong>Add Company</strong> to create one.</div>
+              <div class="u-p-24 u-ta-center u-c-94a3b8 u-fs-13 u-bg-f8fafc u-br-12 u-bd-1-dashed-e2e8f0">No companies yet — click <strong>Add Company</strong> to create one.</div>
               {% endfor %}
             </div>
           </div>
@@ -679,83 +679,83 @@
           <!-- ATTENDANCE -->
           <div class="s3-section" id="ss-attendance">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#f0fdf4;"><i class="ti ti-fingerprint" style="color:#16a34a;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-fingerprint u-c-16a34a u-fs-20"></i></div>
               <div><div class="sec-title">Attendance Methods</div><div class="sec-sub">Enable or disable each punch-in method</div></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
 
               <!-- Face Auth -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-face-id" style="font-size:22px;color:#d97706;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Face Authentication</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Selfie punch-in via mobile app</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-fef3c7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-face-id u-fs-22 u-c-d97706"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Face Authentication</div><div class="u-fs-12 u-c-64748b u-mt-2">Selfie punch-in via mobile app</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
               <!-- Geo-fencing -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-map-pin" style="font-size:22px;color:#16a34a;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Geo-fencing</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Restrict punch-in by GPS radius</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-dcfce7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-map-pin u-fs-22 u-c-16a34a"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Geo-fencing</div><div class="u-fs-12 u-c-64748b u-mt-2">Restrict punch-in by GPS radius</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
                 </div>
                 <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
-                  <form method="POST" action="/save_geo_radius" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;">
-                    <i class="ti ti-current-location" style="color:#16a34a;font-size:15px;"></i>
-                    <label style="font-size:12px;font-weight:700;color:#15803d;">Radius</label>
-                    <input type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" style="width:72px;padding:5px 9px;border:1px solid #86efac;border-radius:7px;font-size:13px;font-weight:600;" />
-                    <span style="font-size:12px;color:#64748b;">metres</span>
-                    <button type="submit" style="margin-left:auto;padding:5px 14px;border:none;border-radius:7px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
+                  <form class="u-d-flex u-ai-center u-gap-8 u-fxw-wrap u-w-100pct" method="POST" action="/save_geo_radius">
+                    <i class="ti ti-current-location u-c-16a34a u-fs-15"></i>
+                    <label class="u-fs-12 u-fw-700 u-c-15803d">Radius</label>
+                    <input class="u-w-72 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" />
+                    <span class="u-fs-12 u-c-64748b">metres</span>
+                    <button class="u-ml-auto u-p-5-14 u-bd-none u-br-7 u-bg-16a34a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="submit">Save</button>
                   </form>
                 </div>
               </div>
 
               <!-- QR Code -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-qrcode" style="font-size:22px;color:#7c3aed;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">QR Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Scan unique QR code to punch in</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-ede9fe u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-qrcode u-fs-22 u-c-7c3aed"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">QR Code</div><div class="u-fs-12 u-c-64748b u-mt-2">Scan unique QR code to punch in</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
               <!-- PIN -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-password" style="font-size:22px;color:#2563eb;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">PIN Code</div><div style="font-size:12px;color:#64748b;margin-top:2px;">4-digit PIN punch-in</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-dbeafe u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-password u-fs-22 u-c-2563eb"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">PIN Code</div><div class="u-fs-12 u-c-64748b u-mt-2">4-digit PIN punch-in</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.pin %}checked{% endif %} onchange="saveToggle('pin_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.pin %}checked{% endif %} onchange="saveToggle('pin_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
               <!-- Fingerprint -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-fingerprint" style="font-size:22px;color:#dc2626;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Fingerprint</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Physical fingerprint reader device</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-fee2e2 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-fingerprint u-fs-22 u-c-dc2626"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Fingerprint</div><div class="u-fs-12 u-c-64748b u-mt-2">Physical fingerprint reader device</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
               <!-- Biometric -->
-              <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:44px;height:44px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-device-desktop-analytics" style="font-size:22px;color:#475569;"></i></div>
-                    <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Biometric Device</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Biometric time-attendance machine</div></div>
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-44 u-h-44 u-br-12 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-device-desktop-analytics u-fs-22 u-c-475569"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Biometric Device</div><div class="u-fs-12 u-c-64748b u-mt-2">Biometric time-attendance machine</div></div>
                   </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px;"><input type="checkbox" {% if features.biometric %}checked{% endif %} onchange="saveToggle('biometric_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.biometric %}checked{% endif %} onchange="saveToggle('biometric_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
@@ -783,169 +783,169 @@
           <!-- PAYROLL -->
           <div class="s3-section active" id="ss-payroll">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#fefce8;"><i class="ti ti-coin" style="color:#ca8a04;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04 u-fs-20"></i></div>
               <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
             </div>
             <form method="POST" action="/save_salary_rules">
 
               <!-- Section 1: Shift Timings -->
-              <div class="section" style="margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-                  <i class="ti ti-clock" style="font-size:18px;color:#1e3a8a;"></i>
+              <div class="section u-mb-16">
+                <div class="u-d-flex u-ai-center u-gap-10 u-mb-16">
+                  <i class="ti ti-clock u-fs-18 u-c-1e3a8a"></i>
                   <div>
-                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Shift Timings</div>
-                    <div style="font-size:12px;color:#94a3b8;">Define when a day is classified as On Time, Late, or Absent</div>
+                    <div class="u-fs-14 u-fw-800 u-c-0f172a">Shift Timings</div>
+                    <div class="u-fs-12 u-c-94a3b8">Define when a day is classified as On Time, Late, or Absent</div>
                   </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-                  <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;">
-                    <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Login Cutoff</div>
-                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time if before this</div>
-                    <input type="time" name="shift_start" id="inp_start" value="{{ default_start }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #86efac;border-radius:8px;font-size:14px;font-weight:700;color:#15803d;background:#fff;" />
+                <div class="u-d-grid u-gtc-repeat4_1fr u-gap-12">
+                  <div class="u-bg-f0fdf4 u-bd-1d5-solid-bbf7d0 u-br-12 u-p-14">
+                    <div class="u-fs-11 u-fw-700 u-c-16a34a u-mb-8 u-ttr-uppercase u-ls-d5">Login Cutoff</div>
+                    <div class="u-fs-11 u-c-64748b u-mb-10">On time if before this</div>
+                    <input class="u-w-100pct u-p-8-10 u-bd-1d5-solid-86efac u-br-8 u-fs-14 u-fw-700 u-c-15803d u-bg-fff" type="time" name="shift_start" id="inp_start" value="{{ default_start }}" onchange="updatePreviews()" required />
                   </div>
-                  <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px;">
-                    <div style="font-size:11px;font-weight:700;color:#ca8a04;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Late Boundary</div>
-                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Late if between cutoff & this</div>
-                    <input type="time" name="shift_half" id="inp_half" value="{{ default_half }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fcd34d;border-radius:8px;font-size:14px;font-weight:700;color:#92400e;background:#fff;" />
+                  <div class="u-bg-fffbeb u-bd-1d5-solid-fde68a u-br-12 u-p-14">
+                    <div class="u-fs-11 u-fw-700 u-c-ca8a04 u-mb-8 u-ttr-uppercase u-ls-d5">Late Boundary</div>
+                    <div class="u-fs-11 u-c-64748b u-mb-10">Late if between cutoff & this</div>
+                    <input class="u-w-100pct u-p-8-10 u-bd-1d5-solid-fcd34d u-br-8 u-fs-14 u-fw-700 u-c-92400e u-bg-fff" type="time" name="shift_half" id="inp_half" value="{{ default_half }}" onchange="updatePreviews()" required />
                   </div>
-                  <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:14px;">
-                    <div style="font-size:11px;font-weight:700;color:#ea580c;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Logout Cutoff</div>
-                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Must log out before this</div>
-                    <input type="time" name="shift_end" id="inp_end" value="{{ default_end }}" onchange="updatePreviews()" required style="width:100%;padding:8px 10px;border:1.5px solid #fb923c;border-radius:8px;font-size:14px;font-weight:700;color:#9a3412;background:#fff;" />
+                  <div class="u-bg-fff7ed u-bd-1d5-solid-fed7aa u-br-12 u-p-14">
+                    <div class="u-fs-11 u-fw-700 u-c-ea580c u-mb-8 u-ttr-uppercase u-ls-d5">Logout Cutoff</div>
+                    <div class="u-fs-11 u-c-64748b u-mb-10">Must log out before this</div>
+                    <input class="u-w-100pct u-p-8-10 u-bd-1d5-solid-fb923c u-br-8 u-fs-14 u-fw-700 u-c-9a3412 u-bg-fff" type="time" name="shift_end" id="inp_end" value="{{ default_end }}" onchange="updatePreviews()" required />
                   </div>
-                  <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">
-                    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Grace Period</div>
-                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Forgiven late minutes</div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                      <input type="number" name="grace_minutes" value="{{ grace_minutes }}" min="0" max="60" style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:700;color:#0f172a;background:#fff;" />
-                      <span style="font-size:12px;color:#64748b;white-space:nowrap;">mins</span>
+                  <div class="u-bg-f8fafc u-bd-1d5-solid-e2e8f0 u-br-12 u-p-14">
+                    <div class="u-fs-11 u-fw-700 u-c-475569 u-mb-8 u-ttr-uppercase u-ls-d5">Grace Period</div>
+                    <div class="u-fs-11 u-c-64748b u-mb-10">Forgiven late minutes</div>
+                    <div class="u-d-flex u-ai-center u-gap-6">
+                      <input class="u-w-100pct u-p-8-10 u-bd-1d5-solid-cbd5e1 u-br-8 u-fs-14 u-fw-700 u-c-0f172a u-bg-fff" type="number" name="grace_minutes" value="{{ grace_minutes }}" min="0" max="60" />
+                      <span class="u-fs-12 u-c-64748b u-ws-nowrap">mins</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- Section 2: Deduction Rules -->
-              <div class="section" style="margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-                  <i class="ti ti-percent" style="font-size:18px;color:#dc2626;"></i>
+              <div class="section u-mb-16">
+                <div class="u-d-flex u-ai-center u-gap-10 u-mb-16">
+                  <i class="ti ti-percent u-fs-18 u-c-dc2626"></i>
                   <div>
-                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Salary Deductions</div>
-                    <div style="font-size:12px;color:#94a3b8;">What percentage is deducted based on attendance status</div>
+                    <div class="u-fs-14 u-fw-800 u-c-0f172a">Salary Deductions</div>
+                    <div class="u-fs-12 u-c-94a3b8">What percentage is deducted based on attendance status</div>
                   </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <div class="u-d-grid u-gtc-repeat4_1fr u-gap-12">
                   <!-- Full Day -->
-                  <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;overflow:hidden;">
-                    <div style="background:#16a34a;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-circle-check" style="color:#fff;font-size:16px;"></i>
-                      <span style="color:#fff;font-size:12px;font-weight:800;">Full Day</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-bbf7d0 u-br-12 u-ov-hidden">
+                    <div class="u-bg-16a34a u-p-10-14 u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-circle-check u-c-fff u-fs-16"></i>
+                      <span class="u-c-fff u-fs-12 u-fw-800">Full Day</span>
                     </div>
-                    <div style="padding:14px;text-align:center;">
-                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">On time, worked full hours</div>
-                      <div style="font-size:30px;font-weight:900;color:#16a34a;">0%</div>
-                      <div style="font-size:11px;font-weight:700;color:#16a34a;margin-top:4px;">No deduction</div>
+                    <div class="u-p-14 u-ta-center">
+                      <div class="u-fs-11 u-c-64748b u-mb-10">On time, worked full hours</div>
+                      <div class="u-fs-30 u-fw-900 u-c-16a34a">0%</div>
+                      <div class="u-fs-11 u-fw-700 u-c-16a34a u-mt-4">No deduction</div>
                     </div>
                   </div>
                   <!-- Late Full -->
-                  <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;overflow:hidden;">
-                    <div style="background:#f59e0b;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-clock-exclamation" style="color:#fff;font-size:16px;"></i>
-                      <span style="color:#fff;font-size:12px;font-weight:800;">Late — Full Day</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-fde68a u-br-12 u-ov-hidden">
+                    <div class="u-bg-f59e0b u-p-10-14 u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-clock-exclamation u-c-fff u-fs-16"></i>
+                      <span class="u-c-fff u-fs-12 u-fw-800">Late — Full Day</span>
                     </div>
-                    <div style="padding:14px;text-align:center;">
-                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Arrived late, worked full hours</div>
-                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
-                        <input type="number" name="late_deduction_pct" id="inp_late_pct" value="{{ late_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#92400e;border:none;border-bottom:2px solid #fcd34d;background:transparent;outline:none;text-align:center;" />
-                        <span style="font-size:28px;font-weight:900;color:#92400e;">%</span>
+                    <div class="u-p-14 u-ta-center">
+                      <div class="u-fs-11 u-c-64748b u-mb-10">Arrived late, worked full hours</div>
+                      <div class="u-d-flex u-ai-center u-jc-center u-gap-2">
+                        <input class="u-w-60 u-fs-28 u-fw-900 u-c-92400e u-bd-none u-bdb-2-solid-fcd34d u-bg-transparent u-out-none u-ta-center" type="number" name="late_deduction_pct" id="inp_late_pct" value="{{ late_deduction_pct }}" min="0" max="100" step="0.1" />
+                        <span class="u-fs-28 u-fw-900 u-c-92400e">%</span>
                       </div>
-                      <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:6px;">Deducted from salary</div>
+                      <div class="u-fs-11 u-fw-700 u-c-f59e0b u-mt-6">Deducted from salary</div>
                     </div>
                   </div>
                   <!-- Half Day -->
-                  <div style="background:#fff;border:1.5px solid #fed7aa;border-radius:12px;overflow:hidden;">
-                    <div style="background:#ea580c;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-clock-half-2" style="color:#fff;font-size:16px;"></i>
-                      <span style="color:#fff;font-size:12px;font-weight:800;">Half Day</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-fed7aa u-br-12 u-ov-hidden">
+                    <div class="u-bg-ea580c u-p-10-14 u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-clock-half-2 u-c-fff u-fs-16"></i>
+                      <span class="u-c-fff u-fs-12 u-fw-800">Half Day</span>
                     </div>
-                    <div style="padding:14px;text-align:center;">
-                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">Very late or left early</div>
-                      <div style="display:flex;align-items:center;justify-content:center;gap:2px;">
-                        <input type="number" name="half_day_deduction_pct" id="inp_half_pct" value="{{ half_day_deduction_pct }}" min="0" max="100" step="0.1" style="width:60px;font-size:28px;font-weight:900;color:#9a3412;border:none;border-bottom:2px solid #fb923c;background:transparent;outline:none;text-align:center;" />
-                        <span style="font-size:28px;font-weight:900;color:#9a3412;">%</span>
+                    <div class="u-p-14 u-ta-center">
+                      <div class="u-fs-11 u-c-64748b u-mb-10">Very late or left early</div>
+                      <div class="u-d-flex u-ai-center u-jc-center u-gap-2">
+                        <input class="u-w-60 u-fs-28 u-fw-900 u-c-9a3412 u-bd-none u-bdb-2-solid-fb923c u-bg-transparent u-out-none u-ta-center" type="number" name="half_day_deduction_pct" id="inp_half_pct" value="{{ half_day_deduction_pct }}" min="0" max="100" step="0.1" />
+                        <span class="u-fs-28 u-fw-900 u-c-9a3412">%</span>
                       </div>
-                      <div style="font-size:11px;font-weight:700;color:#ea580c;margin-top:6px;">Deducted from salary</div>
+                      <div class="u-fs-11 u-fw-700 u-c-ea580c u-mt-6">Deducted from salary</div>
                     </div>
                   </div>
                   <!-- Absent -->
-                  <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:12px;overflow:hidden;">
-                    <div style="background:#dc2626;padding:10px 14px;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-x" style="color:#fff;font-size:16px;"></i>
-                      <span style="color:#fff;font-size:12px;font-weight:800;">Absent</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-fca5a5 u-br-12 u-ov-hidden">
+                    <div class="u-bg-dc2626 u-p-10-14 u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-x u-c-fff u-fs-16"></i>
+                      <span class="u-c-fff u-fs-12 u-fw-800">Absent</span>
                     </div>
-                    <div style="padding:14px;text-align:center;">
-                      <div style="font-size:11px;color:#64748b;margin-bottom:10px;">No attendance recorded</div>
-                      <div style="font-size:30px;font-weight:900;color:#dc2626;">100%</div>
-                      <div style="font-size:11px;font-weight:700;color:#dc2626;margin-top:4px;">Full day deducted</div>
+                    <div class="u-p-14 u-ta-center">
+                      <div class="u-fs-11 u-c-64748b u-mb-10">No attendance recorded</div>
+                      <div class="u-fs-30 u-fw-900 u-c-dc2626">100%</div>
+                      <div class="u-fs-11 u-fw-700 u-c-dc2626 u-mt-4">Full day deducted</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- Section 3: Special Policies -->
-              <div class="section" style="margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-                  <i class="ti ti-calendar-event" style="font-size:18px;color:#7c3aed;"></i>
+              <div class="section u-mb-16">
+                <div class="u-d-flex u-ai-center u-gap-10 u-mb-16">
+                  <i class="ti ti-calendar-event u-fs-18 u-c-7c3aed"></i>
                   <div>
-                    <div style="font-size:14px;font-weight:800;color:#0f172a;">Special Day Policies</div>
-                    <div style="font-size:12px;color:#94a3b8;">How holidays and approved leaves are treated in payroll</div>
+                    <div class="u-fs-14 u-fw-800 u-c-0f172a">Special Day Policies</div>
+                    <div class="u-fs-12 u-c-94a3b8">How holidays and approved leaves are treated in payroll</div>
                   </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
                   <!-- Holiday Pay -->
-                  <div style="background:#fff;border:1.5px solid #bae6fd;border-radius:12px;overflow:hidden;">
-                    <div style="background:#f0f9ff;padding:12px 16px;border-bottom:1px solid #bae6fd;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-beach" style="color:#0284c7;font-size:16px;"></i>
-                      <span style="font-size:13px;font-weight:800;color:#075985;">Holiday Pay</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-bae6fd u-br-12 u-ov-hidden">
+                    <div class="u-bg-f0f9ff u-p-12-16 u-bdb-1-solid-bae6fd u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-beach u-c-0284c7 u-fs-16"></i>
+                      <span class="u-fs-13 u-fw-800 u-c-075985">Holiday Pay</span>
                     </div>
-                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
-                        <input type="radio" name="holiday_pay" value="paid" {% if holiday_pay=='paid' %}checked{% endif %} style="accent-color:#0284c7;width:16px;height:16px;flex-shrink:0;" />
-                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Paid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Employees receive full salary on holidays</div></div>
+                    <div class="u-p-12-16 u-d-flex u-fxd-column u-gap-8">
+                      <label class="u-d-flex u-ai-center u-gap-12 u-p-12 u-bd-1d5-solid-e2e8f0 u-br-10 u-cur-pointer u-trs-border-color-d15s">
+                        <input class="u-accent-0284c7 u-w-16 u-h-16 u-fxs-0" type="radio" name="holiday_pay" value="paid" {% if holiday_pay=='paid' %}checked{% endif %} />
+                        <div><div class="u-fs-13 u-fw-700 u-c-0f172a">Paid Holiday</div><div class="u-fs-11 u-c-64748b u-mt-2">Employees receive full salary on holidays</div></div>
                       </label>
-                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
-                        <input type="radio" name="holiday_pay" value="unpaid" {% if holiday_pay=='unpaid' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
-                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Unpaid Holiday</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No salary paid on public holidays</div></div>
+                      <label class="u-d-flex u-ai-center u-gap-12 u-p-12 u-bd-1d5-solid-e2e8f0 u-br-10 u-cur-pointer u-trs-border-color-d15s">
+                        <input class="u-accent-dc2626 u-w-16 u-h-16 u-fxs-0" type="radio" name="holiday_pay" value="unpaid" {% if holiday_pay=='unpaid' %}checked{% endif %} />
+                        <div><div class="u-fs-13 u-fw-700 u-c-0f172a">Unpaid Holiday</div><div class="u-fs-11 u-c-64748b u-mt-2">No salary paid on public holidays</div></div>
                       </label>
                     </div>
                   </div>
                   <!-- Approved Leave -->
-                  <div style="background:#fff;border:1.5px solid #ddd6fe;border-radius:12px;overflow:hidden;">
-                    <div style="background:#f5f3ff;padding:12px 16px;border-bottom:1px solid #ddd6fe;display:flex;align-items:center;gap:8px;">
-                      <i class="ti ti-clipboard-check" style="color:#7c3aed;font-size:16px;"></i>
-                      <span style="font-size:13px;font-weight:800;color:#5b21b6;">Approved Leave</span>
+                  <div class="u-bg-fff u-bd-1d5-solid-ddd6fe u-br-12 u-ov-hidden">
+                    <div class="u-bg-f5f3ff u-p-12-16 u-bdb-1-solid-ddd6fe u-d-flex u-ai-center u-gap-8">
+                      <i class="ti ti-clipboard-check u-c-7c3aed u-fs-16"></i>
+                      <span class="u-fs-13 u-fw-800 u-c-5b21b6">Approved Leave</span>
                     </div>
-                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
-                        <input type="radio" name="leave_pay" value="exclude" {% if leave_pay=='exclude' %}checked{% endif %} style="accent-color:#7c3aed;width:16px;height:16px;flex-shrink:0;" />
-                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Exclude from Payroll</div><div style="font-size:11px;color:#64748b;margin-top:2px;">No pay, no deduction — day is skipped</div></div>
+                    <div class="u-p-12-16 u-d-flex u-fxd-column u-gap-8">
+                      <label class="u-d-flex u-ai-center u-gap-12 u-p-12 u-bd-1d5-solid-e2e8f0 u-br-10 u-cur-pointer u-trs-border-color-d15s">
+                        <input class="u-accent-7c3aed u-w-16 u-h-16 u-fxs-0" type="radio" name="leave_pay" value="exclude" {% if leave_pay=='exclude' %}checked{% endif %} />
+                        <div><div class="u-fs-13 u-fw-700 u-c-0f172a">Exclude from Payroll</div><div class="u-fs-11 u-c-64748b u-mt-2">No pay, no deduction — day is skipped</div></div>
                       </label>
-                      <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s;">
-                        <input type="radio" name="leave_pay" value="absent" {% if leave_pay=='absent' %}checked{% endif %} style="accent-color:#dc2626;width:16px;height:16px;flex-shrink:0;" />
-                        <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Count as Absent</div><div style="font-size:11px;color:#64748b;margin-top:2px;">Full day salary is deducted</div></div>
+                      <label class="u-d-flex u-ai-center u-gap-12 u-p-12 u-bd-1d5-solid-e2e8f0 u-br-10 u-cur-pointer u-trs-border-color-d15s">
+                        <input class="u-accent-dc2626 u-w-16 u-h-16 u-fxs-0" type="radio" name="leave_pay" value="absent" {% if leave_pay=='absent' %}checked{% endif %} />
+                        <div><div class="u-fs-13 u-fw-700 u-c-0f172a">Count as Absent</div><div class="u-fs-11 u-c-64748b u-mt-2">Full day salary is deducted</div></div>
                       </label>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <button type="submit" class="btn-submit" style="width:100%;padding:13px;">Save Payroll Rules</button>
+              <button type="submit" class="btn-submit u-w-100pct u-p-13">Save Payroll Rules</button>
             </form>
           </div>
 
           <!-- SALARY -->
           <div class="s3-section" id="ss-salary">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#f0fdf4;"><i class="ti ti-cash" style="color:#16a34a;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-cash u-c-16a34a u-fs-20"></i></div>
               <div><div class="sec-title">Salary</div><div class="sec-sub">Per-employee daily rate configuration</div></div>
             </div>
             <div class="section">
@@ -956,10 +956,10 @@
                   <tbody>
                   {% for s in salaries %}{% set eid,ename,spd,role,rev,phone,email = s %}
                   <tr>
-                    <td><strong>{{ ename }}</strong><br><span style="font-size:11px;color:#94a3b8;">{{ eid }}</span></td>
+                    <td><strong>{{ ename }}</strong><br><span class="u-fs-11 u-c-94a3b8">{{ eid }}</span></td>
                     <td>{% if role %}<span class="badge b-blue">{{ role }}</span>{% else %}<span class="badge b-gray">—</span>{% endif %}</td>
-                    <td style="font-weight:800;color:#16a34a;">&#8377;{{ "%.2f"|format(spd) }}</td>
-                    <td style="font-weight:700;color:#2563eb;">&#8377;{{ "%.0f"|format(spd*26) }}</td>
+                    <td class="u-fw-800 u-c-16a34a">&#8377;{{ "%.2f"|format(spd) }}</td>
+                    <td class="u-fw-700 u-c-2563eb">&#8377;{{ "%.0f"|format(spd*26) }}</td>
                     <td>{% if rev %}<span class="rev-badge">{{ rev.strftime('%d %b %Y') }}</span>{% else %}<span class="rev-badge muted">Not set</span>{% endif %}</td>
                     <td>
                       <button class="btn-edit" onclick="openSalaryEdit('{{ eid }}')">Edit</button>
@@ -967,7 +967,7 @@
                         <form method="POST" action="/update_salary">
                           <input type="hidden" name="emp_id" value="{{ eid }}" />
                           <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary_per_day" step="0.01" value="{{ spd }}" /></div>
-                          <div class="ef-btns" style="margin-top:6px;"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" onclick="document.getElementById('ef_{{ eid }}').classList.remove('open')">Cancel</button></div>
+                          <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" onclick="document.getElementById('ef_{{ eid }}').classList.remove('open')">Cancel</button></div>
                         </form>
                       </div>
                     </td>
@@ -1000,7 +1000,7 @@
           <!-- EMAIL -->
           <div class="s3-section active" id="ss-email">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#f0f9ff;"><i class="ti ti-mail" style="color:#0284c7;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-f0f9ff"><i class="ti ti-mail u-c-0284c7 u-fs-20"></i></div>
               <div><div class="sec-title">Email</div><div class="sec-sub">SMTP configuration and notification preferences</div></div>
             </div>
             <div class="two-col">
@@ -1015,16 +1015,16 @@
                   <div class="field"><label>From Email</label><input type="email" name="from_email" placeholder="hr@company.com" value="{{ email_config.from_email if email_config else '' }}" /></div>
                   <button type="submit" class="btn-submit">Save SMTP</button>
                 </form>
-                <div class="test-card" style="margin-top:14px;">
-                  <div style="font-size:13px;font-weight:700;color:#1e293b;">Test Connection</div>
+                <div class="test-card u-mt-14">
+                  <div class="u-fs-13 u-fw-700 u-c-1e293b">Test Connection</div>
                   <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" onclick="sendTestEmail()">Send Test</button></div>
                   <div id="testResult"></div>
                 </div>
               </div>
               <div class="section">
                 <div class="section-title">🔔 Notification Triggers</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Choose which events send an email to admins.</div>
-                <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="u-fs-12 u-c-64748b u-mb-14">Choose which events send an email to admins.</div>
+                <div class="u-d-flex u-fxd-column u-gap-10">
                   {% for key,label,desc in [('notify_leave','New Leave Request','When an employee submits a leave'),('notify_payslip','Payslip Sent','Confirmation when payslip is emailed'),('notify_resignation','Resignation Submitted','New resignation request received'),('notify_doc_expiry','Document Expiry Alert','Before employee documents expire')] %}
                   <div class="feat-card"><div class="feat-body"><div class="feat-name">{{ label }}</div><div class="feat-desc">{{ desc }}</div></div><label class="toggle"><input type="checkbox" {% if features[key] %}checked{% endif %} onchange="saveToggle('{{ key }}',this.checked)" /><span class="toggle-slider"></span></label></div>
                   {% endfor %}
@@ -1036,19 +1036,19 @@
           <!-- SECURITY -->
           <div class="s3-section" id="ss-security">
             <div class="sec-header">
-              <div class="sec-icon" style="background:#fef2f2;"><i class="ti ti-shield-lock" style="color:#dc2626;font-size:20px;"></i></div>
+              <div class="sec-icon u-bg-fef2f2"><i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i></div>
               <div><div class="sec-title">Security</div><div class="sec-sub">Session management and access control</div></div>
             </div>
             <div class="section">
               <form method="POST" action="/save_security_settings">
                 <div class="two-col">
                   <div class="field"><label>Session Timeout</label><select name="session_timeout">{% for t in [15,30,60,120,240] %}<option value="{{ t }}" {% if features.session_timeout==t %}selected{% endif %}>{{ t }} minutes</option>{% endfor %}</select><div class="field-note">Auto-logout inactive admins after this duration.</div></div>
-                  <div class="field"><label>Audit Log</label><a href="/admin_tools?tab=audit" class="btn-submit" style="display:inline-block;text-decoration:none;">View Audit Log &#8594;</a></div>
+                  <div class="field"><label>Audit Log</label><a href="/admin_tools?tab=audit" class="btn-submit u-d-inline-block u-tdec-none">View Audit Log &#8594;</a></div>
                 </div>
-                <div class="feat-card" style="margin-bottom:16px;">
+                <div class="feat-card u-mb-16">
                   <div class="feat-icon">🔐</div>
                   <div class="feat-body"><div class="feat-name">Two-Factor Authentication</div><div class="feat-desc">Extra login security for admin accounts (coming soon)</div></div>
-                  <label class="toggle"><input type="checkbox" disabled /><span class="toggle-slider" style="opacity:.45;cursor:not-allowed;"></span></label>
+                  <label class="toggle"><input type="checkbox" disabled /><span class="toggle-slider u-op-d45 u-cur-not-allowed"></span></label>
                 </div>
                 <button type="submit" class="btn-submit">Save Security Settings</button>
               </form>
@@ -1060,7 +1060,7 @@
             <div class="section">
               <div class="section-title">🌙 Theme</div>
               <div class="feat-card">
-                <div class="feat-icon" style="background:#fef9c3;font-size:20px;">🌙</div>
+                <div class="feat-icon u-bg-fef9c3 u-fs-20">🌙</div>
                 <div class="feat-body"><div class="feat-name">Dark Mode</div><div class="feat-desc">Switch the admin panel between light and dark theme</div></div>
                 <label class="toggle"><input type="checkbox" id="dmToggle" onchange="toggleDarkMode(this.checked)" /><span class="toggle-slider"></span></label>
               </div>
@@ -1074,9 +1074,9 @@
          TAB: AUTH
     ══════════════════════════════════════ -->
     <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
-      <div class="section" style="max-width:600px;">
+      <div class="section u-maxw-600">
         <div class="section-title">🔐 Attendance Authentication</div>
-        <p style="font-size:13px;color:#64748b;margin-bottom:24px;line-height:1.7;">
+        <p class="u-fs-13 u-c-64748b u-mb-24 u-lh-1d7">
           Enable or disable each authentication factor independently. Attendance marking requires any
           <strong>two active factors</strong>. Password controls employee login to the mobile app.
         </p>
@@ -1092,21 +1092,21 @@
         {% for key, icon, label, cfg_key, desc in methods %}
         {% set is_on = auth_config[cfg_key] %}
         <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:#f8fafc;border:1px solid {% if is_on %}#bbf7d0{% else %}#fecaca{% endif %};border-radius:12px;margin-bottom:12px;transition:border-color .2s;">
-          <div style="display:flex;align-items:flex-start;gap:14px;">
-            <span style="font-size:26px;line-height:1;margin-top:2px;">{{ icon }}</span>
+          <div class="u-d-flex u-ai-flex-start u-gap-14">
+            <span class="u-fs-26 u-lh-1 u-mt-2">{{ icon }}</span>
             <div>
-              <div style="font-size:14px;font-weight:700;color:#1e293b;">{{ label }}</div>
-              <div style="font-size:12px;color:#64748b;margin-top:3px;line-height:1.5;">{{ desc }}</div>
-              <div style="margin-top:8px;">
+              <div class="u-fs-14 u-fw-700 u-c-1e293b">{{ label }}</div>
+              <div class="u-fs-12 u-c-64748b u-mt-3 u-lh-1d5">{{ desc }}</div>
+              <div class="u-mt-8">
                 {% if is_on %}
-                <span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">✅ Enabled</span>
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-dcfce7 u-c-16a34a u-fs-11 u-fw-700 u-p-3-10 u-br-20">✅ Enabled</span>
                 {% else %}
-                <span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">❌ Disabled</span>
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-p-3-10 u-br-20">❌ Disabled</span>
                 {% endif %}
               </div>
             </div>
           </div>
-          <label class="dm-switch" title="Toggle {{ label }}" style="flex-shrink:0;margin-left:20px;">
+          <label class="dm-switch u-fxs-0 u-ml-20" title="Toggle {{ label }}">
             <input type="checkbox" {% if is_on %}checked{% endif %}
                    onchange="toggleAuthMethod('{{ key }}', this.checked)">
             <span class="dm-slider"></span>
@@ -1115,19 +1115,19 @@
         {% endfor %}
 
         <!-- Combo info card -->
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-top:8px;">
-          <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:10px;">Available attendance combinations:</div>
-          <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:#1e293b;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:15px;">📷🤳</span>
+        <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-16 u-mt-8">
+          <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-10">Available attendance combinations:</div>
+          <div class="u-d-flex u-fxd-column u-gap-7 u-fs-13 u-c-1e293b">
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15">📷🤳</span>
               <div><strong>QR + Face</strong> — requires QR and Face both enabled</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:15px;">📷👆</span>
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15">📷👆</span>
               <div><strong>QR + Fingerprint</strong> — requires QR and Fingerprint both enabled</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:15px;">🤳👆</span>
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15">🤳👆</span>
               <div><strong>Face + Fingerprint</strong> — requires Face and Fingerprint both enabled (no QR)</div>
             </div>
           </div>
@@ -1138,38 +1138,37 @@
   </div><!-- /main -->
 
   <!-- ══ SET COMPANY PIN MODAL ══ -->
-  <div id="setPinModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10002;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:28px;width:360px;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
-      <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:3px;">🔒 PIN Protection</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:20px;" id="spn_label">Control access to this company</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
+      <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3">🔒 PIN Protection</div>
+      <div class="u-fs-12 u-c-64748b u-mb-20" id="spn_label">Control access to this company</div>
       <form method="POST" action="/set_company_pin" id="spnForm">
         <input type="hidden" name="company_id" id="spn_cid" />
         <!-- Toggle row -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:14px;">
+        <div class="u-d-flex u-ai-center u-jc-space-between u-p-13-15 u-bg-f8fafc u-bd-1d5-solid-e2e8f0 u-br-12 u-mb-14">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a;">Enable PIN Protection</div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px;">Require PIN when switching to this company</div>
+            <div class="u-fs-13 u-fw-700 u-c-0f172a">Enable PIN Protection</div>
+            <div class="u-fs-11 u-c-64748b u-mt-2">Require PIN when switching to this company</div>
           </div>
-          <label style="position:relative;display:inline-block;width:46px;height:25px;cursor:pointer;flex-shrink:0;">
-            <input type="checkbox" id="spn_toggle" onchange="spnToggleChange(this)" style="opacity:0;width:0;height:0;position:absolute;" />
-            <span id="spn_track" style="position:absolute;inset:0;border-radius:25px;background:#e2e8f0;transition:background .2s;"></span>
-            <span id="spn_thumb" style="position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.25);transition:left .2s;"></span>
+          <label class="u-pos-relative u-d-inline-block u-w-46 u-h-25 u-cur-pointer u-fxs-0">
+            <input class="u-op-0 u-w-0 u-h-0 u-pos-absolute" type="checkbox" id="spn_toggle" onchange="spnToggleChange(this)" />
+            <span class="u-pos-absolute u-ins-0 u-br-25 u-bg-e2e8f0 u-trs-background-d2s" id="spn_track"></span>
+            <span class="u-pos-absolute u-top-3 u-lft-3 u-w-19 u-h-19 u-br-50pct u-bg-fff u-shad-0-1-4-rgba0_0_0_0d25 u-trs-left-d2s" id="spn_thumb"></span>
           </label>
         </div>
         <!-- PIN input area — shown when toggle ON -->
-        <div id="spn_pin_section" style="display:none;margin-bottom:14px;">
-          <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:8px;">PIN Code</label>
-          <input type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
-            style="width:100%;padding:13px;border:2px solid #e2e8f0;border-radius:11px;font-size:22px;letter-spacing:7px;text-align:center;font-family:monospace;outline:none;transition:border .15s;box-sizing:border-box;"
+        <div class="u-d-none u-mb-14" id="spn_pin_section">
+          <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">PIN Code</label>
+          <input class="u-w-100pct u-p-13 u-bd-2-solid-e2e8f0 u-br-11 u-fs-22 u-ls-7 u-ta-center u-ff-monospace u-out-none u-trs-border-d15s u-bxs-border-box" type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
             oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-          <div style="font-size:11px;color:#94a3b8;margin-top:5px;text-align:center;">4–10 characters (numbers or letters)</div>
+          <div class="u-fs-11 u-c-94a3b8 u-mt-5 u-ta-center">4–10 characters (numbers or letters)</div>
         </div>
-        <div style="font-size:11px;color:#64748b;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 12px;margin-bottom:16px;line-height:1.5;">
+        <div class="u-fs-11 u-c-64748b u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-p-9-12 u-mb-16 u-lh-1d5">
           💡 When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
         </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="closeSetPin()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeSetPin()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
         </div>
       </form>
     </div>
@@ -1177,72 +1176,72 @@
 
   <!-- ══ ADD COMPANY MODAL ══ -->
   <div class="modal-bg" id="addCompanyModal">
-    <div class="modal" style="max-width:580px;max-height:90vh;display:flex;flex-direction:column;">
-      <div class="modal-title" style="flex-shrink:0;">🏢 Add Company</div>
-      <form method="POST" action="/companies/add" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+    <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
+      <div class="modal-title u-fxs-0">🏢 Add Company</div>
+      <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="/companies/add">
         <input type="hidden" name="redirect_to" value="settings" />
-        <div style="overflow-y:auto;flex:1;padding-right:2px;">
-          <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;">
+        <div class="u-ovy-auto u-fx-1 u-pr-2">
+          <div class="u-d-grid u-gtc-1fr-160 u-gap-10">
             <div class="field">
               <label>Company Name</label>
               <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
             </div>
             <div class="field">
-              <label>Code <span style="font-size:11px;color:#94a3b8;">(ID prefix)</span></label>
-              <input type="text" name="code" placeholder="e.g. MGZ" maxlength="20" style="font-family:monospace;letter-spacing:1px;" />
+              <label>Code <span class="u-fs-11 u-c-94a3b8">(ID prefix)</span></label>
+              <input class="u-ff-monospace u-ls-1" type="text" name="code" placeholder="e.g. MGZ" maxlength="20" />
             </div>
           </div>
           <div class="field">
-            <label style="font-size:12px;font-weight:700;color:#475569;">📅 Working Days</label>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+            <label class="u-fs-12 u-fw-700 u-c-475569">📅 Working Days</label>
+            <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
               {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-              <label style="cursor:pointer;">
-                <input type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} style="display:none;" onchange="styleCoWd(this)" />
+              <label class="u-cur-pointer">
+                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} onchange="styleCoWd(this)" />
                 <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
               </label>
               {% endfor %}
             </div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Affects payroll calculation for this company.</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Affects payroll calculation for this company.</div>
           </div>
 
           <!-- Shifts -->
-          <div class="field" style="margin-bottom:6px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <label style="font-size:12px;font-weight:700;color:#475569;margin:0;">🕐 Shifts</label>
-              <button type="button" onclick="acAddShiftRow()" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #c7d2fe;border-radius:8px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add</button>
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0">🕐 Shifts</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->
-            <div style="display:grid;grid-template-columns:1fr 82px 82px 82px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Name</span>
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Start</span>
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Half-day</span>
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">End</span>
+            <div class="u-d-grid u-gtc-1fr-82-82-82-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Start</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Half-day</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">End</span>
               <span></span>
             </div>
-            <div id="acShiftsList" style="display:flex;flex-direction:column;gap:6px;"></div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Optional — define shifts for this company.</div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acShiftsList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define shifts for this company.</div>
           </div>
 
           <!-- Breaks -->
-          <div class="field" style="margin-bottom:6px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <label style="font-size:12px;font-weight:700;color:#475569;margin:0;">☕ Breaks</label>
-              <button type="button" onclick="acAddBreakRow()" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:11px;"></i> Add</button>
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0">☕ Breaks</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->
-            <div style="display:grid;grid-template-columns:1fr 90px 70px 28px;gap:6px;margin-bottom:4px;padding:0 2px;">
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Name</span>
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Time</span>
-              <span style="font-size:10px;font-weight:600;color:#94a3b8;">Mins</span>
+            <div class="u-d-grid u-gtc-1fr-90-70-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Time</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Mins</span>
               <span></span>
             </div>
-            <div id="acBreaksList" style="display:flex;flex-direction:column;gap:6px;"></div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:5px;">Optional — define company-wide daily breaks.</div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acBreaksList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define company-wide daily breaks.</div>
           </div>
         </div>
 
-        <div class="modal-actions" style="flex-shrink:0;border-top:1px solid #f1f5f9;padding-top:14px;margin-top:4px;">
-          <button type="button" onclick="acCloseModal()" style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:9px;background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+        <div class="modal-actions u-fxs-0 u-bdt-1-solid-f1f5f9 u-pt-14 u-mt-4">
+          <button class="u-p-9-18 u-bd-1-solid-e2e8f0 u-br-9 u-bg-f1f5f9 u-c-64748b u-fs-14 u-fw-600 u-cur-pointer" type="button" onclick="acCloseModal()">Cancel</button>
           <button type="submit" class="btn-submit">Add Company</button>
         </div>
       </form>
@@ -1254,13 +1253,13 @@
     var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',email:'sys',security:'sys',appearance:'sys' };
     var firstSub  = { org:'company', fin:'payroll', sys:'email' };
     var crumbData = {
-      company:    { icon:'<i class="ti ti-building" style="color:#1e3a8a;"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
-      appearance: { icon:'<i class="ti ti-palette" style="color:#7c3aed;"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
-      attendance: { icon:'<i class="ti ti-fingerprint" style="color:#16a34a;"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
-      payroll:    { icon:'<i class="ti ti-coin" style="color:#ca8a04;"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
-      salary:     { icon:'<i class="ti ti-cash" style="color:#16a34a;"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
-      email:      { icon:'<i class="ti ti-mail" style="color:#0284c7;"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
-      security:   { icon:'<i class="ti ti-shield-lock" style="color:#dc2626;"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
+      company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
+      appearance: { icon:'<i class="ti ti-palette u-c-7c3aed"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
+      attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
+      payroll:    { icon:'<i class="ti ti-coin u-c-ca8a04"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
+      salary:     { icon:'<i class="ti ti-cash u-c-16a34a"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
+      email:      { icon:'<i class="ti ti-mail u-c-0284c7"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
+      security:   { icon:'<i class="ti ti-shield-lock u-c-dc2626"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
     };
 
     /* ── SET PIN MODAL ── */
@@ -1310,11 +1309,11 @@
       row.style.cssText = 'display:grid;grid-template-columns:1fr 82px 82px 82px 28px;gap:6px;align-items:center;';
       var inp = 'padding:7px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;';
       row.innerHTML =
-        '<input type="text" name="shift_name[]"  value="'+name+'" placeholder="Shift name" style="'+inp+'" />' +
-        '<input type="time" name="shift_start[]" value="'+start+'" style="'+inp+'" />' +
-        '<input type="time" name="shift_half[]"  value="'+half+'"  style="'+inp+'" />' +
-        '<input type="time" name="shift_end[]"   value="'+end+'"   style="'+inp+'" />' +
-        '<button type="button" onclick="this.parentNode.remove()" style="width:26px;height:26px;border:1px solid #fecaca;border-radius:7px;background:#fff5f5;color:#dc2626;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">×</button>';
+        '<input type="text" name="shift_name[]"  value="'+name+'" placeholder="Shift name" />' +
+        '<input type="time" name="shift_start[]" value="'+start+'" />' +
+        '<input type="time" name="shift_half[]"  value="'+half+'" />' +
+        '<input type="time" name="shift_end[]"   value="'+end+'" />' +
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
       return row;
     }
     function acAddShiftRow() {
@@ -1325,10 +1324,10 @@
       var row = document.createElement('div');
       row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 70px 28px;gap:6px;align-items:center;';
       row.innerHTML =
-        '<input type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
-        '<input type="time"   name="break_time[]"     value="'+time+'" style="padding:7px 8px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
-        '<input type="number" name="break_duration[]" value="'+dur+'"  min="1" max="240" placeholder="mins" style="padding:7px 8px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;" />' +
-        '<button type="button" onclick="this.parentNode.remove()" style="width:26px;height:26px;border:1px solid #fecaca;border-radius:7px;background:#fff5f5;color:#dc2626;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">×</button>';
+        '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" />' +
+        '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="time"   name="break_time[]"     value="'+time+'" />' +
+        '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="number" name="break_duration[]" value="'+dur+'"  min="1" max="240" placeholder="mins" />' +
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
       return row;
     }
     function acAddBreakRow() {
@@ -1396,11 +1395,11 @@
       if (isEditing) {
         edit.style.display = 'none';
         view.style.display = '';
-        btn.innerHTML = '<i class="ti ti-pencil" style="font-size:13px;"></i> Edit';
+        btn.innerHTML = '<i class="ti ti-pencil u-fs-13"></i> Edit';
       } else {
         view.style.display = 'none';
         edit.style.display = '';
-        btn.innerHTML = '<i class="ti ti-x" style="font-size:13px;"></i> Cancel';
+        btn.innerHTML = '<i class="ti ti-x u-fs-13"></i> Cancel';
         var inp = edit.querySelector('input[type=text]');
         if (inp) inp.focus();
       }
@@ -1708,55 +1707,54 @@
 
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

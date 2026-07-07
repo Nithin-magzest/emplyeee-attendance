@@ -294,17 +294,17 @@
     <div class="sidebar">
 
       <div class="brand-wrap">
-        <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
         <div>
           <div class="brand">Admin Panel</div>
           <div class="brand-sub">{{ co.company_name }}</div>
         </div></div>
 
-            <div id="co-sw" style="margin:0 0 12px;">
-        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+            <div class="u-m-0-0-12" id="co-sw">
+        <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+          <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+          <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
         </button>
       </div>
       <a class="nav-item active" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -314,10 +314,10 @@
       <a class="nav-item" href="/bulk_mark_attendance"><span class="nav-icon"><i class="ti ti-pencil-check"></i></span>Mark Attendance</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
       <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-      <hr class="nav-sep" style="margin-top:12px;" />
+      <hr class="nav-sep u-mt-12" />
       <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
@@ -325,7 +325,7 @@
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
-      <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+      <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
 
     </div>
 
@@ -384,28 +384,28 @@
           </div>
         </a>
         <a class="stat-card" href="/overtime" style="border-color:{% if pending_ot|default(0) > 0 %}#fca5a5{% endif %};">
-          <div class="stat-icon" style="background:#fff7ed;"><i class="ti ti-clock-bolt" style="font-size:24px;color:#ea580c;"></i></div>
+          <div class="stat-icon u-bg-fff7ed"><i class="ti ti-clock-bolt u-fs-24 u-c-ea580c"></i></div>
           <div>
-            <div class="stat-num" style="color:#ea580c;">{{ pending_ot|default(0) }}</div>
+            <div class="stat-num u-c-ea580c">{{ pending_ot|default(0) }}</div>
             <div class="stat-lbl">OT Pending</div>
           </div>
         </a>
       </div>
 
       <!-- ONBOARDING WIDGET -->
-      <div class="section" style="margin-bottom:20px;">
-        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="section u-mb-20">
+        <div class="section-title u-d-flex u-ai-center u-jc-space-between">
           <span>📋 Onboarding Overview</span>
-          <a href="/onboarding" style="font-size:12px;color:#1e3a8a;font-weight:600;text-decoration:none;">View all →</a>
+          <a class="u-fs-12 u-c-1e3a8a u-fw-600 u-tdec-none" href="/onboarding">View all →</a>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
-          <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:14px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#1e40af;">{{ ob_active }}</div>
-            <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">Active</div>
+        <div class="u-d-grid u-gtc-repeat3_1fr u-gap-12 u-mb-14">
+          <div class="u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-p-14 u-ta-center">
+            <div class="u-fs-24 u-fw-800 u-c-1e40af">{{ ob_active }}</div>
+            <div class="u-fs-11 u-c-64748b u-fw-600 u-mt-2">Active</div>
           </div>
-          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:14px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#15803d;">{{ ob_completed }}</div>
-            <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">Completed</div>
+          <div class="u-bg-f0fdf4 u-bd-1d5-solid-86efac u-br-12 u-p-14 u-ta-center">
+            <div class="u-fs-24 u-fw-800 u-c-15803d">{{ ob_completed }}</div>
+            <div class="u-fs-11 u-c-64748b u-fw-600 u-mt-2">Completed</div>
           </div>
           <div style="background:{% if ob_overdue > 0 %}#fff5f5{% else %}#f8fafc{% endif %};border:1.5px solid {% if ob_overdue > 0 %}#fca5a5{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:24px;font-weight:800;color:{% if ob_overdue > 0 %}#dc2626{% else %}#64748b{% endif %};">{{ ob_overdue }}</div>
@@ -413,17 +413,17 @@
           </div>
         </div>
         {% if ob_overdue_list %}
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-          <div style="padding:10px 14px;background:#fef2f2;border-bottom:1px solid #fecaca;font-size:12px;font-weight:700;color:#dc2626;">⚠ Overdue Onboardings</div>
+        <div class="u-bg-fff u-bd-1-solid-e2e8f0 u-br-12 u-ov-hidden">
+          <div class="u-p-10-14 u-bg-fef2f2 u-bdb-1-solid-fecaca u-fs-12 u-fw-700 u-c-dc2626">⚠ Overdue Onboardings</div>
           {% for ob in ob_overdue_list %}
           <div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;{% if not loop.last %}{% endif %}">
             <div>
-              <div style="font-size:13px;font-weight:600;color:#0f172a;">{{ ob[1] }}</div>
-              <div style="font-size:11px;color:#64748b;">{{ ob[2] }}</div>
+              <div class="u-fs-13 u-fw-600 u-c-0f172a">{{ ob[1] }}</div>
+              <div class="u-fs-11 u-c-64748b">{{ ob[2] }}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:11px;color:#dc2626;font-weight:600;">Due {{ ob[3] }}</span>
-              <a href="/onboarding_detail/{{ ob[0] }}" style="font-size:11px;color:#1e3a8a;font-weight:600;text-decoration:none;background:#eff6ff;padding:3px 8px;border-radius:6px;">View</a>
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-11 u-c-dc2626 u-fw-600">Due {{ ob[3] }}</span>
+              <a class="u-fs-11 u-c-1e3a8a u-fw-600 u-tdec-none u-bg-eff6ff u-p-3-8 u-br-6" href="/onboarding_detail/{{ ob[0] }}">View</a>
             </div>
           </div>
           {% endfor %}
@@ -432,69 +432,69 @@
       </div>
 
       <!-- MODULE OVERVIEW -->
-      <div class="section" style="margin-bottom:20px;">
+      <div class="section u-mb-20">
         <div class="section-title">🗂️ Admin Modules</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14">
 
-          <a href="/employees" style="text-decoration:none;">
-            <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(30,58,138,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👥</div>
+          <a class="u-tdec-none" href="/employees">
+            <div class="u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(30,58,138,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-dbeafe u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">👥</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#1e40af;">Employee Management</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">Add · Edit · Delete · Photos · QR</div>
+                <div class="u-fs-13 u-fw-800 u-c-1e40af">Employee Management</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Add · Edit · Delete · Photos · QR</div>
               </div>
             </div>
           </a>
 
-          <a href="/monthly_report" style="text-decoration:none;">
-            <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(21,128,61,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📊</div>
+          <a class="u-tdec-none" href="/monthly_report">
+            <div class="u-bg-f0fdf4 u-bd-1d5-solid-86efac u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(21,128,61,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-dcfce7 u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">📊</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#15803d;">Attendance Tracking</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">QR Scan · GPS · Face Recognition</div>
+                <div class="u-fs-13 u-fw-800 u-c-15803d">Attendance Tracking</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">QR Scan · GPS · Face Recognition</div>
               </div>
             </div>
           </a>
 
-            <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#ede9fe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">⏱️</div>
+            <div class="u-bg-faf5ff u-bd-1d5-solid-d8b4fe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-ede9fe u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">⏱️</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#7c3aed;">Shifts &amp; Breaks</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">Create Shifts · Assign · Break Config</div>
+                <div class="u-fs-13 u-fw-800 u-c-7c3aed">Shifts &amp; Breaks</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Create Shifts · Assign · Break Config</div>
               </div>
             </div>
           </a>
 
-          <a href="/salary_report" style="text-decoration:none;">
-            <div style="background:#fefce8;border:1.5px solid #fde047;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(133,77,14,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#fef9c3;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">💰</div>
+          <a class="u-tdec-none" href="/salary_report">
+            <div class="u-bg-fefce8 u-bd-1d5-solid-fde047 u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(133,77,14,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-fef9c3 u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">💰</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#854d0e;">Salary &amp; Payslips</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">Monthly Report · Excel Export · Email</div>
+                <div class="u-fs-13 u-fw-800 u-c-854d0e">Salary &amp; Payslips</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Monthly Report · Excel Export · Email</div>
               </div>
             </div>
           </a>
 
-          <a href="/leave_requests" style="text-decoration:none;">
-            <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(194,65,12,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#ffedd5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📋</div>
+          <a class="u-tdec-none" href="/leave_requests">
+            <div class="u-bg-fff7ed u-bd-1d5-solid-fed7aa u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(194,65,12,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-ffedd5 u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">📋</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#c2410c;">Tickets · Leaves · Resign.</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">Approve / Reject Workflows</div>
+                <div class="u-fs-13 u-fw-800 u-c-c2410c">Tickets · Leaves · Resign.</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Approve / Reject Workflows</div>
                 {% set total_pending = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
                 {% if total_pending > 0 %}
-                <div style="margin-top:5px;display:inline-block;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;">{{ total_pending }} pending</div>
+                <div class="u-mt-5 u-d-inline-block u-bg-ef4444 u-c-fff u-fs-10 u-fw-800 u-p-2-8 u-br-20">{{ total_pending }} pending</div>
                 {% endif %}
               </div>
             </div>
           </a>
 
-          <a href="/announcements" style="text-decoration:none;">
-            <div style="background:#fff1f2;border:1.5px solid #fda4af;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(190,18,60,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div style="width:46px;height:46px;background:#ffe4e6;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📢</div>
+          <a class="u-tdec-none" href="/announcements">
+            <div class="u-bg-fff1f2 u-bd-1d5-solid-fda4af u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(190,18,60,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div class="u-w-46 u-h-46 u-bg-ffe4e6 u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">📢</div>
               <div>
-                <div style="font-size:13px;font-weight:800;color:#be123c;">Announcements &amp; Holidays</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">Notices · Import Indian Holidays</div>
+                <div class="u-fs-13 u-fw-800 u-c-be123c">Announcements &amp; Holidays</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Notices · Import Indian Holidays</div>
               </div>
             </div>
           </a>
@@ -503,14 +503,14 @@
       </div>
 
       <!-- ATTENDANCE CHARTS -->
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;">
+      <div class="u-d-grid u-gtc-2fr-1fr u-gap-16 u-mb-20">
 
-        <div class="section" style="margin-bottom:0;">
+        <div class="section u-mb-0">
           <div class="section-title">📈 Attendance Trend — Last 30 Days</div>
           <canvas id="trendChart" height="90"></canvas>
         </div>
 
-        <div class="section" style="margin-bottom:0;">
+        <div class="section u-mb-0">
           <div class="section-title">🏢 Today by Department</div>
           <canvas id="deptChart" height="90"></canvas>
         </div>
@@ -522,18 +522,18 @@
         <div class="section-title">👤 Register New Employee</div>
         <form id="regForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateRegForm()">
           <input type="hidden" name="action" value="register" />
-          <div style="display:grid;grid-template-columns:1fr 280px;gap:24px;align-items:start;">
+          <div class="u-d-grid u-gtc-1fr-280 u-gap-24 u-ai-start">
 
             <!-- Left: Fields -->
             <div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+              <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
                 <div class="field">
-                  <label>Full Name <span style="color:#dc2626;">*</span></label>
+                  <label>Full Name <span class="u-c-dc2626">*</span></label>
                   <input type="text" name="name" placeholder="e.g. Ravi Kumar" required />
                 </div>
                 <div class="field">
-                  <label>Company <span style="color:#dc2626;">*</span></label>
-                  <select name="company_id" id="dashCompanyId" required onchange="generateDashEmpId()" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#0f172a;background:#fff;">
+                  <label>Company <span class="u-c-dc2626">*</span></label>
+                  <select class="u-w-100pct u-p-9-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-c-0f172a u-bg-fff" name="company_id" id="dashCompanyId" required onchange="generateDashEmpId()">
                     <option value="">-- Select Company --</option>
                     {% for cid, cname, ccode in companies_list %}
                     <option value="{{ cid }}">{{ cname }}{% if ccode %} ({{ ccode }}){% endif %}</option>
@@ -541,66 +541,65 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label>Employee ID <span style="color:#dc2626;">*</span></label>
-                  <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" name="emp_id" id="dashEmpId" placeholder="Select company first" required style="flex:1;font-weight:700;letter-spacing:1px;" />
-                    <button type="button" onclick="generateDashEmpId()" title="Re-generate" style="padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:13px;cursor:pointer;white-space:nowrap;">🔄</button>
+                  <label>Employee ID <span class="u-c-dc2626">*</span></label>
+                  <div class="u-d-flex u-gap-8 u-ai-center">
+                    <input class="u-fx-1 u-fw-700 u-ls-1" type="text" name="emp_id" id="dashEmpId" placeholder="Select company first" required />
+                    <button class="u-p-8-12 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-13 u-cur-pointer u-ws-nowrap" type="button" onclick="generateDashEmpId()" title="Re-generate">🔄</button>
                   </div>
-                  <div id="dashEmpIdHint" style="font-size:11px;margin-top:4px;"></div>
+                  <div class="u-fs-11 u-mt-4" id="dashEmpIdHint"></div>
                 </div>
                 <div class="field">
-                  <label>Email <span style="color:#dc2626;">*</span></label>
+                  <label>Email <span class="u-c-dc2626">*</span></label>
                   <input type="email" name="email" placeholder="Used for salary slips" required />
                 </div>
                 <div class="field">
                   <label>Role</label>
                   <input type="text" name="role" placeholder="e.g. Developer" />
                 </div>
-                <div class="field" style="grid-column:1 / -1;">
-                  <label>Date of Joining <span style="color:#dc2626;">*</span></label>
-                  <input type="date" name="date_of_joining" required style="max-width:260px;" />
+                <div class="field u-gc-1-_--1">
+                  <label>Date of Joining <span class="u-c-dc2626">*</span></label>
+                  <input class="u-maxw-260" type="date" name="date_of_joining" required />
                 </div>
 
                 <!-- Work Mode -->
-                <div class="field" style="grid-column:1 / -1;">
-                  <label>Work Mode <span style="color:#dc2626;">*</span></label>
-                  <div style="display:flex;gap:12px;margin-top:4px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 18px;border:2px solid #dbeafe;border-radius:10px;font-weight:600;font-size:13px;transition:0.15s;" id="wm-office-lbl">
-                      <input type="radio" name="work_mode" value="office" checked onchange="toggleWorkLocation(this.value)" style="accent-color:#1e3a8a;width:15px;height:15px;" />
+                <div class="field u-gc-1-_--1">
+                  <label>Work Mode <span class="u-c-dc2626">*</span></label>
+                  <div class="u-d-flex u-gap-12 u-mt-4">
+                    <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-10-18 u-bd-2-solid-dbeafe u-br-10 u-fw-600 u-fs-13 u-trs-0d15s" id="wm-office-lbl">
+                      <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="work_mode" value="office" checked onchange="toggleWorkLocation(this.value)" />
                       🏢 Work from Office
                     </label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 18px;border:2px solid #dbeafe;border-radius:10px;font-weight:600;font-size:13px;transition:0.15s;" id="wm-wfh-lbl">
-                      <input type="radio" name="work_mode" value="wfh" onchange="toggleWorkLocation(this.value)" style="accent-color:#059669;width:15px;height:15px;" />
+                    <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-10-18 u-bd-2-solid-dbeafe u-br-10 u-fw-600 u-fs-13 u-trs-0d15s" id="wm-wfh-lbl">
+                      <input class="u-accent-059669 u-w-15 u-h-15" type="radio" name="work_mode" value="wfh" onchange="toggleWorkLocation(this.value)" />
                       🏠 Work from Home
                     </label>
                   </div>
                 </div>
 
                 <!-- Home Location Picker (shown for WFH only) -->
-                <div class="field" id="locationSection" style="grid-column:1 / -1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px;margin-top:4px;display:none;">
-                  <label style="color:#0369a1;font-weight:700;margin-bottom:8px;display:block;">🏠 Home Location <span style="font-weight:400;font-size:11px;color:#64748b;">(Employee must be within 300 m of this address to mark attendance)</span></label>
-                  <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                <div class="field u-gc-1-_--1 u-bg-f0f9ff u-bd-1-solid-bae6fd u-br-12 u-p-14-16 u-mt-4 u-d-none" id="locationSection">
+                  <label class="u-c-0369a1 u-fw-700 u-mb-8 u-d-block">🏠 Home Location <span class="u-fw-400 u-fs-11 u-c-64748b">(Employee must be within 300 m of this address to mark attendance)</span></label>
+                  <div class="u-d-grid u-gtc-1fr-1fr-auto u-gap-10 u-ai-end">
                     <div>
-                      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Latitude</div>
-                      <input type="number" name="work_lat" id="reg_work_lat" step="0.000001" min="-90" max="90"
-                             placeholder="e.g. 17.494664" style="width:100%;padding:9px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:13px;outline:none;background:#fff;" />
+                      <div class="u-fs-11 u-c-64748b u-mb-4">Latitude</div>
+                      <input class="u-w-100pct u-p-9-12 u-bd-1-solid-bae6fd u-br-8 u-fs-13 u-out-none u-bg-fff" type="number" name="work_lat" id="reg_work_lat" step="0.000001" min="-90" max="90"
+                             placeholder="e.g. 17.494664" />
                     </div>
                     <div>
-                      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Longitude</div>
-                      <input type="number" name="work_lon" id="reg_work_lon" step="0.000001" min="-180" max="180"
-                             placeholder="e.g. 78.404966" style="width:100%;padding:9px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:13px;outline:none;background:#fff;" />
+                      <div class="u-fs-11 u-c-64748b u-mb-4">Longitude</div>
+                      <input class="u-w-100pct u-p-9-12 u-bd-1-solid-bae6fd u-br-8 u-fs-13 u-out-none u-bg-fff" type="number" name="work_lon" id="reg_work_lon" step="0.000001" min="-180" max="180"
+                             placeholder="e.g. 78.404966" />
                     </div>
-                    <button type="button" onclick="useMyLocationForReg()"
-                      style="padding:9px 14px;border:none;border-radius:8px;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                    <button class="u-p-9-14 u-bd-none u-br-8 u-bg-0369a1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer u-ws-nowrap" type="button" onclick="useMyLocationForReg()">
                       📡 Use My Location
                     </button>
                   </div>
-                  <div style="margin-top:10px;">
-                    <div id="reg_map_preview" style="width:100%;height:180px;border-radius:8px;border:1px solid #bae6fd;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0369a1;overflow:hidden;">
+                  <div class="u-mt-10">
+                    <div class="u-w-100pct u-h-180 u-br-8 u-bd-1-solid-bae6fd u-bg-e0f2fe u-d-flex u-ai-center u-jc-center u-fs-12 u-c-0369a1 u-ov-hidden" id="reg_map_preview">
                       <span id="reg_map_hint">Enter coordinates or click "Use My Location" to see the map</span>
-                      <iframe id="reg_map_iframe" src="" style="display:none;width:100%;height:100%;border:none;" allowfullscreen></iframe>
+                      <iframe class="u-d-none u-w-100pct u-h-100pct u-bd-none" id="reg_map_iframe" src="" allowfullscreen></iframe>
                     </div>
-                    <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                    <div class="u-fs-11 u-c-64748b u-mt-6">
                       Leave blank to use the default office location configured in the system.
                     </div>
                   </div>
@@ -614,8 +613,8 @@
                   <span>💼 Professional Details</span>
                   <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
                 </div>
-                <div id="sec-professional" style="display:none;" class="form-sub-body">
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+                <div id="sec-professional" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
                     <div class="field">
                       <label>Department</label>
                       <input type="text" name="department" placeholder="e.g. Engineering" />
@@ -632,9 +631,9 @@
                       <label>Manager Name</label>
                       <input type="text" name="manager_name" placeholder="e.g. Ramesh Kumar" />
                     </div>
-                    <div class="field" style="grid-column:1 / -1;">
+                    <div class="field u-gc-1-_--1">
                       <label>Daily Salary (₹)</label>
-                      <input type="number" name="salary_per_day" placeholder="e.g. 1500.00" step="0.01" min="0" style="max-width:260px;" />
+                      <input class="u-maxw-260" type="number" name="salary_per_day" placeholder="e.g. 1500.00" step="0.01" min="0" />
                     </div>
                   </div>
                 </div>
@@ -646,8 +645,8 @@
                   <span>👤 Personal Details</span>
                   <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
                 </div>
-                <div id="sec-personal" style="display:none;" class="form-sub-body">
-                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                <div id="sec-personal" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-0-16">
                     <div class="field">
                       <label>Gender</label>
                       <select name="gender">
@@ -681,12 +680,12 @@
                   <span>🏠 Address</span>
                   <i class="ti ti-chevron-down" id="sec-address-icon"></i>
                 </div>
-                <div id="sec-address" style="display:none;" class="form-sub-body">
+                <div id="sec-address" class="form-sub-body u-d-none">
                   <div class="field">
                     <label>Street Address</label>
                     <textarea name="address" placeholder="Flat / House no, Street, Area"></textarea>
                   </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                  <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-0-16">
                     <div class="field">
                       <label>City</label>
                       <input type="text" name="city" placeholder="e.g. Hyderabad" />
@@ -709,8 +708,8 @@
                   <span>🚨 Emergency Contact</span>
                   <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
                 </div>
-                <div id="sec-emergency" style="display:none;" class="form-sub-body">
-                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 16px;">
+                <div id="sec-emergency" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-0-16">
                     <div class="field">
                       <label>Contact Name</label>
                       <input type="text" name="emergency_contact_name" placeholder="e.g. Ramesh Kumar" />
@@ -733,15 +732,15 @@
                   <span>📄 Documents &amp; Finance</span>
                   <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
                 </div>
-                <div id="sec-docs" style="display:none;" class="form-sub-body">
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+                <div id="sec-docs" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
                     <div class="field">
                       <label>Aadhar Number</label>
                       <input type="text" name="aadhar_number" placeholder="XXXX XXXX XXXX" maxlength="14" />
                     </div>
                     <div class="field">
                       <label>PAN Number</label>
-                      <input type="text" name="pan_number" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase;" />
+                      <input class="u-ttr-uppercase" type="text" name="pan_number" placeholder="ABCDE1234F" maxlength="10" />
                     </div>
                     <div class="field">
                       <label>Bank Name</label>
@@ -753,7 +752,7 @@
                     </div>
                     <div class="field">
                       <label>IFSC Code</label>
-                      <input type="text" name="bank_ifsc" placeholder="e.g. SBIN0001234" maxlength="11" style="text-transform:uppercase;" />
+                      <input class="u-ttr-uppercase" type="text" name="bank_ifsc" placeholder="e.g. SBIN0001234" maxlength="11" />
                     </div>
                     <div class="field">
                       <label>UAN Number</label>
@@ -769,48 +768,48 @@
                   <span>👆 Fingerprint Enrollment</span>
                   <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
-                <div id="sec-fingerprint" style="display:none;" class="form-sub-body">
+                <div id="sec-fingerprint" class="form-sub-body u-d-none">
                   <input type="hidden" name="fingerprint_attestation" id="regFpAttestation" />
-                  <div id="regFpEnrollBox" style="border:1.5px dashed #bfdbfe;border-radius:10px;padding:14px 16px;background:#f8fafc;margin-bottom:10px;">
-                    <div style="font-size:12px;color:#64748b;margin-bottom:10px;">
+                  <div class="u-bd-1d5-dashed-bfdbfe u-br-10 u-p-14-16 u-bg-f8fafc u-mb-10" id="regFpEnrollBox">
+                    <div class="u-fs-12 u-c-64748b u-mb-10">
                       Enroll the employee's fingerprint now (optional). The employee can also enroll later from their portal.
                     </div>
-                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                      <button type="button" id="regFpEnrollBtn" onclick="regEnrollFingerprint()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <div class="u-d-flex u-ai-center u-gap-10 u-fxw-wrap">
+                      <button class="u-p-9-18 u-bg-6366f1 u-c-fff u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer u-d-flex u-ai-center u-gap-6" type="button" id="regFpEnrollBtn" onclick="regEnrollFingerprint()">
                         👆 Enroll Fingerprint
                       </button>
-                      <button type="button" id="regFpClearBtn" onclick="regClearFingerprint()" style="display:none;padding:9px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                      <button class="u-d-none u-p-9-14 u-bg-fee2e2 u-c-dc2626 u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer" type="button" id="regFpClearBtn" onclick="regClearFingerprint()">
                         ✕ Clear
                       </button>
                     </div>
-                    <div id="regFpEnrollStatus" style="margin-top:8px;font-size:12px;color:#64748b;">
+                    <div class="u-mt-8 u-fs-12 u-c-64748b" id="regFpEnrollStatus">
                       Not enrolled — employee can use QR + Face by default
                     </div>
                   </div>
                 </div>
               </div>
 
-              <button type="submit" class="btn btn-navy" style="max-width:200px;margin-top:16px;">✅ Register Employee</button>
+              <button type="submit" class="btn btn-navy u-maxw-200 u-mt-16">✅ Register Employee</button>
             </div>
 
             <!-- Right: Face Photo -->
             <div>
-              <input type="file" name="face" id="regFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'reg')" />
-              <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
-                📸 Face Photo <span style="color:#dc2626;">*</span>
+              <input class="u-d-none" type="file" name="face" id="regFaceFile" accept="image/*" onchange="onFileChosen(this,'reg')" />
+              <div class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-0d5 u-mb-8">
+                📸 Face Photo <span class="u-c-dc2626">*</span>
               </div>
-              <div id="regPreview" style="width:100%;height:180px;border-radius:12px;background:#f1f5f9;border:2px dashed #93c5fd;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden;">
-                <div style="text-align:center;">
-                  <div style="font-size:32px;margin-bottom:6px;">📷</div>
-                  <span style="font-size:12px;color:#94a3b8;" id="regPreviewText">No photo selected</span>
+              <div class="u-w-100pct u-h-180 u-br-12 u-bg-f1f5f9 u-bd-2-dashed-93c5fd u-d-flex u-ai-center u-jc-center u-mb-10 u-ov-hidden" id="regPreview">
+                <div class="u-ta-center">
+                  <div class="u-fs-32 u-mb-6">📷</div>
+                  <span class="u-fs-12 u-c-94a3b8" id="regPreviewText">No photo selected</span>
                 </div>
-                <img id="regPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+                <img class="u-d-none u-w-100pct u-h-100pct u-objf-cover" id="regPreviewImg" src="" alt="" />
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <button type="button" onclick="openCameraModal('reg')" style="padding:9px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📷 Camera</button>
-                <button type="button" onclick="document.getElementById('regFaceFile').click()" style="padding:9px;border:1px solid #dbeafe;border-radius:8px;background:#fff;color:#1e3a8a;font-size:12px;font-weight:700;cursor:pointer;">🖼 Upload</button>
+              <div class="u-d-grid u-gtc-1fr-1fr u-gap-8">
+                <button class="u-p-9 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openCameraModal('reg')">📷 Camera</button>
+                <button class="u-p-9 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('regFaceFile').click()">🖼 Upload</button>
               </div>
-              <div style="font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.5;">Clear, front-facing photo for attendance recognition</div>
+              <div class="u-fs-11 u-c-94a3b8 u-mt-8 u-lh-1d5">Clear, front-facing photo for attendance recognition</div>
             </div>
 
           </div>
@@ -823,7 +822,7 @@
         <div class="action-grid">
 
           <div class="action-card">
-            <div class="ac-icon" style="background:#dcfce7;">📅</div>
+            <div class="ac-icon u-bg-dcfce7">📅</div>
             <h4>Add Holiday</h4>
             <div class="sub">Mark a date as a public holiday</div>
             <form action="/admin_action" method="POST">
@@ -835,7 +834,7 @@
           </div>
 
           <div class="action-card">
-            <div class="ac-icon" style="background:#ede9fe;">💰</div>
+            <div class="ac-icon u-bg-ede9fe">💰</div>
             <h4>Set Daily Salary</h4>
             <div class="sub">Update an employee's daily pay</div>
             <form action="/admin_action" method="POST">
@@ -847,20 +846,20 @@
           </div>
 
           <div class="action-card">
-            <div class="ac-icon" style="background:#dbeafe;">📷</div>
+            <div class="ac-icon u-bg-dbeafe">📷</div>
             <h4>Update Face Photo</h4>
             <div class="sub">Replace employee's face image</div>
             <form id="updForm" action="/admin_action" method="POST" enctype="multipart/form-data" onsubmit="return validateUpdForm()">
               <input type="hidden" name="action" value="update_face" />
               <input type="text" name="emp_id" placeholder="Employee ID" required />
-              <input type="file" name="face" id="updFaceFile" accept="image/*" style="display:none" onchange="onFileChosen(this,'upd')" />
-              <div id="updPreview" style="width:100%;height:72px;border-radius:8px;background:#f1f5f9;border:2px dashed #93c5fd;display:flex;align-items:center;justify-content:center;margin-bottom:7px;overflow:hidden;">
-                <span style="font-size:12px;color:#94a3b8;" id="updPreviewText">No photo</span>
-                <img id="updPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+              <input class="u-d-none" type="file" name="face" id="updFaceFile" accept="image/*" onchange="onFileChosen(this,'upd')" />
+              <div class="u-w-100pct u-h-72 u-br-8 u-bg-f1f5f9 u-bd-2-dashed-93c5fd u-d-flex u-ai-center u-jc-center u-mb-7 u-ov-hidden" id="updPreview">
+                <span class="u-fs-12 u-c-94a3b8" id="updPreviewText">No photo</span>
+                <img class="u-d-none u-w-100pct u-h-100pct u-objf-cover" id="updPreviewImg" src="" alt="" />
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px;">
-                <button type="button" onclick="openCameraModal('upd')" style="padding:7px;border:none;border-radius:7px;background:#1e3a8a;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">📷 Camera</button>
-                <button type="button" onclick="document.getElementById('updFaceFile').click()" style="padding:7px;border:1px solid #dbeafe;border-radius:7px;background:#fff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">🖼 Upload</button>
+              <div class="u-d-grid u-gtc-1fr-1fr u-gap-5 u-mb-7">
+                <button class="u-p-7 u-bd-none u-br-7 u-bg-1e3a8a u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="openCameraModal('upd')">📷 Camera</button>
+                <button class="u-p-7 u-bd-1-solid-dbeafe u-br-7 u-bg-fff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('updFaceFile').click()">🖼 Upload</button>
               </div>
               <button type="submit" class="btn btn-blue">Update Photo</button>
             </form>
@@ -874,18 +873,18 @@
         <div class="section-title">🔐 Password Management</div>
 
         {% if request.args.get('pwd_ok') %}
-          <div class="flash flash-success" style="max-width:420px;">✅ Password updated successfully.</div>
+          <div class="flash flash-success u-maxw-420">✅ Password updated successfully.</div>
         {% elif request.args.get('pwd_error') == 'wrong' %}
-          <div class="flash flash-error" style="max-width:420px;">❌ Current password is incorrect.</div>
+          <div class="flash flash-error u-maxw-420">❌ Current password is incorrect.</div>
         {% elif request.args.get('pwd_error') == 'mismatch' %}
-          <div class="flash flash-error" style="max-width:420px;">❌ New passwords do not match.</div>
+          <div class="flash flash-error u-maxw-420">❌ New passwords do not match.</div>
         {% endif %}
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+        <div class="u-d-grid u-gtc-1fr-1fr u-gap-24 u-ai-start">
 
           <!-- Change Admin Password -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:22px;">
-            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:16px;">🔒 Change Admin Password</div>
+          <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
+            <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-16">🔒 Change Admin Password</div>
             <form action="/change_admin_password" method="POST" class="pwd-form">
               <input type="hidden" autocomplete="username" value="admin" />
               <div class="field">
@@ -900,21 +899,21 @@
                 <label>Confirm New Password</label>
                 <input type="password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password" required />
               </div>
-              <button type="submit" class="btn btn-navy" style="max-width:200px;">🔒 Update Password</button>
+              <button type="submit" class="btn btn-navy u-maxw-200">🔒 Update Password</button>
             </form>
           </div>
 
           <!-- Reset Employee Password -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:22px;">
-            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px;">🔑 Reset Employee Password</div>
-            <div style="font-size:12px;color:#94a3b8;margin-bottom:18px;">Resets the employee's PIN back to their Employee ID</div>
+          <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
+            <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4">🔑 Reset Employee Password</div>
+            <div class="u-fs-12 u-c-94a3b8 u-mb-18">Resets the employee's PIN back to their Employee ID</div>
             <form action="/admin_action" method="POST">
               <input type="hidden" name="action" value="reset_password" />
               <div class="field">
                 <label>Employee ID</label>
                 <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
               </div>
-              <button type="submit" class="btn btn-amber" style="max-width:200px;"
+              <button type="submit" class="btn btn-amber u-maxw-200"
                 onclick="return confirm('Reset this employee\'s password to their Employee ID?')">
                 🔑 Reset Password
               </button>
@@ -924,18 +923,18 @@
         </div>
 
         <!-- Set Admin Recovery Email -->
-        <div style="margin-top:20px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:22px;">
-          <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:4px;">📧 Admin Recovery Email</div>
-          <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Set the email address used to receive password reset links when you forget your admin password.</div>
-          <form action="/admin_set_recovery_email" method="POST" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
-            <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+        <div class="u-mt-20 u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-14 u-p-22">
+          <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-4">📧 Admin Recovery Email</div>
+          <div class="u-fs-12 u-c-64748b u-mb-16">Set the email address used to receive password reset links when you forget your admin password.</div>
+          <form class="u-d-flex u-ai-flex-end u-gap-12 u-fxw-wrap" action="/admin_set_recovery_email" method="POST">
+            <div class="field u-fx-1 u-minw-200 u-mb-0">
               <label>Recovery Email</label>
               <input type="email" name="recovery_email" placeholder="admin@example.com" required />
             </div>
-            <button type="submit" class="btn btn-navy" style="max-width:180px;margin-bottom:0;">💾 Save Email</button>
+            <button type="submit" class="btn btn-navy u-maxw-180 u-mb-0">💾 Save Email</button>
           </form>
           {% if request.args.get('email_ok') %}
-            <div style="margin-top:12px;color:#15803d;font-size:13px;">✅ Recovery email saved successfully.</div>
+            <div class="u-mt-12 u-c-15803d u-fs-13">✅ Recovery email saved successfully.</div>
           {% endif %}
         </div>
 
@@ -944,46 +943,46 @@
     </div><!-- /main -->
 
     <!-- ═══ CAMERA MODAL ═══ -->
-    <div id="cameraModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2000;align-items:center;justify-content:center;">
-      <div style="background:#1e1b3a;border-radius:20px;padding:28px;width:100%;max-width:420px;color:white;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
-        <h3 style="margin-bottom:6px;">📷 Take Face Photo</h3>
-        <p style="font-size:12px;opacity:0.55;margin-bottom:14px;">Position the employee's face in the frame, then click Capture.</p>
-        <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;text-align:left;">
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Front-facing</div>
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Good lighting</div>
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">❌ No sunglasses</div>
+    <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d75 u-zi-2000 u-ai-center u-jc-center" id="cameraModal">
+      <div class="u-bg-1e1b3a u-br-20 u-p-28 u-w-100pct u-maxw-420 u-c-white u-ta-center u-shad-0-24-60-rgba0_0_0_0d6">
+        <h3 class="u-mb-6">📷 Take Face Photo</h3>
+        <p class="u-fs-12 u-op-0d55 u-mb-14">Position the employee's face in the frame, then click Capture.</p>
+        <div class="u-d-flex u-gap-8 u-mb-12 u-fs-11 u-ta-left">
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Front-facing</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Good lighting</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">❌ No sunglasses</div>
         </div>
-        <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;">
-          <video id="camVideo" autoplay playsinline muted style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-            <div style="width:160px;height:200px;border:2px dashed rgba(0,255,136,0.6);border-radius:50%;"></div>
+        <div class="u-pos-relative u-w-100pct u-br-12 u-ov-hidden u-bg-000 u-mb-12">
+          <video class="u-w-100pct u-d-block u-maxh-280 u-objf-cover" id="camVideo" autoplay playsinline muted></video>
+          <div class="u-pos-absolute u-ins-0 u-d-flex u-ai-center u-jc-center u-pe-none">
+            <div class="u-w-160 u-h-200 u-bd-2-dashed-rgba047da6b u-br-50pct"></div>
           </div>
         </div>
-        <canvas id="camCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
-        <div style="display:flex;gap:10px;">
-          <button id="captureBtn" onclick="capturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
-          <button id="retakeBtn"  onclick="retakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
-          <button id="useBtn"     onclick="usePhoto()"     style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#22c55e,#16a34a);color:white;font-size:14px;font-weight:700;cursor:pointer;">✅ Use Photo</button>
-          <button onclick="closeCameraModal()" style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <canvas class="u-d-none u-w-100pct u-br-12 u-mb-12" id="camCanvas"></canvas>
+        <div class="u-d-flex u-gap-10">
+          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="captureBtn" onclick="capturePhoto()">📸 Capture</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="retakeBtn"  onclick="retakePhoto()">🔄 Retake</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="useBtn"     onclick="usePhoto()">✅ Use Photo</button>
+          <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" onclick="closeCameraModal()">Cancel</button>
         </div>
       </div>
     </div>
 
     <!-- ═══ EDIT EMPLOYEE MODAL ═══ -->
-    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;">
-      <div style="background:#fff;border-radius:18px;padding:32px;width:100%;max-width:440px;color:#0f172a;box-shadow:0 24px 60px rgba(0,0,0,0.2);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;">
-          <h3 style="font-size:17px;font-weight:800;">✏️ Edit Employee</h3>
-          <button onclick="closeEdit()" style="border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;">✕</button>
+    <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d55 u-zi-1000 u-ai-center u-jc-center" id="editModal">
+      <div class="u-bg-fff u-br-18 u-p-32 u-w-100pct u-maxw-440 u-c-0f172a u-shad-0-24-60-rgba0_0_0_0d2">
+        <div class="u-d-flex u-ai-center u-jc-space-between u-mb-22">
+          <h3 class="u-fs-17 u-fw-800">✏️ Edit Employee</h3>
+          <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-32 u-h-32 u-cur-pointer u-fs-16" onclick="closeEdit()">✕</button>
         </div>
         <form action="/edit_employee" method="POST" id="editForm">
           <input type="hidden" name="emp_id" id="edit_emp_id" />
           <div class="field">
             <label>Employee ID</label>
-            <input id="edit_emp_id_display" type="text" disabled style="color:#94a3b8;" />
+            <input class="u-c-94a3b8" id="edit_emp_id_display" type="text" disabled />
           </div>
           <div class="field">
-            <label>Name <span style="color:#dc2626;">*</span></label>
+            <label>Name <span class="u-c-dc2626">*</span></label>
             <input name="name" id="edit_name" type="text" required />
           </div>
           <div class="field">
@@ -994,39 +993,36 @@
             <label>Role</label>
             <input name="role" id="edit_role" type="text" />
           </div>
-          <div class="field" style="margin-bottom:16px;">
+          <div class="field u-mb-16">
             <label>Date of Joining</label>
             <input name="date_of_joining" id="edit_doj" type="date" />
           </div>
-          <div class="field" style="margin-bottom:12px;">
+          <div class="field u-mb-12">
             <label>Work Mode</label>
-            <div style="display:flex;gap:10px;margin-top:4px;">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
-                <input type="radio" name="work_mode" id="edit_wm_office" value="office" onchange="editToggleLocation(this.value)" style="accent-color:#1e3a8a;" />
+            <div class="u-d-flex u-gap-10 u-mt-4">
+              <label class="u-d-flex u-ai-center u-gap-6 u-cur-pointer u-fs-13 u-fw-600">
+                <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="edit_wm_office" value="office" onchange="editToggleLocation(this.value)" />
                 🏢 Office
               </label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;">
-                <input type="radio" name="work_mode" id="edit_wm_wfh" value="wfh" onchange="editToggleLocation(this.value)" style="accent-color:#059669;" />
+              <label class="u-d-flex u-ai-center u-gap-6 u-cur-pointer u-fs-13 u-fw-600">
+                <input class="u-accent-059669" type="radio" name="work_mode" id="edit_wm_wfh" value="wfh" onchange="editToggleLocation(this.value)" />
                 🏠 Work from Home
               </label>
             </div>
           </div>
-          <div id="edit_locationSection" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-bottom:16px;">
-            <div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:8px;">🏠 Home Location <span style="font-weight:400;color:#64748b;">(employee must be within 300 m to mark attendance)</span></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="u-bg-f0f9ff u-bd-1-solid-bae6fd u-br-10 u-p-12 u-mb-16" id="edit_locationSection">
+            <div class="u-fs-11 u-fw-700 u-c-0369a1 u-mb-8">🏠 Home Location <span class="u-fw-400 u-c-64748b">(employee must be within 300 m to mark attendance)</span></div>
+            <div class="u-d-grid u-gtc-1fr-1fr u-gap-8 u-mb-8">
               <div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
-                <input type="number" name="work_lat" id="edit_work_lat" step="0.000001" min="-90" max="90"
-                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                <div class="u-fs-10 u-c-64748b u-mb-3">Latitude</div>
+                <input class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="edit_work_lat" step="0.000001" min="-90" max="90" />
               </div>
               <div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
-                <input type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180"
-                       style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                <div class="u-fs-10 u-c-64748b u-mb-3">Longitude</div>
+                <input class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180" />
               </div>
             </div>
-            <button type="button" onclick="useMyLocationForEdit()"
-              style="padding:7px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+            <button class="u-p-7-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocationForEdit()">
               📡 Use My Location
             </button>
           </div>
@@ -1038,9 +1034,9 @@
             <label>Reporting Manager</label>
             <input name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
           </div>
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:14px;font-weight:700;cursor:pointer;">Save Changes</button>
-            <button type="button" onclick="closeEdit()" style="padding:11px 18px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;cursor:pointer;">Cancel</button>
+          <div class="u-d-flex u-gap-10">
+            <button class="u-fx-1 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">Save Changes</button>
+            <button class="u-p-11-18 u-bd-1-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-cur-pointer" type="button" onclick="closeEdit()">Cancel</button>
           </div>
         </form>
       </div>
@@ -1276,7 +1272,7 @@
           inp.placeholder = '';
           if (hint) {
             if (!data.code) {
-              hint.innerHTML = '⚠ No code set for this company. Go to <a href="/companies" style="color:#1e3a8a;">Companies</a> and add a short code.';
+              hint.innerHTML = '⚠ No code set for this company. Go to <a class="u-c-1e3a8a" href="/companies">Companies</a> and add a short code.';
               hint.style.color = '#dc2626';
             } else {
               hint.textContent = '✓ ' + data.emp_id + ' — ' + data.company_name + ' employee #' + data.seq;
@@ -1390,7 +1386,7 @@
             const isNew = !prevRowKeys.has(rowKey(r));
             const roleBadge = r.role ? badge("badge-blue",r.role) : badge("badge-gray","—");
             html += `<tr${isNew?" class='row-new'":""}>
-              <td><span style="background:#dbeafe;color:#1e40af;font-weight:700;font-size:12px;padding:4px 10px;border-radius:8px;letter-spacing:0.3px;">${r.emp_id}</span></td>
+              <td><span class="u-bg-dbeafe u-c-1e40af u-fw-700 u-fs-12 u-p-4-10 u-br-8 u-ls-0d3">${r.emp_id}</span></td>
               <td>${r.name}</td>
               <td>${roleBadge}</td>
               <td>${r.login_t||"—"}</td>
@@ -1400,7 +1396,7 @@
               <td>${buildAttTypeBadge(r)}</td>
               <td>
                 <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${r.emp_id}')">✏️ Edit</button>
-                <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+                <button class="tbl-btn tbl-btn-delete u-va--1 u-mr-4 u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998 u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0 u-fs-12 u-c-64748b u-h-1 u-bg-f1f5f9 u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0 u-fs-12 u-c-1e3a8a u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap u-fs-10 u-c-94a3b8 u-fs-11 u-c-f59e0b u-fxs-0 u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0 u-fs-12 u-c-16a34a u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap u-fs-10 u-c-94a3b8 u-p-12 u-fs-12 u-c-94a3b8 u-ta-center u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28 u-ta-center u-mb-6 u-fs-32 u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4 u-fs-13 u-c-64748b u-ta-center u-mb-20 u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s u-d-flex u-gap-8 u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %} co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %} co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %} {% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}" onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
               </td>
             </tr>`;
           });
@@ -1513,55 +1509,54 @@
     </script>
   <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button type="submit">
+        <div><i class="ti ti-building-community"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div>
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div><i class="ti ti-building"></i></div>
+        <span>{{ c.name }}{% if c.code %} <span>({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button type="submit">
+          <div><i class="ti ti-building"></i></div>
+          <span>{{ c.name }}{% if c.code %} <span>({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div>No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div id="co-pin-modal">
+    <div>
+      <div>🔒</div>
+      <div>Company Protected</div>
+      <div id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
         <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div>
+          <button type="button" onclick="coPinClose()">Cancel</button>
+          <button type="submit">Unlock →</button>
         </div>
       </form>
     </div>

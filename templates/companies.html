@@ -105,15 +105,15 @@
 
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -122,21 +122,21 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;" />
+  <hr class="nav-sep u-mt-12" />
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-  <div class="sidebar-footer"><i class="ti ti-building" style="font-size:13px;"></i> {{ co.company_name }}</div>
+  <div class="sidebar-footer"><i class="ti ti-building u-fs-13"></i> {{ co.company_name }}</div>
 </div>
 
 <div class="main">
   <div class="page-header">
-    <h1><i class="ti ti-building" style="color:#1e3a8a;"></i> Companies</h1>
+    <h1><i class="ti ti-building u-c-1e3a8a"></i> Companies</h1>
     <p>Manage companies and assign employees to them.</p>
   </div>
 
@@ -154,11 +154,11 @@
 
   <!-- Add Company -->
   <div class="card">
-    <div class="card-title"><i class="ti ti-plus" style="color:#1e3a8a;"></i> Add New Company</div>
+    <div class="card-title"><i class="ti ti-plus u-c-1e3a8a"></i> Add New Company</div>
     <form action="/companies/add" method="POST">
       <div class="form-row">
         <div class="field-group">
-          <label>Company Name <span style="color:#dc2626;">*</span></label>
+          <label>Company Name <span class="u-c-dc2626">*</span></label>
           <input type="text" name="name" placeholder="Magzest Technologies" required />
         </div>
         <div class="field-group">
@@ -172,7 +172,7 @@
 
   <!-- Companies List -->
   <div class="card">
-    <div class="card-title"><i class="ti ti-building" style="color:#1e3a8a;"></i> All Companies ({{ companies|length }})</div>
+    <div class="card-title"><i class="ti ti-building u-c-1e3a8a"></i> All Companies ({{ companies|length }})</div>
     {% if companies %}
     <table>
       <thead>
@@ -188,24 +188,24 @@
       <tbody>
         {% for cid, cname, ccode, created_at, emp_count in companies %}
         <tr>
-          <td style="color:#94a3b8;font-size:12px;">{{ loop.index }}</td>
-          <td style="font-weight:700;">{{ cname }}</td>
+          <td class="u-c-94a3b8 u-fs-12">{{ loop.index }}</td>
+          <td class="u-fw-700">{{ cname }}</td>
           <td>
             {% if ccode %}
               <span class="badge badge-blue">{{ ccode }}</span>
             {% else %}
-              <span style="color:#cbd5e1;">—</span>
+              <span class="u-c-cbd5e1">—</span>
             {% endif %}
           </td>
           <td>
             <span class="badge badge-blue">{{ emp_count }} employee{{ 's' if emp_count != 1 }}</span>
           </td>
-          <td style="color:#64748b;font-size:12px;">{{ created_at.strftime('%d %b %Y') if created_at else '—' }}</td>
+          <td class="u-c-64748b u-fs-12">{{ created_at.strftime('%d %b %Y') if created_at else '—' }}</td>
           <td>
             <button class="btn-sm btn-edit" onclick="openEdit({{ cid }}, '{{ cname|replace("'","\\'")|e }}', '{{ (ccode or '')|replace("'","\\'")|e }}')">
               <i class="ti ti-edit"></i> Edit
             </button>
-            <form action="/companies/{{ cid }}/delete" method="POST" style="display:inline;"
+            <form class="u-d-inline" action="/companies/{{ cid }}/delete" method="POST"
                   onsubmit="return confirm('Delete {{ cname }}? This cannot be undone.')">
               <button type="submit" class="btn-sm btn-del"><i class="ti ti-trash"></i> Delete</button>
             </form>
@@ -216,7 +216,7 @@
     </table>
     {% else %}
       <div class="empty">
-        <i class="ti ti-building-off" style="font-size:40px;display:block;margin-bottom:10px;"></i>
+        <i class="ti ti-building-off u-fs-40 u-d-block u-mb-10"></i>
         No companies yet. Add your first company above.
       </div>
     {% endif %}
@@ -226,10 +226,10 @@
 <!-- Edit Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal">
-    <h3><i class="ti ti-edit" style="color:#1e3a8a;margin-right:6px;"></i>Edit Company</h3>
+    <h3><i class="ti ti-edit u-c-1e3a8a u-mr-6"></i>Edit Company</h3>
     <form id="editForm" method="POST">
       <div class="field-group">
-        <label>Company Name <span style="color:#dc2626;">*</span></label>
+        <label>Company Name <span class="u-c-dc2626">*</span></label>
         <input type="text" name="name" id="editName" required />
       </div>
       <div class="field-group">
@@ -260,55 +260,54 @@
   });
 </script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

@@ -101,15 +101,15 @@
 
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co[0] if co else '' }}</div></div>
 
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -118,10 +118,10 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;"/>
+  <hr class="nav-sep u-mt-12"/>
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item active" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
@@ -142,9 +142,9 @@
     <div>
       <h2>{{ emp_name }}</h2>
       <p>{{ emp_id }} &nbsp;·&nbsp; {{ emp_role }} &nbsp;·&nbsp; {{ emp_dept or 'No Department' }}</p>
-      <p style="margin-top:6px;">
-        <i class="ti ti-mail" style="font-size:13px;"></i> {{ emp_email or '—' }}
-        &nbsp;&nbsp;<i class="ti ti-phone" style="font-size:13px;"></i> {{ emp_phone or '—' }}
+      <p class="u-mt-6">
+        <i class="ti ti-mail u-fs-13"></i> {{ emp_email or '—' }}
+        &nbsp;&nbsp;<i class="ti ti-phone u-fs-13"></i> {{ emp_phone or '—' }}
       </p>
     </div>
     <div class="rating-big">
@@ -155,20 +155,20 @@
       </div>
       <div class="lbl">Q{{ quarter }} {{ year }} Rating</div>
       {% else %}
-      <div style="font-size:32px;opacity:.4;">—</div>
+      <div class="u-fs-32 u-op-d4">—</div>
       <div class="lbl">Not rated yet</div>
       {% endif %}
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
+    <div class="u-d-flex u-fxd-column u-gap-8">
       <a href="/performance?quarter={{ quarter }}&year={{ year }}" class="btn btn-back"><i class="ti ti-arrow-left"></i> Back</a>
       {% if review %}
-      <form method="POST" action="/performance_save_review" style="margin:0;">
+      <form class="u-m-0" method="POST" action="/performance_save_review">
         <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
         <input type="hidden" name="quarter" value="{{ quarter }}"/>
         <input type="hidden" name="year" value="{{ year }}"/>
         <input type="hidden" name="reviewer_feedback" value="{{ review[2] or '' }}"/>
         <input type="hidden" name="status" value="Submitted"/>
-        <button type="submit" class="btn btn-success" {% if review[4]=='Submitted' %}disabled style="opacity:.5;"{% endif %}>
+        <button type="submit" class="btn btn-success u-op-d5" {% if review[4]=='Submitted' %}disabled{% endif %}>
           <i class="ti ti-send"></i> {% if review[4]=='Submitted' %}Submitted{% else %}Submit Review{% endif %}
         </button>
       </form>
@@ -195,7 +195,7 @@
         <input type="hidden" name="quarter" value="{{ quarter }}"/>
         <input type="hidden" name="year" value="{{ year }}"/>
         <div class="grid3">
-          <div class="form-group" style="grid-column:span 2;">
+          <div class="form-group u-gc-span-2">
             <label>KPI Title *</label>
             <input type="text" name="kpi_title" placeholder="e.g. Monthly Sales Target" required/>
           </div>
@@ -218,7 +218,7 @@
             <input type="text" name="description" placeholder="Brief description (optional)"/>
           </div>
         </div>
-        <div style="text-align:right;">
+        <div class="u-ta-right">
           <button type="submit" class="btn btn-primary"><i class="ti ti-plus"></i> Add KPI</button>
         </div>
       </form>
@@ -228,10 +228,10 @@
     <!-- KPI Cards -->
     {% if kpis %}
     {% set total_weight = kpis|sum(attribute=5) %}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:700;color:#1e3a8a;">
+    <div class="u-d-flex u-ai-center u-jc-space-between u-mb-12">
+      <div class="u-fs-13 u-fw-700 u-c-1e3a8a">
         {{ kpis|length }} KPIs &nbsp;·&nbsp; Total weight: <span style="color:{% if total_weight == 100 %}#16a34a{% elif total_weight > 100 %}#ef4444{% else %}#f59e0b{% endif %};">{{ total_weight }}%</span>
-        {% if total_weight != 100 %}<span style="font-size:11px;color:#f59e0b;"> (should sum to 100%)</span>{% endif %}
+        {% if total_weight != 100 %}<span class="u-fs-11 u-c-f59e0b"> (should sum to 100%)</span>{% endif %}
       </div>
     </div>
 
@@ -242,15 +242,15 @@
           <div class="kpi-title">{{ kpi_title }}</div>
           {% if kpi_desc %}<div class="kpi-desc">{{ kpi_desc }}</div>{% endif %}
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div class="u-d-flex u-ai-center u-gap-8">
           <span class="weight-badge">{{ weight }}%</span>
           {% if not review or review[4] != 'Submitted' %}
-          <form method="POST" action="/performance_delete_kpi" style="margin:0;">
+          <form class="u-m-0" method="POST" action="/performance_delete_kpi">
             <input type="hidden" name="kpi_id" value="{{ kpi_id }}"/>
             <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
             <input type="hidden" name="quarter" value="{{ quarter }}"/>
             <input type="hidden" name="year" value="{{ year }}"/>
-            <button type="submit" class="btn btn-danger" style="padding:5px 10px;font-size:11px;"
+            <button type="submit" class="btn btn-danger u-p-5-10 u-fs-11"
                     onclick="return confirm('Delete this KPI?')">
               <i class="ti ti-trash"></i>
             </button>
@@ -283,7 +283,7 @@
                       onclick="setRating({{ kpi_id }}, {{ i }})" title="{{ rating_labels[i] }}">★</button>
               {% endfor %}
               <input type="hidden" name="rating" id="rating_{{ kpi_id }}" value="{{ rating or 0 }}"/>
-              <span id="rlbl_{{ kpi_id }}" style="font-size:12px;color:#64748b;margin-left:6px;">
+              <span class="u-fs-12 u-c-64748b u-ml-6" id="rlbl_{{ kpi_id }}">
                 {{ rating_labels.get(rating or 0, '') }}
               </span>
             </div>
@@ -293,23 +293,23 @@
             <input type="text" name="comments" value="{{ comments or '' }}" placeholder="Reviewer notes"/>
           </div>
         </div>
-        <div style="text-align:right;">
-          <button type="submit" class="btn btn-primary" style="padding:6px 16px;font-size:12px;">
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary u-p-6-16 u-fs-12">
             <i class="ti ti-device-floppy"></i> Save Rating
           </button>
         </div>
       </form>
       {% else %}
       <!-- Read-only view when submitted -->
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="u-d-flex u-ai-center u-gap-12 u-fxw-wrap">
         <div>
           {% for i in range(1,6) %}
           <span style="font-size:20px;color:{% if i <= (rating or 0) %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
           {% endfor %}
         </div>
-        <span style="font-weight:800;color:#f59e0b;">{{ rating or 0 }}/5</span>
-        <span style="font-size:12px;color:#64748b;">{{ rating_labels.get(rating or 0,'') }}</span>
-        {% if comments %}<span style="font-size:12px;color:#64748b;font-style:italic;">"{{ comments }}"</span>{% endif %}
+        <span class="u-fw-800 u-c-f59e0b">{{ rating or 0 }}/5</span>
+        <span class="u-fs-12 u-c-64748b">{{ rating_labels.get(rating or 0,'') }}</span>
+        {% if comments %}<span class="u-fs-12 u-c-64748b u-fst-italic">"{{ comments }}"</span>{% endif %}
         <div class="progress-wrap">
           <div class="progress-fill" style="width:{{ ((rating or 0) / 5 * 100)|int }}%;background:{% if (rating or 0) >= 4 %}#22c55e{% elif (rating or 0) >= 3 %}#3b82f6{% elif (rating or 0) >= 2 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
         </div>
@@ -319,8 +319,8 @@
     {% endfor %}
 
     {% else %}
-    <div style="text-align:center;padding:40px;color:#94a3b8;">
-      <i class="ti ti-target" style="font-size:48px;display:block;margin-bottom:12px;"></i>
+    <div class="u-ta-center u-p-40 u-c-94a3b8">
+      <i class="ti ti-target u-fs-48 u-d-block u-mb-12"></i>
       No KPIs added yet. Use the form above to add goals.
     </div>
     {% endif %}
@@ -340,16 +340,16 @@
           <textarea name="reviewer_feedback" rows="5" placeholder="Write detailed feedback about the employee's performance, strengths, and areas for improvement…" {% if review and review[4]=='Submitted' %}readonly{% endif %}>{{ review[2] if review and review[2] else '' }}</textarea>
         </div>
         {% if not review or review[4] != 'Submitted' %}
-        <div style="text-align:right;">
+        <div class="u-ta-right">
           <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Save Feedback</button>
         </div>
         {% endif %}
       </form>
 
       {% if review and review[3] %}
-      <div style="margin-top:22px;padding-top:18px;border-top:1px solid #e2e8f0;">
+      <div class="u-mt-22 u-pt-18 u-bdt-1-solid-e2e8f0">
         <div class="sec-title"><i class="ti ti-user"></i> Employee Comment</div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;font-size:13px;color:#1e293b;font-style:italic;">
+        <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10 u-p-14-16 u-fs-13 u-c-1e293b u-fst-italic">
           "{{ review[3] }}"
         </div>
       </div>
@@ -365,27 +365,26 @@
         {% for h_id, h_q, h_yr, h_rating, h_status, h_date in history %}
         <div class="history-row">
           <span class="q-pill">Q{{ h_q }} {{ h_yr }}</span>
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;">
+          <div class="u-fx-1">
+            <div class="u-d-flex u-ai-center u-gap-8">
               {% if h_rating and h_rating > 0 %}
-              <span style="font-weight:800;color:#f59e0b;font-size:15px;">{{ "%.1f"|format(h_rating) }}</span>
-              <span style="font-size:16px;">
+              <span class="u-fw-800 u-c-f59e0b u-fs-15">{{ "%.1f"|format(h_rating) }}</span>
+              <span class="u-fs-16">
                 {% for i in range(1,6) %}<span style="color:{% if i <= h_rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>{% endfor %}
               </span>
               <span class="rating-label">{{ rating_labels.get(h_rating|int,'') }}</span>
               {% else %}
-              <span style="color:#94a3b8;font-size:13px;">Not rated</span>
+              <span class="u-c-94a3b8 u-fs-13">Not rated</span>
               {% endif %}
             </div>
           </div>
-          <span style="font-size:11px;color:#94a3b8;">{{ h_date.strftime('%d %b %Y') if h_date else '' }}</span>
-          <span class="badge {% if h_status=='Submitted' %}b-submitted{% elif h_status=='Acknowledged' %}b-acknowledged{% else %}b-draft{% endif %}" style="font-size:11px;">{{ h_status }}</span>
-          <a href="/performance_review/{{ emp_id }}?quarter={{ h_q }}&year={{ h_yr }}"
-             style="font-size:12px;color:#3b82f6;text-decoration:none;font-weight:700;">View</a>
+          <span class="u-fs-11 u-c-94a3b8">{{ h_date.strftime('%d %b %Y') if h_date else '' }}</span>
+          <span class="badge {% if h_status=='Submitted' %}b-submitted{% elif h_status=='Acknowledged' %}b-acknowledged{% else %}b-draft{% endif %} u-fs-11">{{ h_status }}</span>
+          <a class="u-fs-12 u-c-3b82f6 u-tdec-none u-fw-700" href="/performance_review/{{ emp_id }}?quarter={{ h_q }}&year={{ h_yr }}">View</a>
         </div>
         {% endfor %}
       {% else %}
-        <div style="text-align:center;padding:30px;color:#94a3b8;">No previous reviews found.</div>
+        <div class="u-ta-center u-p-30 u-c-94a3b8">No previous reviews found.</div>
       {% endif %}
     </div>
   </div>
@@ -411,55 +410,54 @@ function switchTab(id, el) {
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

@@ -184,7 +184,7 @@
   <div class="toolbar-btns">
     <a href="/offer_letter/{{ letter[1] }}" class="btn btn-light"><i class="ti ti-edit"></i> Edit</a>
     <button onclick="window.print()" class="btn btn-light"><i class="ti ti-printer"></i> Print / PDF</button>
-    <form action="/offer_letter_send/{{ letter[0] }}" method="POST" style="display:inline"
+    <form class="u-d-inline" action="/offer_letter_send/{{ letter[0] }}" method="POST"
           onsubmit="return confirm('Send to {{ letter[18] }}?')">
       <button type="submit" class="btn btn-blue"><i class="ti ti-send"></i> Send Email</button>
     </form>
@@ -285,7 +285,7 @@
       <li>A formal Appointment Letter will be issued upon joining. This offer letter does not constitute a contract of employment.</li>
     </ol>
 
-    <p class="para" style="margin-top: 20px;">
+    <p class="para u-mt-20">
       We look forward to welcoming you to <strong>{{ co.company_name }}</strong>. Please sign and return one copy of
       this letter to confirm your acceptance.
     </p>
