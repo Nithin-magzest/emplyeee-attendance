@@ -46,6 +46,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB — guards direct access without nginx
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -61,5 +62,5 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     storage_uri=os.environ.get("REDIS_URL", "memory://"),
-    default_limits=[],
+    default_limits=["300 per minute"],
 )

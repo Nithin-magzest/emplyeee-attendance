@@ -13,7 +13,7 @@
 //  iOS Simulator: 'http://localhost:5000'
 // ─────────────────────────────────────────────
 
-export const API_BASE_URL = 'http://192.168.1.10:5000';
+export const API_BASE_URL = 'http://localhost:5000'; // USB debugging via adb reverse
 // SECURITY NOTE: Change to https:// for production deployment
 
 

@@ -852,22 +852,18 @@
       function showFingerprintOverlay(empId) {
         const isFpOnly = (selectedCombo === "fingerprint_only");
         $("fpSubText").textContent = isFpOnly
-          ? "Enter your ID, then touch the sensor"
+          ? "Enter your Employee ID, then touch the fingerprint sensor"
           : "Step 2 of 2 — QR + Fingerprint";
 
         if (isFpOnly) {
-          $("fpIdGroup").style.display   = "block";
-          $("fpEmpBadge").style.display  = "none";
-          $("fpEmpIdInput").value        = "";
-          setTimeout(function() { $("fpEmpIdInput").focus(); }, 200);
+          // ID input mode: employee types their ID before touching the sensor
+          $("fpEmpIdInput").value       = "";
+          $("fpIdGroup").style.display  = "block";
+          $("fpEmpBadge").style.display = "none";
         } else {
           $("fpIdGroup").style.display  = "none";
-          if (empId) {
-            $("fpEmpId").textContent      = empId;
-            $("fpEmpBadge").style.display = "inline-flex";
-          } else {
-            $("fpEmpBadge").style.display = "none";
-          }
+          $("fpEmpId").textContent      = empId || "";
+          $("fpEmpBadge").style.display = empId ? "inline-flex" : "none";
         }
         $("fpHint").textContent      = "Place your finger on the sensor or click Verify to confirm biometric.";
         $("fpHint").style.color      = "";
@@ -891,15 +887,8 @@
         const btn      = $("fpVerifyBtn");
         const isFpOnly = (selectedCombo === "fingerprint_only");
 
-        if (isFpOnly) {
-          const inputId = $("fpEmpIdInput").value.trim().toUpperCase();
-          if (!inputId) {
-            $("fpHint").textContent = "⚠ Enter your Employee ID above first.";
-            $("fpHint").style.color = "#f59e0b";
-            return;
-          }
-          gEmployeeId = inputId;
-        }
+        // Passkey mode (fingerprint_only): employee is identified by the passkey itself —
+        // no ID input needed. QR+Fingerprint mode: gEmployeeId already set from QR scan.
 
         btn.disabled    = true;
         btn.textContent = "⏳ Verifying…";
@@ -919,18 +908,16 @@
         }
 
         try {
-          // WebAuthn requires a secure context (HTTPS or localhost/127.0.0.1)
           if (!window.isSecureContext) {
             fpError("⚠ Fingerprint requires HTTPS or localhost access. Ask your admin to configure HTTPS.");
             return;
           }
 
           if (!window.PublicKeyCredential) {
-            fpError("⚠ This browser does not support WebAuthn. Please use Chrome or Edge.");
+            fpError("⚠ This browser does not support passkeys. Please use Chrome or Edge.");
             return;
           }
 
-          // Check device has biometric hardware
           const avail = await window.PublicKeyCredential
             .isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
           if (!avail) {
@@ -938,17 +925,23 @@
             return;
           }
 
-          // Fetch server-generated authentication options (challenge stored in session)
           $("fpHint").textContent = "⏳ Loading…";
-          const authOptR = await fetch(`/webauthn/authentication-options?emp_id=${encodeURIComponent(gEmployeeId || "")}`);
+
+          // fingerprint_only: read the ID the employee typed; QR+Fingerprint: use gEmployeeId from QR scan
+          let authUrlEmpId = isFpOnly ? ($("fpEmpIdInput").value || "").trim().toUpperCase() : (gEmployeeId || "");
+          if (isFpOnly && !authUrlEmpId) {
+            fpError("⚠ Please enter your Employee ID first.");
+            return;
+          }
+          const authOptR = await fetch(`/webauthn/authentication-options?emp_id=${encodeURIComponent(authUrlEmpId)}`);
           const authOpts = await authOptR.json();
 
+          // Check that a registered passkey was found for this ID
           if (!authOpts.allowCredentials || authOpts.allowCredentials.length === 0) {
-            fpError("⚠ No fingerprint registered for this Employee ID. Please enroll your fingerprint first.");
+            fpError("⚠ No passkey registered for this Employee ID. Please enrol your fingerprint first.");
             return;
           }
 
-          // Prompt the actual fingerprint sensor
           $("fpHint").textContent = "👆 Touch your fingerprint sensor now…";
           $("fpHint").style.color = "";
 
@@ -956,7 +949,7 @@
             publicKey: {
               challenge:        toBytes(authOpts.challenge),
               rpId:             authOpts.rpId,
-              allowCredentials: authOpts.allowCredentials.map(c => ({
+              allowCredentials: (authOpts.allowCredentials || []).map(c => ({
                 type:       c.type,
                 id:         toBytes(c.id),
                 transports: c.transports || ["internal"],
@@ -966,9 +959,6 @@
             }
           });
 
-          // Server-side signature verification — send the full assertion
-          // (not just clientDataJSON) so the server can check the real
-          // cryptographic signature against the stored public key.
           function toB64url(buf) {
             let s = ""; new Uint8Array(buf).forEach(b => s += String.fromCharCode(b));
             return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
@@ -988,21 +978,26 @@
               clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {},
             };
           }
+
           const verR = await fetch("/api/employee/webauthn-verify-challenge", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              emp_id:     gEmployeeId,
+              emp_id:     gEmployeeId || "",   // empty for passkey mode; server resolves from credential ID
               credential: authCredentialToJSON(assertion),
             }),
           });
           const verJson = await verR.json();
           if (!verJson.ok) {
-            fpError("❌ " + (verJson.msg || "Server challenge verification failed."));
+            fpError("❌ " + (verJson.msg || "Server verification failed."));
             return;
           }
 
-          // Only reach here if fingerprint matched AND server verified challenge
+          // Set the resolved employee ID from the server response
+          if (verJson.emp_id) {
+            gEmployeeId = verJson.emp_id;
+          }
+
           fpVerified = true;
           $("fpHint").textContent = "✅ Fingerprint matched!";
           $("fpHint").style.color = "#22c55e";
@@ -1010,8 +1005,10 @@
           runAfterFingerprint();
 
         } catch (err) {
-          if (err.name === "NotAllowedError") {
-            fpError("❌ Fingerprint not recognised or timed out. Please try again.");
+          if (err.name === "NotAllowedError" || err.name === "NotFoundError") {
+            fpError("❌ Fingerprint not recognized on this device. Make sure you enrolled on this machine, or ask your admin to reset and re-enrol.");
+          } else if (err.name === "AbortError") {
+            fpError("❌ Fingerprint verification was cancelled. Please try again.");
           } else {
             fpError("❌ Verification failed: " + (err.message || "Unknown error"));
           }

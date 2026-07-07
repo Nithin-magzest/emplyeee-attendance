@@ -6,9 +6,6 @@ except Exception:
     pass
 
 from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory, current_app
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 import uuid
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
@@ -88,19 +85,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import logging
-import sys
-from pythonjsonlogger import jsonlogger
-
-_log_handler = logging.StreamHandler(sys.stdout)
-_log_handler.setFormatter(jsonlogger.JsonFormatter(
-    fmt="%(asctime)s %(levelname)s %(module)s %(message)s",
-    rename_fields={"asctime": "time", "levelname": "level"},
-))
-app_log = logging.getLogger("attendance")
-if not app_log.handlers:
-    app_log.addHandler(_log_handler)
-app_log.setLevel(logging.INFO)
-app_log.propagate = False
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -112,7 +96,7 @@ if _missing_env:
         stacklevel=2
     )
 
-app = Flask(__name__)
+from extensions import app, limiter, app_log
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -128,21 +112,6 @@ def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     if dest and dest.startswith("/") and not dest.startswith("//"):
         return dest
     return fallback
-
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
-_allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else "*"
-if _raw_origins == "*" and os.environ.get("APP_ENV", "production") == "production":
-    import warnings
-    warnings.warn("ALLOWED_ORIGINS is '*' in production — set it to your domain(s) to restrict CORS.", stacklevel=1)
-CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
-
-_REDIS_URL = os.environ.get("REDIS_URL", "memory://")
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    storage_uri=_REDIS_URL,
-    default_limits=[],
-)
 
 @app.context_processor
 def inject_common_vars():
@@ -361,8 +330,28 @@ def _resolve_tenant():
     _g.tenant_db = os.environ.get("DB_NAME", "employee_attendance")
 
 
-_CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
-_CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
+_CSRF_HEAD_RE    = re.compile(rb'</head>', re.IGNORECASE)
+_CSRF_BODY_RE    = re.compile(rb'</body>', re.IGNORECASE)
+# Matches <script> tags that don't already carry a nonce — used to inject CSP nonces
+_SCRIPT_TAG_RE   = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
+# Capture inline event-handler values for dynamic CSP sha256 hash generation.
+# Two patterns: double-quoted and single-quoted attribute values.
+_CSP_EV_DQ = re.compile(
+    rb'\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend'
+    rb'|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress'
+    rb'|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown'
+    rb'|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart'
+    rb'|transitionend|wheel)\s*=\s*"([^"]*)"',
+    re.IGNORECASE,
+)
+_CSP_EV_SQ = re.compile(
+    rb"\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend"
+    rb"|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress"
+    rb"|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown"
+    rb"|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart"
+    rb"|transitionend|wheel)\s*=\s*'([^']*)'",
+    re.IGNORECASE,
+)
 _CSRF_SCRIPT  = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
@@ -386,6 +375,11 @@ _CSRF_SCRIPT  = (
     b'f.prepend(i);}});});})();</script>'
 )
 
+@app.before_request
+def _set_csp_nonce():
+    from flask import g
+    g.csp_nonce = secrets.token_urlsafe(16)
+
 _SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
                    "/save_security_settings", "/toggle_auth_feature",
                    "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
@@ -393,16 +387,39 @@ _SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
 
 @app.after_request
 def _security_headers(response):
+    from flask import g
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
+    response.headers["Server"] = "AttendanceApp"
     if request.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     ct = response.content_type or ""
     if "text/html" in ct:
+        nonce = getattr(g, "csp_nonce", "")
+        # _inject_csrf_meta runs before this hook (Flask reverses registration order),
+        # so response.get_data() is the final HTML with nonces already injected.
+        # Scan for inline event-handler values and compute sha256 hashes so they
+        # pass CSP without needing 'unsafe-inline'.
+        try:
+            data = response.get_data()
+            _ev_hashes: set = set()
+            for _pat in (_CSP_EV_DQ, _CSP_EV_SQ):
+                for _m in _pat.finditer(data):
+                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
+                    _ev_hashes.add(
+                        "'sha256-" + base64.b64encode(
+                            hashlib.sha256(_body.encode("utf-8")).digest()
+                        ).decode() + "'"
+                    )
+        except Exception:
+            _ev_hashes = set()
+        _unsafe_hashes = " 'unsafe-hashes'" if _ev_hashes else ""
+        _hash_src = (" " + " ".join(sorted(_ev_hashes))) if _ev_hashes else ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
@@ -423,11 +440,15 @@ def _inject_csrf_meta(response):
     if response.status_code >= 300 or not response.content_type.startswith("text/html"):
         return response
     try:
+        from flask import g
         token = _csrf_token()
         meta  = f'<meta name="csrf-token" content="{token}" />'.encode()
         data  = response.get_data()
         data  = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
         data  = _CSRF_BODY_RE.sub(_CSRF_SCRIPT + b'</body>', data, count=1)
+        nonce = getattr(g, "csp_nonce", None)
+        if nonce:
+            data = _SCRIPT_TAG_RE.sub(b'<script nonce="' + nonce.encode() + b'"', data)
         response.set_data(data)
     except Exception:
         pass
@@ -649,6 +670,7 @@ _VALID_CFS_COLS = frozenset({
     "fingerprint_enabled", "biometric_enabled", "notify_leave", "notify_payslip",
     "notify_resignation", "notify_doc_expiry", "session_timeout",
     "late_deduction_pct", "half_day_deduction_pct", "grace_minutes",
+    "shift_start", "shift_half", "shift_end", "holiday_pay", "leave_pay",
 })
 
 def _upsert_co_feature(company_id, field, value):
@@ -1784,6 +1806,8 @@ def employee_required(f):
             return redirect("/admin")
         if not session.get("employee_id"):
             return redirect("/employee_login")
+        if session.get("_fpc") and request.endpoint != "force_change_pin":
+            return redirect("/force_change_pin")
         return f(*args, **kwargs)
     return wrapper
 
@@ -2122,20 +2146,20 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 
   <div class="hdr">
     <div class="hdr-left">
-      <h1>{company_name or "Payslip"}</h1>
+      <h1>{_html.escape(str(company_name)) if company_name else "Payslip"}</h1>
       <p>Salary Slip — {month_name}</p>
     </div>
     <div class="hdr-right">
-      <div class="slip-num">Slip ID: {emp_id}-{year}{month:02d}</div>
+      <div class="slip-num">Slip ID: {_html.escape(str(emp_id))}-{year}{month:02d}</div>
       <div class="month">{month_name}</div>
     </div>
   </div>
 
   <div class="emp-bar">
     <table>
-      <tr><td>Employee Name</td><td>{emp_name}</td></tr>
-      <tr><td>Employee ID</td><td>{emp_id}</td></tr>
-      <tr><td>Email</td><td>{emp_email or 'N/A'}</td></tr>
+      <tr><td>Employee Name</td><td>{_html.escape(str(emp_name))}</td></tr>
+      <tr><td>Employee ID</td><td>{_html.escape(str(emp_id))}</td></tr>
+      <tr><td>Email</td><td>{_html.escape(str(emp_email)) if emp_email else 'N/A'}</td></tr>
       {emp_row_extra}
     </table>
     <table>
@@ -4885,7 +4909,7 @@ def admin_forgot_password():
         return render_template("admin_forgot_password.html", sent=True, error=None)
     token       = secrets.token_hex(32)
     token_hash  = hashlib.sha256(token.encode()).hexdigest()
-    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
+    expiry      = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     admin_id    = row[0]
     cursor.execute(
         "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
@@ -4928,7 +4952,7 @@ def admin_reset_password(token):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
         "SELECT id FROM admin_users WHERE reset_token=%s AND reset_token_expiry > %s",
-        (token_hash, datetime.datetime.now())
+        (token_hash, datetime.datetime.utcnow())
     )
     row = cursor.fetchone()
     if not row:
@@ -4972,10 +4996,10 @@ def employee_forgot_password():
         # Generic message to avoid account enumeration; also covers "no email on file"
         return render_template("employee_forgot_password.html", sent=True, error=None)
     db_email = row[1]
-    emp_name = row[2] or emp_id
+    emp_name = _html.escape(row[2] or emp_id)
     token       = secrets.token_hex(32)
     token_hash  = hashlib.sha256(token.encode()).hexdigest()
-    expiry      = datetime.datetime.now() + datetime.timedelta(hours=1)
+    expiry      = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
                    (token_hash, expiry, emp_id))
     db.commit(); cursor.close(); db.close()
@@ -5009,7 +5033,7 @@ def employee_reset_password(token):
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
-                   (token_hash, datetime.datetime.now()))
+                   (token_hash, datetime.datetime.utcnow()))
     row = cursor.fetchone()
     if not row:
         cursor.close(); db.close()
@@ -11115,12 +11139,13 @@ def webauthn_registration_options():
     options = webauthn.generate_registration_options(
         rp_id=rp_id,
         rp_name="Employee Attendance",
+        user_id=emp_id.encode(),        # stable handle so browser can identify the passkey owner
         user_name=emp_id,
         user_display_name=emp_name,
         authenticator_selection=AuthenticatorSelectionCriteria(
             authenticator_attachment=AuthenticatorAttachment.PLATFORM,
             user_verification=UserVerificationRequirement.REQUIRED,
-            resident_key=ResidentKeyRequirement.DISCOURAGED,
+            resident_key=ResidentKeyRequirement.REQUIRED,  # discoverable passkey
         ),
         supported_pub_key_algs=[COSEAlgorithmIdentifier.ECDSA_SHA_256, COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256],
     )
@@ -11170,26 +11195,44 @@ def webauthn_verify_challenge():
     """
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
-    data       = request.get_json(force=True, silent=True) or {}
-    emp_id     = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
-    credential = data.get("credential")
+    data          = request.get_json(force=True, silent=True) or {}
+    emp_id        = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
+    credential    = data.get("credential")
     challenge_b64 = session.get("wa_auth_challenge")
 
-    if not credential or not challenge_b64 or not emp_id:
-        return jsonify({"ok": False, "msg": "Missing credential, challenge, or emp_id"}), 400
+    if not credential or not challenge_b64:
+        return jsonify({"ok": False, "msg": "Missing credential or challenge"}), 400
 
     try:
         db = get_db_connection(); cur = db.cursor(buffered=True)
-        cur.execute(
-            "SELECT fingerprint_public_key, fingerprint_sign_count FROM employees WHERE employee_id=%s",
-            (emp_id,)
-        )
+
+        if emp_id:
+            # QR + Fingerprint mode: employee already identified by QR scan
+            cur.execute(
+                "SELECT employee_id, name, fingerprint_public_key, fingerprint_sign_count FROM employees WHERE employee_id=%s",
+                (emp_id,)
+            )
+        else:
+            # Passkey mode: employee is identified by the credential ID inside the assertion.
+            # credential["id"] is the base64url credential ID the browser signed with.
+            cred_id = (credential.get("id") or "") if isinstance(credential, dict) else ""
+            if not cred_id:
+                cur.close(); db.close()
+                return jsonify({"ok": False, "msg": "Missing credential ID"}), 400
+            cur.execute(
+                "SELECT employee_id, name, fingerprint_public_key, fingerprint_sign_count FROM employees WHERE fingerprint_credential_id=%s",
+                (cred_id,)
+            )
+
         row = cur.fetchone()
-        if not row or not row[0]:
+        if not row or not row[2]:
             cur.close(); db.close()
-            return jsonify({"ok": False, "msg": "No fingerprint enrolled for this employee"}), 401
-        stored_pubkey = base64.b64decode(row[0])
-        stored_sign_count = row[1] or 0
+            return jsonify({"ok": False, "msg": "No passkey enrolled. Please enrol from the employee portal."}), 401
+
+        emp_id             = row[0]
+        emp_name           = row[1] or emp_id
+        stored_pubkey      = base64.b64decode(row[2])
+        stored_sign_count  = int(row[3] or 0)
 
         verified = webauthn.verify_authentication_response(
             credential=credential,
@@ -11197,6 +11240,10 @@ def webauthn_verify_challenge():
             expected_rp_id=_wa_rp_id(),
             expected_origin=_wa_origins(),
             credential_public_key=stored_pubkey,
+            # Per W3C WebAuthn §7.2 step 21: pass the stored count so py_webauthn
+            # can reject a cloned credential (new ≤ stored when stored > 0).
+            # Authenticators that never increment (Windows Hello, Touch ID) always
+            # return 0, so stored stays 0 and the check is skipped automatically.
             credential_current_sign_count=stored_sign_count,
         )
     except Exception as e:
@@ -11225,7 +11272,7 @@ def webauthn_verify_challenge():
 
     session["wa_fp_verified_emp_id"] = emp_id
     session["wa_fp_verified_at"]     = time.time()
-    return jsonify({"ok": True, "emp_id": emp_id})
+    return jsonify({"ok": True, "emp_id": emp_id, "name": emp_name})
 
 
 @app.route("/api/employee/webauthn-register", methods=["POST"])
@@ -11267,6 +11314,29 @@ def webauthn_unenroll():
         )
         db.commit()
         cursor.close(); db.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/admin/employee/<emp_id>/reset-fingerprint", methods=["POST"])
+@admin_required
+def admin_reset_employee_fingerprint(emp_id):
+    """Admin: clear a specific employee's WebAuthn credential so they can re-enroll on a new device."""
+    emp_id = emp_id.strip().upper()
+    try:
+        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        cursor.execute(
+            "UPDATE employees SET fingerprint_credential_id=NULL, fingerprint_public_key=NULL, "
+            "fingerprint_sign_count=0 WHERE employee_id=%s",
+            (emp_id,)
+        )
+        db.commit()
+        affected = cursor.rowcount
+        cursor.close(); db.close()
+        if affected == 0:
+            return jsonify({"ok": False, "msg": "Employee not found"}), 404
+        _audit("admin_reset_fingerprint", "employees", emp_id)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 500
@@ -11548,7 +11618,7 @@ def api_employee_resign():
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
-    emp_name = emp[0] if emp else emp_id
+    emp_name = _html.escape(emp[0] if emp else emp_id)
     cursor.execute(
         "INSERT INTO resignation_requests (employee_id, last_working_day, reason) VALUES (%s,%s,%s)",
         (emp_id, last_working_day, reason)
@@ -13718,11 +13788,13 @@ def onboarding_assign():
         _ecfg = get_email_config()
         if _ecfg:
             try:
-                _html = (f"<p>Hi <strong>{emp_name}</strong>,</p>"
-                         f"<p>A new onboarding checklist <strong>'{tname}'</strong> has been assigned to you.</p>"
-                         f"<p>Due date: <strong>{due_date or 'Not set'}</strong></p>"
-                         f"<p>Please log in to your employee portal and complete all tasks on time.</p>")
-                send_email_async(emp_email, f"New Onboarding Checklist Assigned — {tname}", _html, _ecfg)
+                _safe_name = _html.escape(emp_name or emp_id)
+                _safe_tname = _html.escape(tname or "")
+                _ob_html = (f"<p>Hi <strong>{_safe_name}</strong>,</p>"
+                            f"<p>A new onboarding checklist <strong>'{_safe_tname}'</strong> has been assigned to you.</p>"
+                            f"<p>Due date: <strong>{due_date or 'Not set'}</strong></p>"
+                            f"<p>Please log in to your employee portal and complete all tasks on time.</p>")
+                send_email_async(emp_email, f"New Onboarding Checklist Assigned — {tname}", _ob_html, _ecfg)
             except Exception:
                 pass
     cursor.close(); db.close()
@@ -14396,7 +14468,7 @@ def offer_letter_send(letter_id):
             attachment_filename=f"Offer_Letter_{safe_name}.pdf",
         )
 
-        token_expiry = datetime.datetime.now() + datetime.timedelta(days=30)
+        token_expiry = datetime.datetime.utcnow() + datetime.timedelta(days=30)
         cursor.execute(
             "UPDATE offer_letters SET sent_at=NOW(), status='sent', response_token=%s, "
             "response_token_expiry=%s, candidate_response=NULL, responded_at=NULL WHERE id=%s",

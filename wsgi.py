@@ -43,6 +43,8 @@ load_dotenv()
 
 # ── Import shared extensions FIRST (no side-effects) ─────────────────────────
 from extensions import app, app_log  # noqa: F401
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # ── Start the email queue worker ──────────────────────────────────────────────
 import threading
