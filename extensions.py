@@ -51,10 +51,29 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-_raw_origins     = os.environ.get("ALLOWED_ORIGINS", "*")
-_allowed_origins = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else "*"
-if _raw_origins == "*" and os.environ.get("APP_ENV", "production") == "production":
-    warnings.warn("ALLOWED_ORIGINS is '*' in production — set it to your domain(s).", stacklevel=1)
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "").strip()
+_app_env     = os.environ.get("APP_ENV", "production")
+if not _raw_origins:
+    if _app_env != "development":
+        app_log.critical(
+            "ALLOWED_ORIGINS is not configured — CORS set to deny-all for /api/*. "
+            "Set ALLOWED_ORIGINS=https://yourdomain.com in .env."
+        )
+        warnings.warn(
+            "ALLOWED_ORIGINS is unset in production — CORS set to deny-all for /api/*.",
+            stacklevel=1,
+        )
+    _allowed_origins = "*" if _app_env == "development" else []
+elif _raw_origins == "*":
+    if _app_env != "development":
+        app_log.warning(
+            "ALLOWED_ORIGINS='*' in production allows all origins for /api/*. "
+            "Restrict it to your domain(s)."
+        )
+        warnings.warn("ALLOWED_ORIGINS='*' in production — all origins allowed.", stacklevel=1)
+    _allowed_origins = "*"
+else:
+    _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
