@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from './src/store/AuthContext';
 import LoginScreen      from './src/screens/LoginScreen';
-import AdminNavigator   from './src/navigation/AdminNavigator';
+import AdminDrawerNavigator from './src/navigation/AdminDrawerNavigator';
 import EmployeeDrawerNavigator from './src/navigation/EmployeeDrawerNavigator';
 
 function RootNavigator() {
@@ -30,8 +30,8 @@ function RootNavigator() {
   if (!user) return <LoginScreen />;
 
   if (user.role === "admin") {
-    return <AdminNavigator />;
-  }
+  return <AdminDrawerNavigator />;
+}
 
   if (user.role === "employee") {
     return <EmployeeDrawerNavigator />;

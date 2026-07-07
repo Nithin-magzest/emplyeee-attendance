@@ -4,209 +4,263 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
+  StatusBar,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
-
-import THEME from "../../constants/theme";
 
 export default function AdminHeader({
+
   title = "Dashboard",
-  showNotification = true,
-  onNotificationPress,
+
+  profileImage,
+
+  notificationCount = 3,
+
+  onMenu,
+
+  onNotification,
+
+  onProfile,
+
 }) {
-  const navigation = useNavigation();
 
   return (
-    <View style={styles.container}>
-      {/* Left */}
 
-      <View style={styles.leftSection}>
+    <>
+
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
+
+      <View style={styles.container}>
+
         <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.menuButton}
-          onPress={() =>
-            navigation.dispatch(
-              DrawerActions.openDrawer()
-            )
-          }
+          activeOpacity={0.8}
+          style={styles.iconButton}
+          onPress={onMenu}
         >
+
           <Ionicons
             name="menu"
             size={24}
-            color={THEME.colors.text}
+            color="#0F172A"
           />
+
         </TouchableOpacity>
 
-        <Text style={styles.title}>
+        <Text
+          numberOfLines={1}
+          style={styles.title}
+        >
           {title}
         </Text>
-      </View>
 
-      {/* Right */}
+        <View style={styles.right}>
 
-      <View style={styles.rightSection}>
-        {showNotification && (
           <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.notificationButton}
-            onPress={onNotificationPress}
+            activeOpacity={0.8}
+            style={styles.iconButton}
+            onPress={onNotification}
           >
+
             <Ionicons
               name="notifications-outline"
               size={22}
-              color={THEME.colors.text}
+              color="#0F172A"
             />
 
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                3
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+            {notificationCount > 0 && (
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.avatar}
-        >
-          <Ionicons
-            name="person"
-            size={20}
-            color={THEME.colors.primary}
-          />
-        </TouchableOpacity>
+              <View style={styles.badge}>
+
+                <Text style={styles.badgeText}>
+                  {notificationCount}
+                </Text>
+
+              </View>
+
+            )}
+
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onProfile}
+          >
+
+            {profileImage ? (
+
+              <Image
+                source={{
+                  uri: profileImage,
+                }}
+                style={styles.avatar}
+              />
+
+            ) : (
+
+              <View style={styles.avatar}>
+
+                <Ionicons
+                  name="person"
+                  size={22}
+                  color="#2563EB"
+                />
+
+              </View>
+
+            )}
+
+          </TouchableOpacity>
+
+        </View>
+
       </View>
-    </View>
+
+    </>
+
   );
+
 }
 
 const styles = StyleSheet.create({
+
   container: {
-    height: THEME.spacing.headerHeight,
-
-    backgroundColor:
-      THEME.colors.surface,
 
     flexDirection: "row",
 
     alignItems: "center",
 
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
 
-    paddingHorizontal:
-      THEME.spacing.screenHorizontal,
+    paddingHorizontal: 22,
 
-    borderBottomWidth: 1,
+    paddingTop: 56,
 
-    borderBottomColor:
-      THEME.colors.border,
+    paddingBottom: 18,
 
-    ...THEME.shadows.header,
-  },
+    backgroundColor: "#F8FAFC",
 
-  leftSection: {
-    flexDirection: "row",
-
-    alignItems: "center",
-  },
-
-  rightSection: {
-    flexDirection: "row",
-
-    alignItems: "center",
-  },
-
-  menuButton: {
-    width: 42,
-
-    height: 42,
-
-    borderRadius:
-      THEME.radius.button,
-
-    backgroundColor:
-      THEME.colors.blueBg,
-
-    justifyContent: "center",
-
-    alignItems: "center",
   },
 
   title: {
-    marginLeft: 14,
 
-    ...THEME.typography.headerTitle,
+    flex: 1,
 
-    color: THEME.colors.text,
+    marginLeft: 18,
+
+    fontSize: 30,
+
+    fontWeight: "800",
+
+    color: "#111827",
+
+    letterSpacing: -0.8,
+
   },
 
-  notificationButton: {
-    width: 42,
+  right: {
 
-    height: 42,
+    flexDirection: "row",
 
-    borderRadius:
-      THEME.radius.button,
+    alignItems: "center",
 
-    backgroundColor:
-      THEME.colors.surface,
+  },
+
+  iconButton: {
+
+    width: 48,
+
+    height: 48,
+
+    borderRadius: 16,
+
+    backgroundColor: "#FFFFFF",
+
+    justifyContent: "center",
+
+    alignItems: "center",
 
     borderWidth: 1,
 
-    borderColor:
-      THEME.colors.border,
+    borderColor: "#E5E7EB",
 
-    justifyContent: "center",
+    shadowColor: "#000",
 
-    alignItems: "center",
+    shadowOpacity: 0.06,
 
-    marginRight: 12,
+    shadowRadius: 10,
+
+    shadowOffset: {
+
+      width: 0,
+
+      height: 5,
+
+    },
+
+    elevation: 4,
+
   },
 
   badge: {
+
     position: "absolute",
 
-    top: 6,
+    top: 8,
 
-    right: 5,
+    right: 8,
 
-    width: 16,
+    minWidth: 18,
 
-    height: 16,
+    height: 18,
 
-    borderRadius: 8,
+    borderRadius: 9,
 
-    backgroundColor:
-      THEME.colors.danger,
+    backgroundColor: "#EF4444",
 
     justifyContent: "center",
 
     alignItems: "center",
+
+    paddingHorizontal: 4,
+
   },
 
   badgeText: {
+
     color: "#FFFFFF",
 
-    fontSize: 9,
+    fontSize: 10,
 
     fontWeight: "700",
+
   },
 
   avatar: {
-    width: 42,
 
-    height: 42,
+    marginLeft: 12,
 
-    borderRadius: 21,
+    width: 48,
 
-    backgroundColor:
-      THEME.colors.primaryLight,
+    height: 48,
+
+    borderRadius: 24,
+
+    backgroundColor: "#DBEAFE",
 
     justifyContent: "center",
 
     alignItems: "center",
+
+    borderWidth: 2,
+
+    borderColor: "#FFFFFF",
+
   },
+
 });

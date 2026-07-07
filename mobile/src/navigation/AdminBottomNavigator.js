@@ -1,18 +1,12 @@
 import React from "react";
-
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-
 import { Ionicons } from "@expo/vector-icons";
 
 import AdminDashboard from "../screens/admin/AdminDashboard";
-
-// These screens will be created next
 import EmployeesScreen from "../screens/admin/EmployeesScreen";
 import AttendanceScreen from "../screens/admin/AttendanceScreen";
 import AnalyticsScreen from "../screens/admin/AnalyticsScreen";
 import SettingsScreen from "../screens/admin/SettingsScreen";
-
-import THEME from "../constants/theme";
 
 const Tab = createBottomTabNavigator();
 
@@ -24,49 +18,55 @@ export default function AdminBottomNavigator() {
 
         tabBarHideOnKeyboard: true,
 
-        tabBarActiveTintColor:
-          THEME.colors.primary,
-
-        tabBarInactiveTintColor:
-          THEME.colors.textLight,
-
         tabBarStyle: {
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+
           height: 72,
 
-          backgroundColor:
-            THEME.colors.surface,
+          backgroundColor: "#173B8C",
 
-          borderTopWidth: 1,
+          borderTopWidth: 0,
 
-          borderTopColor:
-            THEME.colors.border,
+          borderTopLeftRadius: 26,
+          borderTopRightRadius: 26,
+
+          elevation: 15,
+
+          shadowColor: "#000",
+          shadowOpacity: 0.12,
+          shadowRadius: 20,
+          shadowOffset: {
+            width: 0,
+            height: -3,
+          },
 
           paddingTop: 8,
-
           paddingBottom: 8,
         },
 
+        tabBarActiveTintColor: "#FFFFFF",
+
+        tabBarInactiveTintColor: "rgba(255,255,255,0.72)",
+
         tabBarLabelStyle: {
-          ...THEME.typography.navLabel,
+          fontSize: 10,
+          fontWeight: "600",
+          marginTop: 2,
         },
 
-        tabBarIcon: ({
-          focused,
-          color,
-        }) => {
-          let icon = "ellipse";
+        tabBarIcon: ({ focused, color }) => {
+          let icon;
 
           switch (route.name) {
             case "Dashboard":
-              icon = focused
-                ? "grid"
-                : "grid-outline";
+              icon = focused ? "home" : "home-outline";
               break;
 
             case "Employees":
-              icon = focused
-                ? "people"
-                : "people-outline";
+              icon = focused ? "people" : "people-outline";
               break;
 
             case "Attendance":
@@ -86,6 +86,9 @@ export default function AdminBottomNavigator() {
                 ? "settings"
                 : "settings-outline";
               break;
+
+            default:
+              icon = "ellipse";
           }
 
           return (
@@ -101,26 +104,41 @@ export default function AdminBottomNavigator() {
       <Tab.Screen
         name="Dashboard"
         component={AdminDashboard}
+        options={{
+          tabBarLabel: "Home",
+        }}
       />
 
       <Tab.Screen
         name="Employees"
         component={EmployeesScreen}
+        options={{
+          tabBarLabel: "Staff",
+        }}
       />
 
       <Tab.Screen
         name="Attendance"
         component={AttendanceScreen}
+        options={{
+          tabBarLabel: "Attendance",
+        }}
       />
 
       <Tab.Screen
         name="Analytics"
         component={AnalyticsScreen}
+        options={{
+          tabBarLabel: "Analytics",
+        }}
       />
 
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
+        options={{
+          tabBarLabel: "Settings",
+        }}
       />
     </Tab.Navigator>
   );
