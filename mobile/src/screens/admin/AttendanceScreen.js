@@ -10,15 +10,16 @@ import {
 
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminSearchBar from "../../components/admin/AdminSearchBar";
+import DashboardStatCard from "../../components/admin/DashboardStatCard";
 
 import THEME from "../../constants/theme";
 
-export default function EmployeesScreen() {
+export default function AttendanceScreen() {
   const [search, setSearch] = useState("");
 
   return (
     <SafeAreaView style={styles.container}>
-      <AdminHeader title="Employees" />
+      <AdminHeader title="Attendance" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -27,27 +28,52 @@ export default function EmployeesScreen() {
         <AdminSearchBar
           value={search}
           onChangeText={setSearch}
-          placeholder="Search employees..."
+          placeholder="Search employee..."
         />
 
-        {/* Summary */}
+        {/* Attendance Summary */}
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>
-            254
-          </Text>
+        <View style={styles.grid}>
+          <DashboardStatCard
+            title="Present"
+            value="228"
+            subtitle="Today's Present"
+            icon="checkmark-circle-outline"
+            iconColor={THEME.colors.success}
+            iconBackground={THEME.colors.greenBg}
+            trend="+3%"
+          />
 
-          <Text style={styles.summaryTitle}>
-            Total Employees
-          </Text>
+          <DashboardStatCard
+            title="Absent"
+            value="18"
+            subtitle="Today's Absent"
+            icon="close-circle-outline"
+            iconColor={THEME.colors.danger}
+            iconBackground={THEME.colors.redBg}
+          />
 
-          <Text style={styles.summarySubtitle}>
-            228 Active • 18 On Leave • 8 Inactive
-          </Text>
+          <DashboardStatCard
+            title="Late"
+            value="8"
+            subtitle="Late Arrivals"
+            icon="time-outline"
+            iconColor={THEME.colors.warning}
+            iconBackground={THEME.colors.yellowBg}
+          />
+
+          <DashboardStatCard
+            title="On Leave"
+            value="12"
+            subtitle="Approved Leave"
+            icon="airplane-outline"
+            iconColor={THEME.colors.primary}
+            iconBackground={THEME.colors.blueBg}
+          />
         </View>
 
-        {/* Employee List */}
-                <View style={styles.employeeCard}>
+        {/* Employee Attendance */}
+                <View style={styles.attendanceCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>RK</Text>
           </View>
@@ -61,8 +87,8 @@ export default function EmployeesScreen() {
               EMP-1001
             </Text>
 
-            <Text style={styles.employeeRole}>
-              Software Engineer • Engineering
+            <Text style={styles.timeText}>
+              In: 09:02 AM • Out: 06:08 PM
             </Text>
           </View>
 
@@ -76,18 +102,14 @@ export default function EmployeesScreen() {
                 },
               ]}
             >
-              <Text style={styles.statusText}>
-                Active
+              <Text style={styles.presentText}>
+                Present
               </Text>
             </View>
-
-            <Text style={styles.chevron}>
-              ›
-            </Text>
           </View>
         </View>
 
-        <View style={styles.employeeCard}>
+        <View style={styles.attendanceCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>PS</Text>
           </View>
@@ -101,8 +123,8 @@ export default function EmployeesScreen() {
               EMP-1002
             </Text>
 
-            <Text style={styles.employeeRole}>
-              UI/UX Designer • Design
+            <Text style={styles.timeText}>
+              In: 09:38 AM • Out: --
             </Text>
           </View>
 
@@ -118,24 +140,20 @@ export default function EmployeesScreen() {
             >
               <Text
                 style={[
-                  styles.statusText,
+                  styles.presentText,
                   {
                     color:
                       THEME.colors.warning,
                   },
                 ]}
               >
-                Leave
+                Late
               </Text>
             </View>
-
-            <Text style={styles.chevron}>
-              ›
-            </Text>
           </View>
         </View>
 
-        <View style={styles.employeeCard}>
+        <View style={styles.attendanceCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>AJ</Text>
           </View>
@@ -149,48 +167,8 @@ export default function EmployeesScreen() {
               EMP-1003
             </Text>
 
-            <Text style={styles.employeeRole}>
-              HR Manager • Human Resources
-            </Text>
-          </View>
-
-          <View style={styles.rightSection}>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    THEME.colors.greenBg,
-                },
-              ]}
-            >
-              <Text style={styles.statusText}>
-                Active
-              </Text>
-            </View>
-
-            <Text style={styles.chevron}>
-              ›
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.employeeCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>VN</Text>
-          </View>
-
-          <View style={styles.employeeInfo}>
-            <Text style={styles.employeeName}>
-              Vikram Nair
-            </Text>
-
-            <Text style={styles.employeeId}>
-              EMP-1004
-            </Text>
-
-            <Text style={styles.employeeRole}>
-              QA Engineer • Testing
+            <Text style={styles.timeText}>
+              No Attendance Recorded
             </Text>
           </View>
 
@@ -206,20 +184,60 @@ export default function EmployeesScreen() {
             >
               <Text
                 style={[
-                  styles.statusText,
+                  styles.presentText,
                   {
                     color:
                       THEME.colors.danger,
                   },
                 ]}
               >
-                Inactive
+                Absent
               </Text>
             </View>
+          </View>
+        </View>
 
-            <Text style={styles.chevron}>
-              ›
+        <View style={styles.attendanceCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>VN</Text>
+          </View>
+
+          <View style={styles.employeeInfo}>
+            <Text style={styles.employeeName}>
+              Vikram Nair
             </Text>
+
+            <Text style={styles.employeeId}>
+              EMP-1004
+            </Text>
+
+            <Text style={styles.timeText}>
+              Approved Leave
+            </Text>
+          </View>
+
+          <View style={styles.rightSection}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    THEME.colors.blueBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.presentText,
+                  {
+                    color:
+                      THEME.colors.primary,
+                  },
+                ]}
+              >
+                Leave
+              </Text>
+            </View>
           </View>
         </View>
                 <View style={{ height: 110 }} />
@@ -240,50 +258,15 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 
-  summaryCard: {
-    backgroundColor: THEME.colors.card,
-
-    borderRadius: THEME.radius.card,
-
-    padding: THEME.spacing.cardPadding,
-
-    marginBottom: THEME.spacing.sectionGap,
-
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-
-    alignItems: "center",
-
-    ...THEME.shadows.md,
-  },
-
-  summaryNumber: {
-    ...THEME.typography.statNumber,
-
-    color: THEME.colors.primary,
-  },
-
-  summaryTitle: {
-    marginTop: 6,
-
-    ...THEME.typography.cardTitle,
-
-    color: THEME.colors.text,
-  },
-
-  summarySubtitle: {
-    marginTop: 6,
-
-    ...THEME.typography.caption,
-
-    color: THEME.colors.textSecondary,
-
-    textAlign: "center",
-  },
-
-  employeeCard: {
+  grid: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: THEME.spacing.sectionGap,
+  },
 
+  attendanceCard: {
+    flexDirection: "row",
     alignItems: "center",
 
     backgroundColor: THEME.colors.card,
@@ -295,7 +278,6 @@ const styles = StyleSheet.create({
     marginBottom: THEME.spacing.cardGap,
 
     borderWidth: 1,
-
     borderColor: THEME.colors.border,
 
     ...THEME.shadows.sm,
@@ -303,83 +285,57 @@ const styles = StyleSheet.create({
 
   avatar: {
     width: 56,
-
     height: 56,
-
     borderRadius: 28,
 
     backgroundColor: THEME.colors.blueBg,
 
     justifyContent: "center",
-
     alignItems: "center",
   },
 
   avatarText: {
     fontSize: 18,
-
     fontWeight: "700",
-
     color: THEME.colors.primary,
   },
 
   employeeInfo: {
     flex: 1,
-
     marginLeft: 16,
   },
 
   employeeName: {
     ...THEME.typography.cardTitle,
-
     color: THEME.colors.text,
   },
 
   employeeId: {
     marginTop: 2,
-
     ...THEME.typography.caption,
-
     color: THEME.colors.textSecondary,
   },
 
-  employeeRole: {
+  timeText: {
     marginTop: 6,
-
     ...THEME.typography.body,
-
     color: THEME.colors.textSecondary,
   },
 
   rightSection: {
-    alignItems: "flex-end",
-
     justifyContent: "center",
+    alignItems: "flex-end",
   },
 
   statusBadge: {
-    paddingHorizontal: 12,
-
-    paddingVertical: 5,
-
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 20,
   },
 
-  statusText: {
+  presentText: {
     fontSize: 12,
-
     fontWeight: "700",
-
     color: THEME.colors.success,
-  },
-
-  chevron: {
-    marginTop: 10,
-
-    fontSize: 24,
-
-    color: THEME.colors.textLight,
-
-    fontWeight: "600",
   },
 });

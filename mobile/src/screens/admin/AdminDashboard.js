@@ -1,154 +1,191 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
+
 import {
+  SafeAreaView,
   ScrollView,
   StyleSheet,
-  RefreshControl,
-  Alert,
   View,
 } from "react-native";
 
-import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "@react-navigation/native";
+import AdminHeader from "../../components/admin/AdminHeader";
+import AdminSearchBar from "../../components/admin/AdminSearchBar";
+import DashboardStatCard from "../../components/admin/DashboardStatCard";
+import QuickActionCard from "../../components/admin/QuickActionCard";
+import ActivityCard from "../../components/admin/ActivityCard";
 
-import { fetchDashboard, adminLogout } from "../../api/client";
-import { useAuth } from "../../store/AuthContext";
-import { COLORS } from "../../config";
-
-import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import DashboardStats from "../../components/dashboard/DashboardStats";
-import ModuleGrid from "../../components/dashboard/ModuleGrid";
-import PendingCard from "../../components/dashboard/PendingCard";
-import AttendanceCard from "../../components/dashboard/AttendanceCard";
-import DashboardActivity from "../../components/dashboard/DashboardActivity";
-
-import SectionHeader from "../../components/ui/SectionHeader";
-import EmptyState from "../../components/ui/EmptyState";
-import LoadingSkeleton from "../../components/ui/LoadingSkeleton";
+import THEME from "../../constants/theme";
 
 export default function AdminDashboard() {
+  const [search, setSearch] = useState("");
 
-    const { signOut } = useAuth();
+  return (
+    <SafeAreaView style={styles.container}>
+      <AdminHeader title="Dashboard" />
 
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [data, setData] = useState(null);
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {/* Search */}
 
-    const loadDashboard = async () => {
-        try {
-            const res = await fetchDashboard();
-            if (res.data.ok) {
-                setData(res.data);
-            }
-        } catch {
-            Alert.alert("Error", "Unable to load dashboard.");
-        }
-        setLoading(false);
-        setRefreshing(false);
-    };
+        <AdminSearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search employees..."
+        />
 
-    useFocusEffect(
-        useCallback(() => {
-            loadDashboard();
-        }, [])
-    );
+        {/* Statistics */}
 
-    const handleLogout = async () => {
-        try {
-            await adminLogout();
-        } catch {}
-        signOut();
-    };
+        <View style={styles.grid}>
+          <DashboardStatCard
+            title="Employees"
+            value="254"
+            subtitle="Total Employees"
+            icon="people-outline"
+            iconColor={THEME.colors.employee}
+            iconBackground={THEME.colors.blueBg}
+            trend="+12%"
+          />
 
-    if (loading) {
-        return (
-            <LinearGradient
-                colors={COLORS.adminBg}
-                style={styles.loadingContainer}
-            >
-                <LoadingSkeleton />
-            </LinearGradient>
-        );
-    }
+          <DashboardStatCard
+            title="Present"
+            value="228"
+            subtitle="Today's Attendance"
+            icon="checkmark-circle-outline"
+            iconColor={THEME.colors.success}
+            iconBackground={THEME.colors.greenBg}
+            trend="+3%"
+          />
 
-    return (
-        <LinearGradient
-            colors={["#F6F9FF", "#EDF4FF", "#E8F0FF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.container}
-        >
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.content}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        tintColor="#fff"
-                        onRefresh={() => {
-                            setRefreshing(true);
-                            loadDashboard();
-                        }}
-                    />
-                }
-            >
-                <DashboardHeader
-                    date={data?.today}
-                    onLogout={handleLogout}
-                />
+          <DashboardStatCard
+            title="Absent"
+            value="18"
+            subtitle="Not Checked In"
+            icon="close-circle-outline"
+            iconColor={THEME.colors.danger}
+            iconBackground={THEME.colors.redBg}
+          />
 
-                <DashboardStats
-                    total={data?.total}
-                    present={data?.present}
-                    absent={data?.absent}
-                    late={data?.late}
-                />
+          <DashboardStatCard
+            title="Payroll"
+            value="₹8.2L"
+            subtitle="This Month"
+            icon="wallet-outline"
+            iconColor={THEME.colors.payroll}
+            iconBackground={THEME.colors.purpleBg}
+          />
+        </View>
 
-                <ModuleGrid />
+        {/* Quick Actions */}
 
-                <PendingCard
-                    pendingLeaves={data?.pending_leaves}
-                    pendingResignations={data?.pending_resignations}
-                />
+                <QuickActionCard
+          title="Add Employee"
+          subtitle="Register a new employee"
+          icon="person-add-outline"
+          iconColor={THEME.colors.primary}
+          iconBackground={THEME.colors.blueBg}
+          onPress={() => {}}
+        />
 
-                
+        <QuickActionCard
+          title="Attendance"
+          subtitle="Manage today's attendance"
+          icon="calendar-outline"
+          iconColor={THEME.colors.success}
+          iconBackground={THEME.colors.greenBg}
+          onPress={() => {}}
+        />
 
-{data?.today_rows?.length > 0
-  ? data.today_rows.map(employee => (
-      <AttendanceCard
-        key={employee.employee_id}
-        employee={employee}
-      />
-    ))
-  : (
-      <EmptyState
-        icon="people-outline"
-        title="No Attendance"
-        subtitle="No employees have checked in today."
-      />
-    )
-}
+        <QuickActionCard
+          title="Payroll"
+          subtitle="Generate employee salaries"
+          icon="wallet-outline"
+          iconColor={THEME.colors.payroll}
+          iconBackground={THEME.colors.purpleBg}
+          onPress={() => {}}
+        />
 
-                <DashboardActivity />
+        <QuickActionCard
+          title="Leave Requests"
+          subtitle="Review pending leave requests"
+          icon="document-text-outline"
+          iconColor={THEME.colors.warning}
+          iconBackground={THEME.colors.yellowBg}
+          onPress={() => {}}
+        />
 
-                <View style={{ height: 40 }} />
+        {/* Recent Activities */}
 
-            </ScrollView>
-        </LinearGradient>
-    );
+        <ActivityCard
+          icon="person-add-outline"
+          iconColor={THEME.colors.primary}
+          iconBackground={THEME.colors.blueBg}
+          title="New Employee Registered"
+          description="Rahul Sharma joined the Engineering department."
+          time="5 minutes ago"
+        />
+
+        <ActivityCard
+          icon="checkmark-circle-outline"
+          iconColor={THEME.colors.success}
+          iconBackground={THEME.colors.greenBg}
+          title="Attendance Updated"
+          description="Today's attendance has been synchronized successfully."
+          time="18 minutes ago"
+        />
+
+        <ActivityCard
+          icon="document-text-outline"
+          iconColor={THEME.colors.warning}
+          iconBackground={THEME.colors.yellowBg}
+          title="Leave Request Submitted"
+          description="Priya submitted a Casual Leave request."
+          time="34 minutes ago"
+        />
+
+        <ActivityCard
+          icon="wallet-outline"
+          iconColor={THEME.colors.payroll}
+          iconBackground={THEME.colors.purpleBg}
+          title="Payroll Generated"
+          description="June payroll generated successfully."
+          time="1 hour ago"
+        />
+
+        <View
+          style={{
+            height: 120,
+          }}
+        />
+      </ScrollView>
+          </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingTop: 55,
-        paddingBottom: 110,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: THEME.colors.background,
+  },
+
+  content: {
+    paddingHorizontal:
+      THEME.spacing.screenHorizontal,
+
+    paddingTop:
+      THEME.spacing.screenVertical,
+
+    paddingBottom: 30,
+  },
+
+  grid: {
+    flexDirection: "row",
+
+    flexWrap: "wrap",
+
+    justifyContent: "space-between",
+
+    marginBottom:
+      THEME.spacing.sectionGap,
+  },
 });
