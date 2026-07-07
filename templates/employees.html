@@ -726,6 +726,7 @@
           </div>
         </div>
         <canvas id="empCamCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
+        <div id="empCamError" style="display:none;padding:14px 16px;background:#7f1d1d;border-radius:10px;color:#fecaca;font-size:13px;margin-bottom:12px;text-align:left;line-height:1.6;"></div>
         <div style="display:flex;gap:10px;">
           <button id="empCaptureBtn" onclick="empCapturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
           <button id="empRetakeBtn"  onclick="empRetakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
@@ -1459,12 +1460,21 @@
         document.getElementById('empCaptureBtn').style.display = 'inline-block';
         document.getElementById('empRetakeBtn').style.display  = 'none';
         document.getElementById('empUseBtn').style.display     = 'none';
+        document.getElementById('empCamError').style.display   = 'none';
         try {
           _empCamStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
           document.getElementById('empCamVideo').srcObject = _empCamStream;
         } catch(e) {
-          alert('Camera not accessible: '+e.message+'\nUse Upload Photo instead.');
-          closeEmpCameraModal();
+          var errDiv = document.getElementById('empCamError');
+          if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+            errDiv.innerHTML = '<strong>Camera blocked by browser.</strong><br>'
+              + 'Click the <strong>lock icon</strong> in the address bar &rarr; <strong>Camera</strong> &rarr; <strong>Allow</strong>, then click the Camera button again.<br>'
+              + 'Or use <strong>Upload Photo</strong> to select an image from your device.';
+          } else {
+            errDiv.innerHTML = '<strong>Camera not available:</strong> ' + e.message + '<br>Use Upload Photo instead.';
+          }
+          errDiv.style.display = 'block';
+          document.getElementById('empCaptureBtn').style.display = 'none';
         }
       }
       function empCapturePhoto() {
