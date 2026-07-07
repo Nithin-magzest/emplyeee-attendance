@@ -66,6 +66,41 @@
         border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700;
         box-shadow: 0 2px 6px rgba(239,68,68,0.4);
       }
+      /* ── COMPANY LIST PANEL ── */
+      .co-panel {
+        margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
+        padding-top: 12px;
+      }
+      .co-panel-label {
+        font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 0 10px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;
+      }
+      .co-panel-label a {
+        color: rgba(255,255,255,0.35); text-decoration: none; font-size: 10px;
+        transition: color 0.15s;
+      }
+      .co-panel-label a:hover { color: rgba(255,255,255,0.7); }
+      .co-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+      .co-list::-webkit-scrollbar { width: 3px; }
+      .co-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+      .co-entry {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px; border-radius: 8px;
+        transition: background 0.15s; text-decoration: none;
+      }
+      .co-entry:hover { background: rgba(255,255,255,0.08); }
+      .co-dot {
+        width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 800; letter-spacing: 0;
+        background: rgba(96,165,250,0.18); color: #93c5fd;
+      }
+      .co-info { min-width: 0; }
+      .co-name { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .co-code { font-size: 10px; color: rgba(255,255,255,0.38); margin-top: 1px; }
+      .co-empty { font-size: 11px; color: rgba(255,255,255,0.3); padding: 6px 10px; }
+
       .sidebar-footer {
         margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4);
         padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08);
@@ -318,6 +353,28 @@
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
+      <div class="co-panel">
+        <div class="co-panel-label">
+          <span>Companies</span>
+          <a href="/companies" title="Manage companies"><i class="ti ti-settings u-fs-10"></i></a>
+        </div>
+        <div class="co-list">
+          {% if all_companies %}
+            {% for c in all_companies %}
+            <a class="co-entry" href="/companies">
+              <div class="co-dot">{{ (c.code or c.name[:2]) | upper }}</div>
+              <div class="co-info">
+                <div class="co-name">{{ c.name }}</div>
+                {% if c.code %}<div class="co-code">{{ c.code }}</div>{% endif %}
+              </div>
+            </a>
+            {% endfor %}
+          {% else %}
+            <div class="co-empty">No companies yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
       <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
 
     </div>
