@@ -72,15 +72,15 @@
 <body>
 <nav class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -89,45 +89,45 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;"/>
+  <hr class="nav-sep u-mt-12"/>
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item active" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-  <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
 </nav>
 
 <div class="main">
   <div class="page-header">
-    <h1><i class="ti ti-chart-bar" style="color:#3b82f6;"></i> HR Analytics</h1>
+    <h1><i class="ti ti-chart-bar u-c-3b82f6"></i> HR Analytics</h1>
     <p>Workforce insights and attendance overview</p>
   </div>
 
   <div class="stat-grid">
     <div class="stat-card">
-      <div class="stat-icon" style="background:#eff6ff;color:#3b82f6;"><i class="ti ti-users"></i></div>
+      <div class="stat-icon u-bg-eff6ff u-c-3b82f6"><i class="ti ti-users"></i></div>
       <div class="stat-label">Total Employees</div>
       <div class="stat-val">{{ total_employees }}</div>
       <div class="stat-sub">+{{ new_this_month }} this month</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:#f0fdf4;color:#22c55e;"><i class="ti ti-user-check"></i></div>
+      <div class="stat-icon u-bg-f0fdf4 u-c-22c55e"><i class="ti ti-user-check"></i></div>
       <div class="stat-label">Present Today</div>
       <div class="stat-val">{{ today_present }}</div>
       <div class="stat-sub">{{ today_absent }} absent</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:#fefce8;color:#f59e0b;"><i class="ti ti-user-plus"></i></div>
+      <div class="stat-icon u-bg-fefce8 u-c-f59e0b"><i class="ti ti-user-plus"></i></div>
       <div class="stat-label">New This Month</div>
       <div class="stat-val">{{ new_this_month }}</div>
       <div class="stat-sub">joined this month</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:#fdf4ff;color:#a855f7;"><i class="ti ti-chart-line"></i></div>
+      <div class="stat-icon u-bg-fdf4ff u-c-a855f7"><i class="ti ti-chart-line"></i></div>
       <div class="stat-label">Avg Attendance</div>
       <div class="stat-val">{{ avg_attendance_pct }}%</div>
       <div class="stat-sub">this month</div>
@@ -135,21 +135,21 @@
   </div>
 
   <!-- Smart Alerts Panel -->
-  <div style="margin-bottom:20px;">
-    <div class="chart-card full" style="padding:20px 24px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;">
-            <i class="ti ti-bell-ringing" style="color:#fff;font-size:17px;"></i>
+  <div class="u-mb-20">
+    <div class="chart-card full u-p-20-24">
+      <div class="u-d-flex u-ai-center u-jc-space-between u-mb-16">
+        <div class="u-d-flex u-ai-center u-gap-10">
+          <div class="u-w-36 u-h-36 u-br-10 u-bg-linear-gradienfd6b85 u-d-flex u-ai-center u-jc-center">
+            <i class="ti ti-bell-ringing u-c-fff u-fs-17"></i>
           </div>
           <div>
-            <div style="font-size:15px;font-weight:800;color:#1e293b;">Smart Alerts</div>
-            <div style="font-size:11px;color:#94a3b8;">Auto-detected anomalies &amp; action items</div>
+            <div class="u-fs-15 u-fw-800 u-c-1e293b">Smart Alerts</div>
+            <div class="u-fs-11 u-c-94a3b8">Auto-detected anomalies &amp; action items</div>
           </div>
         </div>
-        <span style="font-size:11px;font-weight:700;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;padding:4px 12px;border-radius:20px;">{{ smart_alerts|length }} alert{{ 's' if smart_alerts|length != 1 else '' }}</span>
+        <span class="u-fs-11 u-fw-700 u-bg-eff6ff u-c-3b82f6 u-bd-1-solid-bfdbfe u-p-4-12 u-br-20">{{ smart_alerts|length }} alert{{ 's' if smart_alerts|length != 1 else '' }}</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;">
+      <div class="u-d-grid u-gtc-repeatauto-fil3032fd u-gap-10">
         {% for alert in smart_alerts %}
         {% if alert.level == 'danger' %}
           {% set bg='#fff1f2' %}{% set border='#fecdd3' %}{% set ic='#ef4444' %}{% set badge_bg='#fee2e2' %}{% set badge_c='#b91c1c' %}{% set badge='Critical' %}
@@ -161,7 +161,7 @@
           {% set bg='#eff6ff' %}{% set border='#bfdbfe' %}{% set ic='#3b82f6' %}{% set badge_bg='#dbeafe' %}{% set badge_c='#1d4ed8' %}{% set badge='Info' %}
         {% endif %}
         {% if alert.link %}
-        <a href="{{ alert.link }}" style="text-decoration:none;">
+        <a class="u-tdec-none" href="{{ alert.link }}">
         {% endif %}
         <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
           {% if alert.link %}cursor:pointer;transition:all .18s;{% endif %}"
@@ -172,11 +172,11 @@
           <div style="width:34px;height:34px;border-radius:9px;background:{{ badge_bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="ti {{ alert.icon }}" style="color:{{ ic }};font-size:16px;"></i>
           </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;color:#1e293b;line-height:1.4;">{{ alert.title }}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:3px;">{{ alert.detail }}</div>
+          <div class="u-fx-1 u-minw-0">
+            <div class="u-fs-13 u-fw-700 u-c-1e293b u-lh-1d4">{{ alert.title }}</div>
+            <div class="u-fs-11 u-c-64748b u-mt-3">{{ alert.detail }}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <div class="u-d-flex u-ai-center u-gap-6 u-fxs-0">
             <span style="font-size:10px;font-weight:700;background:{{ badge_bg }};color:{{ badge_c }};padding:2px 9px;border-radius:20px;white-space:nowrap;">{{ badge }}</span>
             {% if alert.link %}<i class="ti ti-arrow-right" style="color:{{ ic }};font-size:14px;"></i>{% endif %}
           </div>
@@ -191,42 +191,42 @@
 
   <div class="charts-grid">
     <div class="chart-card full">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div class="chart-title" style="margin-bottom:0;"><i class="ti ti-chart-bar" style="color:#3b82f6;"></i> Last 6 Months Attendance Rate</div>
-        <div style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:600;">
-          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#16a34a;display:inline-block;"></span> ≥80% Good</span>
-          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#f59e0b;display:inline-block;"></span> 60–80% Average</span>
-          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:#ef4444;display:inline-block;"></span> &lt;60% Poor</span>
+      <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
+        <div class="chart-title u-mb-0"><i class="ti ti-chart-bar u-c-3b82f6"></i> Last 6 Months Attendance Rate</div>
+        <div class="u-d-flex u-ai-center u-gap-12 u-fs-11 u-fw-600">
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-16a34a u-d-inline-block"></span> ≥80% Good</span>
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-f59e0b u-d-inline-block"></span> 60–80% Average</span>
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-ef4444 u-d-inline-block"></span> &lt;60% Poor</span>
         </div>
       </div>
       <div class="chart-wrap tall"><canvas id="monthlyChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-ticket" style="color:#f59e0b;"></i> Leave Type Breakdown (This Year)</div>
+      <div class="chart-title"><i class="ti ti-ticket u-c-f59e0b"></i> Leave Type Breakdown (This Year)</div>
       <div class="chart-wrap"><canvas id="leaveChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-gender-bigender" style="color:#22c55e;"></i> Gender Distribution</div>
+      <div class="chart-title"><i class="ti ti-gender-bigender u-c-22c55e"></i> Gender Distribution</div>
       <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
     </div>
   </div>
 
   <div class="bottom-grid">
     <div class="chart-card full">
-      <div class="chart-title"><i class="ti ti-trophy" style="color:#f59e0b;"></i> Top 5 Employees by Attendance (This Month)</div>
+      <div class="chart-title"><i class="ti ti-trophy u-c-f59e0b"></i> Top 5 Employees by Attendance (This Month)</div>
       {% if top_present %}
       <table>
         <thead><tr><th>#</th><th>Employee</th><th>ID</th><th>Attendance %</th></tr></thead>
         <tbody>
           {% for e in top_present %}
           <tr>
-            <td style="color:#94a3b8;font-weight:700;">{{ loop.index }}</td>
+            <td class="u-c-94a3b8 u-fw-700">{{ loop.index }}</td>
             <td>{{ e.name }}</td>
-            <td style="color:#64748b;">{{ e.employee_id }}</td>
+            <td class="u-c-64748b">{{ e.employee_id }}</td>
             <td>
-              <div style="display:flex;align-items:center;gap:8px;">
+              <div class="u-d-flex u-ai-center u-gap-8">
                 <div class="pct-bar"><div class="pct-fill" style="width:{{ [e.pct,100]|min }}%;"></div></div>
-                <span style="font-weight:700;color:#1e293b;">{{ e.pct }}%</span>
+                <span class="u-fw-700 u-c-1e293b">{{ e.pct }}%</span>
               </div>
             </td>
           </tr>
@@ -240,58 +240,58 @@
   </div>
 
   <!-- ROW 3: Heatmap + Late Trend -->
-  <div class="charts-grid" style="margin-top:16px;">
+  <div class="charts-grid u-mt-16">
     <!-- Attendance Heatmap -->
-    <div class="chart-card full" style="padding:24px 28px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 2px 16px rgba(99,102,241,.06);">
+    <div class="chart-card full u-p-24-28 u-bg-fff u-bd-1-solid-e2e8f0 u-shad-0-2-16-rgba99_fe98b1">
 
       <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(99,102,241,.3);">
-            <i class="ti ti-calendar-stats" style="color:#fff;font-size:20px;"></i>
+      <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-12 u-mb-20">
+        <div class="u-d-flex u-ai-center u-gap-12">
+          <div class="u-w-42 u-h-42 u-br-12 u-bg-linear-gradienfd6b85 u-d-flex u-ai-center u-jc-center u-shad-0-4-12-rgba99_91c004">
+            <i class="ti ti-calendar-stats u-c-fff u-fs-20"></i>
           </div>
           <div>
-            <div style="font-size:15px;font-weight:800;color:#1e293b;">Attendance Heatmap</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">Last 35 days · {{ total_employees }} employees</div>
+            <div class="u-fs-15 u-fw-800 u-c-1e293b">Attendance Heatmap</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-1">Last 35 days · {{ total_employees }} employees</div>
           </div>
         </div>
         <!-- Legend -->
-        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#64748b;font-weight:500;">
+        <div class="u-d-flex u-ai-center u-gap-8 u-fs-11 u-c-64748b u-fw-500">
           <span>Less</span>
-          <div style="display:flex;gap:3px;align-items:center;">
-            <span style="width:16px;height:16px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;display:inline-block;"></span>
-            <span style="width:16px;height:16px;border-radius:4px;background:#fca5a5;display:inline-block;"></span>
-            <span style="width:16px;height:16px;border-radius:4px;background:#fde68a;display:inline-block;"></span>
-            <span style="width:16px;height:16px;border-radius:4px;background:#86efac;display:inline-block;"></span>
-            <span style="width:16px;height:16px;border-radius:4px;background:#16a34a;display:inline-block;"></span>
+          <div class="u-d-flex u-gap-3 u-ai-center">
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-fca5a5 u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-fde68a u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-86efac u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-16a34a u-d-inline-block"></span>
           </div>
           <span>More</span>
         </div>
       </div>
 
       <!-- Grid -->
-      <div style="display:flex;gap:0;overflow-x:auto;">
+      <div class="u-d-flex u-gap-0 u-ovx-auto">
         <!-- Day labels -->
-        <div style="display:grid;grid-template-rows:repeat(7,58px);gap:5px;margin-right:10px;flex-shrink:0;padding-top:28px;">
+        <div class="u-d-grid u-gridte-repeat7_58 u-gap-5 u-mr-10 u-fxs-0 u-pt-28">
           {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-          <div style="font-size:10px;color:#94a3b8;font-weight:700;display:flex;align-items:center;height:58px;letter-spacing:.3px;">{{ day }}</div>
+          <div class="u-fs-10 u-c-94a3b8 u-fw-700 u-d-flex u-ai-center u-h-58 u-ls-d3">{{ day }}</div>
           {% endfor %}
         </div>
 
         <!-- Weeks wrapper with labels -->
-        <div style="display:flex;flex-direction:column;gap:0;flex:1;">
+        <div class="u-d-flex u-fxd-column u-gap-0 u-fx-1">
           <!-- Week labels -->
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:5px;">
+          <div class="u-d-grid u-gtc-repeat5_1fr u-gap-5 u-mb-5">
             {% for w in range(1,6) %}
             {% set wi = (w-1)*7 %}
-            <div style="font-size:10px;color:#94a3b8;font-weight:700;text-align:center;letter-spacing:.3px;">
+            <div class="u-fs-10 u-c-94a3b8 u-fw-700 u-ta-center u-ls-d3">
               {% if wi < heatmap_data|length %}Wk {{ w }}{% endif %}
             </div>
             {% endfor %}
           </div>
 
           <!-- Cells: 5 columns × 7 rows -->
-          <div style="display:grid;grid-template-rows:repeat(7,58px);grid-template-columns:repeat(5,1fr);grid-auto-flow:column;gap:5px;">
+          <div class="u-d-grid u-gridte-repeat7_58 u-gtc-repeat5_1fr u-gridau-column u-gap-5">
             {% for d in heatmap_data %}
             {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
             {% set absent = total_employees - d.count %}
@@ -321,62 +321,62 @@
       <!-- Summary stats -->
       {% set total_present = heatmap_data | sum(attribute='count') %}
       {% set best_day = heatmap_data | max(attribute='count') %}
-      <div style="display:flex;gap:24px;margin-top:18px;padding-top:16px;border-top:1px solid #f1f5f9;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-users" style="font-size:15px;color:#3b82f6;"></i></div>
-          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Total Check-ins</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ total_present }}</div></div>
+      <div class="u-d-flex u-gap-24 u-mt-18 u-pt-16 u-bdt-1-solid-f1f5f9 u-fxw-wrap">
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-eff6ff u-d-flex u-ai-center u-jc-center"><i class="ti ti-users u-fs-15 u-c-3b82f6"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Total Check-ins</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ total_present }}</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:32px;height:32px;border-radius:8px;background:#fdf4ff;display:flex;align-items:center;justify-content:center;"><i class="ti ti-trending-up" style="font-size:15px;color:#a855f7;"></i></div>
-          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Best Single Day</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ best_day.count }} <span style="font-size:11px;color:#94a3b8;font-weight:500;">on {{ best_day.date }}</span></div></div>
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-fdf4ff u-d-flex u-ai-center u-jc-center"><i class="ti ti-trending-up u-fs-15 u-c-a855f7"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Best Single Day</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ best_day.count }} <span class="u-fs-11 u-c-94a3b8 u-fw-500">on {{ best_day.date }}</span></div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:32px;height:32px;border-radius:8px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="ti ti-calendar-check" style="font-size:15px;color:#16a34a;"></i></div>
-          <div><div style="font-size:11px;color:#94a3b8;font-weight:600;">Avg / Day</div><div style="font-size:16px;font-weight:800;color:#1e293b;">{{ ((total_present / 35) | round(1)) }}</div></div>
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center"><i class="ti ti-calendar-check u-fs-15 u-c-16a34a"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Avg / Day</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ ((total_present / 35) | round(1)) }}</div></div>
         </div>
       </div>
 
       <!-- Tooltip -->
-      <div id="hmTooltip" style="display:none;position:fixed;background:#1e293b;color:#fff;font-size:12px;padding:10px 16px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.25);z-index:9999;pointer-events:none;border:1px solid #334155;min-width:160px;">
-        <div id="hmDate" style="font-weight:700;color:#818cf8;font-size:13px;"></div>
-        <div id="hmCount" style="margin-top:4px;color:#e2e8f0;"></div>
-        <div id="hmPct" style="margin-top:2px;color:#94a3b8;font-size:11px;"></div>
+      <div class="u-d-none u-pos-fixed u-bg-1e293b u-c-fff u-fs-12 u-p-10-16 u-br-10 u-shad-0-8-28-rgba0_0_0_d25 u-zi-9999 u-pe-none u-bd-1-solid-334155 u-minw-160" id="hmTooltip">
+        <div class="u-fw-700 u-c-818cf8 u-fs-13" id="hmDate"></div>
+        <div class="u-mt-4 u-c-e2e8f0" id="hmCount"></div>
+        <div class="u-mt-2 u-c-94a3b8 u-fs-11" id="hmPct"></div>
       </div>
     </div>
 
     <!-- Late Arrival Trend -->
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-clock-exclamation" style="color:#ef4444;"></i> Late Arrivals — Last 14 Days</div>
+      <div class="chart-title"><i class="ti ti-clock-exclamation u-c-ef4444"></i> Late Arrivals — Last 14 Days</div>
       <div class="chart-wrap tall"><canvas id="lateChart"></canvas></div>
     </div>
 
     <!-- Retention Bands -->
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-users-group" style="color:#a855f7;"></i> Staff Tenure Overview</div>
+      <div class="chart-title"><i class="ti ti-users-group u-c-a855f7"></i> Staff Tenure Overview</div>
       <div class="chart-wrap tall"><canvas id="retentionChart"></canvas></div>
     </div>
   </div>
 
   <!-- ROW 4: Department Distribution + Department-wise Attendance Rate side by side -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+  <div class="u-d-grid u-gtc-1fr-1fr u-gap-16 u-mt-16">
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-building" style="color:#6366f1;"></i> Department Distribution</div>
+      <div class="chart-title"><i class="ti ti-building u-c-6366f1"></i> Department Distribution</div>
       <div class="chart-wrap tall"><canvas id="deptChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title"><i class="ti ti-building" style="color:#3b82f6;"></i> Department-wise Attendance Rate — This Month</div>
+      <div class="chart-title"><i class="ti ti-building u-c-3b82f6"></i> Department-wise Attendance Rate — This Month</div>
       {% if dept_attendance %}
-      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+      <div class="u-d-flex u-fxd-column u-gap-12 u-mt-8">
         {% for d in dept_attendance %}
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:130px;font-size:13px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ d.dept }}</div>
-          <div style="flex:1;background:#e2e8f0;border-radius:20px;height:10px;overflow:hidden;">
+        <div class="u-d-flex u-ai-center u-gap-14">
+          <div class="u-w-130 u-fs-13 u-fw-600 u-c-1e293b u-ws-nowrap u-ov-hidden u-tov-ellipsis">{{ d.dept }}</div>
+          <div class="u-fx-1 u-bg-e2e8f0 u-br-20 u-h-10 u-ov-hidden">
             <div style="height:100%;border-radius:20px;width:{{ d.pct }}%;
               background:{% if d.pct >= 90 %}#16a34a{% elif d.pct >= 70 %}#3b82f6{% elif d.pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
               transition:.4s;"></div>
           </div>
-          <div style="width:44px;font-size:13px;font-weight:800;color:#1e293b;text-align:right;">{{ d.pct }}%</div>
-          <div style="font-size:11px;color:#94a3b8;white-space:nowrap;">{{ d.present }}/{{ d.total }}</div>
+          <div class="u-w-44 u-fs-13 u-fw-800 u-c-1e293b u-ta-right">{{ d.pct }}%</div>
+          <div class="u-fs-11 u-c-94a3b8 u-ws-nowrap">{{ d.present }}/{{ d.total }}</div>
         </div>
         {% endfor %}
       </div>
@@ -565,55 +565,54 @@ new Chart(document.getElementById('retentionChart'), {
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

@@ -202,17 +202,17 @@
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div>
       <div class="brand">Admin Panel</div>
       <div class="brand-sub">{{ co.company_name }}</div>
     </div>
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -221,16 +221,16 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;" />
+  <hr class="nav-sep u-mt-12" />
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-  <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px"></i> {{ shift_start }} – {{ shift_end }}</div>
+  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> {{ shift_start }} – {{ shift_end }}</div>
   </div>
 
 <!-- MAIN -->
@@ -306,8 +306,8 @@
       <a class="btn-act btn-idcard-dl" href="/admin_id_card/{{ emp_id }}">
         <i class="ti ti-download"></i> Download ID Card
       </a>
-      <form action="/delete_employee/{{ emp_id }}" method="POST"
-            onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')" style="margin-left:auto">
+      <form class="u-ml-auto" action="/delete_employee/{{ emp_id }}" method="POST"
+            onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')">
         <button type="submit" class="btn-act btn-del">
           <i class="ti ti-trash"></i> Delete
         </button>
@@ -318,22 +318,22 @@
   <!-- STATS -->
   <div class="stats-row">
     <div class="stat-card">
-      <div class="stat-icon"><i class="ti ti-calendar-check" style="color:#1d4ed8"></i></div>
+      <div class="stat-icon"><i class="ti ti-calendar-check u-c-1d4ed8"></i></div>
       <div class="stat-val">{{ total_days or 0 }}</div>
       <div class="stat-lbl">Total Days Present</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="ti ti-circle-check" style="color:#16a34a"></i></div>
+      <div class="stat-icon"><i class="ti ti-circle-check u-c-16a34a"></i></div>
       <div class="stat-val">{{ full_days or 0 }}</div>
       <div class="stat-lbl">Full Days</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="ti ti-clock-half-2" style="color:#b45309"></i></div>
+      <div class="stat-icon"><i class="ti ti-clock-half-2 u-c-b45309"></i></div>
       <div class="stat-val">{{ half_days or 0 }}</div>
       <div class="stat-lbl">Half Days</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="ti ti-clock-exclamation" style="color:#dc2626"></i></div>
+      <div class="stat-icon"><i class="ti ti-clock-exclamation u-c-dc2626"></i></div>
       <div class="stat-val">{{ late_days or 0 }}</div>
       <div class="stat-lbl">Late Arrivals</div>
     </div>
@@ -412,7 +412,7 @@
     <div class="card full">
       <div class="card-title"><i class="ti ti-message-2"></i> About</div>
       <div class="about-box">
-        {% if about_me %}{{ about_me }}{% else %}<span style="color:#94a3b8;font-style:italic">No bio added yet.</span>{% endif %}
+        {% if about_me %}{{ about_me }}{% else %}<span class="u-c-94a3b8 u-fst-italic">No bio added yet.</span>{% endif %}
       </div>
     </div>
 
@@ -420,7 +420,7 @@
     <div class="card">
       <div class="card-title"><i class="ti ti-map-pin"></i> Address</div>
       <div class="info-grid">
-        <div class="info-item" style="grid-column:1/-1">
+        <div class="info-item u-gc-1_-1">
           <label>Street Address</label>
           <div class="v {% if not address %}muted{% endif %}">{{ address or '—' }}</div>
         </div>
@@ -451,7 +451,7 @@
           <label>Relation</label>
           <div class="v {% if not ec_rel %}muted{% endif %}">{{ ec_rel or '—' }}</div>
         </div>
-        <div class="info-item" style="grid-column:1/-1">
+        <div class="info-item u-gc-1_-1">
           <label>Phone</label>
           <div class="v {% if not ec_phone %}muted{% endif %}">{{ ec_phone or '—' }}</div>
         </div>
@@ -493,16 +493,16 @@
     <div class="card">
       <div class="card-title"><i class="ti ti-coin"></i> Salary</div>
       {% if salary_pd and salary_pd > 0 %}
-        <div style="font-size:32px;font-weight:800;color:#15803d;margin:4px 0 2px">₹{{ "%.2f"|format(salary_pd) }}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:10px">Per Day</div>
-        <div style="font-size:13px;color:#64748b">
-          Monthly (~26 days): <strong style="color:#1e293b">₹{{ "%.0f"|format(salary_pd * 26) }}</strong>
+        <div class="u-fs-32 u-fw-800 u-c-15803d u-m-4-0-2">₹{{ "%.2f"|format(salary_pd) }}</div>
+        <div class="u-fs-12 u-c-64748b u-mb-10">Per Day</div>
+        <div class="u-fs-13 u-c-64748b">
+          Monthly (~26 days): <strong class="u-c-1e293b">₹{{ "%.0f"|format(salary_pd * 26) }}</strong>
         </div>
-        <div style="font-size:13px;color:#64748b;margin-top:4px">
-          Annual (~312 days): <strong style="color:#1e293b">₹{{ "%.0f"|format(salary_pd * 312) }}</strong>
+        <div class="u-fs-13 u-c-64748b u-mt-4">
+          Annual (~312 days): <strong class="u-c-1e293b">₹{{ "%.0f"|format(salary_pd * 312) }}</strong>
         </div>
       {% else %}
-        <div style="color:#94a3b8;font-size:13px;padding:8px 0;font-style:italic">Salary not configured.</div>
+        <div class="u-c-94a3b8 u-fs-13 u-p-8-0 u-fst-italic">Salary not configured.</div>
       {% endif %}
     </div>
 
@@ -526,7 +526,7 @@
           {% endfor %}
         </ul>
       {% else %}
-        <div style="color:#94a3b8;font-size:13px;font-style:italic">No work experience added.</div>
+        <div class="u-c-94a3b8 u-fs-13 u-fst-italic">No work experience added.</div>
       {% endif %}
     </div>
 
@@ -547,26 +547,25 @@
           {% endfor %}
         </ul>
       {% else %}
-        <div style="color:#94a3b8;font-size:13px;font-style:italic">No education details added.</div>
+        <div class="u-c-94a3b8 u-fs-13 u-fst-italic">No education details added.</div>
       {% endif %}
     </div>
 
     <!-- Documents -->
     <div class="card full">
-      <div style="background:linear-gradient(90deg,#1e3a8a,#2563eb);border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;gap:10px;">
-        <i class="ti ti-files" style="color:#fff;font-size:18px;"></i>
-        <span style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;">Documents</span>
-        <span style="font-size:11px;color:rgba(255,255,255,.65);font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px;">— Upload &amp; manage employee files</span>
+      <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-18 u-d-flex u-ai-center u-gap-10">
+        <i class="ti ti-files u-c-fff u-fs-18"></i>
+        <span class="u-fs-14 u-fw-800 u-c-fff u-ls-d5 u-ttr-uppercase">Documents</span>
+        <span class="u-fs-11 u-c-rgba255_255_255_d65 u-fw-400 u-ttr-none u-ls-0 u-ml-4">— Upload &amp; manage employee files</span>
       </div>
 
       <!-- Upload form -->
-      <form action="/upload_document" method="POST" enctype="multipart/form-data"
-            style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <form class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-mb-20 u-p-16 u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10" action="/upload_document" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="employee_id" value="{{ emp[0] }}">
         <input type="hidden" name="redirect_to" value="/employee_detail/{{ emp[0] }}">
-        <div style="flex:1;min-width:150px;">
-          <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;">Document Type</label>
-          <select name="doc_type" required style="width:100%;padding:9px 12px;border:1px solid #dbeafe;border-radius:8px;font-size:13px;background:#fff;color:#1e293b;outline:none;">
+        <div class="u-fx-1 u-minw-150">
+          <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Document Type</label>
+          <select class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-fs-13 u-bg-fff u-c-1e293b u-out-none" name="doc_type" required>
             <option value="">Select type…</option>
             <option>Aadhaar Card</option>
             <option>PAN Card</option>
@@ -580,38 +579,36 @@
             <option>Other</option>
           </select>
         </div>
-        <div style="flex:2;min-width:200px;">
-          <label style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;">File</label>
-          <input type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                 style="width:100%;padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;font-size:13px;background:#fff;color:#1e293b;">
+        <div class="u-fx-2 u-minw-200">
+          <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">File</label>
+          <input class="u-w-100pct u-p-8-12 u-bd-1-solid-dbeafe u-br-8 u-fs-13 u-bg-fff u-c-1e293b" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
         </div>
-        <button type="submit" style="padding:9px 20px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+        <button class="u-p-9-20 u-bg-1e3a8a u-c-fff u-bd-none u-br-8 u-fs-13 u-fw-700 u-cur-pointer u-ws-nowrap" type="submit">
           <i class="ti ti-upload"></i> Upload
         </button>
       </form>
 
       <!-- Documents list -->
       {% if emp_docs %}
-      <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="u-d-flex u-fxd-column u-gap-10">
         {% for did, doc_type, orig_name, uploaded_by, uploaded_at in emp_docs %}
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:38px;height:38px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="ti ti-file-description" style="font-size:18px;color:#3b82f6;"></i>
+        <div class="u-d-flex u-ai-center u-jc-space-between u-p-12-16 u-bd-1-solid-e2e8f0 u-br-10 u-bg-fff u-fxw-wrap u-gap-8">
+          <div class="u-d-flex u-ai-center u-gap-12">
+            <div class="u-w-38 u-h-38 u-br-9 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0">
+              <i class="ti ti-file-description u-fs-18 u-c-3b82f6"></i>
             </div>
             <div>
-              <div style="font-size:13px;font-weight:700;color:#1e293b;">{{ doc_type }}</div>
-              <div style="font-size:11px;color:#64748b;margin-top:2px;">{{ orig_name }}</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Uploaded by {{ uploaded_by }} · {{ uploaded_at.strftime('%d %b %Y') if uploaded_at else '' }}</div>
+              <div class="u-fs-13 u-fw-700 u-c-1e293b">{{ doc_type }}</div>
+              <div class="u-fs-11 u-c-64748b u-mt-2">{{ orig_name }}</div>
+              <div class="u-fs-10 u-c-94a3b8 u-mt-1">Uploaded by {{ uploaded_by }} · {{ uploaded_at.strftime('%d %b %Y') if uploaded_at else '' }}</div>
             </div>
           </div>
-          <div style="display:flex;gap:8px;">
-            <a href="/download_document/{{ did }}"
-               style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;">
+          <div class="u-d-flex u-gap-8">
+            <a class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-eff6ff u-c-1e3a8a u-bd-1-solid-bfdbfe u-br-7 u-fs-12 u-fw-700 u-tdec-none" href="/download_document/{{ did }}">
               <i class="ti ti-download"></i> Download
             </a>
             <form action="/delete_document/{{ did }}" method="POST" onsubmit="return confirm('Delete this document?');">
-              <button type="submit" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#fff5f5;color:#dc2626;border:1px solid #fecaca;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">
+              <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="submit">
                 <i class="ti ti-trash"></i> Delete
               </button>
             </form>
@@ -620,10 +617,10 @@
         {% endfor %}
       </div>
       {% else %}
-      <div style="text-align:center;padding:32px;color:#94a3b8;background:#f8fafc;border-radius:10px;border:1px dashed #e2e8f0;">
-        <i class="ti ti-files" style="font-size:36px;display:block;margin-bottom:8px;opacity:.4;"></i>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">No documents uploaded yet</div>
-        <div style="font-size:12px;">Use the form above to upload documents for this employee.</div>
+      <div class="u-ta-center u-p-32 u-c-94a3b8 u-bg-f8fafc u-br-10 u-bd-1-dashed-e2e8f0">
+        <i class="ti ti-files u-fs-36 u-d-block u-mb-8 u-op-d4"></i>
+        <div class="u-fs-13 u-fw-600 u-mb-4">No documents uploaded yet</div>
+        <div class="u-fs-12">Use the form above to upload documents for this employee.</div>
       </div>
       {% endif %}
     </div>
@@ -639,12 +636,11 @@
           </a>
         </div>
       {% else %}
-        <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:13px">
-          <i class="ti ti-qrcode-off" style="font-size:36px;display:block;margin-bottom:8px;opacity:.3"></i>
+        <div class="u-ta-center u-p-20-0 u-c-94a3b8 u-fs-13">
+          <i class="ti ti-qrcode-off u-fs-36 u-d-block u-mb-8 u-op-d3"></i>
           No QR code generated.
-          <form action="/regenerate_qr/{{ emp_id }}" method="POST" style="margin-top:10px">
-            <button type="submit" style="padding:8px 16px;border:none;border-radius:8px;
-              background:#f3e8ff;color:#7c3aed;font-size:13px;font-weight:700;cursor:pointer">
+          <form class="u-mt-10" action="/regenerate_qr/{{ emp_id }}" method="POST">
+            <button class="u-p-8-16 u-bd-none u-br-8 u-bg-f3e8ff u-c-7c3aed u-fs-13 u-fw-700 u-cur-pointer" type="submit">
               <i class="ti ti-refresh"></i> Generate QR
             </button>
           </form>
@@ -662,9 +658,8 @@
             <i class="ti ti-download"></i> Download Photo
           </a>
         {% else %}
-          <div style="width:120px;height:120px;border-radius:12px;background:#f1f5f9;
-                      display:flex;align-items:center;justify-content:center;font-size:50px;opacity:.4">👤</div>
-          <div style="font-size:12px;color:#94a3b8;font-style:italic">No photo uploaded.</div>
+          <div class="u-w-120 u-h-120 u-br-12 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fs-50 u-op-d4">👤</div>
+          <div class="u-fs-12 u-c-94a3b8 u-fst-italic">No photo uploaded.</div>
         {% endif %}
       </div>
     </div>
@@ -673,7 +668,7 @@
     <div class="card full">
       <div class="card-title"><i class="ti ti-calendar"></i> Recent Attendance (Last 30 Records)</div>
       {% if recent_attendance %}
-      <div style="overflow-x:auto">
+      <div class="u-ovx-auto">
         <table class="att-table">
           <thead>
             <tr><th>Date</th><th>Login</th><th>Logout</th><th>Type</th></tr>
@@ -691,7 +686,7 @@
                 {% elif 'Half' in t %}<span class="att-badge ab-half">Half Day</span>
                 {% elif 'Present' in t or 'Login' in t %}<span class="att-badge ab-present">Present</span>
                 {% elif t %}<span class="att-badge ab-other">{{ t }}</span>
-                {% else %}<span style="color:#94a3b8">—</span>{% endif %}
+                {% else %}<span class="u-c-94a3b8">—</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -699,7 +694,7 @@
         </table>
       </div>
       {% else %}
-        <div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">No attendance records found.</div>
+        <div class="u-ta-center u-p-24 u-c-94a3b8 u-fs-13">No attendance records found.</div>
       {% endif %}
     </div>
 
@@ -734,55 +729,54 @@
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

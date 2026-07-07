@@ -520,7 +520,7 @@
 
         <div class="scanner-wrap" id="scannerWrap">
           <video id="video" autoplay playsinline muted></video>
-          <canvas id="canvas" style="display:none;"></canvas>
+          <canvas class="u-d-none" id="canvas"></canvas>
 
           <div class="scanner-placeholder" id="placeholder">
             <div class="icon">📷</div>
@@ -535,13 +535,13 @@
         <button class="btn" id="startBtn" type="button" onclick="startFlow()">📷 Start Scanner</button>
 
         <!-- shown when fingerprint is enabled by admin -->
-        <div class="mode-row" id="modeSelector" style="display:none;">
+        <div class="mode-row u-d-none" id="modeSelector">
           <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')">📷 Face Mode</button>
           <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')">👆 QR + FP</button>
           <button type="button" class="mode-pill" id="modeFpOnly" onclick="setMode('fingerprint_only')">👆 FP Only</button>
         </div>
 
-        <div class="status-bar" id="statusBar" style="display:none;">
+        <div class="status-bar u-d-none" id="statusBar">
           <div class="spinner"></div>
           <span id="statusMsg">Initialising...</span>
         </div>
@@ -552,17 +552,17 @@
           <div class="result-row"><span>Time</span>    <span id="rTime"    class="val-blue">--</span></div>
           <div class="result-row"><span>Action</span>  <span id="rAction"  class="val-green">--</span></div>
           <div class="result-row"><span>Status</span>  <span id="rStatus"  class="val-green">--</span></div>
-          <div class="result-row" id="attTypeRow" style="display:none;">
+          <div class="result-row u-d-none" id="attTypeRow">
             <span>Attendance Type</span><span id="rAttType" class="val-green">--</span>
           </div>
-          <div class="result-row" id="workModeRow" style="display:none;">
+          <div class="result-row u-d-none" id="workModeRow">
             <span>Mode</span><span id="rWorkMode" class="val-blue">--</span>
           </div>
-          <div class="result-row" id="shiftRow" style="display:none;">
+          <div class="result-row u-d-none" id="shiftRow">
             <span>Shift</span><span id="rShift" class="val-blue">--</span>
           </div>
-          <div class="result-row" id="overtimeRow" style="display:none;">
-            <span>Overtime</span><span id="rOvertime" style="color:#f59e0b;font-weight:700;">--</span>
+          <div class="result-row u-d-none" id="overtimeRow">
+            <span>Overtime</span><span class="u-c-f59e0b u-fw-700" id="rOvertime">--</span>
           </div>
         </div>
 
@@ -582,10 +582,10 @@
     </div>
 
     <!-- ── METHOD PICKER OVERLAY ── -->
-    <div class="overlay" id="methodOverlay" style="display:none;">
+    <div class="overlay u-d-none" id="methodOverlay">
       <div class="method-card">
         <button class="method-card-close" onclick="closeMethodPicker()">✕</button>
-        <div style="text-align:center;font-size:42px;margin-bottom:10px;">🛡️</div>
+        <div class="u-ta-center u-fs-42 u-mb-10">🛡️</div>
         <h3>Choose Verification</h3>
         <p class="method-sub">Select your two-factor combination</p>
 
@@ -611,14 +611,14 @@
           </div>
         </button>
 
-        <div class="loc-badge" id="locBadgeMethod" style="display:none;">
+        <div class="loc-badge u-d-none" id="locBadgeMethod">
           📍 Location captured
         </div>
       </div>
     </div>
 
     <!-- ── FINGERPRINT OVERLAY ── -->
-    <div class="overlay" id="fingerprintOverlay" style="display:none;">
+    <div class="overlay u-d-none" id="fingerprintOverlay">
       <div class="fp-card">
         <button class="fp-back" onclick="fpBack()">←</button>
 
@@ -629,12 +629,12 @@
         <div class="fp-title">Fingerprint Verification</div>
         <div class="fp-sub" id="fpSubText">Step 2 of 2 — QR + Fingerprint</div>
 
-        <div class="fp-id-group" id="fpIdGroup" style="display:none;">
+        <div class="fp-id-group u-d-none" id="fpIdGroup">
           <input type="text" id="fpEmpIdInput" class="fp-id-input"
             placeholder="Enter Employee ID…" autocomplete="off">
         </div>
 
-        <div class="fp-emp-badge" id="fpEmpBadge" style="display:none;">
+        <div class="fp-emp-badge u-d-none" id="fpEmpBadge">
           🪪 <span id="fpEmpId"></span>
         </div>
 

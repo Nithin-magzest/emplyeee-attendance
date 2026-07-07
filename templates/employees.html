@@ -274,15 +274,15 @@
     <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="brand-wrap">
-        <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
         <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
       </div>
-            <div id="co-sw" style="margin:0 0 12px;">
-        <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-          <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-          <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-          <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+            <div class="u-m-0-0-12" id="co-sw">
+        <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+          <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+          <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+          <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
         </button>
       </div>
       <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -291,32 +291,32 @@
       <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
       <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-      <hr class="nav-sep" style="margin-top:12px;" />
+      <hr class="nav-sep u-mt-12" />
       <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
       <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
       <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-      <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> {{ shift_start }} – {{ shift_end }}</div>
+      <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> {{ shift_start }} – {{ shift_end }}</div>
     </div>
 
     <!-- MAIN -->
     <div class="main">
 
-      <div class="page-header" style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;">
+      <div class="page-header u-d-flex u-ai-flex-end u-jc-space-between u-gap-16">
         <div>
-          <h1><i class="ti ti-users" style="color:#1e3a8a;"></i> Employee Management</h1>
+          <h1><i class="ti ti-users u-c-1e3a8a"></i> Employee Management</h1>
           <p>Add, edit, manage photos, QR codes and full employee profiles.</p>
         </div>
         <!-- Page-level tab switcher -->
-        <div style="display:flex;gap:0;border:1.5px solid #dbeafe;border-radius:12px;overflow:hidden;flex-shrink:0;">
-          <button id="pgTabEmp" onclick="switchPageTab('employees')" style="padding:8px 18px;border:none;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;">
+        <div class="u-d-flex u-gap-0 u-bd-1d5-solid-dbeafe u-br-12 u-ov-hidden u-fxs-0">
+          <button class="u-p-8-18 u-bd-none u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabEmp" onclick="switchPageTab('employees')">
             <i class="ti ti-users"></i> Employees
           </button>
-          <button id="pgTabSched" onclick="switchPageTab('schedule')" style="padding:8px 18px;border:none;background:#fff;color:#475569;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;">
+          <button class="u-p-8-18 u-bd-none u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabSched" onclick="switchPageTab('schedule')">
             <i class="ti ti-calendar-time"></i> Schedule
           </button>
         </div>
@@ -369,13 +369,13 @@
       {% endif %}
 
       {% if active_company %}
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:14px;">
-        <i class="ti ti-building" style="color:#1e3a8a;font-size:16px;flex-shrink:0;"></i>
-        <span style="font-size:13px;font-weight:700;color:#1e3a8a;">{{ active_company.name }}</span>
-        <span style="font-size:12px;color:#64748b;">— showing employees from this company only</span>
-        <form method="POST" action="/clear_company" style="margin-left:auto;">
+      <div class="u-d-flex u-ai-center u-gap-10 u-p-10-16 u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-mb-14">
+        <i class="ti ti-building u-c-1e3a8a u-fs-16 u-fxs-0"></i>
+        <span class="u-fs-13 u-fw-700 u-c-1e3a8a">{{ active_company.name }}</span>
+        <span class="u-fs-12 u-c-64748b">— showing employees from this company only</span>
+        <form class="u-ml-auto" method="POST" action="/clear_company">
           <input type="hidden" name="next" value="/employees" />
-          <button type="submit" style="padding:4px 10px;border:1px solid #bfdbfe;border-radius:20px;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">✕ Show All</button>
+          <button class="u-p-4-10 u-bd-1-solid-bfdbfe u-br-20 u-bg-fff u-c-64748b u-fs-11 u-fw-600 u-cur-pointer u-ff-inherit" type="submit">✕ Show All</button>
         </form>
       </div>
       {% endif %}
@@ -396,7 +396,7 @@
           </button>
         </div>
         <div class="toolbar-row2">
-          <span class="filter-label"><i class="ti ti-filter" style="font-size:12px;"></i> Filter:</span>
+          <span class="filter-label"><i class="ti ti-filter u-fs-12"></i> Filter:</span>
 
           <select class="filter-select" id="filterShift" onchange="applyFilters()">
             <option value="">All Shifts</option>
@@ -429,18 +429,18 @@
       <input type="hidden" id="filterDept" value="">
 
       <!-- BULK ASSIGN TOOLBAR -->
-      <div id="bulkToolbar" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span id="bulkCount" style="font-size:13px;font-weight:700;color:#1e3a8a;">0 selected</span>
-        <select id="bulkTemplateSelect" style="padding:7px 10px;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;min-width:200px;">
+      <div class="u-d-none u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-p-12-16 u-mb-12 u-d-none u-ai-center u-gap-12 u-fxw-wrap" id="bulkToolbar">
+        <span class="u-fs-13 u-fw-700 u-c-1e3a8a" id="bulkCount">0 selected</span>
+        <select class="u-p-7-10 u-bd-1-solid-bfdbfe u-br-8 u-fs-13 u-minw-200" id="bulkTemplateSelect">
           <option value="">— Select Onboarding Template —</option>
           {% for tpl in onboarding_templates %}
           <option value="{{ tpl[0] }}">{{ tpl[1] }}</option>
           {% endfor %}
         </select>
-        <button type="button" onclick="bulkAssignOnboarding()" style="background:#1e3a8a;color:#fff;padding:7px 14px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        <button class="u-bg-1e3a8a u-c-fff u-p-7-14 u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer" type="button" onclick="bulkAssignOnboarding()">
           <i class="ti ti-checklist"></i> Assign Onboarding
         </button>
-        <button type="button" onclick="clearSelection()" style="background:#f1f5f9;color:#64748b;padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;">Clear</button>
+        <button class="u-bg-f1f5f9 u-c-64748b u-p-7-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-cur-pointer" type="button" onclick="clearSelection()">Clear</button>
       </div>
 
       <!-- TABLE -->
@@ -449,7 +449,7 @@
           <table id="empTable">
             <thead>
               <tr>
-                <th><label style="display:contents"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
+                <th><label class="u-d-contents"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
                 <th>#</th>
                 <th>Photo</th>
                 <th>Employee ID</th>
@@ -482,7 +482,7 @@
                     <button class="avatar-btn" onclick="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
                       <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
                            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                      <div class="avatar-ph" style="display:none;"><i class="ti ti-user"></i></div>
+                      <div class="avatar-ph u-d-none"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-eye"></i></div>
                     </button>
                   {% else %}
@@ -493,9 +493,9 @@
                   {% endif %}
                 </td>
                 <td><strong>{{ emp_id }}</strong></td>
-                <td style="min-width:130px;">
-                  <a href="/employee_detail/{{ emp_id }}" style="font-weight:700;color:#1e3a8a;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ name }}</a>
-                  {% if email %}<div style="font-size:11px;color:#94a3b8;">{{ email }}</div>{% endif %}
+                <td class="u-minw-130">
+                  <a class="u-fw-700 u-c-1e3a8a u-tdec-none" href="/employee_detail/{{ emp_id }}" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ name }}</a>
+                  {% if email %}<div class="u-fs-11 u-c-94a3b8">{{ email }}</div>{% endif %}
                 </td>
                 <td>
                   {% if role %}<span class="badge badge-role">{{ role }}</span>
@@ -535,7 +535,7 @@
                       onclick="openIDCard(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
                       <i class="ti ti-id-badge"></i>
                     </button>
-                    <form action="/delete_employee/{{ emp_id }}" method="POST" style="display:inline"
+                    <form class="u-d-inline" action="/delete_employee/{{ emp_id }}" method="POST"
                           onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
                       <button type="submit" class="btn-icon btn-del" title="Delete">
                         <i class="ti ti-trash"></i>
@@ -564,130 +564,128 @@
       </div><!-- /panelEmployees -->
 
       <!-- ═══ SCHEDULE PANEL ═══ -->
-      <div id="panelSchedule" style="display:none;">
+      <div class="u-d-none" id="panelSchedule">
 
         <!-- Action bar -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <div class="u-d-flex u-ai-center u-jc-space-between u-gap-12 u-mb-20 u-fxw-wrap">
           <div>
-            <div style="font-size:18px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px;"><i class="ti ti-calendar-time" style="color:#6366f1;"></i> Shifts &amp; Breaks</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">Configure work shifts and break schedules</div>
+            <div class="u-fs-18 u-fw-800 u-c-0f172a u-d-flex u-ai-center u-gap-8"><i class="ti ti-calendar-time u-c-6366f1"></i> Shifts &amp; Breaks</div>
+            <div class="u-fs-12 u-c-64748b u-mt-2">Configure work shifts and break schedules</div>
           </div>
-          <div style="display:flex;gap:8px;">
-            <button onclick="openAddShiftModal()" style="display:flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+          <div class="u-d-flex u-gap-8">
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-13 u-fw-700 u-cur-pointer" onclick="openAddShiftModal()">
               <i class="ti ti-plus"></i> Add Shift
             </button>
-            <button onclick="openAddBreakModal()" style="display:flex;align-items:center;gap:7px;padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#475569;font-size:13px;font-weight:700;cursor:pointer;">
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" onclick="openAddBreakModal()">
               <i class="ti ti-coffee"></i> Add Break
             </button>
           </div>
         </div>
 
         <!-- Shifts grid -->
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-          <i class="ti ti-clock" style="font-size:14px;color:#6366f1;"></i> Shifts
-          <span style="background:#ede9fe;color:#7c3aed;border-radius:20px;padding:2px 8px;font-size:10px;">{{ shift_full|length }}</span>
+        <div class="u-fs-11 u-fw-700 u-ttr-uppercase u-ls-d6 u-c-64748b u-mb-10 u-d-flex u-ai-center u-gap-8">
+          <i class="ti ti-clock u-fs-14 u-c-6366f1"></i> Shifts
+          <span class="u-bg-ede9fe u-c-7c3aed u-br-20 u-p-2-8 u-fs-10">{{ shift_full|length }}</span>
         </div>
 
         {% if shift_full %}
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:28px;">
+        <div class="u-d-grid u-gtc-repeatauto-fil8e58c8 u-gap-14 u-mb-28">
           {% for s in shift_full %}
-          <div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:16px;padding:18px 18px 14px;position:relative;">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:14px;">
+          <div class="u-bg-fff u-bd-1d5-solid-e0e7ff u-br-16 u-p-18-18-14 u-pos-relative">
+            <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-8 u-mb-14">
               <div>
-                <div style="font-size:15px;font-weight:800;color:#1e3a8a;">{{ s.name }}</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px;">ID #{{ s.id }}</div>
+                <div class="u-fs-15 u-fw-800 u-c-1e3a8a">{{ s.name }}</div>
+                <div class="u-fs-11 u-c-94a3b8 u-mt-2">ID #{{ s.id }}</div>
               </div>
-              <div style="display:flex;gap:5px;flex-shrink:0;">
-                <button onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}"
-                  style="padding:5px 10px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">
+              <div class="u-d-flex u-gap-5 u-fxs-0">
+                <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
-                <form method="POST" action="/delete_shift" style="display:inline;" onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
+                <form class="u-d-inline" method="POST" action="/delete_shift" onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
                   <input type="hidden" name="shift_id" value="{{ s.id }}" />
-                  <button type="submit" style="padding:5px 10px;border:1px solid #fecaca;border-radius:8px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;">
+                  <button class="u-p-5-10 u-bd-1-solid-fecaca u-br-8 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                     <i class="ti ti-trash"></i>
                   </button>
                 </form>
               </div>
             </div>
             <!-- Time blocks -->
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <div style="flex:1;min-width:70px;background:#eff6ff;border-radius:10px;padding:8px 10px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:2px;">START</div>
-                <div style="font-size:16px;font-weight:800;color:#1e3a8a;">{{ s.start }}</div>
+            <div class="u-d-flex u-gap-8 u-fxw-wrap">
+              <div class="u-fx-1 u-minw-70 u-bg-eff6ff u-br-10 u-p-8-10 u-ta-center">
+                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">START</div>
+                <div class="u-fs-16 u-fw-800 u-c-1e3a8a">{{ s.start }}</div>
               </div>
-              <div style="flex:1;min-width:70px;background:#fef9c3;border-radius:10px;padding:8px 10px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:2px;">HALF DAY</div>
-                <div style="font-size:16px;font-weight:800;color:#92400e;">{{ s.half }}</div>
+              <div class="u-fx-1 u-minw-70 u-bg-fef9c3 u-br-10 u-p-8-10 u-ta-center">
+                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">HALF DAY</div>
+                <div class="u-fs-16 u-fw-800 u-c-92400e">{{ s.half }}</div>
               </div>
-              <div style="flex:1;min-width:70px;background:#dcfce7;border-radius:10px;padding:8px 10px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:2px;">END</div>
-                <div style="font-size:16px;font-weight:800;color:#15803d;">{{ s.end }}</div>
+              <div class="u-fx-1 u-minw-70 u-bg-dcfce7 u-br-10 u-p-8-10 u-ta-center">
+                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">END</div>
+                <div class="u-fs-16 u-fw-800 u-c-15803d">{{ s.end }}</div>
               </div>
             </div>
             <!-- Assign link -->
-            <div style="margin-top:12px;border-top:1px solid #f1f5f9;padding-top:10px;">
-              <form method="POST" action="/bulk_assign_shift" style="display:flex;align-items:center;gap:8px;">
+            <div class="u-mt-12 u-bdt-1-solid-f1f5f9 u-pt-10">
+              <form class="u-d-flex u-ai-center u-gap-8" method="POST" action="/bulk_assign_shift">
                 <input type="hidden" name="shift_id" value="{{ s.id }}" />
-                <select name="dept_filter" style="flex:1;padding:6px 8px;border:1px solid #dbeafe;border-radius:8px;font-size:12px;background:#f8fafc;outline:none;">
+                <select class="u-fx-1 u-p-6-8 u-bd-1-solid-dbeafe u-br-8 u-fs-12 u-bg-f8fafc u-out-none" name="dept_filter">
                   <option value="">All departments</option>
                   {% for dept in departments %}
                   <option value="{{ dept }}">{{ dept }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" style="padding:6px 12px;border:none;border-radius:8px;background:#6366f1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Assign All</button>
+                <button class="u-p-6-12 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="submit">Assign All</button>
               </form>
             </div>
           </div>
           {% endfor %}
         </div>
         {% else %}
-        <div style="background:#fff;border:1.5px dashed #c7d2fe;border-radius:16px;padding:32px;text-align:center;margin-bottom:28px;color:#94a3b8;">
-          <i class="ti ti-clock-off" style="font-size:32px;display:block;margin-bottom:10px;color:#c7d2fe;"></i>
+        <div class="u-bg-fff u-bd-1d5-dashed-c7d2fe u-br-16 u-p-32 u-ta-center u-mb-28 u-c-94a3b8">
+          <i class="ti ti-clock-off u-fs-32 u-d-block u-mb-10 u-c-c7d2fe"></i>
           No shifts defined yet. Click <strong>Add Shift</strong> to create one.
         </div>
         {% endif %}
 
         <!-- Breaks section -->
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-          <i class="ti ti-coffee" style="font-size:14px;color:#f59e0b;"></i> Breaks
-          <span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:2px 8px;font-size:10px;">{{ breaks_list|length }}</span>
+        <div class="u-fs-11 u-fw-700 u-ttr-uppercase u-ls-d6 u-c-64748b u-mb-10 u-d-flex u-ai-center u-gap-8">
+          <i class="ti ti-coffee u-fs-14 u-c-f59e0b"></i> Breaks
+          <span class="u-bg-fef9c3 u-c-92400e u-br-20 u-p-2-8 u-fs-10">{{ breaks_list|length }}</span>
         </div>
 
         {% if breaks_list %}
-        <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;overflow:hidden;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-16 u-ov-hidden">
+          <table class="u-w-100pct u-border-collapse u-fs-13">
             <thead>
               <tr>
-                <th style="background:#fef9c3;color:#92400e;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;">BREAK NAME</th>
-                <th style="background:#fef9c3;color:#92400e;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;">TIME</th>
-                <th style="background:#fef9c3;color:#92400e;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;">DURATION</th>
-                <th style="background:#fef9c3;color:#92400e;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;">STATUS</th>
-                <th style="background:#fef9c3;color:#92400e;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px;">ACTIONS</th>
+                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">BREAK NAME</th>
+                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">TIME</th>
+                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">DURATION</th>
+                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">STATUS</th>
+                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {% for b in breaks_list %}
-              <tr style="border-bottom:1px solid #f8fafc;">
-                <td style="padding:11px 14px;font-weight:600;color:#0f172a;">
-                  <i class="ti ti-coffee" style="color:#f59e0b;margin-right:5px;"></i>{{ b.name }}
+              <tr class="u-bdb-1-solid-f8fafc">
+                <td class="u-p-11-14 u-fw-600 u-c-0f172a">
+                  <i class="ti ti-coffee u-c-f59e0b u-mr-5"></i>{{ b.name }}
                 </td>
-                <td style="padding:11px 14px;color:#475569;font-weight:600;">{{ b.time }}</td>
-                <td style="padding:11px 14px;color:#475569;">{{ b.duration }} min</td>
-                <td style="padding:11px 14px;">
+                <td class="u-p-11-14 u-c-475569 u-fw-600">{{ b.time }}</td>
+                <td class="u-p-11-14 u-c-475569">{{ b.duration }} min</td>
+                <td class="u-p-11-14">
                   <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;{% if b.active %}background:#dcfce7;color:#15803d;{% else %}background:#f1f5f9;color:#94a3b8;{% endif %}">
                     {{ 'Active' if b.active else 'Inactive' }}
                   </span>
                 </td>
-                <td style="padding:11px 14px;">
-                  <div style="display:flex;gap:5px;">
-                    <button onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}"
-                      style="padding:4px 10px;border:1px solid #dbeafe;border-radius:7px;background:#eff6ff;color:#1e3a8a;font-size:11px;font-weight:700;cursor:pointer;">
+                <td class="u-p-11-14">
+                  <div class="u-d-flex u-gap-5">
+                    <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
                     <form method="POST" action="/delete_break" onsubmit="return confirm('Delete this break?')">
                       <input type="hidden" name="break_id" value="{{ b.id }}" />
-                      <button type="submit" style="padding:4px 10px;border:1px solid #fecaca;border-radius:7px;background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;">
+                      <button class="u-p-4-10 u-bd-1-solid-fecaca u-br-7 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                         <i class="ti ti-trash"></i>
                       </button>
                     </form>
@@ -699,8 +697,8 @@
           </table>
         </div>
         {% else %}
-        <div style="background:#fff;border:1.5px dashed #fde68a;border-radius:16px;padding:28px;text-align:center;color:#94a3b8;">
-          <i class="ti ti-coffee-off" style="font-size:28px;display:block;margin-bottom:8px;color:#fde68a;"></i>
+        <div class="u-bg-fff u-bd-1d5-dashed-fde68a u-br-16 u-p-28 u-ta-center u-c-94a3b8">
+          <i class="ti ti-coffee-off u-fs-28 u-d-block u-mb-8 u-c-fde68a"></i>
           No breaks configured. Click <strong>Add Break</strong> to create one.
         </div>
         {% endif %}
@@ -710,28 +708,28 @@
     </div><!-- /main -->
 
     <!-- ═══ CAMERA MODAL ═══ -->
-    <div id="empCameraModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;align-items:center;justify-content:center;">
-      <div style="background:#1e1b3a;border-radius:20px;padding:28px;width:100%;max-width:420px;color:white;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
-        <h3 style="margin-bottom:6px;">📷 Take Face Photo</h3>
-        <p style="font-size:12px;opacity:0.55;margin-bottom:14px;">Position the employee's face in the frame, then click Capture.</p>
-        <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;text-align:left;">
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Front-facing</div>
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">✅ Good lighting</div>
-          <div style="flex:1;padding:7px;background:rgba(255,255,255,0.07);border-radius:7px;">❌ No sunglasses</div>
+    <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d75 u-zi-3000 u-ai-center u-jc-center" id="empCameraModal">
+      <div class="u-bg-1e1b3a u-br-20 u-p-28 u-w-100pct u-maxw-420 u-c-white u-ta-center u-shad-0-24-60-rgba0_0_0_0d6">
+        <h3 class="u-mb-6">📷 Take Face Photo</h3>
+        <p class="u-fs-12 u-op-0d55 u-mb-14">Position the employee's face in the frame, then click Capture.</p>
+        <div class="u-d-flex u-gap-8 u-mb-12 u-fs-11 u-ta-left">
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Front-facing</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Good lighting</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">❌ No sunglasses</div>
         </div>
-        <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;">
-          <video id="empCamVideo" autoplay playsinline muted style="width:100%;display:block;max-height:280px;object-fit:cover;"></video>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-            <div style="width:160px;height:200px;border:2px dashed rgba(0,255,136,0.6);border-radius:50%;"></div>
+        <div class="u-pos-relative u-w-100pct u-br-12 u-ov-hidden u-bg-000 u-mb-12">
+          <video class="u-w-100pct u-d-block u-maxh-280 u-objf-cover" id="empCamVideo" autoplay playsinline muted></video>
+          <div class="u-pos-absolute u-ins-0 u-d-flex u-ai-center u-jc-center u-pe-none">
+            <div class="u-w-160 u-h-200 u-bd-2-dashed-rgba047da6b u-br-50pct"></div>
           </div>
         </div>
-        <canvas id="empCamCanvas" style="display:none;width:100%;border-radius:12px;margin-bottom:12px;"></canvas>
-        <div id="empCamError" style="display:none;padding:14px 16px;background:#7f1d1d;border-radius:10px;color:#fecaca;font-size:13px;margin-bottom:12px;text-align:left;line-height:1.6;"></div>
-        <div style="display:flex;gap:10px;">
-          <button id="empCaptureBtn" onclick="empCapturePhoto()" style="flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#06b6d4,#3b82f6);color:white;font-size:14px;font-weight:700;cursor:pointer;">📸 Capture</button>
-          <button id="empRetakeBtn"  onclick="empRetakePhoto()"  style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retake</button>
-          <button id="empUseBtn"     onclick="empUsePhoto()"     style="display:none;flex:1;padding:12px;border:none;border-radius:10px;background:linear-gradient(90deg,#22c55e,#16a34a);color:white;font-size:14px;font-weight:700;cursor:pointer;">✅ Use Photo</button>
-          <button onclick="closeEmpCameraModal()" style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <canvas class="u-d-none u-w-100pct u-br-12 u-mb-12" id="empCamCanvas"></canvas>
+        <div class="u-d-none u-p-14-16 u-bg-7f1d1d u-br-10 u-c-fecaca u-fs-13 u-mb-12 u-ta-left u-lh-1d6" id="empCamError"></div>
+        <div class="u-d-flex u-gap-10">
+          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()">📸 Capture</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()">🔄 Retake</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()">✅ Use Photo</button>
+          <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" onclick="closeEmpCameraModal()">Cancel</button>
         </div>
       </div>
     </div>
@@ -764,9 +762,9 @@
          ADD EMPLOYEE MODAL
     ================================================================ -->
     <div class="modal-backdrop" id="addModal">
-      <div class="modal-box" style="max-width:600px;">
+      <div class="modal-box u-maxw-600">
         <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
-        <h3><i class="ti ti-user-plus" style="color:#1e3a8a;"></i> Add New Employee</h3>
+        <h3><i class="ti ti-user-plus u-c-1e3a8a"></i> Add New Employee</h3>
         <form action="/add_employee_page" method="POST" enctype="multipart/form-data" onsubmit="return validateAddForm(this)">
           <div class="form-grid">
             <div class="sec-title">Basic Info</div>
@@ -779,18 +777,18 @@
             <input type="hidden" name="company_id" id="addCompanyId" value="{{ active_company.id }}" />
             <div class="field-group">
               <label>Company</label>
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
-                <i class="ti ti-building" style="color:#1e3a8a;font-size:16px;"></i>
+              <div class="u-d-flex u-ai-center u-gap-10 u-p-10-14 u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-10">
+                <i class="ti ti-building u-c-1e3a8a u-fs-16"></i>
                 <div>
-                  <div style="font-size:13px;font-weight:700;color:#1e3a8a;">{{ active_company.name }}</div>
-                  {% if active_company.code %}<div style="font-size:11px;color:#64748b;">Code: {{ active_company.code }}</div>{% endif %}
+                  <div class="u-fs-13 u-fw-700 u-c-1e3a8a">{{ active_company.name }}</div>
+                  {% if active_company.code %}<div class="u-fs-11 u-c-64748b">Code: {{ active_company.code }}</div>{% endif %}
                 </div>
-                <span style="margin-left:auto;font-size:11px;color:#64748b;background:#dbeafe;padding:3px 8px;border-radius:20px;">Active</span>
+                <span class="u-ml-auto u-fs-11 u-c-64748b u-bg-dbeafe u-p-3-8 u-br-20">Active</span>
               </div>
             </div>
             {% else %}
             <div class="field-group">
-              <label>Company <span style="color:#dc2626;">*</span></label>
+              <label>Company <span class="u-c-dc2626">*</span></label>
               <select name="company_id" id="addCompanyId" onchange="generateEmpId()" required>
                 <option value="">— Select Company —</option>
                 {% for cid, cname in companies %}
@@ -801,18 +799,16 @@
             {% endif %}
             <div class="field-group">
               <label>Employee ID *</label>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" name="emp_id" id="addEmpId" required placeholder="{% if active_company %}Generating…{% else %}Select company to auto-generate{% endif %}"
-                       style="flex:1;font-weight:700;letter-spacing:1px;" />
-                <button type="button" onclick="generateEmpId()" title="Re-generate ID"
-                  style="padding:9px 12px;border:1px solid #dbeafe;border-radius:9px;background:#eff6ff;color:#1e3a8a;cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600;">
+              <div class="u-d-flex u-gap-8 u-ai-center">
+                <input class="u-fx-1 u-fw-700 u-ls-1" type="text" name="emp_id" id="addEmpId" required placeholder="{% if active_company %}Generating…{% else %}Select company to auto-generate{% endif %}" />
+                <button class="u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-eff6ff u-c-1e3a8a u-cur-pointer u-ws-nowrap u-fs-13 u-fw-600" type="button" onclick="generateEmpId()" title="Re-generate ID">
                   🔄 Generate
                 </button>
               </div>
-              <div id="empIdHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
+              <div class="u-fs-11 u-c-64748b u-mt-4" id="empIdHint"></div>
             </div>
             <div class="field-group">
-              <label>Email <span style="color:#dc2626;">*</span></label>
+              <label>Email <span class="u-c-dc2626">*</span></label>
               <input type="email" name="email" placeholder="employee@company.com" required />
             </div>
             <div class="field-group">
@@ -841,7 +837,7 @@
               </select>
             </div>
             <div class="field-group">
-              <label>Date of Joining <span style="color:#dc2626;">*</span></label>
+              <label>Date of Joining <span class="u-c-dc2626">*</span></label>
               <input type="date" name="date_of_joining" required />
             </div>
             <div class="field-group">
@@ -869,63 +865,59 @@
             <div class="field-group full">
               <div class="radio-group">
                 <label class="radio-label">
-                  <input type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value)" style="accent-color:#1e3a8a;" /> 🏢 Office
+                  <input class="u-accent-1e3a8a" type="radio" name="work_mode" value="office" checked
+                         onchange="toggleAddLocation(this.value)" /> 🏢 Office
                 </label>
                 <label class="radio-label">
-                  <input type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value)" style="accent-color:#059669;" /> 🏠 Work from Home
+                  <input class="u-accent-059669" type="radio" name="work_mode" value="wfh"
+                         onchange="toggleAddLocation(this.value)" /> 🏠 Work from Home
                 </label>
               </div>
             </div>
-            <div class="location-box" id="addLocationBox" style="display:none;">
+            <div class="location-box u-d-none" id="addLocationBox">
               <div class="location-box-title">Home Location (within 300m to mark attendance)</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div class="u-d-grid u-gtc-1fr-1fr u-gap-8 u-mb-8">
                 <div>
-                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
-                  <input type="number" name="work_lat" id="add_work_lat" step="0.000001"
-                         style="width:100%;padding:8px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                  <div class="u-fs-10 u-c-64748b u-mb-3">Latitude</div>
+                  <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="add_work_lat" step="0.000001" />
                 </div>
                 <div>
-                  <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
-                  <input type="number" name="work_lon" id="add_work_lon" step="0.000001"
-                         style="width:100%;padding:8px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                  <div class="u-fs-10 u-c-64748b u-mb-3">Longitude</div>
+                  <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="add_work_lon" step="0.000001" />
                 </div>
               </div>
-              <button type="button" onclick="useMyLocation('add_work_lat','add_work_lon')"
-                style="padding:6px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+              <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('add_work_lat','add_work_lon')">
                 📡 Use My Location
               </button>
             </div>
 
             <div class="sec-title">Face Photo *</div>
             <div class="field-group full">
-              <div id="addPhotoBox" style="border:2px dashed #bfdbfe;border-radius:12px;padding:16px;text-align:center;background:#f8fafc;transition:0.2s;">
-                <img id="addPhotoPreview" style="display:none;width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #22c55e;margin:0 auto 10px;" alt="Preview" />
-                <div id="addPhotoLabel" style="font-size:13px;color:#64748b;margin-bottom:10px;">No photo selected</div>
-                <div style="display:flex;gap:8px;justify-content:center;">
-                  <button type="button" onclick="openEmpCameraModal()" style="padding:9px 16px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">📷 Camera</button>
-                  <button type="button" onclick="document.getElementById('addFaceInput').click()" style="padding:9px 16px;border:1px solid #dbeafe;border-radius:8px;background:#fff;color:#1e3a8a;font-size:12px;font-weight:700;cursor:pointer;">🖼 Upload</button>
+              <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-16 u-ta-center u-bg-f8fafc u-trs-0d2s" id="addPhotoBox">
+                <img class="u-d-none u-w-90 u-h-90 u-br-50pct u-objf-cover u-bd-3-solid-22c55e u-m-0-auto-10" id="addPhotoPreview" alt="Preview" />
+                <div class="u-fs-13 u-c-64748b u-mb-10" id="addPhotoLabel">No photo selected</div>
+                <div class="u-d-flex u-gap-8 u-jc-center">
+                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()">📷 Camera</button>
+                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()">🖼 Upload</button>
                 </div>
-                <input type="file" id="addFaceInput" name="face" accept="image/*" style="display:none;"
+                <input class="u-d-none" type="file" id="addFaceInput" name="face" accept="image/*"
                        onchange="empPhotoSelected(this)" />
               </div>
-              <div id="addPhotoErr" style="color:#dc2626;font-size:12px;margin-top:4px;display:none;">⚠ Please take or upload a face photo before registering.</div>
+              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ Please take or upload a face photo before registering.</div>
             </div>
 
-            <div class="sec-title" style="grid-column:1/-1;">Fingerprint / Biometric <span style="color:#94a3b8;font-weight:400;font-size:10px;text-transform:none;">(Optional — for fingerprint attendance)</span></div>
+            <div class="sec-title u-gc-1_-1">Fingerprint / Biometric <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional — for fingerprint attendance)</span></div>
             <div class="field-group full">
-              <div id="fpEnrollBox" style="border:2px dashed #bfdbfe;border-radius:12px;padding:18px;text-align:center;background:#f8fafc;transition:0.3s;">
-                <div style="font-size:44px;margin-bottom:8px;display:inline-block;animation:fpRegPulse 2.5s ease-in-out infinite;">👆</div>
-                <div id="fpEnrollStatus" style="font-size:13px;color:#64748b;margin-bottom:12px;">
+              <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-18 u-ta-center u-bg-f8fafc u-trs-0d3s" id="fpEnrollBox">
+                <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393">👆</div>
+                <div class="u-fs-13 u-c-64748b u-mb-12" id="fpEnrollStatus">
                   Not enrolled — employee can use QR + Face by default
                 </div>
-                <div style="display:flex;gap:8px;justify-content:center;">
-                  <button type="button" id="fpEnrollBtn" onclick="enrollFingerprint()"
-                    style="padding:9px 18px;border:none;border-radius:8px;background:#6366f1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+                <div class="u-d-flex u-gap-8 u-jc-center">
+                  <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
                     👆 Enroll Fingerprint
                   </button>
-                  <button type="button" id="fpClearBtn" onclick="clearFingerprint()" style="display:none;padding:9px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">
+                  <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
                     ✕ Clear
                   </button>
                 </div>
@@ -946,10 +938,10 @@
          EDIT EMPLOYEE MODAL  (full management form)
     ================================================================ -->
     <div class="modal-backdrop" id="editModal">
-      <div class="modal-box" style="max-width:640px;">
+      <div class="modal-box u-maxw-640">
         <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
-        <h3><i class="ti ti-pencil" style="color:#1e3a8a;"></i> Edit Employee
-          <span id="editEmpBadge" style="font-size:13px;color:#64748b;font-weight:600;margin-left:4px;"></span>
+        <h3><i class="ti ti-pencil u-c-1e3a8a"></i> Edit Employee
+          <span class="u-fs-13 u-c-64748b u-fw-600 u-ml-4" id="editEmpBadge"></span>
         </h3>
 
         <!-- TABS -->
@@ -1041,33 +1033,30 @@
             <div class="form-grid">
               <div class="field-group full">
                 <label>Work Mode</label>
-                <div class="radio-group" style="margin-top:6px;">
+                <div class="radio-group u-mt-6">
                   <label class="radio-label">
-                    <input type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
-                           onchange="toggleEditLocation(this.value)" style="accent-color:#1e3a8a;" /> 🏢 Office
+                    <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
+                           onchange="toggleEditLocation(this.value)" /> 🏢 Office
                   </label>
                   <label class="radio-label">
-                    <input type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
-                           onchange="toggleEditLocation(this.value)" style="accent-color:#059669;" /> 🏠 Work from Home
+                    <input class="u-accent-059669" type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
+                           onchange="toggleEditLocation(this.value)" /> 🏠 Work from Home
                   </label>
                 </div>
               </div>
-              <div class="location-box" id="editLocationBox" style="display:none;">
+              <div class="location-box u-d-none" id="editLocationBox">
                 <div class="location-box-title">Home Location (within 300m to mark attendance)</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-8 u-mb-8">
                   <div>
-                    <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Latitude</div>
-                    <input type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001"
-                           style="width:100%;padding:8px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                    <div class="u-fs-10 u-c-64748b u-mb-3">Latitude</div>
+                    <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001" />
                   </div>
                   <div>
-                    <div style="font-size:10px;color:#64748b;margin-bottom:3px;">Longitude</div>
-                    <input type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001"
-                           style="width:100%;padding:8px;border:1px solid #bae6fd;border-radius:7px;font-size:12px;outline:none;" />
+                    <div class="u-fs-10 u-c-64748b u-mb-3">Longitude</div>
+                    <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" />
                   </div>
                 </div>
-                <button type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')"
-                  style="padding:6px 12px;border:none;border-radius:7px;background:#0369a1;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+                <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
                   📡 Use My Location
                 </button>
               </div>
@@ -1115,19 +1104,18 @@
           </div>
 
           <!-- Fingerprint status — populated dynamically by openEdit() -->
-          <div id="editFpSection" style="display:none;margin:0 0 12px;padding:12px 16px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-              <div style="font-size:13px;font-weight:600;color:#374151;">
-                <span style="margin-right:6px;">&#128400;</span> Fingerprint
-                <span id="editFpStatus" style="font-weight:400;color:#64748b;margin-left:4px;"></span>
+          <div class="u-d-none u-m-0-0-12 u-p-12-16 u-br-10 u-bd-1-solid-e2e8f0 u-bg-f8fafc" id="editFpSection">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-8">
+              <div class="u-fs-13 u-fw-600 u-c-374151">
+                <span class="u-mr-6">&#128400;</span> Fingerprint
+                <span class="u-fw-400 u-c-64748b u-ml-4" id="editFpStatus"></span>
               </div>
-              <button type="button" id="editFpResetBtn"
-                onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)"
-                style="padding:6px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;">
+              <button class="u-p-6-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpResetBtn"
+                onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)">
                 Reset Fingerprint
               </button>
             </div>
-            <div id="editFpMsg" style="font-size:12px;margin-top:6px;display:none;"></div>
+            <div class="u-fs-12 u-mt-6 u-d-none" id="editFpMsg"></div>
           </div>
 
           <div class="modal-actions">
@@ -1142,21 +1130,21 @@
          UPDATE PHOTO MODAL
     ================================================================ -->
     <div class="modal-backdrop" id="photoModal">
-      <div class="modal-box" style="max-width:380px;">
+      <div class="modal-box u-maxw-380">
         <button class="modal-close" onclick="closeModal('photoModal')">&times;</button>
-        <h3><i class="ti ti-camera" style="color:#92400e;"></i> Update Photo</h3>
-        <p id="photoModalSubtitle" style="font-size:13px;color:#64748b;margin-bottom:16px;"></p>
+        <h3><i class="ti ti-camera u-c-92400e"></i> Update Photo</h3>
+        <p class="u-fs-13 u-c-64748b u-mb-16" id="photoModalSubtitle"></p>
         <form id="photoForm" action="" method="POST" enctype="multipart/form-data">
           <div class="photo-upload-box" onclick="document.getElementById('photoFileInput').click()">
-            <i class="ti ti-camera-plus" style="font-size:28px;color:#f59e0b;"></i>
-            <div style="font-size:13px;color:#64748b;margin-top:6px;">Click to choose new photo</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Face must be clearly visible</div>
+            <i class="ti ti-camera-plus u-fs-28 u-c-f59e0b"></i>
+            <div class="u-fs-13 u-c-64748b u-mt-6">Click to choose new photo</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-2">Face must be clearly visible</div>
             <input type="file" id="photoFileInput" name="face" accept="image/*" required
                    onchange="previewPhoto(this,'photoPreviewImg')" />
-            <img id="photoPreviewImg" class="photo-preview" style="display:none;" alt="Preview" />
+            <img id="photoPreviewImg" class="photo-preview u-d-none" alt="Preview" />
           </div>
           <div class="modal-actions">
-            <button type="submit" class="btn-save" style="background:#92400e;">
+            <button type="submit" class="btn-save u-bg-92400e">
               <i class="ti ti-upload"></i> Upload Photo
             </button>
             <button type="button" class="btn-cancel" onclick="closeModal('photoModal')">Cancel</button>
@@ -1171,17 +1159,17 @@
     <div class="modal-backdrop" id="qrModal">
       <div class="modal-box qr-modal-box">
         <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
-        <h3 style="justify-content:center;"><i class="ti ti-qrcode" style="color:#7c3aed;"></i> QR Code</h3>
+        <h3 class="u-jc-center"><i class="ti ti-qrcode u-c-7c3aed"></i> QR Code</h3>
         <div id="qrImgWrap">
           <img id="qrImg" src="" alt="QR Code" />
         </div>
-        <div style="font-size:16px;font-weight:700;color:#1e293b;" id="qrEmpName"></div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="qrEmpId"></div>
+        <div class="u-fs-16 u-fw-700 u-c-1e293b" id="qrEmpName"></div>
+        <div class="u-fs-13 u-c-64748b u-mb-14" id="qrEmpId"></div>
         <a id="qrDownload" class="btn-download" href="#" download="">
           <i class="ti ti-download"></i> Download QR
         </a>
         <div>
-          <form id="qrRegenForm" action="" method="POST" style="display:inline;"
+          <form class="u-d-inline" id="qrRegenForm" action="" method="POST"
                 onsubmit="return confirm('Regenerate QR? Old code will stop working.')">
             <button type="submit" class="btn-regen">
               <i class="ti ti-refresh"></i> Regenerate
@@ -1195,36 +1183,26 @@
          ID CARD MODAL
     ================================================================ -->
     <div class="modal-backdrop" id="idCardModal">
-      <div class="modal-box" style="max-width:560px;padding:20px;text-align:center;">
+      <div class="modal-box u-maxw-560 u-p-20 u-ta-center">
         <button class="modal-close" onclick="closeModal('idCardModal')">&times;</button>
-        <h3 style="justify-content:center;margin-bottom:14px;">
-          <i class="ti ti-id-badge" style="color:#065f46;"></i> Employee ID Card
+        <h3 class="u-jc-center u-mb-14">
+          <i class="ti ti-id-badge u-c-065f46"></i> Employee ID Card
         </h3>
-        <div id="idCardLoading" style="padding:40px 0;color:#64748b;font-size:14px;">
-          <i class="ti ti-loader" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+        <div class="u-p-40-0 u-c-64748b u-fs-14" id="idCardLoading">
+          <i class="ti ti-loader u-fs-28 u-d-block u-mb-8"></i>
           Generating ID card…
         </div>
-        <img id="idCardImg" src="" alt="ID Card"
-          style="display:none;max-width:100%;border-radius:12px;box-shadow:0 4px 24px rgba(30,58,138,0.15);"
+        <img class="u-d-none u-maxw-100pct u-br-12 u-shad-0-4-24-rgba30_cf2683" id="idCardImg" src="" alt="ID Card"
           onload="document.getElementById('idCardLoading').style.display='none';this.style.display='block';"
           onerror="document.getElementById('idCardLoading').textContent='Failed to generate ID card.';" />
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:18px;">
-          <a id="idCardDownload" href="#" download=""
-            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
-              border:none;border-radius:10px;background:#065f46;color:#fff;
-              font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;">
+        <div class="u-d-flex u-gap-10 u-jc-center u-mt-18">
+          <a class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-065f46 u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-tdec-none" id="idCardDownload" href="#" download="">
             <i class="ti ti-download"></i> Download PNG
           </a>
-          <button id="idCardPrintBtn" onclick="printIDCard()"
-            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
-              border:none;border-radius:10px;background:#1e3a8a;color:#fff;
-              font-size:13px;font-weight:700;cursor:pointer;">
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" id="idCardPrintBtn" onclick="printIDCard()">
             <i class="ti ti-printer"></i> Print
           </button>
-          <button onclick="closeModal('idCardModal')"
-            style="display:flex;align-items:center;gap:6px;padding:10px 20px;
-              border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;
-              font-size:13px;font-weight:700;cursor:pointer;">
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" onclick="closeModal('idCardModal')">
             Close
           </button>
         </div>
@@ -1557,7 +1535,7 @@
           inp.placeholder = '';
           if (hint) {
             if (!data.code) {
-              hint.innerHTML = '⚠ No code set for this company. Go to <a href="/companies" target="_blank" style="color:#1e3a8a;">Companies</a> and add a short code, then click 🔄 Generate.';
+              hint.innerHTML = '⚠ No code set for this company. Go to <a class="u-c-1e3a8a" href="/companies" target="_blank">Companies</a> and add a short code, then click 🔄 Generate.';
               hint.style.color = '#dc2626';
             } else {
               hint.textContent = '✓ ' + data.emp_id + ' — ' + data.company_name + ' employee #' + data.seq;
@@ -1889,138 +1867,138 @@
   </script>
 
   <!-- ═══ ADD SHIFT MODAL ═══ -->
-  <div id="addShiftModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:1200;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(30,58,138,0.2);position:relative;">
-      <button onclick="closeModal('addShiftModal')" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;">&#x2715;</button>
-      <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:8px;"><i class="ti ti-clock" style="color:#6366f1;"></i> Add Shift</h3>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addShiftModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('addShiftModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-clock u-c-6366f1"></i> Add Shift</h3>
       <form method="POST" action="/add_shift">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
-        <div style="display:grid;gap:12px;">
+        <div class="u-d-grid u-gap-12">
           <div>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Shift Name</label>
-            <input type="text" name="shift_name" required placeholder="e.g. Morning Shift" style="width:100%;padding:9px 11px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Shift Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="shift_name" required placeholder="e.g. Morning Shift" />
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-10">
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Start</label>
-              <input type="time" name="start_time" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Start</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="start_time" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Half Day</label>
-              <input type="time" name="half_time" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Half Day</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="half_time" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">End</label>
-              <input type="time" name="end_time" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">End</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="end_time" required />
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button type="button" onclick="closeModal('addShiftModal')" style="flex:1;padding:11px;border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save Shift</button>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('addShiftModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Shift</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ═══ EDIT SHIFT MODAL ═══ -->
-  <div id="editShiftModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:1200;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(30,58,138,0.2);position:relative;">
-      <button onclick="closeModal('editShiftModal')" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;">&#x2715;</button>
-      <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:8px;"><i class="ti ti-pencil" style="color:#6366f1;"></i> Edit Shift</h3>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editShiftModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('editShiftModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-pencil u-c-6366f1"></i> Edit Shift</h3>
       <form method="POST" action="/edit_shift">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
         <input type="hidden" name="shift_id" id="editShiftId" />
-        <div style="display:grid;gap:12px;">
+        <div class="u-d-grid u-gap-12">
           <div>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Shift Name</label>
-            <input type="text" name="shift_name" id="editShiftName" required style="width:100%;padding:9px 11px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Shift Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="shift_name" id="editShiftName" required />
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-10">
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Start</label>
-              <input type="time" name="start_time" id="editShiftStart" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Start</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="start_time" id="editShiftStart" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Half Day</label>
-              <input type="time" name="half_time" id="editShiftHalf" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Half Day</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="half_time" id="editShiftHalf" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">End</label>
-              <input type="time" name="end_time" id="editShiftEnd" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">End</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="end_time" id="editShiftEnd" required />
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button type="button" onclick="closeModal('editShiftModal')" style="flex:1;padding:11px;border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Update Shift</button>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('editShiftModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Shift</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ═══ ADD BREAK MODAL ═══ -->
-  <div id="addBreakModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:1200;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(30,58,138,0.2);position:relative;">
-      <button onclick="closeModal('addBreakModal')" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;">&#x2715;</button>
-      <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:8px;"><i class="ti ti-coffee" style="color:#f59e0b;"></i> Add Break</h3>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addBreakModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('addBreakModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee u-c-f59e0b"></i> Add Break</h3>
       <form method="POST" action="/add_break">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
-        <div style="display:grid;gap:12px;">
+        <div class="u-d-grid u-gap-12">
           <div>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Break Name</label>
-            <input type="text" name="break_name" required placeholder="e.g. Lunch Break" style="width:100%;padding:9px 11px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="break_name" required placeholder="e.g. Lunch Break" />
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Break Time</label>
-              <input type="time" name="break_time" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Time</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="break_time" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Duration (min)</label>
-              <input type="number" name="duration_minutes" required min="1" max="240" value="30" style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Duration (min)</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="number" name="duration_minutes" required min="1" max="240" value="30" />
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button type="button" onclick="closeModal('addBreakModal')" style="flex:1;padding:11px;border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save Break</button>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('addBreakModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Break</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ═══ EDIT BREAK MODAL ═══ -->
-  <div id="editBreakModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:1200;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(30,58,138,0.2);position:relative;">
-      <button onclick="closeModal('editBreakModal')" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;">&#x2715;</button>
-      <h3 style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:8px;"><i class="ti ti-pencil" style="color:#f59e0b;"></i> Edit Break</h3>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editBreakModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('editBreakModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-pencil u-c-f59e0b"></i> Edit Break</h3>
       <form method="POST" action="/update_break">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
         <input type="hidden" name="break_id" id="editBreakId" />
-        <div style="display:grid;gap:12px;">
+        <div class="u-d-grid u-gap-12">
           <div>
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Break Name</label>
-            <input type="text" name="break_name" id="editBreakName" required style="width:100%;padding:9px 11px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="break_name" id="editBreakName" required />
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Break Time</label>
-              <input type="time" name="break_time" id="editBreakTime" required style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Time</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="break_time" id="editBreakTime" required />
             </div>
             <div>
-              <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;display:block;margin-bottom:4px;">Duration (min)</label>
-              <input type="number" name="duration_minutes" id="editBreakDur" required min="1" max="240" style="width:100%;padding:9px 8px;border:1px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;font-family:inherit;" />
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Duration (min)</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="number" name="duration_minutes" id="editBreakDur" required min="1" max="240" />
             </div>
           </div>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#334155;">
-            <input type="checkbox" name="is_active" id="editBreakActive" value="1" style="width:16px;height:16px;" />
+          <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-fs-13 u-fw-600 u-c-334155">
+            <input class="u-w-16 u-h-16" type="checkbox" name="is_active" id="editBreakActive" value="1" />
             Active
           </label>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px;">
-          <button type="button" onclick="closeModal('editBreakModal')" style="flex:1;padding:11px;border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Update Break</button>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('editBreakModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Break</button>
         </div>
       </form>
     </div>
@@ -2072,55 +2050,54 @@
   });
   </script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin(this.dataset.cid,this.dataset.name,this.dataset.next)" data-cid="{{ c.id }}" data-name="{{ c.name|e }}" data-next="{{ request.path|e }}" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin(this.dataset.cid,this.dataset.name,this.dataset.next)" data-cid="{{ c.id }}" data-name="{{ c.name|e }}" data-next="{{ request.path|e }}">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •" autocomplete="new-password"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •" autocomplete="new-password"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

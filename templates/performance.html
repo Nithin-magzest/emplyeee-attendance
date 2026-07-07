@@ -176,15 +176,15 @@
 <body>
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co[0] if co else '' }}</div></div>
 
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -193,10 +193,10 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;"/>
+  <hr class="nav-sep u-mt-12"/>
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item active" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
@@ -213,35 +213,35 @@
 
   <div class="page-hdr">
     <div>
-      <h1><i class="ti ti-chart-line" style="color:#3b82f6;"></i> Performance &amp; Announcements</h1>
+      <h1><i class="ti ti-chart-line u-c-3b82f6"></i> Performance &amp; Announcements</h1>
       <p>Quarterly KPI reviews, ratings, and company-wide communications</p>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <button type="button" onclick="openImportModal()" class="btn" style="background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;font-size:13px;padding:9px 16px;">
+    <div class="u-d-flex u-gap-10 u-ai-center u-fxw-wrap">
+      <button type="button" onclick="openImportModal()" class="btn u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-86efac u-fs-13 u-p-9-16">
         <i class="ti ti-file-import"></i> Import Excel
       </button>
-      <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" class="btn" style="background:#eff6ff;color:#1e3a8a;border:1.5px solid #bfdbfe;font-size:13px;padding:9px 16px;" id="exportBtn">
+      <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" class="btn u-bg-eff6ff u-c-1e3a8a u-bd-1d5-solid-bfdbfe u-fs-13 u-p-9-16" id="exportBtn">
         <i class="ti ti-file-export"></i> Export Excel
       </a>
     </div>
   </div>
 
   <!-- ── Import Modal ── -->
-  <div id="importModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:18px;padding:30px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_d45 u-zi-9999 u-ai-center u-jc-center" id="importModal">
+    <div class="u-bg-fff u-br-18 u-p-30 u-w-480 u-maxw-95vw u-shad-0-20-60-rgba0_0_0_d25">
+      <div class="u-d-flex u-jc-space-between u-ai-center u-mb-20">
         <div>
-          <div style="font-size:18px;font-weight:800;color:#1e293b;"><i class="ti ti-file-import" style="color:#16a34a;"></i> Import Performance Data</div>
-          <div style="font-size:12px;color:#64748b;margin-top:3px;">Upload an Excel file to bulk-import KPIs and ratings</div>
+          <div class="u-fs-18 u-fw-800 u-c-1e293b"><i class="ti ti-file-import u-c-16a34a"></i> Import Performance Data</div>
+          <div class="u-fs-12 u-c-64748b u-mt-3">Upload an Excel file to bulk-import KPIs and ratings</div>
         </div>
-        <button type="button" onclick="closeImportModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;">✕</button>
+        <button class="u-bg-none u-bd-none u-fs-20 u-c-94a3b8 u-cur-pointer" type="button" onclick="closeImportModal()">✕</button>
       </div>
 
       <form action="/performance_import" method="POST" enctype="multipart/form-data">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+        <div class="u-d-grid u-gtc-1fr-1fr u-gap-14 u-mb-16">
           <div>
-            <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Quarter</label>
-            <select name="quarter" id="importQuarter" style="width:100%;padding:9px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;">
+            <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Quarter</label>
+            <select class="u-w-100pct u-p-9-12 u-bd-1d5-solid-dbeafe u-br-9 u-fs-13 u-out-none" name="quarter" id="importQuarter">
               <option value="1" {% if quarter==1 %}selected{% endif %}>Q1 Jan–Mar</option>
               <option value="2" {% if quarter==2 %}selected{% endif %}>Q2 Apr–Jun</option>
               <option value="3" {% if quarter==3 %}selected{% endif %}>Q3 Jul–Sep</option>
@@ -249,8 +249,8 @@
             </select>
           </div>
           <div>
-            <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Year</label>
-            <select name="year" id="importYear" style="width:100%;padding:9px 12px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;outline:none;">
+            <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Year</label>
+            <select class="u-w-100pct u-p-9-12 u-bd-1d5-solid-dbeafe u-br-9 u-fs-13 u-out-none" name="year" id="importYear">
               {% for y in range(today.year - 2, today.year + 2) %}
               <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
               {% endfor %}
@@ -258,29 +258,28 @@
           </div>
         </div>
 
-        <div style="margin-bottom:16px;">
-          <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Excel File <span style="color:#dc2626;">*</span></label>
-          <div id="dropZone" onclick="document.getElementById('importFile').click()"
-               style="border:2px dashed #93c5fd;border-radius:12px;padding:28px;text-align:center;cursor:pointer;background:#f8fafc;transition:.15s;"
+        <div class="u-mb-16">
+          <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Excel File <span class="u-c-dc2626">*</span></label>
+          <div class="u-bd-2-dashed-93c5fd u-br-12 u-p-28 u-ta-center u-cur-pointer u-bg-f8fafc u-trs-d15s" id="dropZone" onclick="document.getElementById('importFile').click()"
                ondragover="event.preventDefault();this.style.borderColor='#1e3a8a'" ondragleave="this.style.borderColor='#93c5fd'"
                ondrop="handleDrop(event)">
-            <i class="ti ti-cloud-upload" style="font-size:28px;color:#3b82f6;display:block;margin-bottom:6px;"></i>
-            <div id="dropLabel" style="font-size:13px;color:#64748b;">Click to browse or drag &amp; drop .xlsx file here</div>
+            <i class="ti ti-cloud-upload u-fs-28 u-c-3b82f6 u-d-block u-mb-6"></i>
+            <div class="u-fs-13 u-c-64748b" id="dropLabel">Click to browse or drag &amp; drop .xlsx file here</div>
           </div>
-          <input type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="onFileChosen(this)" required/>
+          <input class="u-d-none" type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" onchange="onFileChosen(this)" required/>
         </div>
 
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#15803d;line-height:1.7;">
+        <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-12-14 u-mb-18 u-fs-12 u-c-15803d u-lh-1d7">
           <strong>Required columns:</strong> <code>employee_id</code>, <code>kpi_title</code>, <code>weight</code>, <code>rating (1–5)</code><br>
           <strong>Optional:</strong> description, target, achievement, comments, status, reviewer_feedback<br>
-          <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" style="color:#1e3a8a;font-weight:700;text-decoration:none;">
+          <a class="u-c-1e3a8a u-fw-700 u-tdec-none" href="/performance_export?quarter={{ quarter }}&year={{ year }}">
             <i class="ti ti-download"></i> Download template from current export
           </a>
         </div>
 
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button type="button" onclick="closeImportModal()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">Cancel</button>
-          <button type="submit" style="padding:10px 24px;border:none;border-radius:9px;background:#1e3a8a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
+        <div class="u-d-flex u-gap-10 u-jc-flex-end">
+          <button class="u-p-10-20 u-bd-1d5-solid-e2e8f0 u-br-9 u-bg-fff u-c-64748b u-fw-700 u-fs-13 u-cur-pointer" type="button" onclick="closeImportModal()">Cancel</button>
+          <button class="u-p-10-24 u-bd-none u-br-9 u-bg-1e3a8a u-c-fff u-fw-700 u-fs-13 u-cur-pointer u-d-flex u-ai-center u-gap-7" type="submit">
             <i class="ti ti-upload"></i> Import &amp; Calculate
           </button>
         </div>
@@ -298,7 +297,7 @@
     </div>
     <div class="tab {% if active_tab == 'announcements' %}active{% endif %}" onclick="switchTab('announcements',this)">
       <i class="ti ti-speakerphone"></i> Announcements
-      {% if ann_list %}<span style="background:#3b82f6;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;">{{ ann_list|length }}</span>{% endif %}
+      {% if ann_list %}<span class="u-bg-3b82f6 u-c-fff u-br-20 u-p-1-7 u-fs-10 u-fw-700">{{ ann_list|length }}</span>{% endif %}
     </div>
   </div>
 
@@ -313,7 +312,7 @@
         {{ q_label }}
       </a>
       {% endfor %}
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <div class="u-ml-auto u-d-flex u-ai-center u-gap-8">
         {% for y in range(today.year - 1, today.year + 2) %}
         <a class="q-tab {% if y == year %}active{% endif %}"
            href="/performance?tab=performance&quarter={{ quarter }}&year={{ y }}{% if selected_dept %}&dept={{ selected_dept }}{% endif %}">
@@ -345,11 +344,11 @@
     {% set rated_list = employees|selectattr(5)|list %}
     {% set avg_rating = (rated_list|map(attribute=5)|sum / rated_list|length) if rated_list else 0 %}
     <div class="stats-row">
-      <div class="stat-card"><div class="num" style="color:#1e3a8a;">{{ total_emp }}</div><div class="lbl">Total Employees</div></div>
-      <div class="stat-card"><div class="num" style="color:#16a34a;">{{ reviewed }}</div><div class="lbl">Reviews Started</div></div>
-      <div class="stat-card"><div class="num" style="color:#6366f1;">{{ submitted }}</div><div class="lbl">Submitted</div></div>
-      <div class="stat-card"><div class="num" style="color:#f59e0b;">{{ "%.1f"|format(avg_rating) if avg_rating else '—' }}</div><div class="lbl">Avg Rating / 5</div></div>
-      <div class="stat-card"><div class="num" style="color:#64748b;">{{ total_emp - reviewed }}</div><div class="lbl">Pending Review</div></div>
+      <div class="stat-card"><div class="num u-c-1e3a8a">{{ total_emp }}</div><div class="lbl">Total Employees</div></div>
+      <div class="stat-card"><div class="num u-c-16a34a">{{ reviewed }}</div><div class="lbl">Reviews Started</div></div>
+      <div class="stat-card"><div class="num u-c-6366f1">{{ submitted }}</div><div class="lbl">Submitted</div></div>
+      <div class="stat-card"><div class="num u-c-f59e0b">{{ "%.1f"|format(avg_rating) if avg_rating else '—' }}</div><div class="lbl">Avg Rating / 5</div></div>
+      <div class="stat-card"><div class="num u-c-64748b">{{ total_emp - reviewed }}</div><div class="lbl">Pending Review</div></div>
     </div>
 
     <!-- Employee table -->
@@ -357,7 +356,7 @@
       <div class="card-pad">
         <div class="sec-title"><i class="ti ti-users"></i> Employee Reviews — Q{{ quarter }} {{ year }}</div>
       </div>
-      <div style="overflow-x:auto;">
+      <div class="u-ovx-auto">
         <table id="empTable">
           <thead>
             <tr>
@@ -373,30 +372,30 @@
             {% for emp_id, name, role, dept, rev_id, rating, status, kpi_count in employees %}
             <tr data-search="{{ name }} {{ dept }} {{ role }}">
               <td>
-                <div style="font-weight:700;">{{ name }}</div>
-                <div style="font-size:11px;color:#94a3b8;">{{ emp_id }} · {{ role }}</div>
+                <div class="u-fw-700">{{ name }}</div>
+                <div class="u-fs-11 u-c-94a3b8">{{ emp_id }} · {{ role }}</div>
               </td>
-              <td style="color:#64748b;">{{ dept or '—' }}</td>
+              <td class="u-c-64748b">{{ dept or '—' }}</td>
               <td>
                 {% if rev_id %}
-                  <span style="font-weight:700;color:#1e3a8a;">{{ kpi_count }}</span>
-                  <span style="font-size:11px;color:#94a3b8;"> KPIs</span>
-                {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+                  <span class="u-fw-700 u-c-1e3a8a">{{ kpi_count }}</span>
+                  <span class="u-fs-11 u-c-94a3b8"> KPIs</span>
+                {% else %}<span class="u-c-94a3b8">—</span>{% endif %}
               </td>
               <td>
                 {% if rating and rating > 0 %}
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div class="u-d-flex u-ai-center u-gap-8">
                   <div class="rating-stars">
                     {% for i in range(1,6) %}<span class="star {% if i <= rating %}filled{% else %}empty{% endif %}">★</span>{% endfor %}
                   </div>
-                  <span style="font-weight:800;color:#f59e0b;font-size:14px;">{{ "%.1f"|format(rating) }}</span>
+                  <span class="u-fw-800 u-c-f59e0b u-fs-14">{{ "%.1f"|format(rating) }}</span>
                 </div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">{{ rating_labels.get(rating|int,'') }}</div>
-                <div class="progress-wrap" style="margin-top:4px;">
+                <div class="u-fs-11 u-c-64748b u-mt-2">{{ rating_labels.get(rating|int,'') }}</div>
+                <div class="progress-wrap u-mt-4">
                   <div class="progress-fill" style="width:{{ (rating/5*100)|int }}%;background:{% if rating>=4 %}#22c55e{% elif rating>=3 %}#3b82f6{% elif rating>=2 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
                 </div>
                 {% else %}
-                <span style="color:#94a3b8;font-size:12px;">Not rated yet</span>
+                <span class="u-c-94a3b8 u-fs-12">Not rated yet</span>
                 {% endif %}
               </td>
               <td>
@@ -407,7 +406,7 @@
               </td>
               <td>
                 <a href="/performance_review/{{ emp_id }}?quarter={{ quarter }}&year={{ year }}"
-                   class="btn btn-primary" style="font-size:12px;padding:6px 14px;">
+                   class="btn btn-primary u-fs-12 u-p-6-14">
                   {% if rev_id %}<i class="ti ti-edit"></i> Edit{% else %}<i class="ti ti-plus"></i> Start{% endif %}
                 </a>
               </td>
@@ -428,7 +427,7 @@
       <a class="q-tab {% if q_num == quarter %}active{% endif %}"
          href="/performance?tab=hike&quarter={{ q_num }}&year={{ year }}">{{ q_label }}</a>
       {% endfor %}
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <div class="u-ml-auto u-d-flex u-ai-center u-gap-8">
         {% for y in range(today.year - 1, today.year + 2) %}
         <a class="q-tab {% if y == year %}active{% endif %}"
            href="/performance?tab=hike&quarter={{ quarter }}&year={{ y }}">{{ y }}</a>
@@ -439,20 +438,20 @@
     {% if active_tab == 'hike' %}
 
     <!-- Band Configuration (collapsible) -->
-    <div class="card" style="margin-bottom:18px;">
-      <div class="card-pad" style="cursor:pointer;user-select:none;" onclick="toggleHikeCfg()">
-        <div class="sec-title" style="margin:0;display:flex;justify-content:space-between;align-items:center;">
+    <div class="card u-mb-18">
+      <div class="card-pad u-cur-pointer u-usel-none" onclick="toggleHikeCfg()">
+        <div class="sec-title u-m-0 u-d-flex u-jc-space-between u-ai-center">
           <span><i class="ti ti-adjustments-horizontal"></i> Hike Band Configuration</span>
-          <i class="ti ti-chevron-down" id="hikeCfgChev" style="font-size:18px;transition:.2s;"></i>
+          <i class="ti ti-chevron-down u-fs-18 u-trs-d2s" id="hikeCfgChev"></i>
         </div>
       </div>
-      <div id="hikeCfgBody" style="display:none;padding:0 20px 20px;">
-        <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Define the rating thresholds, salary hike %, and quarterly bonus % of monthly CTC for each performance band.</p>
+      <div class="u-d-none u-p-0-20-20" id="hikeCfgBody">
+        <p class="u-fs-12 u-c-64748b u-mb-14">Define the rating thresholds, salary hike %, and quarterly bonus % of monthly CTC for each performance band.</p>
         <form action="/save_hike_config" method="POST">
           <input type="hidden" name="quarter" value="{{ quarter }}">
           <input type="hidden" name="year" value="{{ year }}">
-          <div style="overflow-x:auto;">
-            <table style="min-width:600px;">
+          <div class="u-ovx-auto">
+            <table class="u-minw-600">
               <thead>
                 <tr>
                   <th>Band Label</th>
@@ -466,20 +465,20 @@
                 {% for bid, blabel, bmin, bmax, bhike, binc, bcolor in hike_bands %}
                 <tr>
                   <input type="hidden" name="band_id" value="{{ bid }}">
-                  <td style="display:flex;align-items:center;gap:8px;">
+                  <td class="u-d-flex u-ai-center u-gap-8">
                     <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ bcolor }};flex-shrink:0;"></span>
-                    <input type="text" name="band_label" value="{{ blabel }}" style="width:170px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;">
+                    <input class="u-w-170 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="text" name="band_label" value="{{ blabel }}">
                   </td>
-                  <td><input type="number" name="band_min" value="{{ bmin }}" step="0.1" min="0" max="5" style="width:68px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"></td>
-                  <td><input type="number" name="band_max" value="{{ bmax }}" step="0.1" min="0" max="5" style="width:68px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"></td>
-                  <td><input type="number" name="band_hike" value="{{ bhike }}" step="0.5" min="0" max="100" style="width:75px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"> %</td>
-                  <td><input type="number" name="band_inc" value="{{ binc }}" step="0.5" min="0" max="100" style="width:75px;padding:6px 8px;border:1.5px solid #dbeafe;border-radius:7px;font-size:12px;outline:none;"> %</td>
+                  <td><input class="u-w-68 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_min" value="{{ bmin }}" step="0.1" min="0" max="5"></td>
+                  <td><input class="u-w-68 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_max" value="{{ bmax }}" step="0.1" min="0" max="5"></td>
+                  <td><input class="u-w-75 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_hike" value="{{ bhike }}" step="0.5" min="0" max="100"> %</td>
+                  <td><input class="u-w-75 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_inc" value="{{ binc }}" step="0.5" min="0" max="100"> %</td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
-          <button type="submit" class="btn btn-primary" style="margin-top:14px;font-size:12px;">
+          <button type="submit" class="btn btn-primary u-mt-14 u-fs-12">
             <i class="ti ti-device-floppy"></i> Save Configuration
           </button>
         </form>
@@ -487,15 +486,15 @@
     </div>
 
     <!-- Summary stats -->
-    <div class="stats-row" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="num" style="color:#1e3a8a;">{{ hike_employees|length }}</div><div class="lbl">Total Employees</div></div>
-      <div class="stat-card"><div class="num" style="color:#16a34a;">{{ hike_eligible_count }}</div><div class="lbl">Rated (Eligible)</div></div>
-      <div class="stat-card"><div class="num" style="color:#7c3aed;font-size:18px;">₹{{ "{:,.0f}".format(total_hike_cost) }}</div><div class="lbl">Extra Hike Cost / Mo</div></div>
-      <div class="stat-card"><div class="num" style="color:#d97706;font-size:18px;">₹{{ "{:,.0f}".format(total_bonus_pool) }}</div><div class="lbl">Total Bonus Pool</div></div>
+    <div class="stats-row u-mb-18">
+      <div class="stat-card"><div class="num u-c-1e3a8a">{{ hike_employees|length }}</div><div class="lbl">Total Employees</div></div>
+      <div class="stat-card"><div class="num u-c-16a34a">{{ hike_eligible_count }}</div><div class="lbl">Rated (Eligible)</div></div>
+      <div class="stat-card"><div class="num u-c-7c3aed u-fs-18">₹{{ "{:,.0f}".format(total_hike_cost) }}</div><div class="lbl">Extra Hike Cost / Mo</div></div>
+      <div class="stat-card"><div class="num u-c-d97706 u-fs-18">₹{{ "{:,.0f}".format(total_bonus_pool) }}</div><div class="lbl">Total Bonus Pool</div></div>
     </div>
 
     <!-- Hidden submit form (populated by JS) -->
-    <form id="hikeForm" action="" method="POST" style="display:none;">
+    <form class="u-d-none" id="hikeForm" action="" method="POST">
       <input type="hidden" name="quarter" value="{{ quarter }}">
       <input type="hidden" name="year" value="{{ year }}">
       <div id="hikeEmpIds"></div>
@@ -503,25 +502,25 @@
 
     <!-- Employee hike table -->
     <div class="card">
-      <div class="card-pad" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div class="sec-title" style="margin:0;"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <label style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer;">
+      <div class="card-pad u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-10">
+        <div class="sec-title u-m-0"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>
+        <div class="u-d-flex u-gap-8 u-fxw-wrap u-ai-center">
+          <label class="u-fs-12 u-c-64748b u-d-flex u-ai-center u-gap-6 u-cur-pointer">
             <input type="checkbox" id="hikeSelectAll" onchange="hikeSelectAll(this)"> Select all
           </label>
-          <button type="button" class="btn" style="background:#dcfce7;color:#15803d;border:1.5px solid #86efac;font-size:12px;" onclick="submitHikeForm('/apply_hike')">
+          <button type="button" class="btn u-bg-dcfce7 u-c-15803d u-bd-1d5-solid-86efac u-fs-12" onclick="submitHikeForm('/apply_hike')">
             <i class="ti ti-arrow-up-circle"></i> Apply Hike to Selected
           </button>
-          <button type="button" class="btn" style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde68a;font-size:12px;" onclick="submitHikeForm('/award_performance_bonus')">
+          <button type="button" class="btn u-bg-fef9c3 u-c-854d0e u-bd-1d5-solid-fde68a u-fs-12" onclick="submitHikeForm('/award_performance_bonus')">
             <i class="ti ti-gift"></i> Award Bonus to Selected
           </button>
         </div>
       </div>
-      <div style="overflow-x:auto;">
+      <div class="u-ovx-auto">
         <table>
           <thead>
             <tr>
-              <th style="width:36px;text-align:center;"></th>
+              <th class="u-w-36 u-ta-center"></th>
               <th>Employee</th>
               <th>Department</th>
               <th>Current CTC / Mo</th>
@@ -536,20 +535,20 @@
           <tbody>
             {% for h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc, band_label, band_color, hike_pct, new_ctc, inc_pct, bonus in hike_employees %}
             <tr>
-              <td style="text-align:center;">
+              <td class="u-ta-center">
                 <input type="checkbox" class="hike-chk" value="{{ h_eid }}"
                   {% if h_rating == 0 or h_ctc == 0 %}disabled title="Needs rating + salary configured"{% endif %}>
               </td>
               <td>
-                <div style="font-weight:600;font-size:13px;">{{ h_name }}</div>
-                <div style="font-size:11px;color:#64748b;">{{ h_eid }}{% if h_role %} · {{ h_role }}{% endif %}</div>
+                <div class="u-fw-600 u-fs-13">{{ h_name }}</div>
+                <div class="u-fs-11 u-c-64748b">{{ h_eid }}{% if h_role %} · {{ h_role }}{% endif %}</div>
               </td>
               <td>{{ h_dept or '—' }}</td>
               <td>
                 {% if h_ctc > 0 %}
-                <span style="font-weight:600;">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                <span class="u-fw-600">₹{{ "{:,.0f}".format(h_ctc) }}</span>
                 {% else %}
-                <span style="color:#94a3b8;font-size:12px;">Not configured</span>
+                <span class="u-c-94a3b8 u-fs-12">Not configured</span>
                 {% endif %}
               </td>
               <td>
@@ -558,7 +557,7 @@
                   {{ "%.1f"|format(h_rating) }} / 5
                 </span>
                 {% else %}
-                <span style="color:#94a3b8;font-size:12px;">Not rated</span>
+                <span class="u-c-94a3b8 u-fs-12">Not rated</span>
                 {% endif %}
               </td>
               <td>
@@ -568,35 +567,35 @@
               </td>
               <td>
                 {% if hike_pct > 0 %}
-                <span style="color:#15803d;font-weight:700;">{{ hike_pct }}%</span>
+                <span class="u-c-15803d u-fw-700">{{ hike_pct }}%</span>
                 {% else %}—{% endif %}
               </td>
               <td>
                 {% if new_ctc > h_ctc and h_ctc > 0 %}
-                <span style="font-weight:700;color:#15803d;">₹{{ "{:,.0f}".format(new_ctc) }}</span>
-                <span style="font-size:11px;color:#16a34a;white-space:nowrap;">+₹{{ "{:,.0f}".format(new_ctc - h_ctc) }}</span>
+                <span class="u-fw-700 u-c-15803d">₹{{ "{:,.0f}".format(new_ctc) }}</span>
+                <span class="u-fs-11 u-c-16a34a u-ws-nowrap">+₹{{ "{:,.0f}".format(new_ctc - h_ctc) }}</span>
                 {% elif h_ctc > 0 %}
-                <span style="color:#64748b;">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                <span class="u-c-64748b">₹{{ "{:,.0f}".format(h_ctc) }}</span>
                 {% else %}—{% endif %}
               </td>
               <td>
                 {% if inc_pct > 0 %}
-                <span style="color:#d97706;font-weight:700;">{{ inc_pct }}%</span>
+                <span class="u-c-d97706 u-fw-700">{{ inc_pct }}%</span>
                 {% else %}—{% endif %}
               </td>
               <td>
                 {% if bonus > 0 %}
-                <span style="font-weight:700;color:#92400e;">₹{{ "{:,.0f}".format(bonus) }}</span>
-                {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+                <span class="u-fw-700 u-c-92400e">₹{{ "{:,.0f}".format(bonus) }}</span>
+                {% else %}<span class="u-c-94a3b8">—</span>{% endif %}
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="10" style="text-align:center;padding:30px;color:#94a3b8;">No employees found.</td></tr>
+            <tr><td class="u-ta-center u-p-30 u-c-94a3b8" colspan="10">No employees found.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <div style="padding:10px 20px;font-size:12px;color:#64748b;border-top:1px solid #f1f5f9;line-height:1.6;">
+      <div class="u-p-10-20 u-fs-12 u-c-64748b u-bdt-1-solid-f1f5f9 u-lh-1d6">
         <i class="ti ti-info-circle"></i>
         <strong>Apply Hike</strong> — updates monthly CTC and salary/day in salary settings, with today as the revision date. &nbsp;|&nbsp;
         <strong>Award Bonus</strong> — adds a one-time incentive to the employee's payroll record for Q{{ quarter }} {{ year }}.
@@ -615,12 +614,12 @@
       <div class="sec-title"><i class="ti ti-plus"></i> Post New Announcement</div>
       <form action="/announcements" method="POST">
         <input type="hidden" name="action" value="add"/>
-        <div class="form-row" style="margin-bottom:12px;">
-          <div class="form-group" style="grid-column:span 2;">
+        <div class="form-row u-mb-12">
+          <div class="form-group u-gc-span-2">
             <label>Title</label>
             <input type="text" name="title" placeholder="Announcement title…" required maxlength="255"/>
           </div>
-          <div class="form-group" style="grid-column:span 2;">
+          <div class="form-group u-gc-span-2">
             <label>Content</label>
             <textarea name="content" placeholder="Write the announcement details…" required rows="3"></textarea>
           </div>
@@ -637,15 +636,15 @@
             <div class="vis-toggle">
               <label>
                 <input type="radio" name="visibility" value="public" checked onchange="annVisChange(this)"/>
-                <span><i class="ti ti-world" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Public</span>
+                <span><i class="ti ti-world u-fs-13 u-va-middle u-mr-4"></i>Public</span>
               </label>
               <label>
                 <input type="radio" name="visibility" value="private" onchange="annVisChange(this)"/>
-                <span><i class="ti ti-lock" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Private</span>
+                <span><i class="ti ti-lock u-fs-13 u-va-middle u-mr-4"></i>Private</span>
               </label>
             </div>
           </div>
-          <div class="form-group" id="privateEmpRow" style="grid-column:span 2;">
+          <div class="form-group u-gc-span-2" id="privateEmpRow">
             <label>Send To (Employee)</label>
             <select name="target_employee_id" id="annTargetEmp">
               <option value="">— Select employee —</option>
@@ -655,7 +654,7 @@
             </select>
           </div>
         </div>
-        <div style="text-align:right;">
+        <div class="u-ta-right">
           <button type="submit" class="btn btn-primary"><i class="ti ti-speakerphone"></i> Post Announcement</button>
         </div>
       </form>
@@ -666,22 +665,22 @@
       <div class="sec-title"><i class="ti ti-list"></i> All Announcements ({{ ann_list|length }})</div>
       {% if ann_list %}
         {% if pub_anns %}
-        <div class="ann-sec-label"><i class="ti ti-world" style="vertical-align:middle;margin-right:4px;"></i>Public ({{ pub_anns|length }})</div>
+        <div class="ann-sec-label"><i class="ti ti-world u-va-middle u-mr-4"></i>Public ({{ pub_anns|length }})</div>
         {% for aid, atitle, acontent, apri, adate, avis, atgt_id, atgt_name in pub_anns %}
         <div class="ann-card priority-{{ apri|lower }}">
           <div class="ann-icon">
-            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle" style="color:#ef4444;font-size:22px;"></i>
-            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle" style="color:#f59e0b;font-size:22px;"></i>
-            {% else %}<i class="ti ti-speakerphone" style="color:#3b82f6;font-size:22px;"></i>{% endif %}
+            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle u-c-ef4444 u-fs-22"></i>
+            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle u-c-f59e0b u-fs-22"></i>
+            {% else %}<i class="ti ti-speakerphone u-c-3b82f6 u-fs-22"></i>{% endif %}
           </div>
           <div class="ann-body">
             <div class="ann-title">{{ atitle }}</div>
             <div class="ann-content">{{ acontent }}</div>
             <div class="ann-meta">
               <span class="badge-pri pri-{{ apri|lower }}">{{ apri }}</span>
-              <span class="badge-vis vis-public"><i class="ti ti-world" style="font-size:10px;"></i> Public</span>
+              <span class="badge-vis vis-public"><i class="ti ti-world u-fs-10"></i> Public</span>
               <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
-              <form action="/announcements" method="POST" style="display:inline;margin-left:auto;">
+              <form class="u-d-inline u-ml-auto" action="/announcements" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
                 <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
@@ -695,23 +694,23 @@
         {% endif %}
 
         {% if priv_anns %}
-        <div class="ann-sec-label" style="margin-top:18px;"><i class="ti ti-lock" style="vertical-align:middle;margin-right:4px;"></i>Private ({{ priv_anns|length }})</div>
+        <div class="ann-sec-label u-mt-18"><i class="ti ti-lock u-va-middle u-mr-4"></i>Private ({{ priv_anns|length }})</div>
         {% for aid, atitle, acontent, apri, adate, avis, atgt_id, atgt_name in priv_anns %}
         <div class="ann-card priority-{{ apri|lower }}">
           <div class="ann-icon">
-            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle" style="color:#ef4444;font-size:22px;"></i>
-            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle" style="color:#f59e0b;font-size:22px;"></i>
-            {% else %}<i class="ti ti-lock" style="color:#f59e0b;font-size:22px;"></i>{% endif %}
+            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle u-c-ef4444 u-fs-22"></i>
+            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle u-c-f59e0b u-fs-22"></i>
+            {% else %}<i class="ti ti-lock u-c-f59e0b u-fs-22"></i>{% endif %}
           </div>
           <div class="ann-body">
             <div class="ann-title">{{ atitle }}</div>
             <div class="ann-content">{{ acontent }}</div>
             <div class="ann-meta">
               <span class="badge-pri pri-{{ apri|lower }}">{{ apri }}</span>
-              <span class="badge-vis vis-private"><i class="ti ti-lock" style="font-size:10px;"></i> Private</span>
-              {% if atgt_name %}<span style="color:#64748b;font-size:11px;"><i class="ti ti-user" style="font-size:10px;"></i> To: {{ atgt_name }}</span>{% endif %}
+              <span class="badge-vis vis-private"><i class="ti ti-lock u-fs-10"></i> Private</span>
+              {% if atgt_name %}<span class="u-c-64748b u-fs-11"><i class="ti ti-user u-fs-10"></i> To: {{ atgt_name }}</span>{% endif %}
               <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
-              <form action="/announcements" method="POST" style="display:inline;margin-left:auto;">
+              <form class="u-d-inline u-ml-auto" action="/announcements" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
                 <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
@@ -724,7 +723,7 @@
         {% endfor %}
         {% endif %}
       {% else %}
-        <div class="empty-state"><i class="ti ti-speakerphone" style="font-size:40px;display:block;margin-bottom:12px;"></i>No announcements posted yet.</div>
+        <div class="empty-state"><i class="ti ti-speakerphone u-fs-40 u-d-block u-mb-12"></i>No announcements posted yet.</div>
       {% endif %}
     </div>
   </div>
@@ -841,55 +840,54 @@ function hikeSelectAll(cb) {
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>

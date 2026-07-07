@@ -74,7 +74,7 @@
         {% if qr_path %}
           <img src="/{{ qr_path|qr_url }}" alt="QR Code for {{ name }}" />
         {% else %}
-          <div style="width:140px;height:140px;border-radius:10px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;opacity:0.4;font-size:13px;">No QR</div>
+          <div class="u-w-140 u-h-140 u-br-10 u-bg-rgba255_255_255_0d1 u-d-flex u-ai-center u-jc-center u-m-0-auto-12 u-op-0d4 u-fs-13">No QR</div>
         {% endif %}
         <div class="emp-name">{{ name }}</div>
         <div class="emp-id">ID: {{ emp_id }}</div>

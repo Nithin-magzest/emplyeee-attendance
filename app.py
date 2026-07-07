@@ -295,8 +295,9 @@ def _resolve_tenant():
 
 _CSRF_HEAD_RE    = re.compile(rb'</head>', re.IGNORECASE)
 _CSRF_BODY_RE    = re.compile(rb'</body>', re.IGNORECASE)
-# Matches <script> tags that don't already carry a nonce — used to inject CSP nonces
+# Matches <script>/<style> tags without a nonce — used to inject CSP nonces
 _SCRIPT_TAG_RE   = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
+_STYLE_TAG_RE    = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])',  re.IGNORECASE)
 # Capture inline event-handler values for dynamic CSP sha256 hash generation.
 # Two patterns: double-quoted and single-quoted attribute values.
 _CSP_EV_DQ = re.compile(
@@ -385,6 +386,8 @@ def _security_headers(response):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}; "
+            f"style-src-elem 'self' 'nonce-{nonce}'; "
+            "style-src-attr 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
@@ -435,7 +438,9 @@ def _inject_csrf_meta(response):
         data  = _CSRF_BODY_RE.sub(_CSRF_SCRIPT + b'</body>', data, count=1)
         nonce = getattr(g, "csp_nonce", None)
         if nonce:
-            data = _SCRIPT_TAG_RE.sub(b'<script nonce="' + nonce.encode() + b'"', data)
+            nb = nonce.encode()
+            data = _SCRIPT_TAG_RE.sub(b'<script nonce="' + nb + b'"', data)
+            data = _STYLE_TAG_RE.sub(b'<style nonce="' + nb + b'"', data)
         response.set_data(data)
     except Exception:
         pass

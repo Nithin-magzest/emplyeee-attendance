@@ -107,7 +107,7 @@
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="brand-wrap">
-      <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+      <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
       <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
     </div>
     <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -125,7 +125,7 @@
     <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
     <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
     <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-    <div class="sidebar-footer"><i class="ti ti-user" style="font-size:13px;"></i> Admin</div>
+    <div class="sidebar-footer"><i class="ti ti-user u-fs-13"></i> Admin</div>
   </div>
 
   <!-- MAIN -->
@@ -146,10 +146,10 @@
 
     <!-- Date picker (GET) -->
     <form method="GET" action="/bulk_mark_attendance" class="date-bar">
-      <label><i class="ti ti-calendar" style="vertical-align:middle;margin-right:4px;"></i> Select Date</label>
+      <label><i class="ti ti-calendar u-va-middle u-mr-4"></i> Select Date</label>
       <input type="date" name="date" value="{{ date_str }}" max="{{ today.isoformat() }}" required />
-      <button type="submit"><i class="ti ti-refresh" style="vertical-align:middle;margin-right:4px;"></i>Load Employees</button>
-      <span style="font-size:13px;color:#64748b;">Showing <strong>{{ employees|length }}</strong> employee(s) for <strong>{{ date_obj.strftime('%d %b %Y') }}</strong></span>
+      <button type="submit"><i class="ti ti-refresh u-va-middle u-mr-4"></i>Load Employees</button>
+      <span class="u-fs-13 u-c-64748b">Showing <strong>{{ employees|length }}</strong> employee(s) for <strong>{{ date_obj.strftime('%d %b %Y') }}</strong></span>
     </form>
 
     {% if employees %}
@@ -194,42 +194,42 @@
             {%- set cur_logout = cur[2].strftime('%H:%M') if cur and cur[2] else (et if et else '') -%}
             {%- set ms = month_summary.get(eid) -%}
             <tr data-name="{{ ename|lower }}" data-id="{{ eid|lower }}" data-dept="{{ dept|lower }}" data-role="{{ role|lower }}">
-              <td style="color:#94a3b8;font-size:12px;">{{ loop.index }}</td>
+              <td class="u-c-94a3b8 u-fs-12">{{ loop.index }}</td>
               <td>
-                <div style="display:flex;align-items:center;gap:10px;">
+                <div class="u-d-flex u-ai-center u-gap-10">
                   <div class="avatar">{{ ename[0]|upper }}</div>
                   <div>
                     <div class="emp-name">{{ ename }}</div>
                     <span class="emp-id">{{ eid }}{% if role %} · {{ role }}{% endif %}</span>
-                    {% if phone %}<div class="emp-meta"><i class="ti ti-phone" style="font-size:10px;"></i> {{ phone }}</div>{% endif %}
-                    {% if email %}<div class="emp-meta"><i class="ti ti-mail" style="font-size:10px;"></i> {{ email }}</div>{% endif %}
+                    {% if phone %}<div class="emp-meta"><i class="ti ti-phone u-fs-10"></i> {{ phone }}</div>{% endif %}
+                    {% if email %}<div class="emp-meta"><i class="ti ti-mail u-fs-10"></i> {{ email }}</div>{% endif %}
                     {% if gender %}<div class="emp-meta">{{ gender }}{% if doj %} · Joined {{ doj.strftime('%d %b %Y') if doj and doj != '' else doj }}{% endif %}</div>{% endif %}
                   </div>
                 </div>
               </td>
               <td>
-                {% if dept %}<div style="font-size:12px;color:#1e293b;font-weight:600;">{{ dept }}</div>{% endif %}
-                {% if desig %}<div style="font-size:11px;color:#64748b;">{{ desig }}</div>{% endif %}
-                {% if not dept and not desig %}<span style="color:#cbd5e1;font-size:12px;">—</span>{% endif %}
+                {% if dept %}<div class="u-fs-12 u-c-1e293b u-fw-600">{{ dept }}</div>{% endif %}
+                {% if desig %}<div class="u-fs-11 u-c-64748b">{{ desig }}</div>{% endif %}
+                {% if not dept and not desig %}<span class="u-c-cbd5e1 u-fs-12">—</span>{% endif %}
               </td>
               <td>
                 {% if shift %}
                   <span class="shift-badge">{{ shift }}{% if st %} {{ st }}–{{ et }}{% endif %}</span>
                 {% else %}
-                  <span style="color:#cbd5e1;font-size:12px;">No shift</span>
+                  <span class="u-c-cbd5e1 u-fs-12">No shift</span>
                 {% endif %}
-                <div style="margin-top:4px;">
+                <div class="u-mt-4">
                   <span class="mode-badge mode-{{ work_mode|lower }}">{{ work_mode|title }}</span>
                 </div>
               </td>
-              <td style="white-space:nowrap;">
+              <td class="u-ws-nowrap">
                 {% if ms %}
                   <span class="stat-pill sp-present">✅ {{ ms[1]|int }}P</span>
                   <span class="stat-pill sp-half">🌓 {{ ms[2]|int }}H</span>
                   <span class="stat-pill sp-absent">❌ {{ ms[3]|int }}A</span>
                   <span class="stat-pill sp-leave">🌴 {{ ms[4]|int }}L</span>
                 {% else %}
-                  <span style="color:#cbd5e1;font-size:11px;">No records</span>
+                  <span class="u-c-cbd5e1 u-fs-11">No records</span>
                 {% endif %}
               </td>
               <td>
@@ -265,9 +265,9 @@
     {% else %}
     <div class="section">
       <div class="empty">
-        <div style="font-size:48px;margin-bottom:12px;">👥</div>
-        <div style="font-size:15px;font-weight:700;color:#64748b;">No active employees found.</div>
-        <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Add employees first before marking attendance.</div>
+        <div class="u-fs-48 u-mb-12">👥</div>
+        <div class="u-fs-15 u-fw-700 u-c-64748b">No active employees found.</div>
+        <div class="u-fs-13 u-c-94a3b8 u-mt-6">Add employees first before marking attendance.</div>
       </div>
     </div>
     {% endif %}

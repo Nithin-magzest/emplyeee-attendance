@@ -269,15 +269,15 @@
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard" style="font-size:18px;"></i></div>
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
     <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
 
   </div>
-    <div id="co-sw" style="margin:0 0 12px;">
-    <button id="co-sw-btn" onclick="coSwToggle(event)" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:10px;cursor:pointer;color:#fff;font-family:inherit;text-align:left;transition:.15s;">
-      <div style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:13px;"></i></div>
-      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
-      <i class="ti ti-chevron-down" style="font-size:11px;opacity:.7;flex-shrink:0;"></i>
+    <div class="u-m-0-0-12" id="co-sw">
+    <button class="u-w-100pct u-d-flex u-ai-center u-gap-8 u-p-8-10 u-bg-rgba255_255_255_0d1 u-bd-1-solid-rgba25f4b9a6 u-br-10 u-cur-pointer u-c-fff u-ff-inherit u-ta-left u-trs-d15s" id="co-sw-btn" onclick="coSwToggle(event)">
+      <div class="u-w-26 u-h-26 u-br-8 u-bg-rgba255_255_255_0d15 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-13"></i></div>
+      <span class="u-fs-12 u-fw-600 u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap" id="co-sw-label">{% if active_company %}{{ active_company.name }}{% else %}All Companies{% endif %}</span>
+      <i class="ti ti-chevron-down u-fs-11 u-op-d7 u-fxs-0"></i>
     </button>
   </div>
   <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -286,16 +286,16 @@
   <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
   <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
   <a class="nav-item active" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep" style="margin-top:12px;" />
+  <hr class="nav-sep u-mt-12" />
   <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count" style="background:#ef4444;">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
   <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-  <div class="sidebar-footer"><i class="ti ti-clock" style="font-size:13px;"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
 </div>
 
 <!-- MAIN -->
@@ -305,7 +305,7 @@
   <div class="topbar">
     <div class="topbar-heading">
       <div>
-        <h1><i class="ti ti-calendar-event" style="color:#6366f1;"></i> Leaves &amp; Holidays</h1>
+        <h1><i class="ti ti-calendar-event u-c-6366f1"></i> Leaves &amp; Holidays</h1>
         <div class="sub">Manage leave requests, tickets, resignations and public holidays</div>
       </div>
       <div class="topbar-actions">
@@ -326,10 +326,10 @@
   </div>
 
   <!-- FLASH MESSAGES -->
-  <div style="padding:0 28px">
+  <div class="u-p-0-28">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
-        <div class="flash flash-{{ 'success' if cat=='success' else ('error' if cat=='error' else 'info') }}" style="margin-top:16px">{{ msg }}</div>
+        <div class="flash flash-{{ 'success' if cat=='success' else ('error' if cat=='error' else 'info') }} u-mt-16">{{ msg }}</div>
       {% endfor %}
     {% endwith %}
   </div>
@@ -392,7 +392,7 @@
                 <div class="card-meta">
                   {{ leave_type_name }} &nbsp;·&nbsp; {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }} &nbsp;·&nbsp;
                   {% if is_half_day %}
-                    <span style="background:#fef9c3;color:#92400e;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;">{% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
+                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
                   {% else %}1 day{% endif %}
                 </div>
               </div>
@@ -408,7 +408,7 @@
                 <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Approved"><button type="submit" class="btn-approve">✓ Approve</button></form>
                 <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Rejected"><button type="submit" class="btn-reject">✗ Reject</button></form>
               {% else %}<span class="done-label">{{ status }}</span>{% endif %}
-              <a href="/employee_profile/{{ emp_id }}" class="btn-profile"><i class="ti ti-user" style="font-size:13px;"></i> View profile</a>
+              <a href="/employee_profile/{{ emp_id }}" class="btn-profile"><i class="ti ti-user u-fs-13"></i> View profile</a>
             </div>
           </div>
         {% endfor %}
@@ -433,7 +433,7 @@
                 <div class="emp-name">{{ t_name }}<span class="emp-id-tag">{{ t_emp_id }}</span></div>
                 <div class="card-meta">{{ t_cat }} &nbsp;·&nbsp; {{ t_created.strftime('%d %b %Y') if t_created else '—' }}</div>
               </div>
-              <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <div class="u-d-flex u-gap-6 u-ai-center u-fxs-0">
                 {% if t_pri == 'High' %}<span class="pri-high">High</span>{% elif t_pri == 'Medium' %}<span class="pri-medium">Medium</span>{% else %}<span class="pri-low">Low</span>{% endif %}
                 {% if t_stat == 'Open' %}<span class="status-badge sb-open">Open</span>{% elif t_stat == 'In Progress' %}<span class="status-badge sb-inprog">In Progress</span>{% else %}<span class="status-badge sb-resolved">{{ t_stat }}</span>{% endif %}
               </div>
@@ -450,7 +450,7 @@
                   <option value="Closed" {% if t_stat=='Closed' %}selected{% endif %}>Closed</option>
                 </select>
                 <textarea name="admin_response" class="respond-textarea" placeholder="Type a response (optional)…"></textarea>
-                <button type="submit" class="btn-respond"><i class="ti ti-send" style="font-size:13px;"></i> Update</button>
+                <button type="submit" class="btn-respond"><i class="ti ti-send u-fs-13"></i> Update</button>
               </div>
             </form>
           </div>
@@ -484,7 +484,7 @@
             {% if _days_left > 0 %}
             <div class="notice-box"><i class="ti ti-alert-triangle"></i><span><strong>{{ _days_left }} day{{ 's' if _days_left != 1 else '' }} notice period.</strong> Ensure handover plan and exit documents are prepared.</span></div>
             {% elif _days_left == 0 %}
-            <div class="notice-box" style="background:#fee2e2;border-color:#fca5a5;color:#dc2626;"><i class="ti ti-alert-triangle" style="color:#dc2626;"></i><span><strong>Last working day is today.</strong> Ensure all handover is complete.</span></div>
+            <div class="notice-box u-bg-fee2e2 u-bdc-fca5a5 u-c-dc2626"><i class="ti ti-alert-triangle u-c-dc2626"></i><span><strong>Last working day is today.</strong> Ensure all handover is complete.</span></div>
             {% endif %}
             <div class="reason-quote">"{{ r_reason }}"</div>
             <div class="balance-row"><span class="dot-sep"></span>Submitted on {{ r_created.strftime('%d %b %Y') if r_created else '—' }}</div>
@@ -493,7 +493,7 @@
                 <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Accepted"><button type="submit" class="btn-approve">✓ Accept</button></form>
                 <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Declined"><button type="submit" class="btn-reject">✗ Decline</button></form>
               {% else %}<span class="done-label">{{ r_status }}</span>{% endif %}
-              <a href="/employee_profile/{{ r_emp_id }}" class="btn-profile"><i class="ti ti-user" style="font-size:13px;"></i> View profile</a>
+              <a href="/employee_profile/{{ r_emp_id }}" class="btn-profile"><i class="ti ti-user u-fs-13"></i> View profile</a>
             </div>
           </div>
         {% endfor %}
@@ -520,7 +520,7 @@
     </div>
 
     <div class="toolbar">
-      <form action="/import_indian_holidays" method="POST" style="display:inline;">
+      <form class="u-d-inline" action="/import_indian_holidays" method="POST">
         <input type="hidden" name="year" value="{{ year }}">
         <button type="submit" class="btn-import" onclick="return confirm('Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
           🇮🇳 Import Indian Holidays for {{ year }}
@@ -534,7 +534,7 @@
       <div class="leg"><div class="leg-dot leg-sunday"></div>Sunday (Weekly Off)</div>
       <div class="leg"><div class="leg-dot leg-today"></div>Today</div>
       <div class="leg"><div class="leg-dot leg-normal"></div>Working Day</div>
-      <span style="font-size:11px;color:#94a3b8;">Click a working day to add holiday &bull; Click a holiday to remove it</span>
+      <span class="u-fs-11 u-c-94a3b8">Click a working day to add holiday &bull; Click a holiday to remove it</span>
     </div>
 
     <div class="info-note">ℹ️ <span><strong>Saturday is a working day.</strong> Only Sunday is marked as weekly off. Holidays are paid days — they count toward salary calculation.</span></div>
@@ -590,7 +590,7 @@
               <tr>
                 <td>{{ ns.count }}</td>
                 <td>{{ h[1].strftime('%d %b %Y') }}</td>
-                <td style="color:#64748b;font-size:12px;">{{ h[1].strftime('%A') }}</td>
+                <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
                 <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave">🌿 {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday">🎉 {{ h[2] }}</span>{% endif %}</td>
                 <td>
                   <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return confirm('Delete this entry?');" class="form-inline">
@@ -632,7 +632,7 @@
     </form>
   </div>
 </div>
-<form id="delForm" method="POST" style="display:none;"><input type="hidden" name="year" value="{{ year }}"></form>
+<form class="u-d-none" id="delForm" method="POST"><input type="hidden" name="year" value="{{ year }}"></form>
 
 <script>
 // Module tab switching
@@ -711,55 +711,54 @@ showMonth(currentMonth);
 </script>
 <script src="/static/darkmode.js"></script>
 
-<div id="co-sw-menu" style="display:none;position:fixed;min-width:212px;max-width:240px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow-y:auto;max-height:280px;z-index:9998;">
+<div class="u-d-none u-pos-fixed u-minw-212 u-maxw-240 u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-12 u-shad-0-8-32-rgba0_0_0_0d25 u-ovy-auto u-maxh-280 u-zi-9998" id="co-sw-menu">
     <form method="POST" action="/clear_company">
       <input type="hidden" name="next" value="{{ request.path }}" />
-      <button type="submit" style="width:100%;padding:9px 12px;background:{% if not active_company %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if not active_company %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building-community" style="font-size:12px;color:#64748b;"></i></div>
+      <button class="co-sw-btn {% if not active_company %}co-sw-btn--on{% endif %}" type="submit">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building-community u-fs-12 u-c-64748b"></i></div>
         All Companies
       </button>
     </form>
-    <div style="height:1px;background:#f1f5f9;"></div>
+    <div class="u-h-1 u-bg-f1f5f9"></div>
     {% for c in all_companies %}
-    <div style="{% if not loop.first %}border-top:1px solid #f8fafc;{% endif %}">
+    <div class="{% if not loop.first %}u-bdt-1-solid-f8fafc{% endif %}">
       {% if c.has_pin %}
-      <button onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-        <div style="width:24px;height:24px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#1e3a8a;"></i></div>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
-        <i class="ti ti-lock" style="font-size:11px;color:#f59e0b;flex-shrink:0;"></i>
+      <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" onclick="coFloatPin({{ c.id }},'{{ c.name }}','{{ request.path }}')">
+        <div class="u-w-24 u-h-24 u-br-7 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-1e3a8a"></i></div>
+        <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
+        <i class="ti ti-lock u-fs-11 u-c-f59e0b u-fxs-0"></i>
       </button>
       {% else %}
       <form method="POST" action="/switch_company">
         <input type="hidden" name="company_id" value="{{ c.id }}" />
         <input type="hidden" name="next" value="{{ request.path }}" />
-        <button type="submit" style="width:100%;padding:9px 12px;background:{% if active_company and active_company.id==c.id %}#eff6ff{% else %}none{% endif %};border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;color:{% if active_company and active_company.id==c.id %}#1e3a8a{% else %}#0f172a{% endif %};font-family:inherit;">
-          <div style="width:24px;height:24px;border-radius:7px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-building" style="font-size:12px;color:#16a34a;"></i></div>
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.name }}{% if c.code %} <span style="font-size:10px;color:#94a3b8;">({{ c.code }})</span>{% endif %}</span>
+        <button class="co-sw-btn {% if active_company and active_company.id==c.id %}co-sw-btn--on{% endif %}" type="submit">
+          <div class="u-w-24 u-h-24 u-br-7 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-building u-fs-12 u-c-16a34a"></i></div>
+          <span class="u-fx-1 u-ov-hidden u-tov-ellipsis u-ws-nowrap">{{ c.name }}{% if c.code %} <span class="u-fs-10 u-c-94a3b8">({{ c.code }})</span>{% endif %}</span>
         </button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if not all_companies %}
-    <div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">No companies yet</div>
+    <div class="u-p-12 u-fs-12 u-c-94a3b8 u-ta-center">No companies yet</div>
     {% endif %}
   </div>
 
   <!-- PIN entry modal (global) -->
-  <div id="co-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:10001;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;padding:30px 28px 24px;width:340px;box-shadow:0 24px 64px rgba(0,0,0,0.28);">
-      <div style="text-align:center;margin-bottom:6px;font-size:32px;">🔒</div>
-      <div style="font-size:16px;font-weight:800;color:#0f172a;text-align:center;margin-bottom:4px;">Company Protected</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;" id="co-pin-name">Enter PIN to access</div>
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10001 u-ai-center u-jc-center" id="co-pin-modal">
+    <div class="u-bg-fff u-br-20 u-p-30-28-24 u-w-340 u-shad-0-24-64-rgba0_0_0_0d28">
+      <div class="u-ta-center u-mb-6 u-fs-32">🔒</div>
+      <div class="u-fs-16 u-fw-800 u-c-0f172a u-ta-center u-mb-4">Company Protected</div>
+      <div class="u-fs-13 u-c-64748b u-ta-center u-mb-20" id="co-pin-name">Enter PIN to access</div>
       <form method="POST" action="/switch_company" id="co-pin-form">
         <input type="hidden" name="company_id" id="co-pin-cid" />
         <input type="hidden" name="next" id="co-pin-next" />
-        <input type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
-          style="width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:12px;font-size:22px;letter-spacing:8px;text-align:center;outline:none;font-family:monospace;margin-bottom:16px;transition:border .15s;"
+        <input class="u-w-100pct u-p-14 u-bd-2-solid-e2e8f0 u-br-12 u-fs-22 u-ls-8 u-ta-center u-out-none u-ff-monospace u-mb-16 u-trs-border-d15s" type="password" name="pin" id="co-pin-input" maxlength="10" placeholder="• • • •"
           oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="coPinClose()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
-          <button type="submit" style="flex:2;padding:11px;border:none;border-radius:10px;background:#1e3a8a;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Unlock →</button>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="coPinClose()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Unlock →</button>
         </div>
       </form>
     </div>
