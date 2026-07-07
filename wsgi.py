@@ -52,6 +52,31 @@ from utils.email_utils import _email_queue_worker
 threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
 
 # ── Register blueprints (uncomment as routes are migrated from app.py) ────────
+#
+# Migration status:
+#   ✅ health.py          — /healthz, /favicon.ico
+#   ✅ notifications.py   — /api/notifications/*, /web/notifications/*
+#   🔄 auth.py            — login, logout, password reset, WebAuthn
+#   🔄 employees.py       — employee CRUD, photos, QR, ID cards
+#   🔄 attendance.py      — check-in/out, face recognition, QR scan
+#   🔄 payroll.py         — salary, payslips, reports, export
+#   🔄 leave.py           — leave requests, approval, holidays
+#   🔄 tickets.py         — support tickets
+#   🔄 admin_views.py     — admin dashboard, settings, companies
+#   🔄 performance.py     — KPIs, reviews, hike/bonus
+#   🔄 onboarding.py      — onboarding templates and tasks
+#   🔄 documents.py       — employee document management
+#   🔄 org.py             — multi-tenant org provisioning
+#   🔄 employee_portal.py — employee self-service portal
+
+# ✅ Migrated blueprints
+from blueprints.health import health_bp
+from blueprints.notifications import notifications_bp
+
+app.register_blueprint(health_bp)
+app.register_blueprint(notifications_bp)
+
+# 🔄 Pending migration (routes still served from app.py below)
 # from blueprints.auth import auth_bp
 # from blueprints.employees import employees_bp
 # from blueprints.attendance import attendance_bp
@@ -62,7 +87,6 @@ threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-work
 # from blueprints.performance import performance_bp
 # from blueprints.onboarding import onboarding_bp
 # from blueprints.documents import documents_bp
-# from blueprints.notifications import notifications_bp
 # from blueprints.org import org_bp
 # from blueprints.employee_portal import employee_portal_bp
 #
@@ -76,7 +100,6 @@ threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-work
 # app.register_blueprint(performance_bp)
 # app.register_blueprint(onboarding_bp)
 # app.register_blueprint(documents_bp)
-# app.register_blueprint(notifications_bp)
 # app.register_blueprint(org_bp)
 # app.register_blueprint(employee_portal_bp)
 

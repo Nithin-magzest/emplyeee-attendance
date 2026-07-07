@@ -100,7 +100,7 @@ jobs:
           DB_NAME: att_test
           SECRET_KEY: ci-test-secret-key-not-used-in-prod
           FLASK_ENV: testing
-        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
+        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=60
 
   docker:
     name: Docker build
@@ -132,6 +132,7 @@ jobs:
     needs: docker
     # Only deploy on a direct push to master, never on pull_request runs
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    environment: production   # requires approval from a repo admin before deploy runs
 
     steps:
       - name: Deploy via SSH

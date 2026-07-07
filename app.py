@@ -129,26 +129,7 @@ def _qr_url_filter(p):
     m = re.search(r'static[/\\]qrcodes[/\\]([^/\\]+\.png)', str(p))
     return f'static/qrcodes/{m.group(1)}' if m else str(p)
 
-@app.route("/favicon.ico")
-def favicon():
-    ico = os.path.join(app.static_folder, "favicon.ico")
-    return send_from_directory(app.static_folder, "favicon.ico", mimetype="image/x-icon") if os.path.exists(ico) else ("", 204)
-
-
-@app.route("/healthz")
-def healthz():
-    """Health check for load balancers."""
-    from database import get_db_connection as _hc_get_db
-    try:
-        conn = _hc_get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.fetchone()
-        cur.close(); conn.close()
-        return jsonify({"status": "ok", "db": "connected"}), 200
-    except Exception as e:
-        app_log.error("Health check DB error: %s", e)
-        return jsonify({"status": "error", "db": "unavailable"}), 503
+# /favicon.ico and /healthz are served by blueprints/health.py
 
 
 # Jinja2 filter: handles both datetime.time and datetime.timedelta from MySQL
@@ -13252,106 +13233,7 @@ def my_compoff():
     )
 
 
-# ---------------- API: NOTIFICATIONS (Admin) ----------------
-
-@app.route("/api/notifications", methods=["GET"])
-@api_required
-def api_get_notifications():
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT id, title, message, is_read, created_at FROM notifications "
-        "WHERE recipient_type='admin' ORDER BY created_at DESC LIMIT 50"
-    )
-    rows = cursor.fetchall()
-    cursor.close(); db.close()
-    return jsonify({"ok": True, "notifications": [
-        {"id": r[0], "title": r[1], "message": r[2],
-         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
-        for r in rows
-    ]})
-
-
-@app.route("/api/notifications/mark_read", methods=["POST"])
-@api_required
-def api_mark_notifications_read():
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute("UPDATE notifications SET is_read=TRUE WHERE recipient_type='admin'")
-    db.commit(); cursor.close(); db.close()
-    return jsonify({"ok": True})
-
-
-# ---------------- API: NOTIFICATIONS (Employee) ----------------
-
-@app.route("/api/employee/notifications", methods=["GET"])
-@employee_api_required
-def api_employee_get_notifications():
-    from flask import g as _g
-    emp_id = _g.api_emp_id
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT id, title, message, is_read, created_at FROM notifications "
-        "WHERE recipient_type='employee' AND employee_id=%s ORDER BY created_at DESC LIMIT 50",
-        (emp_id,)
-    )
-    rows = cursor.fetchall()
-    cursor.close(); db.close()
-    return jsonify({"ok": True, "notifications": [
-        {"id": r[0], "title": r[1], "message": r[2],
-         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
-        for r in rows
-    ]})
-
-
-@app.route("/api/employee/notifications/mark_read", methods=["POST"])
-@employee_api_required
-def api_employee_mark_notifications_read():
-    from flask import g as _g
-    emp_id = _g.api_emp_id
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute(
-        "UPDATE notifications SET is_read=TRUE WHERE recipient_type='employee' AND employee_id=%s",
-        (emp_id,)
-    )
-    db.commit(); cursor.close(); db.close()
-    return jsonify({"ok": True})
-
-
-@app.route("/web/notifications/mark_read", methods=["POST"])
-@employee_required
-def web_employee_mark_notifications_read():
-    emp_id = session["employee_id"]
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute(
-        "UPDATE notifications SET is_read=TRUE WHERE recipient_type='employee' AND employee_id=%s",
-        (emp_id,)
-    )
-    db.commit(); cursor.close(); db.close()
-    return jsonify({"ok": True})
-
-
-@app.route("/web/notifications/list")
-@employee_required
-def web_employee_notifications_list():
-    emp_id = session["employee_id"]
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT id, title, message, is_read, created_at FROM notifications "
-        "WHERE recipient_type='employee' AND employee_id=%s ORDER BY created_at DESC LIMIT 30",
-        (emp_id,)
-    )
-    rows = cursor.fetchall()
-    cursor.close(); db.close()
-    return jsonify({"ok": True, "notifications": [
-        {"id": r[0], "title": r[1], "message": r[2],
-         "is_read": bool(r[3]), "created_at": r[4].strftime("%d %b %Y, %I:%M %p") if r[4] else ""}
-        for r in rows
-    ]})
+# Notification routes migrated to blueprints/notifications.py
 
 
 # ── Tenant Provisioning ──────────────────────────────────────────────────────
