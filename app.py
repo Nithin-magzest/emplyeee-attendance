@@ -146,26 +146,8 @@ def fmt_time_filter(value):
     return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
 
 # ---------------- CONFIG ----------------
-# SECRET_KEY from the environment takes priority (and is what makes the key
-# stable across container recreates in production — set it in .env). Falls
-# back to a locally-generated, file-persisted key for local dev where it's
-# not set.
-_env_secret_key = os.environ.get("SECRET_KEY", "").strip()
-if _env_secret_key:
-    app.secret_key = _env_secret_key
-else:
-    _key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
-    if os.path.exists(_key_file):
-        with open(_key_file) as _f:
-            app.secret_key = _f.read().strip()
-    else:
-        app.secret_key = secrets.token_hex(32)
-        with open(_key_file, "w") as _f:
-            _f.write(app.secret_key)
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("APP_ENV", "production") != "development"
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
+# secret_key, session cookie flags, and PERMANENT_SESSION_LIFETIME are
+# authoritative in extensions.py. Do not duplicate them here.
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -373,9 +355,11 @@ def _security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(self)"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     response.headers["Server"] = "AttendanceApp"
     if request.scheme == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     ct = response.content_type or ""
     if "text/html" in ct:
         nonce = getattr(g, "csp_nonce", "")
@@ -405,9 +389,31 @@ def _security_headers(response):
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
             "connect-src 'self'; "
-            "frame-ancestors 'none';"
+            "frame-ancestors 'none'; "
+            "report-uri /csp-report;"
         )
     return response
+
+
+@app.route("/csp-report", methods=["POST"])
+def csp_report():
+    """Receives Content-Security-Policy violation reports from browsers."""
+    try:
+        report = request.get_json(force=True, silent=True) or {}
+        violation = report.get("csp-report", report)
+        app_log.warning(
+            "CSP violation",
+            extra={
+                "blocked_uri": violation.get("blocked-uri", ""),
+                "violated_directive": violation.get("violated-directive", ""),
+                "document_uri": violation.get("document-uri", ""),
+                "source_file": violation.get("source-file", ""),
+            },
+        )
+    except Exception:
+        pass
+    return "", 204
+
 
 @app.after_request
 def _bust_settings_cache(response):
@@ -814,7 +820,17 @@ if _ENCRYPTION_KEY:
     try:
         _fernet = Fernet(_ENCRYPTION_KEY)
     except Exception:
-        pass
+        app_log.critical(
+            "ENCRYPTION_KEY is set but invalid — PII fields will be stored in plaintext. "
+            "Regenerate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
+else:
+    if os.environ.get("APP_ENV", "production") != "development":
+        app_log.critical(
+            "ENCRYPTION_KEY is not set — Aadhaar, PAN, and bank account fields are stored "
+            "in plaintext. Generate a key: "
+            "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
 
 def encrypt_pii(value: str) -> str:
     """Encrypt a PII string. Returns original value if encryption not configured."""
@@ -2504,6 +2520,7 @@ def home():
 
 # ---------------- ADMIN LOGIN ----------------
 @app.route("/setup", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def setup_wizard():
     co = get_company_settings()
     if co["setup_done"]:
@@ -4919,9 +4936,10 @@ def admin_forgot_password():
 </div>"""
     try:
         send_email_smtp(admin_email, "Admin Password Reset — Attendance System", html_body, cfg)
-    except Exception as ex:
+    except Exception:
+        app_log.error("Failed to send admin password reset email", exc_info=True)
         return render_template("admin_forgot_password.html", sent=False,
-                               error=f"Failed to send email: {str(ex)}")
+                               error="Failed to send email. Please check your email settings.")
     return render_template("admin_forgot_password.html", sent=True, error=None)
 
 
@@ -6120,8 +6138,9 @@ def send_absentee_report():
     try:
         send_email_smtp(cfg.get("from_email", cfg["user"]), f"Daily Absentee Report — {today.strftime('%d %b %Y')}", html, cfg)
         return jsonify({"ok": True, "msg": f"Report sent! {absent} absent out of {total} employees."})
-    except Exception as e:
-        return jsonify({"ok": False, "msg": f"Failed to send: {str(e)}"})
+    except Exception:
+        app_log.error("Failed to send absentee report email", exc_info=True)
+        return jsonify({"ok": False, "msg": "Failed to send email. Check email settings."})
 
 # ---------------- SALARY REPORT ----------------
 @app.route("/salary_report")
@@ -6439,8 +6458,9 @@ def send_salary_email():
     try:
         send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
         return jsonify({"ok": True, "msg": f"Salary slip sent to {email}"})
-    except Exception as ex:
-        return jsonify({"ok": False, "msg": f"Email failed: {str(ex)}"})
+    except Exception:
+        app_log.error("Failed to send salary slip email to %s", email, exc_info=True)
+        return jsonify({"ok": False, "msg": "Failed to send email. Check email settings."})
 
 # ---------------- SEND ALL SALARY EMAILS ----------------
 @app.route("/send_all_salary_emails", methods=["POST"])
@@ -6504,9 +6524,10 @@ def send_all_salary_emails():
         try:
             send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
             sent += 1
-        except Exception as ex:
+        except Exception:
+            app_log.error("Failed to send salary slip to %s", name, exc_info=True)
             failed += 1
-            errors.append(f"{name}: {str(ex)}")
+            errors.append(f"{name}: email delivery failed")
 
     if sent > 0:
         try:
@@ -6577,8 +6598,9 @@ def test_email():
             config,
         )
         return jsonify({"ok": True, "msg": f"Test email sent to {to_email}"})
-    except Exception as ex:
-        return jsonify({"ok": False, "msg": f"Failed: {str(ex)}"})
+    except Exception:
+        app_log.error("Test email send failed", exc_info=True)
+        return jsonify({"ok": False, "msg": "Failed to send test email. Check email settings."})
 
 # ---------------- LOCATION ----------------
 @app.route("/location", methods=["POST"])
@@ -10020,9 +10042,10 @@ def api_register_employee():
             (name, emp_id, email, filepath, qr_path, hashed_pwd)
         )
         db.commit()
-    except Exception as e:
+    except Exception:
+        app_log.error("API employee register failed", exc_info=True)
         db.rollback(); cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": str(e)}), 400
+        return jsonify({"ok": False, "msg": "Failed to create employee. Check for duplicate ID."}), 400
     cursor.close(); db.close()
     return jsonify({"ok": True, "msg": f"Employee {name} registered."})
 
@@ -10117,9 +10140,10 @@ def api_add_holiday():
     try:
         cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, name))
         db.commit()
-    except Exception as e:
+    except Exception:
+        app_log.error("API holiday insert failed", exc_info=True)
         db.rollback(); cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": str(e)}), 400
+        return jsonify({"ok": False, "msg": "Failed to add holiday. Check for duplicate dates."}), 400
     cursor.close(); db.close()
     return jsonify({"ok": True})
 
@@ -11081,8 +11105,9 @@ def _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor,
             expected_rp_id=_wa_rp_id(),
             expected_origin=_wa_origins(),
         )
-    except Exception as e:
-        return False, str(e)
+    except Exception:
+        app_log.warning("WebAuthn registration verification failed", exc_info=True)
+        return False, "WebAuthn verification failed. Please try enrolling again."
     cred_id_b64 = _wa_b64url_encode(verified.credential_id)
     pubkey_b64  = base64.b64encode(verified.credential_public_key).decode()
     cursor.execute(
@@ -11271,8 +11296,9 @@ def webauthn_register():
         cursor = db.cursor(buffered=True)
         ok, err = _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db)
         cursor.close(); db.close()
-    except Exception as e:
-        return jsonify({"ok": False, "msg": str(e)}), 500
+    except Exception:
+        app_log.error("WebAuthn registration endpoint failed", exc_info=True)
+        return jsonify({"ok": False, "msg": "WebAuthn registration failed. Please try again."}), 500
     session.pop("wa_reg_challenge", None)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 401
@@ -11296,8 +11322,9 @@ def webauthn_unenroll():
         db.commit()
         cursor.close(); db.close()
         return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "msg": str(e)}), 500
+    except Exception:
+        app_log.error("WebAuthn unenroll failed", exc_info=True)
+        return jsonify({"ok": False, "msg": "Failed to remove credential. Please try again."}), 500
 
 
 @app.route("/api/admin/employee/<emp_id>/reset-fingerprint", methods=["POST"])
@@ -11319,15 +11346,18 @@ def admin_reset_employee_fingerprint(emp_id):
             return jsonify({"ok": False, "msg": "Employee not found"}), 404
         _audit("admin_reset_fingerprint", "employees", emp_id)
         return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "msg": str(e)}), 500
+    except Exception:
+        app_log.error("Failed to reset employee fingerprint", exc_info=True)
+        return jsonify({"ok": False, "msg": "Failed to reset fingerprint. Please try again."}), 500
 
 
 @app.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 @limiter.limit("30 per minute")
 def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id — requires an active admin or employee session."""
-    if not (session.get("admin_logged_in") or session.get("employee_id")):
+    is_admin   = session.get("admin_logged_in")
+    session_emp = session.get("employee_id")
+    if not (is_admin or session_emp):
         # Also accept a valid Bearer token (kiosk uses admin token)
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
@@ -11341,6 +11371,9 @@ def get_employee_webauthn_credential(emp_id):
         else:
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
     emp_id = emp_id.strip().upper()
+    # Employees may only retrieve their own credential; admins and Bearer tokens can retrieve any
+    if session_emp and not is_admin and session_emp.upper() != emp_id:
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
     try:
         db = get_db_connection(); cursor = db.cursor(buffered=True)
         cursor.execute(
@@ -11471,9 +11504,10 @@ def api_employee_qr_face_checkin():
             if not face_recognition.compare_faces([known_encs[0]], test_encs[0], tolerance=0.5)[0]:
                 cursor.close(); db.close()
                 return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
-        except Exception as _fe:
+        except Exception:
+            app_log.error("Face verification error", exc_info=True)
             cursor.close(); db.close()
-            return jsonify({"ok": False, "msg": f"Face verification error: {_fe}"}), 500
+            return jsonify({"ok": False, "msg": "Face verification failed. Please retake the photo."}), 500
     elif face_photo:
         try:
             from PIL import Image as _PILImage
@@ -12357,9 +12391,10 @@ def api_shifts_create():
         )
         db.commit()
         sid = cursor.lastrowid
-    except Exception as e:
+    except Exception:
+        app_log.error("Failed to create shift", exc_info=True)
         cursor.close(); db.close()
-        return jsonify({"ok": False, "msg": str(e)}), 400
+        return jsonify({"ok": False, "msg": "Failed to create shift. Check for duplicate names."}), 400
     cursor.close(); db.close()
     return jsonify({"ok": True, "id": sid})
 
