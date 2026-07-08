@@ -1399,7 +1399,9 @@
       const REFRESH_INTERVAL = 30000;
       let lastRefresh = Date.now(), prevRowKeys = new Set();
 
-      function badge(cls, text) { return `<span class="badge ${cls}">${text}</span>`; }
+      function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+      function jsEsc(s) { return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\x3c').replace(/>/g,'\\x3e'); }
+      function badge(cls, text) { return `<span class="badge ${cls}">${esc(text)}</span>`; }
       function buildLoginBadge(s) {
         if (s==="Full Day Login")  return badge("badge-green","Full Day Login");
         if (s==="Late Login")      return badge("badge-yellow","Late Login");
@@ -1436,17 +1438,17 @@
             const isNew = !prevRowKeys.has(rowKey(r));
             const roleBadge = r.role ? badge("badge-blue",r.role) : badge("badge-gray","—");
             html += `<tr${isNew?" class='row-new'":""}>
-              <td><span class="u-bg-dbeafe u-c-1e40af u-fw-700 u-fs-12 u-p-4-10 u-br-8 u-ls-0d3">${r.emp_id}</span></td>
-              <td>${r.name}</td>
+              <td><span class="u-bg-dbeafe u-c-1e40af u-fw-700 u-fs-12 u-p-4-10 u-br-8 u-ls-0d3">${esc(r.emp_id)}</span></td>
+              <td>${esc(r.name)}</td>
               <td>${roleBadge}</td>
-              <td>${r.login_t||"—"}</td>
+              <td>${esc(r.login_t||"—")}</td>
               <td>${buildLoginBadge(r.status)}</td>
-              <td>${r.logout_t||"—"}</td>
+              <td>${esc(r.logout_t||"—")}</td>
               <td>${buildLogoutBadge(r)}</td>
               <td>${buildAttTypeBadge(r)}</td>
               <td>
-                <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${r.emp_id}')">✏️ Edit</button>
-                <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${r.emp_id}','${r.name.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+                <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${jsEsc(r.emp_id)}')">✏️ Edit</button>
+                <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${jsEsc(r.emp_id)}','${jsEsc(r.name)}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
               </td>
             </tr>`;
           });

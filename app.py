@@ -406,7 +406,7 @@ def _security_headers(response):
             f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             "style-src-attr 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
             "connect-src 'self'; "
@@ -849,10 +849,15 @@ if _ENCRYPTION_KEY:
         )
 else:
     if os.environ.get("APP_ENV", "production") != "development":
+        raise RuntimeError(
+            "ENCRYPTION_KEY is not set — refusing to start. "
+            "Aadhaar, PAN, and bank account numbers require encryption in production. "
+            "Generate a key: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
+    else:
         app_log.critical(
-            "ENCRYPTION_KEY is not set — Aadhaar, PAN, and bank account fields are stored "
-            "in plaintext. Generate a key: "
-            "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            "ENCRYPTION_KEY is not set — PII fields will be stored in plaintext. "
+            "Generate a key: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
 
 def encrypt_pii(value: str) -> str:
@@ -876,7 +881,7 @@ def _hash_token(token: str) -> str:
     """SHA-256 hash a Bearer token before storing/comparing in DB."""
     return hashlib.sha256(token.encode()).hexdigest()
 
-_LOGIN_MAX_ATTEMPTS = 10
+_LOGIN_MAX_ATTEMPTS = 5
 _LOGIN_LOCKOUT_MINUTES = 15
 
 def _check_login_lockout(identifier: str, attempt_type: str = "admin"):
@@ -2040,7 +2045,7 @@ def get_email_config():
     db.close()
     if row:
         return {
-            "host": row[0], "port": row[1], "user": row[2], "password": row[3],
+            "host": row[0], "port": row[1], "user": row[2], "password": decrypt_pii(row[3]),
             "from_name": row[4], "from_email": row[5] or row[2]
         }
     # Fall back to .env values so team members don't need to configure via UI
@@ -2673,7 +2678,7 @@ def admin_login():
     return render_template("admin_login.html")
 
 # ---------------- LOGOUT ----------------
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
     return redirect("/")
@@ -5145,7 +5150,7 @@ def update_photo(emp_id):
     ok, err = _validate_image_file(file)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
-    save_path = os.path.join("dataset", emp_id + ".jpg")
+    save_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(save_path)
     db = get_db_connection()
     cursor = db.cursor()
@@ -6409,7 +6414,7 @@ def email_config():
         cursor.execute("DELETE FROM email_config")
         cursor.execute(
             "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) VALUES (%s,%s,%s,%s,%s,%s)",
-            (host, port, user, password, from_name, from_email)
+            (host, port, user, encrypt_pii(password), from_name, from_email)
         )
         db.commit()
         cursor.close()
@@ -6418,7 +6423,7 @@ def email_config():
 
     cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
     row    = cursor.fetchone()
-    config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4], "from_email": row[5] or row[2]} if row else None
+    config = {"host": row[0], "port": row[1], "user": row[2], "password": decrypt_pii(row[3]), "from_name": row[4], "from_email": row[5] or row[2]} if row else None
     cursor.close()
     db.close()
 
@@ -6867,7 +6872,7 @@ def employee_login():
     return redirect("/admin_login")
 
 
-@app.route("/employee_logout")
+@app.route("/employee_logout", methods=["GET", "POST"])
 def employee_logout():
     session.clear()
     return redirect("/employee_login")
@@ -7072,7 +7077,7 @@ def update_my_photo():
             locs = face_recognition.face_locations(img_array)
             if not locs:
                 return redirect("/employee_portal?photo_error=no_face#my-profile")
-        save_path = os.path.join("dataset", emp_id + ".jpg")
+        save_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         img.save(save_path, "JPEG", quality=90)
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -10339,7 +10344,7 @@ def api_save_email_config():
     cursor.execute("DELETE FROM email_config")
     cursor.execute(
         "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name) VALUES (%s,%s,%s,%s,%s)",
-        (host, port, user, password, from_name)
+        (host, port, user, encrypt_pii(password), from_name)
     )
     db.commit()
     cursor.close(); db.close()
@@ -11233,7 +11238,7 @@ def webauthn_registration_options():
             user_display_name=emp_name,
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-                user_verification=UserVerificationRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
                 resident_key=ResidentKeyRequirement.PREFERRED,
             ),
             supported_pub_key_algs=_reg_algs,
@@ -11274,7 +11279,7 @@ def webauthn_authentication_options():
                 app_log.warning("WebAuthn auth-options: DB lookup failed for emp=%s: %s", emp_id, db_exc)
 
         options = webauthn.generate_authentication_options(
-            rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.PREFERRED,
+            rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,
         )
         session["wa_auth_challenge"] = _wa_b64url_encode(options.challenge)
         session["wa_auth_emp_id"]    = emp_id
@@ -11423,6 +11428,10 @@ def webauthn_register_kiosk():
     if not challenge_b64:
         app_log.warning("WebAuthn kiosk enrolment: no challenge in session for emp=%s", emp_id)
         return jsonify({"ok": False, "msg": "Session expired — please refresh the page and try again"}), 400
+    if session.get("wa_reg_emp_id", "").upper() != emp_id:
+        app_log.warning("WebAuthn kiosk: emp_id mismatch — session=%s post=%s",
+                        session.get("wa_reg_emp_id"), emp_id)
+        return jsonify({"ok": False, "msg": "Employee ID mismatch. Please restart enrollment."}), 403
     try:
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)

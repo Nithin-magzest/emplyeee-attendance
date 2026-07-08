@@ -471,7 +471,8 @@ function getColor(dept) {
   if (!colorMap[dept]) colorMap[dept] = COLORS[Object.keys(colorMap).length % COLORS.length];
   return colorMap[dept];
 }
-function initials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+function initials(name) { return esc(name).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
 function render() {
   const nl = document.getElementById('nodesLayer');
   const sl = document.getElementById('svgLayer');
@@ -503,12 +504,12 @@ function render() {
     div.innerHTML = `<div class="node-card">
       ${cc > 0 ? `<div class="reports-badge">${cc}</div>` : ''}
       <div class="avatar-wrap">${n.has_photo
-        ? `<img class="avatar-img" src="/dataset/${n.id}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
+        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
         : `<div class="avatar-placeholder u-bg-color">${initials(n.name)}</div>`}</div>
-      <div class="node-name" title="${n.name}">${n.name}</div>
-      <div class="node-role" title="${n.role}">${n.role}</div>
-      ${n.department ? `<div class="node-dept">${n.department}</div>` : ''}
-      <div class="node-id">${n.id}</div>
+      <div class="node-name" title="${esc(n.name)}">${esc(n.name)}</div>
+      <div class="node-role" title="${esc(n.role)}">${esc(n.role)}</div>
+      ${n.department ? `<div class="node-dept">${esc(n.department)}</div>` : ''}
+      <div class="node-id">${esc(n.id)}</div>
     </div>`;
     nl.appendChild(div);
   });
