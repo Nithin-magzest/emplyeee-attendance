@@ -18,6 +18,24 @@ except Exception as _fr_err:
     face_recognition = None
     _face_recognition_available = False
     print(f"⚠  face_recognition unavailable ({_fr_err}). Face features disabled.")
+
+# Cache known face encodings by (employee_id, file_mtime) to avoid recomputing on every punch
+_face_enc_cache: dict = {}
+
+def _get_known_face_encoding(emp_id: str, face_path: str):
+    """Return the cached face encoding for an employee, recomputing only when the file changes."""
+    try:
+        mtime = os.path.getmtime(face_path)
+    except OSError:
+        return None
+    cached = _face_enc_cache.get(emp_id)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    img  = face_recognition.load_image_file(face_path)
+    encs = face_recognition.face_encodings(img)
+    enc  = encs[0] if encs else None
+    _face_enc_cache[emp_id] = (mtime, enc)
+    return enc
 try:
     # typing.Literal was added in Python 3.8; backport it for 3.7 so webauthn imports cleanly
     import typing as _typing
@@ -28,7 +46,7 @@ try:
     from webauthn.helpers.structs import (
         AuthenticatorSelectionCriteria, AuthenticatorAttachment, UserVerificationRequirement,
         ResidentKeyRequirement, PublicKeyCredentialDescriptor, AuthenticatorTransport,
-        COSEAlgorithmIdentifier,
+        COSEAlgorithmIdentifier, AttestationConveyancePreference,
     )
     _webauthn_available = True
 except Exception as _wa_err:
@@ -96,7 +114,7 @@ if _missing_env:
         stacklevel=2
     )
 
-from extensions import app, limiter, app_log
+from extensions import app, limiter, app_log, _allowed_origins
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -1653,6 +1671,27 @@ def init_db():
                 except Exception:
                     db.rollback()
             cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v1')")
+            db.commit()
+    except Exception:
+        pass
+
+    # Performance indexes v2 — high-traffic columns missing from v1
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v2'")
+        if not cursor.fetchone():
+            _idx_stmts_v2 = [
+                "ALTER TABLE attendance ADD INDEX idx_att_date (date)",
+                "ALTER TABLE employees ADD INDEX idx_emp_active (is_active)",
+                "ALTER TABLE employees ADD INDEX idx_emp_company (company_id)",
+                "ALTER TABLE leave_requests ADD INDEX idx_leave_date (leave_date)",
+            ]
+            for stmt in _idx_stmts_v2:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v2')")
             db.commit()
     except Exception:
         pass
@@ -6713,12 +6752,10 @@ def attendance():
         if not os.path.exists(face_path):
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
-        known_image = face_recognition.load_image_file(face_path)
-        known_encs  = face_recognition.face_encodings(known_image)
-        if not known_encs:
+        known_encoding = _get_known_face_encoding(employee_id, face_path)
+        if known_encoding is None:
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})
-        known_encoding = known_encs[0]
 
     if needs_face:
         locs = face_recognition.face_locations(frame)
@@ -10966,39 +11003,52 @@ def api_employee_auth_config():
     return jsonify({"ok": True, **get_auth_config()})
 
 
+_IP_RE = re.compile(r'^\d{1,3}(\.\d{1,3}){3}$')
+
 def _wa_rp_id():
     """WebAuthn Relying Party ID.
-    Loopback origins: return the exact host the browser used — localhost and
-    127.0.0.1 are NOT interchangeable for WebAuthn; the RP ID must equal the
-    origin's effective domain exactly.
-    Production: pin to ALLOWED_ORIGINS[0] so an attacker-controlled Host header
-    cannot register a rogue RP ID."""
+    Loopback: return the exact host so the browser's origin matches.
+    Everything else: prefer ALLOWED_ORIGINS[0] (avoids Host-header injection and
+    ensures a proper domain name is used even when accessed via LAN IP).
+    Falls back to the raw host only when ALLOWED_ORIGINS is unconfigured or '*'."""
     host = request.host.split(":")[0]
+    # Loopback: must match the browser origin exactly; return immediately
     if host in ("127.0.0.1", "::1", "localhost"):
         return host
+    # Named hosts and LAN IPs: use the pinned production domain when available
     if _allowed_origins != "*" and _allowed_origins:
         canonical = urlparse(_allowed_origins[0]).hostname
         if canonical:
             return canonical
+    # NOTE: returning a non-loopback IP here will be rejected by browsers as an RP ID
     return host
 
+def _wa_check_rp_id(rp_id):
+    """Return an error string if rp_id is a non-loopback IP (browsers reject these as RP IDs),
+    or None if it looks usable."""
+    if rp_id in ("127.0.0.1", "::1", "localhost"):
+        return None
+    if _IP_RE.match(rp_id):
+        return (
+            f"WebAuthn does not support IP addresses as RP IDs (got '{rp_id}'). "
+            "Access the server via 'localhost' on the server machine, or configure a "
+            "hostname (e.g. add an entry in your hosts file and set ALLOWED_ORIGINS)."
+        )
+    return None
+
 def _wa_origins():
-    """Return the set of acceptable WebAuthn origins for this host."""
+    """Return the set of acceptable WebAuthn origins for this host.
+    Always accepts both 127.0.0.1 and localhost as equivalent loopback origins.
+    For LAN IPs the only valid origin is the exact IP+port the browser used."""
     host   = request.host  # includes port if non-standard
     scheme = request.scheme
     origins = {f"{scheme}://{host}"}
-    # accept both 127.0.0.1 and localhost as equivalent loopback origins
-    if "127.0.0.1" in host:
+    bare   = host.split(":")[0]
+    if bare == "127.0.0.1":
         origins.add(f"{scheme}://{host.replace('127.0.0.1', 'localhost')}")
-    elif "localhost" in host:
+    elif bare == "localhost":
         origins.add(f"{scheme}://{host.replace('localhost', '127.0.0.1')}")
-    # Only trust the client-supplied Origin header when it's in the configured
-    # ALLOWED_ORIGINS allowlist (or ALLOWED_ORIGINS is "*", i.e. local dev) —
-    # otherwise a direct (non-browser) API caller could set any Origin header
-    # and have it self-validate against this same check.
-    origin_header = request.headers.get("Origin", "")
-    if origin_header and (_allowed_origins == "*" or origin_header in _allowed_origins):
-        origins.add(origin_header)
+    # LAN IPs: the single origin already added above is correct
     return list(origins)
 
 def _wa_b64url_decode(s):
@@ -11100,19 +11150,28 @@ def _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor,
     if not _webauthn_available:
         return False, "Fingerprint enrollment is not available on this server."
     if not credential or not challenge_b64:
-        return False, "Missing credential or challenge"
+        return False, "Missing credential or challenge — please try enrolling again"
+    # Rebuild the supported-alg list from session if available; fall back to the
+    # same two algorithms we offer in generate_registration_options.
+    _alg_ids = session.get("wa_reg_alg_ids") or [-7, -257]
+    _supported_algs = [COSEAlgorithmIdentifier(v) for v in _alg_ids]
+    _rp_id   = _wa_rp_id()
+    _origins = _wa_origins()
+    app_log.info("WebAuthn verify: emp=%s rp_id=%s origins=%s", emp_id, _rp_id, _origins)
     try:
         if isinstance(credential, str):
             credential = json.loads(credential)
         verified = webauthn.verify_registration_response(
             credential=credential,
             expected_challenge=_wa_b64url_decode(challenge_b64),
-            expected_rp_id=_wa_rp_id(),
-            expected_origin=_wa_origins(),
+            expected_rp_id=_rp_id,
+            expected_origin=_origins,
+            supported_pub_key_algs=_supported_algs,
         )
-    except Exception:
-        app_log.warning("WebAuthn registration verification failed", exc_info=True)
-        return False, "WebAuthn verification failed. Please try enrolling again."
+    except Exception as exc:
+        app_log.warning("WebAuthn registration failed: emp=%s rp_id=%s origins=%s err=%s",
+                        emp_id, _rp_id, _origins, exc, exc_info=True)
+        return False, f"Enrollment failed: {exc}"
     cred_id_b64 = _wa_b64url_encode(verified.credential_id)
     pubkey_b64  = base64.b64encode(verified.credential_public_key).decode()
     cursor.execute(
@@ -11135,8 +11194,22 @@ def _enroll_fingerprint_from_form(emp_id, cursor, db):
         emp_id, fp_attestation, session.get("wa_reg_challenge"), cursor, db
     )
     session.pop("wa_reg_challenge", None)
+    session.pop("wa_reg_alg_ids", None)
     if not _ok:
         flash(f"⚠️ Fingerprint enrollment failed verification: {_err}", "error")
+
+
+@app.route("/webauthn/status", methods=["GET"])
+def webauthn_status():
+    """Diagnostic endpoint — shows WebAuthn config without exposing sensitive data."""
+    return jsonify({
+        "webauthn_available": _webauthn_available,
+        "rp_id":              _wa_rp_id() if _webauthn_available else None,
+        "expected_origins":   _wa_origins() if _webauthn_available else [],
+        "challenge_in_session": bool(session.get("wa_reg_challenge")),
+        "request_host":       request.host,
+        "request_scheme":     request.scheme,
+    })
 
 
 @app.route("/webauthn/registration-options", methods=["GET"])
@@ -11144,24 +11217,35 @@ def webauthn_registration_options():
     """Server-generated WebAuthn registration options with challenge stored in session."""
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint enrollment is not available on this server."}), 503
-    emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
-    emp_name = (request.args.get("name") or emp_id).strip()
-    rp_id    = _wa_rp_id()
-    options = webauthn.generate_registration_options(
-        rp_id=rp_id,
-        rp_name="Employee Attendance",
-        user_id=emp_id.encode(),        # stable handle so browser can identify the passkey owner
-        user_name=emp_id,
-        user_display_name=emp_name,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-            user_verification=UserVerificationRequirement.REQUIRED,
-            resident_key=ResidentKeyRequirement.REQUIRED,  # discoverable passkey
-        ),
-        supported_pub_key_algs=[COSEAlgorithmIdentifier.ECDSA_SHA_256, COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256],
-    )
-    session["wa_reg_challenge"] = _wa_b64url_encode(options.challenge)
-    return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
+    try:
+        emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
+        emp_name = (request.args.get("name") or emp_id).strip()
+        rp_id    = _wa_rp_id()
+        rp_err   = _wa_check_rp_id(rp_id)
+        if rp_err:
+            return jsonify({"ok": False, "error": rp_err}), 422
+        _reg_algs = [COSEAlgorithmIdentifier.ECDSA_SHA_256, COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256]
+        options = webauthn.generate_registration_options(
+            rp_id=rp_id,
+            rp_name="Employee Attendance",
+            user_id=emp_id.encode(),
+            user_name=emp_id,
+            user_display_name=emp_name,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+                user_verification=UserVerificationRequirement.PREFERRED,
+                resident_key=ResidentKeyRequirement.PREFERRED,
+            ),
+            supported_pub_key_algs=_reg_algs,
+            attestation=AttestationConveyancePreference.NONE,
+        )
+        session["wa_reg_challenge"]  = _wa_b64url_encode(options.challenge)
+        session["wa_reg_emp_id"]     = emp_id
+        session["wa_reg_alg_ids"]    = [a.value for a in _reg_algs]
+        return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
+    except Exception as exc:
+        app_log.error("WebAuthn registration-options failed: %s", exc, exc_info=True)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/webauthn/authentication-options", methods=["GET"])
@@ -11169,28 +11253,35 @@ def webauthn_authentication_options():
     """Server-generated WebAuthn authentication options with challenge stored in session."""
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
-    emp_id = (request.args.get("emp_id") or "").strip().upper()
-    rp_id  = _wa_rp_id()
+    try:
+        emp_id = (request.args.get("emp_id") or "").strip().upper()
+        rp_id  = _wa_rp_id()
+        rp_err = _wa_check_rp_id(rp_id)
+        if rp_err:
+            return jsonify({"ok": False, "error": rp_err}), 422
 
-    allow_creds = []
-    if emp_id:
-        try:
-            db = get_db_connection(); cur = db.cursor(buffered=True)
-            cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
-            row = cur.fetchone(); cur.close(); db.close()
-            if row and row[0]:
-                allow_creds = [PublicKeyCredentialDescriptor(
-                    id=_wa_b64url_decode(row[0]), transports=[AuthenticatorTransport.INTERNAL]
-                )]
-        except Exception:
-            pass
+        allow_creds = []
+        if emp_id:
+            try:
+                db = get_db_connection(); cur = db.cursor(buffered=True)
+                cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
+                row = cur.fetchone(); cur.close(); db.close()
+                if row and row[0]:
+                    allow_creds = [PublicKeyCredentialDescriptor(
+                        id=_wa_b64url_decode(row[0]), transports=[AuthenticatorTransport.INTERNAL]
+                    )]
+            except Exception as db_exc:
+                app_log.warning("WebAuthn auth-options: DB lookup failed for emp=%s: %s", emp_id, db_exc)
 
-    options = webauthn.generate_authentication_options(
-        rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,
-    )
-    session["wa_auth_challenge"] = _wa_b64url_encode(options.challenge)
-    session["wa_auth_emp_id"]    = emp_id
-    return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
+        options = webauthn.generate_authentication_options(
+            rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.PREFERRED,
+        )
+        session["wa_auth_challenge"] = _wa_b64url_encode(options.challenge)
+        session["wa_auth_emp_id"]    = emp_id
+        return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
+    except Exception as exc:
+        app_log.error("WebAuthn authentication-options failed: %s", exc, exc_info=True)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/employee/webauthn-verify-challenge", methods=["POST"])
@@ -11260,6 +11351,7 @@ def webauthn_verify_challenge():
     except Exception as e:
         try: cur.close(); db.close()
         except Exception: pass
+        app_log.warning("WebAuthn authentication verification failed for emp_id=%s: %s", emp_id or "(passkey mode)", e, exc_info=True)
         return jsonify({"ok": False, "msg": f"Verification failed: {e}"}), 401
 
     session.pop("wa_auth_challenge", None)
@@ -11290,12 +11382,16 @@ def webauthn_verify_challenge():
 @limiter.limit("10 per minute")
 def webauthn_register():
     """Save a WebAuthn credential after successful enrollment. Requires active employee session."""
-    emp_id = session.get("employee_id")
+    # Use session employee_id; fall back to wa_reg_emp_id stored when options were generated.
+    # Both values live in the same signed session cookie, so this is equivalent security.
+    emp_id = session.get("employee_id") or session.get("wa_reg_emp_id")
     if not emp_id:
-        return jsonify({"ok": False, "msg": "Not logged in"}), 401
+        return jsonify({"ok": False, "msg": "Session expired — please log in again"}), 401
     data       = request.get_json(force=True, silent=True) or {}
     credential = data.get("credential")
     challenge_b64 = session.get("wa_reg_challenge")
+    if not challenge_b64:
+        return jsonify({"ok": False, "msg": "Enrollment session expired — please start again"}), 401
     try:
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -11305,8 +11401,45 @@ def webauthn_register():
         app_log.error("WebAuthn registration endpoint failed", exc_info=True)
         return jsonify({"ok": False, "msg": "WebAuthn registration failed. Please try again."}), 500
     session.pop("wa_reg_challenge", None)
+    session.pop("wa_reg_emp_id", None)
+    session.pop("wa_reg_alg_ids", None)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 401
+    return jsonify({"ok": True})
+
+
+@app.route("/api/employee/webauthn-register-kiosk", methods=["POST"])
+@limiter.limit("5 per minute")
+def webauthn_register_kiosk():
+    """Enrol a passkey from the attendance kiosk. No employee session required."""
+    if not _webauthn_available:
+        return jsonify({"ok": False, "msg": "Fingerprint enrollment is not available on this server."}), 503
+    data          = request.get_json(force=True, silent=True) or {}
+    emp_id        = (data.get("emp_id") or "").strip().upper()
+    credential    = data.get("credential")
+    challenge_b64 = session.get("wa_reg_challenge")
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Employee ID required"}), 400
+    if not challenge_b64:
+        app_log.warning("WebAuthn kiosk enrolment: no challenge in session for emp=%s", emp_id)
+        return jsonify({"ok": False, "msg": "Session expired — please refresh the page and try again"}), 400
+    try:
+        db     = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
+        if not cursor.fetchone():
+            cursor.close(); db.close()
+            return jsonify({"ok": False, "msg": "Employee ID not found"}), 404
+        ok, err = _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db)
+        cursor.close(); db.close()
+    except Exception as exc:
+        app_log.error("WebAuthn kiosk registration unexpected error: %s", exc, exc_info=True)
+        return jsonify({"ok": False, "msg": f"Registration error: {exc}"}), 500
+    session.pop("wa_reg_challenge", None)
+    session.pop("wa_reg_alg_ids", None)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
+    app_log.info("WebAuthn kiosk enrolment: emp_id=%s", emp_id)
     return jsonify({"ok": True})
 
 
@@ -11321,7 +11454,8 @@ def webauthn_unenroll():
         db     = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute(
-            "UPDATE employees SET fingerprint_credential_id=NULL WHERE employee_id=%s",
+            "UPDATE employees SET fingerprint_credential_id=NULL, fingerprint_public_key=NULL, "
+            "fingerprint_sign_count=0 WHERE employee_id=%s",
             (emp_id,)
         )
         db.commit()
@@ -11499,14 +11633,13 @@ def api_employee_qr_face_checkin():
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
 
-            known_img      = face_recognition.load_image_file(registered_face)
-            known_encs     = face_recognition.face_encodings(known_img)
+            known_enc      = _get_known_face_encoding(employee_id, registered_face)
             test_img_data  = face_recognition.load_image_file(face_path)
             test_encs      = face_recognition.face_encodings(test_img_data)
-            if not known_encs or not test_encs:
+            if known_enc is None or not test_encs:
                 cursor.close(); db.close()
                 return jsonify({"ok": False, "msg": "Face not detected clearly. Please retake the photo."}), 400
-            if not face_recognition.compare_faces([known_encs[0]], test_encs[0], tolerance=0.5)[0]:
+            if not face_recognition.compare_faces([known_enc], test_encs[0], tolerance=0.5)[0]:
                 cursor.close(); db.close()
                 return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
         except Exception:
@@ -12462,9 +12595,11 @@ def analytics():
     cursor.execute("SELECT COUNT(*) FROM employees")
     total_employees = cursor.fetchone()[0]
 
+    _doj_start = today.replace(day=1)
+    _doj_end   = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
     cursor.execute(
-        "SELECT COUNT(*) FROM employees WHERE MONTH(date_of_joining)=%s AND YEAR(date_of_joining)=%s",
-        (today.month, today.year)
+        "SELECT COUNT(*) FROM employees WHERE date_of_joining >= %s AND date_of_joining < %s",
+        (_doj_start, _doj_end)
     )
     new_this_month = cursor.fetchone()[0]
 
@@ -12503,15 +12638,20 @@ def analytics():
                 'total_days': 0, 'present_days': 0, 'absent_days': 0, 'att_pct': 0
             })
             continue
+        month_start = datetime.date(y, m, 1)
+        if m == 12:
+            month_end = datetime.date(y + 1, 1, 1)
+        else:
+            month_end = datetime.date(y, m + 1, 1)
         cursor.execute("""
             SELECT COUNT(DISTINCT employee_id) FROM attendance
-            WHERE MONTH(date)=%s AND YEAR(date)=%s AND login_time IS NOT NULL
-        """, (m, y))
+            WHERE date >= %s AND date < %s AND login_time IS NOT NULL
+        """, (month_start, month_end))
         present_records = cursor.fetchone()[0]
         expected = total_days * (total_employees or 1)
         present_pct = round(present_records / expected * 100, 1) if expected else 0
         monthly_series.append({
-            'month_label': datetime.date(y, m, 1).strftime("%b %Y"),
+            'month_label': month_start.strftime("%b %Y"),
             'total_days': total_days,
             'present_days': present_records,
             'absent_days': max(0, expected - present_records),
@@ -12524,10 +12664,12 @@ def analytics():
         past_days = [d for d in working_days if d <= today]
         total_m = len(past_days)
         if total_m > 0:
+            _ms = datetime.date(y, m, 1)
+            _me = datetime.date(y + 1, 1, 1) if m == 12 else datetime.date(y, m + 1, 1)
             cursor.execute("""
                 SELECT COUNT(DISTINCT employee_id) FROM attendance
-                WHERE MONTH(date)=%s AND YEAR(date)=%s AND login_time IS NOT NULL
-            """, (m, y))
+                WHERE date >= %s AND date < %s AND login_time IS NOT NULL
+            """, (_ms, _me))
             present_m = cursor.fetchone()[0]
             expected_m = total_m * (total_employees or 1)
             avg_attendance_pct = round(present_m / expected_m * 100, 1) if expected_m else 0

@@ -2688,6 +2688,7 @@
             <div class="toast toast-red">❌ New passwords do not match.</div>
           {% endif %}
           <form class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-14 u-ai-end u-maxw-760" action="/change_password" method="POST">
+            <input type="text" name="username" value="{{ session.get('employee_id', '') }}" autocomplete="username" style="display:none" aria-hidden="true" />
             <div class="form-group u-m-0">
               <label>Current Password</label>
               <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="current_password" required autocomplete="current-password" />
@@ -2760,24 +2761,27 @@
 
           window.startFpEnroll = async function() {
             const btn = document.getElementById('fpEnrollBtn');
+            if (btn.disabled) return;   // prevent double-click
+            btn.disabled    = true;
+            btn.textContent = '&#9203; Waiting for sensor...';
             showMsg('');
 
             if (!window.isSecureContext) {
               showMsg('&#9888; Fingerprint requires HTTPS or localhost. Use https://127.0.0.1:5000 or ask your admin to set up HTTPS.', true);
+              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
               return;
             }
             if (!window.PublicKeyCredential) {
               showMsg('&#9888; This browser does not support WebAuthn. Use Chrome or Edge.', true);
+              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
               return;
             }
             const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
             if (!avail) {
               showMsg('&#9888; No fingerprint sensor detected on this device.', true);
+              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
               return;
             }
-
-            btn.disabled    = true;
-            btn.textContent = '&#9203; Waiting for sensor...';
 
             try {
               const empId   = {{ emp[0] | tojson }};
@@ -2785,7 +2789,18 @@
 
               // Fetch server-generated registration options (challenge stored in session)
               const optR = await fetch('/webauthn/registration-options?emp_id=' + encodeURIComponent(empId) + '&name=' + encodeURIComponent(empName));
+              if (!optR.ok) {
+                const errBody = await optR.text().catch(() => "");
+                let errMsg = "";
+                try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ""; } catch(e) {}
+                showMsg('&#10006; Server error getting enrolment options (HTTP ' + optR.status + ')' + (errMsg ? ': ' + errMsg : '') + '. Check server logs.', true);
+                return;
+              }
               const regOpts = await optR.json();
+              if (regOpts.ok === false) {
+                showMsg('&#10006; ' + (regOpts.msg || regOpts.error || 'Could not start enrolment.'), true);
+                return;
+              }
 
               const cred = await navigator.credentials.create({
                 publicKey: {
@@ -2818,6 +2833,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ credential: regCredentialToJSON(cred) }),
               });
+              if (saveR.status === 401) {
+                showMsg('&#9888; Session expired — please log in again.', true);
+                setTimeout(() => { window.location.href = '/employee_login'; }, 2000);
+                return;
+              }
               const saved = await saveR.json();
               if (!saved.ok) throw new Error(saved.msg || 'Save failed');
 
@@ -2837,6 +2857,10 @@
             } catch(err) {
               if (err.name === 'NotAllowedError') {
                 showMsg('&#10006; Enrollment cancelled or timed out. Please try again.', true);
+              } else if (err.name === 'SecurityError') {
+                showMsg('&#10006; Security error: ' + err.message + ' — fingerprint enrollment requires HTTPS with a valid domain name (not an IP address).', true);
+              } else if (err.name === 'InvalidStateError') {
+                showMsg('&#10006; A passkey for this account already exists on this device. Remove it first or use a different device.', true);
               } else {
                 showMsg('&#10006; ' + (err.message || 'Unknown error'), true);
               }
