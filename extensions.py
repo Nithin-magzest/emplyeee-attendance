@@ -38,6 +38,10 @@ else:
         app.secret_key = secrets.token_hex(32)
         with open(_key_file, "w") as _f:
             _f.write(app.secret_key)
+        try:
+            os.chmod(_key_file, 0o600)
+        except Exception:
+            pass
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"]   = os.environ.get("APP_ENV", "production") != "development"

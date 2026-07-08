@@ -491,11 +491,15 @@
         document.getElementById('modalEmpName').textContent = empName;
         document.getElementById('modalEmpId').textContent   = empId;
         var preview = document.getElementById('modalPreview');
+        preview.innerHTML = '';
         if (hasPhoto) {
-          preview.innerHTML = '<img src="/dataset/' + empId + '.jpg?t=' + Date.now() +
-            '" alt="' + empName + '" onerror="this.parentNode.innerHTML=\'👤\'" />';
+          var pImg = document.createElement('img');
+          pImg.src = '/dataset/' + encodeURIComponent(empId) + '.jpg?t=' + Date.now();
+          pImg.alt = empName;
+          pImg.onerror = function() { preview.textContent = '👤'; };
+          preview.appendChild(pImg);
         } else {
-          preview.innerHTML = '👤';
+          preview.textContent = '👤';
         }
         document.getElementById('photoInput').value       = '';
         document.getElementById('uploadBtn').disabled     = true;
@@ -518,8 +522,12 @@
         if (!file) return;
         var reader = new FileReader();
         reader.onload = function(ev) {
-          document.getElementById('modalPreview').innerHTML =
-            '<img src="' + ev.target.result + '" alt="preview" />';
+          var prev = document.getElementById('modalPreview');
+          prev.innerHTML = '';
+          var pv = document.createElement('img');
+          pv.src = ev.target.result;
+          pv.alt = 'preview';
+          prev.appendChild(pv);
         };
         reader.readAsDataURL(file);
         document.getElementById('uploadBtn').disabled    = false;
@@ -546,9 +554,22 @@
               document.querySelectorAll('.photo-card').forEach(function(card) {
                 if (card.dataset.id === _currentEmpId.toLowerCase()) {
                   var wrap = card.querySelector('.photo-wrap');
-                  wrap.innerHTML = '<img src="/dataset/' + _currentEmpId + '.jpg?t=' + Date.now() +
-                    '" alt="" onerror="this.parentNode.innerHTML=\'<span class=\\\'photo-placeholder\\\'>👤</span>\'" />' +
-                    '<div class="photo-hover-icon"><i class="ti ti-eye"></i></div>';
+                  wrap.innerHTML = '';
+                  var ci = document.createElement('img');
+                  ci.src = '/dataset/' + encodeURIComponent(_currentEmpId) + '.jpg?t=' + Date.now();
+                  ci.alt = '';
+                  ci.onerror = function() {
+                    var sp = document.createElement('span');
+                    sp.className = 'photo-placeholder';
+                    sp.textContent = '👤';
+                    wrap.innerHTML = '';
+                    wrap.appendChild(sp);
+                  };
+                  var hov = document.createElement('div');
+                  hov.className = 'photo-hover-icon';
+                  hov.innerHTML = '<i class="ti ti-eye"></i>';
+                  wrap.appendChild(ci);
+                  wrap.appendChild(hov);
                   card.dataset.hasPhoto = 'has';
                 }
               });
