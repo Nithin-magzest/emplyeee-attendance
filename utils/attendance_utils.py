@@ -110,10 +110,10 @@ def detect_overtime(employee_id, date, logout_time):
             INSERT INTO overtime_records
                 (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status)
             VALUES (%s,%s,%s,%s,%s,%s,'Pending')
-            ON DUPLICATE KEY UPDATE
-                actual_logout=VALUES(actual_logout),
-                ot_minutes=VALUES(ot_minutes),
-                ot_pay=VALUES(ot_pay)
+            ON CONFLICT (employee_id, date) DO UPDATE SET
+                actual_logout=EXCLUDED.actual_logout,
+                ot_minutes=EXCLUDED.ot_minutes,
+                ot_pay=EXCLUDED.ot_pay
         """, (employee_id, date, shift_end, logout_t, ot_mins, ot_pay))
         db.commit(); cursor.close(); db.close()
     except Exception:

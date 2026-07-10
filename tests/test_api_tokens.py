@@ -129,7 +129,7 @@ class TestTokenExpiry:
         # Backdate expiry to past (column is 'token', not 'token_hash')
         cur = db_engine.cursor()
         cur.execute(
-            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL 1 HOUR WHERE token=%s",
+            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 hour' WHERE token=%s",
             (token_hash,)
         )
         cur.close()

@@ -1,11 +1,11 @@
 """
 Pytest configuration and fixtures.
 
-Tests run against a real test MySQL database (att_test) to avoid mock/prod
-divergence. Requires DB_* env vars pointing to a local MySQL instance.
-Set them in .env.test or export before running:
+Tests run against a real test PostgreSQL database (att_test) to avoid
+mock/prod divergence. Requires DB_* env vars pointing to a local PostgreSQL
+instance. Set them in .env.test or export before running:
 
-    DB_HOST=localhost DB_USER=root DB_PASS=secret pytest tests/
+    DB_HOST=localhost DB_USER=postgres DB_PASS=secret pytest tests/
 """
 import os
 import pytest
@@ -16,13 +16,22 @@ os.environ["DB_NAME"]    = "att_test"
 os.environ["DB_HOST"]    = "localhost"
 os.environ["APP_ENV"]    = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
-os.environ.setdefault("DB_USER", "root")
+os.environ.setdefault("DB_PORT", "5432")
+os.environ.setdefault("DB_USER", "postgres")
 os.environ.setdefault("DB_PASS", "")
 
 # Import app AFTER env vars are set so all module-level reads pick up test values.
 # app.py registers all routes on its own Flask `app` instance — use that directly.
 import app as _app_module  # noqa: F401 — triggers route registration + init_db
 flask_app = _app_module.app   # the real app with all routes registered
+
+# wsgi.py (the real production entrypoint) also registers the migrated
+# blueprints (health, notifications) on top of app.py's routes — mirror that
+# here since tests import app.py directly and would otherwise miss them.
+from blueprints.health import health_bp
+from blueprints.notifications import notifications_bp
+flask_app.register_blueprint(health_bp)
+flask_app.register_blueprint(notifications_bp)
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
@@ -31,15 +40,16 @@ _app_module.limiter.enabled = False
 
 @pytest.fixture(scope="session")
 def db_engine():
-    """Return a raw mysql connection to the test database for fixture setup."""
-    import mysql.connector
-    conn = mysql.connector.connect(
+    """Return a raw psycopg2 connection to the test database for fixture setup."""
+    import psycopg2
+    conn = psycopg2.connect(
         host=os.environ["DB_HOST"],
+        port=int(os.environ.get("DB_PORT", "5432")),
         user=os.environ["DB_USER"],
         password=os.environ.get("DB_PASS", ""),
-        database=os.environ["DB_NAME"],
-        autocommit=True,
+        dbname=os.environ["DB_NAME"],
     )
+    conn.autocommit = True
     yield conn
     conn.close()
 
@@ -68,7 +78,8 @@ def seed_admin(db_engine):
     from utils.auth import generate_password_hash
     cur = db_engine.cursor()
     cur.execute(
-        "INSERT IGNORE INTO admin_users (username, password, email) VALUES (%s,%s,%s)",
+        "INSERT INTO admin_users (username, password, email) VALUES (%s,%s,%s) "
+        "ON CONFLICT (username) DO NOTHING",
         ("test_admin", generate_password_hash("Test@1234"), "admin@test.local"),
     )
     yield {"username": "test_admin", "password": "Test@1234"}
@@ -82,8 +93,8 @@ def seed_employee(db_engine):
     from utils.auth import generate_password_hash
     cur = db_engine.cursor()
     cur.execute(
-        "INSERT IGNORE INTO employees (employee_id, name, email, password, force_pin_change) "
-        "VALUES (%s,%s,%s,%s,0)",
+        "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
+        "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
         ("TST001", "Test Employee", "emp@test.local", generate_password_hash("EmpPass@1")),
     )
     yield {"employee_id": "TST001", "password": "EmpPass@1", "name": "Test Employee"}

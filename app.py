@@ -53,7 +53,7 @@ except Exception as _wa_err:
     webauthn = None
     _webauthn_available = False
     print(f"⚠  webauthn unavailable ({_wa_err}). Fingerprint features disabled. (Needs Python 3.8+; "
-          f"runs fine in the production Docker image, which uses Python 3.11.)")
+          f"runs fine in the production Podman image, which uses Python 3.11.)")
 from database import get_db_connection
 from qr_generator import generate_qr
 import bcrypt as _bcrypt
@@ -80,7 +80,7 @@ import os
 import math
 import re
 import calendar
-import mysql.connector
+import psycopg2
 import smtplib
 import ssl
 import secrets
@@ -131,6 +131,22 @@ def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
         return dest
     return fallback
 
+def _safe_referrer_redirect(referrer: str, fallback: str) -> str:
+    """Like _safe_redirect, but also accepts an absolute Referer header as long
+    as it points back at this same app (scheme+host), reducing it to a
+    relative path first. Referer is client-supplied and can be forged by
+    non-browser HTTP clients, so it's never trusted as-is."""
+    if not referrer:
+        return fallback
+    from urllib.parse import urlparse as _urlparse
+    p = _urlparse(referrer)
+    if not p.scheme and not p.netloc:
+        return _safe_redirect(referrer, fallback)
+    if p.netloc == request.host:
+        path = p.path or "/"
+        return _safe_redirect(path + (("?" + p.query) if p.query else ""), fallback)
+    return fallback
+
 @app.context_processor
 def inject_common_vars():
     return dict(
@@ -150,7 +166,10 @@ def _qr_url_filter(p):
 # /favicon.ico and /healthz are served by blueprints/health.py
 
 
-# Jinja2 filter: handles both datetime.time and datetime.timedelta from MySQL
+# Jinja2 filter: handles both datetime.time and datetime.timedelta.
+# psycopg2 returns TIME columns as datetime.time (hits the strftime branch
+# below); the timedelta branch is a defensive fallback kept from when this
+# ran against mysql-connector, which returned TIME columns as timedelta.
 @app.template_filter("fmt_time")
 def fmt_time_filter(value):
     if value is None:
@@ -159,9 +178,21 @@ def fmt_time_filter(value):
         return value
     if hasattr(value, "strftime"):
         return value.strftime("%H:%M:%S")
-    # timedelta (MySQL connector returns TIME columns as timedelta)
+    # timedelta fallback — see comment above
     total = int(value.total_seconds())
     return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
+
+# Templates that need arithmetic on a TIME value (elapsed-time math, HH/MM/SS
+# breakdowns) used to rely on mysql-connector's timedelta.seconds. psycopg2
+# returns datetime.time instead, which has no .seconds — this filter gives
+# templates a type-agnostic "total seconds" so that math still works.
+@app.template_filter("time_seconds")
+def time_seconds_filter(value):
+    if value is None:
+        return 0
+    if hasattr(value, "hour"):
+        return value.hour * 3600 + value.minute * 60 + value.second
+    return int(value.total_seconds())
 
 # ---------------- CONFIG ----------------
 # secret_key, session cookie flags, and PERMANENT_SESSION_LIFETIME are
@@ -479,6 +510,50 @@ def _audit(action, table=None, record_id=None, detail=None):
     except Exception:
         pass
 
+# ---------------- MALWARE SCANNING (ClamAV) ----------------
+try:
+    import clamd as _clamd_lib
+    _clamav_available = True
+except ImportError:
+    _clamd_lib = None
+    _clamav_available = False
+
+_CLAMAV_HOST = os.environ.get("CLAMAV_HOST", "clamav")
+_CLAMAV_PORT = int(os.environ.get("CLAMAV_PORT", "3310"))
+_MALWARE_SCAN_ENABLED = os.environ.get("MALWARE_SCAN_ENABLED", "true").strip().lower() not in ("false", "0", "no")
+
+def _scan_for_malware(file_storage):
+    """Scan an uploaded file with ClamAV before it's saved. Returns (is_clean, error_msg).
+    Fails closed (rejects the upload) in production if the scanner is unavailable
+    or unreachable; fails open with a logged warning in development, so a missing
+    local ClamAV instance doesn't block day-to-day dev work.
+
+    Set MALWARE_SCAN_ENABLED=false to turn this off deliberately (e.g. a
+    memory-constrained deployment that can't run ClamAV) — that's a clean
+    skip, not a failure, so it doesn't trigger the fail-closed behavior
+    below and permanently block uploads."""
+    if not _MALWARE_SCAN_ENABLED:
+        return True, None
+    _dev = os.environ.get("APP_ENV", "production") == "development"
+    if not _clamav_available:
+        app_log.error("clamd package not installed — malware scanning skipped")
+        return (True, None) if _dev else (False, "Malware scanning is unavailable — upload rejected.")
+    try:
+        cd = _clamd_lib.ClamdNetworkSocket(host=_CLAMAV_HOST, port=_CLAMAV_PORT, timeout=15)
+        pos = file_storage.stream.tell()
+        file_storage.stream.seek(0)
+        result = cd.instream(file_storage.stream)
+        file_storage.stream.seek(pos)
+        status, signature = result.get("stream", (None, None))
+        if status == "FOUND":
+            app_log.warning("Malware detected in upload %r: %s", file_storage.filename, signature)
+            return False, "This file was flagged by malware scanning and cannot be uploaded."
+        return True, None
+    except Exception as _e:
+        app_log.error("ClamAV scan failed (%s): %s", type(_e).__name__, _e)
+        return (True, None) if _dev else (False, "File could not be scanned for malware — please try again shortly.")
+
+
 # ---------------- FILE UPLOAD VALIDATION ----------------
 _ALLOWED_MIME_MAP = {
     'pdf':  {'application/pdf'},
@@ -516,6 +591,9 @@ def _validate_upload(file_storage, allowed_exts=None):
     file_storage.stream.seek(0)
     if size_mb > _MAX_DOC_SIZE_MB:
         return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
+    clean, scan_err = _scan_for_malware(file_storage)
+    if not clean:
+        return False, scan_err
     return True, None
 
 # ---------------- COMPANY SETTINGS (with 60-second TTL cache) ----------------
@@ -695,7 +773,7 @@ def _upsert_co_feature(company_id, field, value):
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {field})
             VALUES (%s, %s)
-            ON DUPLICATE KEY UPDATE {field}=VALUES({field})
+            ON CONFLICT (company_id) DO UPDATE SET {field}=EXCLUDED.{field}
         """, (company_id, value))
         db.commit(); cur.close(); db.close()
     except Exception:
@@ -712,12 +790,12 @@ def _upsert_co_features(company_id, fields_dict):
         cols   = ", ".join(fields_dict.keys())
         vals   = list(fields_dict.values())
         placeholders = ", ".join(["%s"] * len(vals))
-        updates = ", ".join(f"{k}=VALUES({k})" for k in fields_dict.keys())
+        updates = ", ".join(f"{k}=EXCLUDED.{k}" for k in fields_dict.keys())
         db = get_db_connection(); cur = db.cursor(buffered=True)
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {cols})
             VALUES (%s, {placeholders})
-            ON DUPLICATE KEY UPDATE {updates}
+            ON CONFLICT (company_id) DO UPDATE SET {updates}
         """, [company_id] + vals)
         db.commit(); cur.close(); db.close()
     except Exception:
@@ -830,6 +908,9 @@ def _validate_image_file(file):
     file.stream.seek(0)
     if size_mb > _MAX_PHOTO_SIZE_MB:
         return False, f"Photo too large ({size_mb:.1f} MB). Maximum: {_MAX_PHOTO_SIZE_MB} MB."
+    clean, scan_err = _scan_for_malware(file)
+    if not clean:
+        return False, scan_err
     return True, ""
 
 
@@ -906,7 +987,8 @@ def _record_login_failure(identifier: str, attempt_type: str = "admin"):
             cur.execute(
                 "INSERT INTO login_attempts (identifier, attempt_type, failed_count, last_attempt) "
                 "VALUES (%s, %s, 1, NOW()) "
-                "ON DUPLICATE KEY UPDATE failed_count=failed_count+1, last_attempt=NOW()",
+                "ON CONFLICT (identifier, attempt_type) DO UPDATE SET "
+                "failed_count=login_attempts.failed_count+1, last_attempt=NOW()",
                 (identifier, attempt_type)
             )
             conn.commit()
@@ -951,13 +1033,34 @@ def _db():
         except Exception as _e: app_log.debug("conn.close() failed: %s", _e)
 
 # ---------------- DB MIGRATION ----------------
+# Trigger function backing every `... ON UPDATE CURRENT_TIMESTAMP`-style
+# column from the old MySQL schema — Postgres has no column-level
+# equivalent, so each such table gets a BEFORE UPDATE trigger calling this.
+_UPDATED_AT_TRIGGER_FN = """
+    CREATE OR REPLACE FUNCTION _set_updated_at() RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+"""
+
+def _attach_updated_at_trigger(cursor, table):
+    cursor.execute(f'DROP TRIGGER IF EXISTS trg_{table}_updated_at ON {table}')
+    cursor.execute(f"""
+        CREATE TRIGGER trg_{table}_updated_at BEFORE UPDATE ON {table}
+        FOR EACH ROW EXECUTE FUNCTION _set_updated_at()
+    """)
+
 def init_db():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
+    cursor.execute(_UPDATED_AT_TRIGGER_FN)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employees (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) UNIQUE NOT NULL,
             name VARCHAR(100) NOT NULL,
             email VARCHAR(150) DEFAULT NULL,
@@ -967,7 +1070,7 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS attendance (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             date DATE NOT NULL,
             login_time TIME DEFAULT NULL,
@@ -975,26 +1078,26 @@ def init_db():
             status VARCHAR(50) DEFAULT NULL,
             logout_status VARCHAR(50) DEFAULT NULL,
             attendance_type VARCHAR(50) DEFAULT NULL,
-            UNIQUE KEY uq_emp_date (employee_id, date)
+            UNIQUE (employee_id, date)
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             date DATE UNIQUE NOT NULL,
             name VARCHAR(100) NOT NULL
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS salary_config (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) UNIQUE NOT NULL,
             salary_per_day DECIMAL(10,2) DEFAULT 0
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payroll_config (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             pf_employee_pct DECIMAL(5,2) DEFAULT 12.00,
             pf_employer_pct DECIMAL(5,2) DEFAULT 12.00,
             professional_tax DECIMAL(8,2) DEFAULT 200.00,
@@ -1004,28 +1107,29 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             email VARCHAR(150) DEFAULT NULL,
             reset_token VARCHAR(64) DEFAULT NULL,
-            reset_token_expiry DATETIME DEFAULT NULL
+            reset_token_expiry TIMESTAMP DEFAULT NULL
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_config (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             smtp_host VARCHAR(150) NOT NULL,
             smtp_port INT NOT NULL DEFAULT 587,
             smtp_user VARCHAR(150) NOT NULL,
             smtp_pass VARCHAR(255) NOT NULL,
             from_name VARCHAR(100) DEFAULT 'HR Department',
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    _attach_updated_at_trigger(cursor, "email_config")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leave_requests (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             leave_date DATE NOT NULL,
             reason VARCHAR(500) NOT NULL,
@@ -1035,8 +1139,8 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS notifications (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            recipient_type ENUM('admin', 'employee') NOT NULL,
+            id SERIAL PRIMARY KEY,
+            recipient_type VARCHAR(20) NOT NULL CHECK (recipient_type IN ('admin', 'employee')),
             employee_id VARCHAR(50) NULL,
             title VARCHAR(255) NOT NULL,
             message TEXT NOT NULL,
@@ -1046,7 +1150,7 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS resignation_requests (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             last_working_day DATE NOT NULL,
             reason TEXT NOT NULL,
@@ -1056,7 +1160,7 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tickets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             category VARCHAR(100) NOT NULL,
             subject VARCHAR(255) NOT NULL,
@@ -1065,12 +1169,13 @@ def init_db():
             status VARCHAR(30) DEFAULT 'Open',
             admin_response TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    _attach_updated_at_trigger(cursor, "tickets")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS shifts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             start_time TIME NOT NULL,
             half_time  TIME NOT NULL,
@@ -1080,35 +1185,35 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS announcements (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             title VARCHAR(255) NOT NULL,
             content TEXT NOT NULL,
-            priority ENUM('Normal','Important','Urgent') DEFAULT 'Normal',
+            priority VARCHAR(20) DEFAULT 'Normal' CHECK (priority IN ('Normal','Important','Urgent')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS break_config (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             break_name VARCHAR(100) NOT NULL,
             break_time TIME NOT NULL,
             duration_minutes INT NOT NULL DEFAULT 10,
-            is_active TINYINT(1) DEFAULT 1
+            is_active SMALLINT DEFAULT 1
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS incentive_goals (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             title VARCHAR(150) NOT NULL,
             description TEXT,
             incentive_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-            is_active TINYINT(1) DEFAULT 1,
+            is_active SMALLINT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_incentives (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             goal_id INT NOT NULL,
             month INT NOT NULL,
@@ -1120,20 +1225,20 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_experience (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             company VARCHAR(150) NOT NULL,
             designation VARCHAR(100) NOT NULL,
             from_year VARCHAR(10) NOT NULL,
             to_year VARCHAR(10) DEFAULT NULL,
-            is_current TINYINT(1) DEFAULT 0,
+            is_current SMALLINT DEFAULT 0,
             description TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_education (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             degree VARCHAR(150) NOT NULL,
             institution VARCHAR(200) NOT NULL,
@@ -1144,28 +1249,28 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leave_types (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             annual_quota INT NOT NULL DEFAULT 12,
-            is_paid TINYINT(1) DEFAULT 1,
-            is_active TINYINT(1) DEFAULT 1,
+            is_paid SMALLINT DEFAULT 1,
+            is_active SMALLINT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS leave_balances (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             leave_type_id INT NOT NULL,
             year INT NOT NULL,
             total_days INT NOT NULL DEFAULT 0,
             used_days DECIMAL(4,1) NOT NULL DEFAULT 0,
-            UNIQUE KEY uq_emp_lt_yr (employee_id, leave_type_id, year)
+            UNIQUE (employee_id, leave_type_id, year)
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_documents (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             doc_type VARCHAR(100) NOT NULL,
             original_name VARCHAR(255) NOT NULL,
@@ -1176,35 +1281,36 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS performance_reviews (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
-            quarter TINYINT NOT NULL,
+            quarter SMALLINT NOT NULL,
             year INT NOT NULL,
             overall_rating DECIMAL(3,1) DEFAULT 0,
             reviewer_feedback TEXT,
             employee_comment TEXT,
             status VARCHAR(20) DEFAULT 'Draft',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uq_emp_qtr_yr (employee_id, quarter, year)
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (employee_id, quarter, year)
         )
     """)
+    _attach_updated_at_trigger(cursor, "performance_reviews")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS performance_kpis (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             review_id INT NOT NULL,
             kpi_title VARCHAR(200) NOT NULL,
             description TEXT,
             target VARCHAR(200),
             achievement VARCHAR(200),
             weight INT DEFAULT 20,
-            rating TINYINT DEFAULT 0,
+            rating SMALLINT DEFAULT 0,
             comments TEXT
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS hike_config (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             label VARCHAR(80) NOT NULL,
             min_rating DECIMAL(3,1) NOT NULL,
             max_rating DECIMAL(3,1) NOT NULL,
@@ -1229,7 +1335,7 @@ def init_db():
         db.commit()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS overtime_records (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             date DATE NOT NULL,
             shift_end TIME NOT NULL,
@@ -1239,32 +1345,32 @@ def init_db():
             status VARCHAR(20) DEFAULT 'Pending',
             notes TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY uq_ot_emp_date (employee_id, date)
+            UNIQUE (employee_id, date)
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS onboarding_templates (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name VARCHAR(200) NOT NULL,
             description TEXT,
-            is_active TINYINT(1) DEFAULT 1,
+            is_active SMALLINT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS onboarding_template_tasks (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             template_id INT NOT NULL,
             task_title VARCHAR(300) NOT NULL,
             task_description TEXT,
-            requires_document TINYINT(1) DEFAULT 0,
+            requires_document SMALLINT DEFAULT 0,
             due_days INT DEFAULT 7,
             sort_order INT DEFAULT 0
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_onboarding (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             template_id INT NOT NULL,
             assigned_date DATE NOT NULL,
@@ -1275,13 +1381,13 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS employee_onboarding_tasks (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             onboarding_id INT NOT NULL,
             template_task_id INT NOT NULL,
             employee_id VARCHAR(50) NOT NULL,
             task_title VARCHAR(300) NOT NULL,
             task_description TEXT,
-            requires_document TINYINT(1) DEFAULT 0,
+            requires_document SMALLINT DEFAULT 0,
             due_days INT DEFAULT 7,
             status VARCHAR(20) DEFAULT 'Pending',
             completed_at TIMESTAMP NULL,
@@ -1291,7 +1397,7 @@ def init_db():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS offer_letters (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             onboarding_id INT NOT NULL,
             employee_id VARCHAR(50) NOT NULL,
             designation VARCHAR(150),
@@ -1303,28 +1409,28 @@ def init_db():
             probation_months INT DEFAULT 6,
             reporting_to VARCHAR(150),
             additional_notes TEXT,
-            generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            sent_at DATETIME DEFAULT NULL,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sent_at TIMESTAMP DEFAULT NULL,
             status VARCHAR(20) DEFAULT 'draft',
             notice_period_days INT DEFAULT 30,
             candidate_address TEXT
         )
     """)
     for _col, _sql in [
-        ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30"),
-        ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT"),
-        ("response_token",         "ALTER TABLE offer_letters ADD COLUMN response_token VARCHAR(64) DEFAULT NULL"),
-        ("candidate_response",     "ALTER TABLE offer_letters ADD COLUMN candidate_response VARCHAR(20) DEFAULT NULL"),
-        ("responded_at",           "ALTER TABLE offer_letters ADD COLUMN responded_at DATETIME DEFAULT NULL"),
-        ("response_token_expiry",  "ALTER TABLE offer_letters ADD COLUMN response_token_expiry DATETIME DEFAULT NULL"),
+        ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30"),
+        ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT"),
+        ("response_token",         "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token VARCHAR(64) DEFAULT NULL"),
+        ("candidate_response",     "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_response VARCHAR(20) DEFAULT NULL"),
+        ("responded_at",           "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP DEFAULT NULL"),
+        ("response_token_expiry",  "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token_expiry TIMESTAMP DEFAULT NULL"),
     ]:
         try:
             cursor.execute(_sql); db.commit()
-        except mysql.connector.errors.DatabaseError:
+        except psycopg2.Error:
             db.rollback()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS audit_logs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             actor VARCHAR(100) NOT NULL,
             actor_type VARCHAR(20) DEFAULT 'admin',
             action VARCHAR(150) NOT NULL,
@@ -1332,80 +1438,81 @@ def init_db():
             target_id VARCHAR(100),
             detail TEXT,
             ip_address VARCHAR(45),
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_actor (actor),
-            INDEX idx_action (action),
-            INDEX idx_created (created_at)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_actor ON audit_logs (actor)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action ON audit_logs (action)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_created ON audit_logs (created_at)")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS login_attempts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             identifier VARCHAR(150) NOT NULL,
             attempt_type VARCHAR(20) DEFAULT 'admin',
             failed_count INT DEFAULT 0,
-            last_attempt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            locked_until DATETIME DEFAULT NULL,
-            UNIQUE KEY uq_ident_type (identifier, attempt_type)
+            last_attempt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            locked_until TIMESTAMP DEFAULT NULL,
+            UNIQUE (identifier, attempt_type)
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_queue (
-            id           INT AUTO_INCREMENT PRIMARY KEY,
+            id           SERIAL PRIMARY KEY,
             to_email     VARCHAR(255) NOT NULL,
             subject      VARCHAR(500) NOT NULL,
-            html_body    MEDIUMTEXT   NOT NULL,
-            attachment_b64 LONGTEXT   DEFAULT NULL,
+            html_body    TEXT   NOT NULL,
+            attachment_b64 TEXT   DEFAULT NULL,
             attachment_filename VARCHAR(255) DEFAULT NULL,
-            status       ENUM('pending','sending','done','failed') DEFAULT 'pending',
-            attempts     TINYINT DEFAULT 0,
+            status       VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','sending','done','failed')),
+            attempts     SMALLINT DEFAULT 0,
             last_error   TEXT DEFAULT NULL,
-            created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-            sent_at      DATETIME DEFAULT NULL,
-            INDEX idx_eq_status (status),
-            INDEX idx_eq_created (created_at)
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sent_at      TIMESTAMP DEFAULT NULL
         )
     """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_status ON email_queue (status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_created ON email_queue (created_at)")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payroll_runs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             year INT NOT NULL,
             month INT NOT NULL,
-            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             processed_by VARCHAR(100),
             email_count INT DEFAULT 0,
-            UNIQUE KEY uq_ym (year, month)
+            UNIQUE (year, month)
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS compoff_balance (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL UNIQUE,
             earned_minutes INT DEFAULT 0,
             used_minutes INT DEFAULT 0,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    _attach_updated_at_trigger(cursor, "compoff_balance")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS api_tokens (
             token VARCHAR(64) PRIMARY KEY,
             token_type VARCHAR(20) NOT NULL DEFAULT 'admin',
             identity VARCHAR(100) NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            expires_at DATETIME NOT NULL
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS mobile_biometric_proofs (
             employee_id VARCHAR(50) PRIMARY KEY,
             nonce VARCHAR(64) DEFAULT NULL,
-            nonce_expires_at DATETIME DEFAULT NULL,
-            verified_at DATETIME DEFAULT NULL
+            nonce_expires_at TIMESTAMP DEFAULT NULL,
+            verified_at TIMESTAMP DEFAULT NULL
         )
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS regularization_requests (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) NOT NULL,
             request_date DATE NOT NULL,
             login_time TIME DEFAULT NULL,
@@ -1413,9 +1520,9 @@ def init_db():
             reason TEXT NOT NULL,
             status VARCHAR(20) DEFAULT 'Pending',
             admin_note TEXT DEFAULT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            resolved_at DATETIME DEFAULT NULL,
-            UNIQUE KEY uq_emp_reg_date (employee_id, request_date)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            resolved_at TIMESTAMP DEFAULT NULL,
+            UNIQUE (employee_id, request_date)
         )
     """)
     db.commit()
@@ -1453,34 +1560,34 @@ def init_db():
         db.commit()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS companies (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name VARCHAR(200) NOT NULL,
             code VARCHAR(20) DEFAULT NULL,
             working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     db.commit()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS company_feature_settings (
             company_id INT PRIMARY KEY,
-            face_auth_enabled  TINYINT(1) DEFAULT 1,
-            qr_enabled         TINYINT(1) DEFAULT 1,
-            fingerprint_enabled TINYINT(1) DEFAULT 0,
-            geo_enabled        TINYINT(1) DEFAULT 0,
+            face_auth_enabled  SMALLINT DEFAULT 1,
+            qr_enabled         SMALLINT DEFAULT 1,
+            fingerprint_enabled SMALLINT DEFAULT 0,
+            geo_enabled        SMALLINT DEFAULT 0,
             geo_radius         INT DEFAULT 300,
-            pin_enabled        TINYINT(1) DEFAULT 1,
-            biometric_enabled  TINYINT(1) DEFAULT 0,
-            notify_leave       TINYINT(1) DEFAULT 1,
-            notify_payslip     TINYINT(1) DEFAULT 1,
-            notify_resignation TINYINT(1) DEFAULT 1,
-            notify_doc_expiry  TINYINT(1) DEFAULT 1,
+            pin_enabled        SMALLINT DEFAULT 1,
+            biometric_enabled  SMALLINT DEFAULT 0,
+            notify_leave       SMALLINT DEFAULT 1,
+            notify_payslip     SMALLINT DEFAULT 1,
+            notify_resignation SMALLINT DEFAULT 1,
+            notify_doc_expiry  SMALLINT DEFAULT 1,
             session_timeout    INT DEFAULT 30,
             late_deduction_pct DECIMAL(5,2) DEFAULT 10.00,
             half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00,
             grace_minutes      INT DEFAULT 15,
-            holiday_pay        ENUM('paid','unpaid') DEFAULT 'paid',
-            leave_pay          ENUM('exclude','absent') DEFAULT 'exclude',
+            holiday_pay        VARCHAR(20) DEFAULT 'paid' CHECK (holiday_pay IN ('paid','unpaid')),
+            leave_pay          VARCHAR(20) DEFAULT 'exclude' CHECK (leave_pay IN ('exclude','absent')),
             shift_start        TIME DEFAULT '09:00:00',
             shift_half         TIME DEFAULT '13:00:00',
             shift_end          TIME DEFAULT '18:00:00',
@@ -1490,122 +1597,149 @@ def init_db():
     db.commit()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS shift_swap_requests (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             requester_id VARCHAR(50) NOT NULL,
             target_id VARCHAR(50) NOT NULL,
             requester_shift_id INT NOT NULL,
             target_shift_id INT NOT NULL,
             reason TEXT,
-            status ENUM('Pending_Target','Pending_Admin','Approved','Rejected','Rejected_Admin') DEFAULT 'Pending_Target',
+            status VARCHAR(20) DEFAULT 'Pending_Target' CHECK (status IN ('Pending_Target','Pending_Admin','Approved','Rejected','Rejected_Admin')),
             target_response TEXT,
             admin_response TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    _attach_updated_at_trigger(cursor, "shift_swap_requests")
     db.commit()
+
+    # Create company_settings table (must precede the migration loop below,
+    # which ALTERs this table — on a fresh install with nothing to migrate
+    # from, an ALTER before the table exists silently no-ops instead of
+    # erroring, so column order here isn't just cosmetic).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS company_settings (
+            id SERIAL PRIMARY KEY,
+            company_name VARCHAR(200) DEFAULT 'My Company',
+            company_tagline VARCHAR(300) DEFAULT 'Employee Attendance System',
+            company_logo VARCHAR(255) DEFAULT NULL,
+            currency_symbol VARCHAR(10) DEFAULT '₹',
+            timezone VARCHAR(60) DEFAULT 'Asia/Kolkata',
+            setup_done SMALLINT DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    _attach_updated_at_trigger(cursor, "company_settings")
+    db.commit()
+    # Add default shift columns if not present
+    for col, default in [("shift_start","09:00:00"), ("shift_half","13:00:00"), ("shift_end","18:00:00")]:
+        try:
+            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col} TIME DEFAULT '{default}'")
+            db.commit()
+        except Exception:
+            pass
 
     # Migrations for existing installs
     for sql in [
-        "ALTER TABLE attendance ADD COLUMN logout_status VARCHAR(50) DEFAULT NULL",
-        "ALTER TABLE attendance ADD COLUMN attendance_type VARCHAR(50) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN email VARCHAR(150) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN role VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN shift_id INT DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN date_of_joining DATE DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN phone VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN gender VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN dob DATE DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN blood_group VARCHAR(10) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN address TEXT DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN city VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN state VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN pincode VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN emergency_contact_name VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN emergency_contact_phone VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN emergency_contact_relation VARCHAR(50) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN aadhar_number VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN pan_number VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN bank_name VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN bank_account VARCHAR(30) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN bank_ifsc VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN uan_number VARCHAR(30) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN work_mode VARCHAR(20) DEFAULT 'office'",
-        "ALTER TABLE employees ADD COLUMN work_lat DECIMAL(10,8) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN work_lon DECIMAL(11,8) DEFAULT NULL",
-        "ALTER TABLE holidays ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY FIRST",
-        "ALTER TABLE salary_config ADD COLUMN last_revised DATE DEFAULT NULL",
-        "ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL",
-        "ALTER TABLE admin_users ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL",
-        "ALTER TABLE admin_users ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
-        "ALTER TABLE email_config ADD COLUMN from_email VARCHAR(150) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN about_me TEXT DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN manager_name VARCHAR(150) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN manager_id VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN department VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN is_active TINYINT(1) DEFAULT 1",
-        "ALTER TABLE leave_requests ADD COLUMN leave_type_id INT DEFAULT NULL",
-        "ALTER TABLE leave_requests ADD COLUMN is_half_day TINYINT(1) DEFAULT 0",
-        "ALTER TABLE leave_requests ADD COLUMN half_day_session VARCHAR(10) DEFAULT NULL",
-        "ALTER TABLE company_settings ADD COLUMN company_code VARCHAR(10) DEFAULT NULL",
-        "ALTER TABLE admin_users ADD COLUMN role VARCHAR(20) DEFAULT 'admin'",
-        "ALTER TABLE attendance ADD COLUMN worked_minutes INT DEFAULT 0",
-        "ALTER TABLE attendance ADD COLUMN last_relogin TIME DEFAULT NULL",
-        "ALTER TABLE salary_config ADD COLUMN monthly_ctc DECIMAL(12,2) DEFAULT 0",
-        "ALTER TABLE salary_config ADD COLUMN basic_pct INT DEFAULT 50",
-        "ALTER TABLE company_settings ADD COLUMN compoff_min_ot_minutes INT DEFAULT 120",
-        "ALTER TABLE company_settings ADD COLUMN compoff_minutes_per_day INT DEFAULT 480",
-        "ALTER TABLE company_settings ADD COLUMN late_deduction_pct DECIMAL(5,2) DEFAULT 10.00",
-        "ALTER TABLE company_settings ADD COLUMN half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00",
-        "ALTER TABLE company_settings ADD COLUMN grace_minutes INT DEFAULT 15",
-        "ALTER TABLE company_settings ADD COLUMN holiday_pay ENUM('paid','unpaid') DEFAULT 'paid'",
-        "ALTER TABLE company_settings ADD COLUMN leave_pay ENUM('exclude','absent') DEFAULT 'exclude'",
-        "ALTER TABLE employees ADD COLUMN joining_date DATE DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN company_id INT DEFAULT NULL",
-        "ALTER TABLE employee_documents ADD COLUMN expiry_date DATE DEFAULT NULL",
-        "ALTER TABLE overtime_records ADD COLUMN requested_by_employee TINYINT(1) DEFAULT 0",
-        "ALTER TABLE overtime_records ADD COLUMN employee_reason VARCHAR(500) DEFAULT NULL",
-        "ALTER TABLE leave_requests ADD COLUMN cancelled_at DATETIME DEFAULT NULL",
-        "ALTER TABLE salary_config ADD COLUMN last_hike_quarter TINYINT DEFAULT NULL",
-        "ALTER TABLE salary_config ADD COLUMN last_hike_year INT DEFAULT NULL",
-        "ALTER TABLE company_settings ADD COLUMN default_onboarding_template_id INT DEFAULT NULL",
-        "ALTER TABLE employee_onboarding_tasks ADD COLUMN employee_note VARCHAR(500) DEFAULT NULL",
-        "ALTER TABLE company_settings ADD COLUMN fingerprint_enabled TINYINT(1) DEFAULT 0",
-        "ALTER TABLE company_settings ADD COLUMN qr_enabled TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN face_enabled TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN location_enabled TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN employee_password_auth TINYINT(1) DEFAULT 1",
-        "ALTER TABLE employees ADD COLUMN fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN fingerprint_public_key TEXT DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN fingerprint_sign_count INT DEFAULT 0",
-        "ALTER TABLE company_settings ADD COLUMN face_auth_enabled TINYINT(1) DEFAULT 0",
-        "ALTER TABLE company_settings ADD COLUMN geo_enabled TINYINT(1) DEFAULT 0",
-        "ALTER TABLE company_settings ADD COLUMN geo_radius INT DEFAULT 100",
-        "ALTER TABLE company_settings ADD COLUMN pin_enabled TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN biometric_enabled TINYINT(1) DEFAULT 0",
-        "ALTER TABLE company_settings ADD COLUMN notify_leave TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN notify_payslip TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN notify_resignation TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN notify_doc_expiry TINYINT(1) DEFAULT 1",
-        "ALTER TABLE company_settings ADD COLUMN session_timeout INT DEFAULT 30",
-        "ALTER TABLE company_settings ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
-        "ALTER TABLE break_config ADD COLUMN break_type ENUM('coffee','lunch','custom') DEFAULT 'coffee'",
-        "ALTER TABLE break_config ADD COLUMN shift_id INT DEFAULT NULL",
-        "ALTER TABLE companies ADD COLUMN working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
-        "ALTER TABLE onboarding_templates ADD COLUMN role VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE shifts ADD COLUMN company_id INT DEFAULT NULL",
-        "ALTER TABLE companies ADD COLUMN pin VARCHAR(10) DEFAULT NULL",
-        "ALTER TABLE break_config ADD COLUMN company_id INT DEFAULT NULL",
-        "ALTER TABLE announcements ADD COLUMN visibility ENUM('public','private') DEFAULT 'public'",
-        "ALTER TABLE announcements ADD COLUMN target_employee_id VARCHAR(50) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN reset_token VARCHAR(80) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS logout_status VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS attendance_type VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS shift_id INT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_joining DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS address TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS city VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pincode VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_relation VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS aadhar_number VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pan_number VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_account VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_ifsc VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS uan_number VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_mode VARCHAR(20) DEFAULT 'office'",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_lat DECIMAL(10,8) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_lon DECIMAL(11,8) DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS last_revised DATE DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP DEFAULT NULL",
+        "ALTER TABLE email_config ADD COLUMN IF NOT EXISTS from_email VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS about_me TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS manager_name VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS manager_id VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation VARCHAR(150) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_active SMALLINT DEFAULT 1",
+        "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS leave_type_id INT DEFAULT NULL",
+        "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS is_half_day SMALLINT DEFAULT 0",
+        "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS half_day_session VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS company_code VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'admin'",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS worked_minutes INT DEFAULT 0",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS last_relogin TIME DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS monthly_ctc DECIMAL(12,2) DEFAULT 0",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS basic_pct INT DEFAULT 50",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS compoff_min_ot_minutes INT DEFAULT 120",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS compoff_minutes_per_day INT DEFAULT 480",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS late_deduction_pct DECIMAL(5,2) DEFAULT 10.00",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS half_day_deduction_pct DECIMAL(5,2) DEFAULT 50.00",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS grace_minutes INT DEFAULT 15",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS holiday_pay VARCHAR(20) DEFAULT 'paid' CHECK (holiday_pay IN ('paid','unpaid'))",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS leave_pay VARCHAR(20) DEFAULT 'exclude' CHECK (leave_pay IN ('exclude','absent'))",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS joining_date DATE DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id INT DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS expiry_date DATE DEFAULT NULL",
+        "ALTER TABLE overtime_records ADD COLUMN IF NOT EXISTS requested_by_employee SMALLINT DEFAULT 0",
+        "ALTER TABLE overtime_records ADD COLUMN IF NOT EXISTS employee_reason VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS last_hike_quarter SMALLINT DEFAULT NULL",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS last_hike_year INT DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS default_onboarding_template_id INT DEFAULT NULL",
+        "ALTER TABLE employee_onboarding_tasks ADD COLUMN IF NOT EXISTS employee_note VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS fingerprint_enabled SMALLINT DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS qr_enabled SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS face_enabled SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS location_enabled SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS employee_password_auth SMALLINT DEFAULT 1",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_public_key TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_sign_count INT DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS face_auth_enabled SMALLINT DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS geo_enabled SMALLINT DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS geo_radius INT DEFAULT 100",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS pin_enabled SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS biometric_enabled SMALLINT DEFAULT 0",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS notify_leave SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS notify_payslip SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS notify_resignation SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS notify_doc_expiry SMALLINT DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS session_timeout INT DEFAULT 30",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE break_config ADD COLUMN IF NOT EXISTS break_type VARCHAR(20) DEFAULT 'coffee' CHECK (break_type IN ('coffee','lunch','custom'))",
+        "ALTER TABLE break_config ADD COLUMN IF NOT EXISTS shift_id INT DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS working_days VARCHAR(30) DEFAULT 'Mon,Tue,Wed,Thu,Fri'",
+        "ALTER TABLE onboarding_templates ADD COLUMN IF NOT EXISTS role VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE shifts ADD COLUMN IF NOT EXISTS company_id INT DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS pin VARCHAR(10) DEFAULT NULL",
+        "ALTER TABLE break_config ADD COLUMN IF NOT EXISTS company_id INT DEFAULT NULL",
+        "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public','private'))",
+        "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_employee_id VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token VARCHAR(80) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
             db.commit()
-        except mysql.connector.errors.DatabaseError:
+        except psycopg2.Error:
             db.rollback()
 
     # Back-fill password for existing employees that have none (default PIN = 1234)
@@ -1622,7 +1756,7 @@ def init_db():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS _applied_migrations (
                 name VARCHAR(100) PRIMARY KEY,
-                applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         db.commit()
@@ -1636,9 +1770,9 @@ def init_db():
 
     # Migration: add force_pin_change column and flag employees on default PIN
     try:
-        cursor.execute("ALTER TABLE employees ADD COLUMN force_pin_change TINYINT(1) DEFAULT 0")
+        cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS force_pin_change SMALLINT DEFAULT 0")
         db.commit()
-    except mysql.connector.errors.DatabaseError:
+    except psycopg2.Error:
         db.rollback()
     try:
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='force_pin_change_flag'")
@@ -1658,16 +1792,16 @@ def init_db():
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v1'")
         if not cursor.fetchone():
             _idx_stmts = [
-                "ALTER TABLE leave_requests ADD INDEX idx_leave_emp(employee_id)",
-                "ALTER TABLE leave_requests ADD INDEX idx_leave_status(status)",
-                "ALTER TABLE tickets ADD INDEX idx_tickets_emp(employee_id)",
-                "ALTER TABLE tickets ADD INDEX idx_tickets_status(status)",
-                "ALTER TABLE resignation_requests ADD INDEX idx_resign_emp(employee_id)",
-                "ALTER TABLE notifications ADD INDEX idx_notif_emp(employee_id)",
-                "ALTER TABLE notifications ADD INDEX idx_notif_read(is_read)",
-                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_emp(employee_id)",
-                "ALTER TABLE employee_onboarding ADD INDEX idx_onboard_status(status)",
-                "ALTER TABLE payroll_runs ADD INDEX idx_payroll_emp(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_leave_emp ON leave_requests(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status)",
+                "CREATE INDEX IF NOT EXISTS idx_tickets_emp ON tickets(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)",
+                "CREATE INDEX IF NOT EXISTS idx_resign_emp ON resignation_requests(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_notif_emp ON notifications(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(is_read)",
+                "CREATE INDEX IF NOT EXISTS idx_onboard_emp ON employee_onboarding(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_onboard_status ON employee_onboarding(status)",
+                "CREATE INDEX IF NOT EXISTS idx_payroll_emp ON payroll_runs(employee_id)",
             ]
             for stmt in _idx_stmts:
                 try:
@@ -1685,10 +1819,10 @@ def init_db():
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v2'")
         if not cursor.fetchone():
             _idx_stmts_v2 = [
-                "ALTER TABLE attendance ADD INDEX idx_att_date (date)",
-                "ALTER TABLE employees ADD INDEX idx_emp_active (is_active)",
-                "ALTER TABLE employees ADD INDEX idx_emp_company (company_id)",
-                "ALTER TABLE leave_requests ADD INDEX idx_leave_date (leave_date)",
+                "CREATE INDEX IF NOT EXISTS idx_att_date ON attendance(date)",
+                "CREATE INDEX IF NOT EXISTS idx_emp_active ON employees(is_active)",
+                "CREATE INDEX IF NOT EXISTS idx_emp_company ON employees(company_id)",
+                "CREATE INDEX IF NOT EXISTS idx_leave_date ON leave_requests(leave_date)",
             ]
             for stmt in _idx_stmts_v2:
                 try:
@@ -1700,28 +1834,6 @@ def init_db():
             db.commit()
     except Exception:
         pass
-
-    # Create company_settings table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS company_settings (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            company_name VARCHAR(200) DEFAULT 'My Company',
-            company_tagline VARCHAR(300) DEFAULT 'Employee Attendance System',
-            company_logo VARCHAR(255) DEFAULT NULL,
-            currency_symbol VARCHAR(10) DEFAULT '₹',
-            timezone VARCHAR(60) DEFAULT 'Asia/Kolkata',
-            setup_done TINYINT(1) DEFAULT 0,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-    """)
-    db.commit()
-    # Add default shift columns if not present
-    for col, default in [("shift_start","09:00:00"), ("shift_half","13:00:00"), ("shift_end","18:00:00")]:
-        try:
-            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {col} TIME DEFAULT '{default}'")
-            db.commit()
-        except Exception:
-            pass
 
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
@@ -1762,45 +1874,55 @@ def assign_leave_balances_for_employee(cursor, employee_id, year=None):
         cursor.execute("""
             INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
             VALUES (%s, %s, %s, %s, 0)
-            ON DUPLICATE KEY UPDATE total_days=IF(used_days=0, VALUES(total_days), total_days)
+            ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
+                total_days = CASE WHEN leave_balances.used_days = 0
+                                  THEN EXCLUDED.total_days ELSE leave_balances.total_days END
         """, (employee_id, lt_id, year, quota))
 
 
 def init_master_db():
-    """Create the att_master database and its tenants table if they don't exist."""
+    """Create the att_master tenant-registry schema and its tenants table if
+    they don't exist. Postgres has no mid-connection database switch, so this
+    is a schema within the shared database now, not a separate physical
+    database the way MySQL's att_master was."""
     try:
-        import mysql.connector as _mc
-        root_conn = _mc.connect(
-            host=os.environ.get("DB_HOST", "localhost"),
-            user=os.environ.get("DB_USER", "root"),
-            password=os.environ.get("DB_PASS", ""),
-        )
-        cur = root_conn.cursor()
-        cur.execute("CREATE DATABASE IF NOT EXISTS att_master CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-        cur.execute("USE att_master")
+        # Schema must exist before get_master_db() can SET search_path to it,
+        # so this first connection stays on the default (public) schema —
+        # get_db_connection() now always resets search_path explicitly on
+        # every borrow, so it's safe to use here without leaking att_master
+        # onto whichever connection the pool hands out next.
+        db = get_db_connection()
+        cur = db.cursor()
+        cur.execute('CREATE SCHEMA IF NOT EXISTS att_master')
+        db.commit()
+        cur.close(); db.close()
+
+        from database import get_master_db
+        db = get_master_db()
+        cur = db.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tenants (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 company_name VARCHAR(200) NOT NULL,
                 subdomain VARCHAR(100) UNIQUE NOT NULL,
                 db_name VARCHAR(100) UNIQUE NOT NULL,
                 admin_email VARCHAR(200) DEFAULT NULL,
                 plan VARCHAR(50) DEFAULT 'starter',
                 status VARCHAR(20) DEFAULT 'active',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        root_conn.commit()
+        db.commit()
         cur.close()
-        root_conn.close()
+        db.close()
     except Exception as _e:
         app_log.warning("init_master_db failed (non-fatal for single-tenant mode): %s", _e)
 
 
-def init_tenant_db(db_name: str):
-    """Initialize schema in a freshly created tenant database."""
+def init_tenant_db(schema_name: str):
+    """Initialize schema in a freshly created tenant schema."""
     from flask import g as _g
-    _g.tenant_db = db_name
+    _g.tenant_db = schema_name
     init_db()
 
 
@@ -1882,7 +2004,10 @@ def manager_or_admin_required(f):
 
 # ---------------- ATTENDANCE HELPERS ----------------
 def _td_to_time(val):
-    """Convert MySQL timedelta or datetime.time to datetime.time."""
+    """Convert a timedelta or datetime.time to datetime.time. psycopg2
+    already returns TIME columns as datetime.time (returned as-is below);
+    the timedelta path handles values computed via time arithmetic elsewhere
+    in the app, and is what mysql-connector used to return directly."""
     if val is None:
         return None
     if isinstance(val, datetime.time):
@@ -1985,7 +2110,8 @@ def detect_overtime(employee_id, date, logout_time):
         cursor.execute("""
             INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status)
             VALUES (%s,%s,%s,%s,%s,%s,'Pending')
-            ON DUPLICATE KEY UPDATE actual_logout=VALUES(actual_logout), ot_minutes=VALUES(ot_minutes), ot_pay=VALUES(ot_pay)
+            ON CONFLICT (employee_id, date) DO UPDATE SET
+                actual_logout=EXCLUDED.actual_logout, ot_minutes=EXCLUDED.ot_minutes, ot_pay=EXCLUDED.ot_pay
         """, (employee_id, date, shift_end, logout_t, ot_minutes, ot_pay))
         db.commit()
         cursor.close(); db.close()
@@ -2530,6 +2656,55 @@ def _error_page(code, icon, title, subtitle, hint):
 </div>
 </body></html>""", code
 
+# ---------------- ERROR ALERTING (malfunction detection) ----------------
+# The catch-all exception handler below tells users "the team has been
+# notified" — this is what actually makes that true. Emails admins on
+# unhandled errors, deduped by error signature so one hot failing endpoint
+# can't flood inboxes or the email_queue table.
+_error_alert_cache = {}
+_error_alert_lock  = threading.Lock()
+_ERROR_ALERT_COOLDOWN = 900  # 15 min — same error signature won't re-alert sooner
+
+def _alert_on_error(tb_text, context=""):
+    """Best-effort: any failure here is swallowed so alerting can never
+    mask or crash on top of the original error being reported."""
+    try:
+        # Dedup key = exception type + the line that actually raised it, not
+        # the full traceback (which varies request-to-request — different
+        # IDs, line numbers in called code, etc. would defeat deduping).
+        last_line = tb_text.strip().splitlines()[-1] if tb_text.strip() else "unknown"
+        sig = hashlib.sha256(last_line.encode()).hexdigest()[:16]
+        now = time.time()
+        with _error_alert_lock:
+            last_sent = _error_alert_cache.get(sig)
+            if last_sent and now - last_sent < _ERROR_ALERT_COOLDOWN:
+                return
+            _error_alert_cache[sig] = now
+            if len(_error_alert_cache) > 500:  # cap unbounded growth
+                _error_alert_cache.clear()
+
+        cfg = get_email_config()
+        if not cfg:
+            return
+        admins = get_admin_emails()
+        if not admins:
+            return
+
+        body = (
+            "<pre style='white-space:pre-wrap;font-family:monospace;font-size:13px'>"
+            f"Time: {datetime.datetime.now().isoformat()}\n"
+            f"Route: {_html.escape(context or 'unknown')}\n"
+            f"Method: {_html.escape(request.method if request else 'n/a')}\n"
+            f"Remote IP: {_html.escape(request.remote_addr or '') if request else 'n/a'}\n\n"
+            f"{_html.escape(tb_text)}</pre>"
+        )
+        subject = f"⚠️ Application error — {context or 'unknown route'}"
+        for admin_email in admins:
+            send_email_async(admin_email, subject, body, cfg)
+    except Exception as _alert_err:
+        app_log.error("Failed to send error alert email: %s", _alert_err)
+
+
 @app.errorhandler(404)
 def not_found(e):
     return _error_page(404, "🔍", "Page Not Found",
@@ -2546,6 +2721,7 @@ def forbidden(e):
 def internal_error(e):
     tb = _traceback.format_exc()
     app_log.error("500 error: %s", tb.replace('\n', '\\n'))
+    _alert_on_error(tb, context=request.path if request else "")
     return _error_page(500, "⚙️", "Internal Server Error",
         "Something went wrong on our end. The error has been logged.",
         "Please try again in a moment or contact your administrator.")
@@ -2558,6 +2734,7 @@ def unhandled_exception(e):
             "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
     app_log.error("Unhandled exception: %s", tb.replace('\n', '\\n'))
+    _alert_on_error(tb, context=request.path if request else "")
     return _error_page(500, "⚙️", "Internal Server Error",
         "An unexpected error occurred. The team has been notified.",
         "Please try again or contact your administrator.")
@@ -3093,12 +3270,12 @@ def admin_action():
             ec_name         = request.form.get("emergency_contact_name", "").strip() or None
             ec_phone        = request.form.get("emergency_contact_phone", "").strip() or None
             ec_relation     = request.form.get("emergency_contact_relation", "").strip() or None
-            aadhar          = request.form.get("aadhar_number", "").strip() or None
-            pan             = request.form.get("pan_number", "").strip().upper() or None
+            aadhar          = encrypt_pii(request.form.get("aadhar_number", "").strip() or None)
+            pan             = encrypt_pii(request.form.get("pan_number", "").strip().upper() or None)
             bank_name       = request.form.get("bank_name", "").strip() or None
-            bank_account    = request.form.get("bank_account", "").strip() or None
-            bank_ifsc       = request.form.get("bank_ifsc", "").strip().upper() or None
-            uan             = request.form.get("uan_number", "").strip() or None
+            bank_account    = encrypt_pii(request.form.get("bank_account", "").strip() or None)
+            bank_ifsc       = encrypt_pii(request.form.get("bank_ifsc", "").strip().upper() or None)
+            uan             = encrypt_pii(request.form.get("uan_number", "").strip() or None)
             file            = request.files["face"]
         except (KeyError, ValueError) as _e:
             cursor.close(); db.close()
@@ -3168,7 +3345,7 @@ def admin_action():
             if salary_per_day is not None:
                 cursor.execute(
                     "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s) "
-                    "ON DUPLICATE KEY UPDATE salary_per_day=%s",
+                    "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=%s",
                     (emp_id, salary_per_day, salary_per_day)
                 )
                 db.commit()
@@ -3214,7 +3391,7 @@ def admin_action():
                         flash(f"📧 Credentials email sent to {email}", "success")
                     except Exception as _mail_err:
                         flash(f"⚠️ Email delivery failed: {_mail_err}. Share credentials manually.", "error")
-        except mysql.connector.errors.IntegrityError:
+        except psycopg2.IntegrityError:
             db.rollback()
             os.remove(filepath)
             flash(f"Employee ID '{emp_id}' already exists. Please use a different ID.", "error")
@@ -3838,8 +4015,8 @@ def add_company():
         return redirect(dest)
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
     db = get_db_connection(); cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s)", (name, code, w_days))
-    new_cid = cursor.lastrowid
+    cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s) RETURNING id", (name, code, w_days))
+    new_cid = cursor.fetchone()[0]
     db.commit()
 
     shift_names  = request.form.getlist("shift_name[]")
@@ -3921,7 +4098,7 @@ def edit_company(cid):
             for tbl in related_tables:
                 try:
                     cursor.execute(
-                        f"UPDATE `{tbl}` SET employee_id=%s WHERE employee_id=%s",
+                        f"UPDATE {tbl} SET employee_id=%s WHERE employee_id=%s",
                         (new_eid, old_eid)
                     )
                 except Exception:
@@ -4128,7 +4305,7 @@ def add_holiday():
     try:
         cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, holiday_name))
         db.commit()
-    except mysql.connector.errors.IntegrityError:
+    except psycopg2.IntegrityError:
         pass  # duplicate date — silently ignore
     cursor.close()
     db.close()
@@ -4206,7 +4383,7 @@ def employee_profile(emp_id):
                 SUM(CASE WHEN status='Late Login' THEN 1 ELSE 0 END) AS late,
                 SUM(CASE WHEN attendance_type='Half Day' THEN 1 ELSE 0 END) AS halfday
             FROM attendance
-            WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+            WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
         """, (emp_id, today.month, today.year))
         att = cursor.fetchone()
 
@@ -4224,7 +4401,7 @@ def employee_profile(emp_id):
             FROM leave_requests lr
             LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
             WHERE lr.employee_id=%s AND lr.status='Approved'
-              AND YEAR(lr.leave_date)=%s
+              AND EXTRACT(YEAR FROM lr.leave_date)=%s
             GROUP BY lt.name
         """, (emp_id, today.year))
         leave_used = cursor.fetchall()
@@ -4416,7 +4593,7 @@ def view_employees():
     resigned_set  = {r[0] for r in cursor.fetchall()}
     cursor.execute(
         "SELECT DISTINCT employee_id FROM leave_requests "
-        "WHERE status='Approved' AND leave_date=CURDATE()"
+        "WHERE status='Approved' AND leave_date=CURRENT_DATE"
     )
     on_leave_set  = {r[0] for r in cursor.fetchall()}
 
@@ -4527,7 +4704,16 @@ def employee_detail(emp_id):
         LEFT JOIN attendance a ON e.employee_id = a.employee_id
         LEFT JOIN salary_config sc ON e.employee_id = sc.employee_id
         WHERE e.employee_id = %s
-        GROUP BY e.employee_id
+        GROUP BY e.employee_id, e.name, e.role, e.email, e.date_of_joining,
+                 e.work_mode, e.work_lat, e.work_lon,
+                 e.face_image, e.qr_code,
+                 e.department, e.phone, e.gender, e.dob, e.blood_group,
+                 e.shift_id, e.manager_name,
+                 e.address, e.city, e.state, e.pincode,
+                 e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+                 e.aadhar_number, e.pan_number,
+                 e.bank_name, e.bank_account, e.bank_ifsc, e.uan_number,
+                 s.name, sc.salary_per_day, e.about_me
     """, (emp_id,))
     row = cursor.fetchone()
     if not row:
@@ -4543,7 +4729,7 @@ def employee_detail(emp_id):
 
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
     is_resigned = cursor.fetchone()[0] > 0
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND leave_date=CURDATE()", (emp_id,))
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND leave_date=CURRENT_DATE", (emp_id,))
     is_on_leave = cursor.fetchone()[0] > 0
 
     if is_resigned:
@@ -4723,7 +4909,7 @@ def add_employee_page():
             db.commit()
             registered = True
             break
-        except mysql.connector.errors.IntegrityError:
+        except psycopg2.IntegrityError:
             db.rollback()
             # Find next available ID and retry
             cursor.execute(
@@ -4754,10 +4940,10 @@ def add_employee_page():
                     _due = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
                     cursor.execute("""
                         INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status)
-                        VALUES (%s, %s, %s, %s, 'In Progress')
+                        VALUES (%s, %s, %s, %s, 'In Progress') RETURNING id
                     """, (emp_id, _default_tpl, datetime.date.today().isoformat(), _due))
+                    _ob_id = cursor.fetchone()[0]
                     db.commit()
-                    _ob_id = cursor.lastrowid
                     cursor.execute("""
                         SELECT id, task_title, task_description, requires_document, due_days, sort_order
                         FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id
@@ -5444,7 +5630,7 @@ def import_indian_holidays():
     for date_obj, name in holidays_list:
         try:
             cursor.execute(
-                "INSERT IGNORE INTO holidays (date, name) VALUES (%s, %s)",
+                "INSERT INTO holidays (date, name) VALUES (%s, %s) ON CONFLICT (date) DO NOTHING",
                 (date_obj, name)
             )
         except Exception:
@@ -5548,7 +5734,7 @@ def add_break():
     name     = request.form.get("break_name", "").strip()
     btime    = request.form.get("break_time", "")
     duration = int(request.form.get("duration_minutes", 10) or 10)
-    dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
+    dest     = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(request.referrer or "", "/employees?tab=schedule"))
     cid_raw  = request.form.get("company_id", "").strip()
     company_id = int(cid_raw) if cid_raw.isdigit() else None
     sid_raw  = request.form.get("shift_id", "").strip()
@@ -5578,7 +5764,7 @@ def update_break(bid=None):
     btime    = request.form.get("break_time", "")
     duration = int(request.form.get("duration_minutes", 10) or 10)
     active   = 1 if request.form.get("is_active") else 0
-    dest     = request.form.get("redirect") or request.referrer or "/employees?tab=schedule"
+    dest     = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(request.referrer or "", "/employees?tab=schedule"))
     sid_raw  = request.form.get("shift_id", "").strip()
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -5849,13 +6035,13 @@ def correct_attendance():
 
     if not emp_id or not date_str or not att_type:
         flash("Missing required fields.", "error")
-        return redirect(request.referrer or "/monthly_report")
+        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
 
     try:
         date_obj = datetime.date.fromisoformat(date_str)
     except ValueError:
         flash("Invalid date.", "error")
-        return redirect(request.referrer or "/monthly_report")
+        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
 
     login_time  = login_str  if login_str  else None
     logout_time = logout_str if logout_str else None
@@ -5945,8 +6131,8 @@ def bulk_mark_attendance():
 
     base_select = (
         "SELECT e.employee_id, e.name, COALESCE(e.department,''), COALESCE(e.designation,''), "
-        "COALESCE(s.shift_name,''), COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),''), "
-        "COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),''), "
+        "COALESCE(s.shift_name,''), COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''), "
+        "COALESCE(TO_CHAR(s.end_time,'HH24:MI'),''), "
         "COALESCE(e.phone,''), COALESCE(e.email,''), "
         "COALESCE(e.work_mode,'office'), COALESCE(e.date_of_joining,''), "
         "COALESCE(e.gender,''), COALESCE(e.role,'') "
@@ -5968,13 +6154,13 @@ def bulk_mark_attendance():
     # Monthly summary for the selected date's month
     cursor.execute(
         """SELECT employee_id,
-             SUM(attendance_type IN ('Full Day','Late - Full Day')) AS present_days,
-             SUM(attendance_type = 'Half Day') AS half_days,
-             SUM(attendance_type = 'Absent') AS absent_days,
-             SUM(attendance_type = 'Leave') AS leave_days,
+             SUM(CASE WHEN attendance_type IN ('Full Day','Late - Full Day') THEN 1 ELSE 0 END) AS present_days,
+             SUM(CASE WHEN attendance_type = 'Half Day' THEN 1 ELSE 0 END) AS half_days,
+             SUM(CASE WHEN attendance_type = 'Absent' THEN 1 ELSE 0 END) AS absent_days,
+             SUM(CASE WHEN attendance_type = 'Leave' THEN 1 ELSE 0 END) AS leave_days,
              COUNT(*) AS total_marked
            FROM attendance
-           WHERE YEAR(date)=%s AND MONTH(date)=%s
+           WHERE EXTRACT(YEAR FROM date)=%s AND EXTRACT(MONTH FROM date)=%s
            GROUP BY employee_id""",
         (date_obj.year, date_obj.month)
     )
@@ -6585,7 +6771,7 @@ def send_all_salary_emails():
             cur2.execute("""
                 INSERT INTO payroll_runs (year, month, processed_by, email_count)
                 VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s, email_count=%s
+                ON CONFLICT (year, month) DO UPDATE SET processed_at=NOW(), processed_by=%s, email_count=%s
             """, (year, month, actor, sent, actor, sent))
             db2.commit(); cur2.close(); db2.close()
             _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}",
@@ -6609,7 +6795,7 @@ def lock_payroll():
     cursor.execute("""
         INSERT INTO payroll_runs (year, month, processed_by, email_count)
         VALUES (%s, %s, %s, 0)
-        ON DUPLICATE KEY UPDATE processed_at=NOW(), processed_by=%s
+        ON CONFLICT (year, month) DO UPDATE SET processed_at=NOW(), processed_by=%s
     """, (year, month, actor, actor))
     db.commit(); cursor.close(); db.close()
     _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}", f"Manually locked by {actor}")
@@ -7748,7 +7934,7 @@ def employee_portal():
         annual_leave_quota  = 12
         cursor.execute("""
             SELECT COUNT(*) FROM leave_requests
-            WHERE employee_id=%s AND YEAR(leave_date)=%s AND status IN ('Approved','Pending')
+            WHERE employee_id=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status IN ('Approved','Pending')
         """, (emp_id, today.year))
         leaves_used   = cursor.fetchone()[0] or 0
         leave_balance = max(0, annual_leave_quota - leaves_used)
@@ -7790,14 +7976,14 @@ def employee_portal():
     # Upcoming holidays for leave planning panel (rest of year, up to 15)
     cursor.execute("""
         SELECT date, name FROM holidays
-        WHERE date >= %s AND YEAR(date) = %s
+        WHERE date >= %s AND EXTRACT(YEAR FROM date) = %s
         ORDER BY date LIMIT 15
     """, (today, today.year))
     leave_holidays = cursor.fetchall()
 
     # Holiday calendar data for employee view
     hol_year = int(request.args.get("hol_year", today.year))
-    cursor.execute("SELECT id, date, name FROM holidays WHERE YEAR(date)=%s ORDER BY date", (hol_year,))
+    cursor.execute("SELECT id, date, name FROM holidays WHERE EXTRACT(YEAR FROM date)=%s ORDER BY date", (hol_year,))
     hol_rows = cursor.fetchall()
     hol_map = {}
     for row in hol_rows:
@@ -7876,7 +8062,7 @@ def employee_portal():
 
     try:
         cursor.execute(
-            "SELECT date, shift_end, actual_logout, ot_minutes, ot_pay, status FROM overtime_records WHERE employee_id=%s AND YEAR(date)=%s ORDER BY date DESC LIMIT 20",
+            "SELECT date, shift_end, actual_logout, ot_minutes, ot_pay, status FROM overtime_records WHERE employee_id=%s AND EXTRACT(YEAR FROM date)=%s ORDER BY date DESC LIMIT 20",
             (emp_id, today.year)
         )
         my_overtime = cursor.fetchall()
@@ -7897,7 +8083,7 @@ def employee_portal():
         incentives_this_month = 0.0
     try:
         cursor.execute(
-            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'",
+            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
             (emp_id, today.month, today.year)
         )
         ot_pay_this_month = float(cursor.fetchone()[0] or 0)
@@ -7952,7 +8138,7 @@ def employee_portal():
         except Exception:
             p_inc = 0.0
         try:
-            cursor.execute("SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'", (emp_id, pm2, py2))
+            cursor.execute("SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'", (emp_id, pm2, py2))
             p_ot = float(cursor.fetchone()[0] or 0)
         except Exception:
             p_ot = 0.0
@@ -7985,8 +8171,8 @@ def employee_portal():
         incoming_swap_requests = cursor.fetchall()
         cursor.execute("""
             SELECT e.employee_id, e.name, COALESCE(s.shift_name,''),
-                   COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),''),
-                   COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),''),
+                   COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''),
+                   COALESCE(TO_CHAR(s.end_time,'HH24:MI'),''),
                    COALESCE(e.department,''), COALESCE(e.designation,'')
             FROM employees e
             LEFT JOIN shifts s ON s.id = e.shift_id
@@ -8118,7 +8304,7 @@ def my_payslip_summary(year, month):
 
     try:
         cursor.execute(
-            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s AND status='Approved'",
+            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
             (emp_id, month, year)
         )
         ot_pay = float(cursor.fetchone()[0])
@@ -8408,7 +8594,7 @@ def set_leave_balance():
     cursor.execute("""
         INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
         VALUES (%s, %s, %s, %s, 0)
-        ON DUPLICATE KEY UPDATE total_days=%s
+        ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET total_days=%s
     """, (emp_id, lt_id, year, total, total))
     db.commit()
     cursor.close(); db.close()
@@ -8615,7 +8801,7 @@ def performance_save_review():
     cursor.execute("""
         INSERT INTO performance_reviews (employee_id, quarter, year, reviewer_feedback, status)
         VALUES (%s,%s,%s,%s,%s)
-        ON DUPLICATE KEY UPDATE reviewer_feedback=%s, status=%s, updated_at=NOW()
+        ON CONFLICT (employee_id, quarter, year) DO UPDATE SET reviewer_feedback=%s, status=%s, updated_at=NOW()
     """, (emp_id, q, yr, feedback, status, feedback, status))
     db.commit()
 
@@ -8661,7 +8847,7 @@ def performance_add_kpi():
     cursor.execute("""
         INSERT INTO performance_reviews (employee_id, quarter, year, status)
         VALUES (%s,%s,%s,'Draft')
-        ON DUPLICATE KEY UPDATE updated_at=NOW()
+        ON CONFLICT (employee_id, quarter, year) DO UPDATE SET updated_at=NOW()
     """, (emp_id, q, yr))
     db.commit()
 
@@ -9108,7 +9294,8 @@ def performance_import():
         cursor.execute("""
             INSERT INTO performance_reviews (employee_id, quarter, year, reviewer_feedback, status)
             VALUES (%s,%s,%s,%s,%s)
-            ON DUPLICATE KEY UPDATE reviewer_feedback=VALUES(reviewer_feedback), status=VALUES(status), updated_at=NOW()
+            ON CONFLICT (employee_id, quarter, year) DO UPDATE SET
+                reviewer_feedback=EXCLUDED.reviewer_feedback, status=EXCLUDED.status, updated_at=NOW()
         """, (emp_id, q, yr, feedback, status))
         db.commit()
 
@@ -9223,11 +9410,11 @@ def award_performance_bonus():
         goal_id = row[0]
     else:
         cursor.execute(
-            "INSERT INTO incentive_goals (title, description, incentive_amount, is_active) VALUES (%s,%s,%s,%s)",
+            "INSERT INTO incentive_goals (title, description, incentive_amount, is_active) VALUES (%s,%s,%s,%s) RETURNING id",
             ("Performance Bonus", "Quarterly performance-based incentive", 0, 1)
         )
+        goal_id = cursor.fetchone()[0]
         db.commit()
-        goal_id = cursor.lastrowid
 
     cursor.execute("SELECT min_rating, max_rating, incentive_pct FROM hike_config ORDER BY min_rating DESC")
     bands = cursor.fetchall()
@@ -9340,12 +9527,12 @@ def leave_holidays():
         FROM leave_requests lr
         JOIN employees e ON lr.employee_id = e.employee_id {_co_join}
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
-        ORDER BY FIELD(lr.status, 'Pending', 'Approved', 'Rejected'), lr.created_at DESC
+        ORDER BY CASE WHEN lr.status='Pending' THEN 0 WHEN lr.status='Approved' THEN 1 WHEN lr.status='Rejected' THEN 2 ELSE 3 END, lr.created_at DESC
     """, _co_args)
     leaves = cursor.fetchall()
     cursor.execute(f"""
         SELECT employee_id, SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
-        FROM leave_requests WHERE YEAR(leave_date)=YEAR(CURDATE()) AND status='Approved'
+        FROM leave_requests WHERE EXTRACT(YEAR FROM leave_date)=EXTRACT(YEAR FROM CURRENT_DATE) AND status='Approved'
         {_co_sub} GROUP BY employee_id
     """, _co_args)
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
@@ -9355,13 +9542,13 @@ def leave_holidays():
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
         FROM tickets t JOIN employees e ON t.employee_id = e.employee_id {_co_join}
-        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'), t.created_at DESC
+        ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1 WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END, t.created_at DESC
     """, _co_args)
     all_tickets = cursor.fetchall()
     cursor.execute(f"""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
         FROM resignation_requests rr JOIN employees e ON rr.employee_id = e.employee_id {_co_join}
-        ORDER BY FIELD(rr.status, 'Pending', 'Accepted', 'Declined'), rr.created_at DESC
+        ORDER BY CASE WHEN rr.status='Pending' THEN 0 WHEN rr.status='Accepted' THEN 1 WHEN rr.status='Declined' THEN 2 ELSE 3 END, rr.created_at DESC
     """, _co_args)
     resignations = cursor.fetchall()
     cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
@@ -9435,7 +9622,7 @@ def leave_action(lid):
         cursor.execute("""
             INSERT INTO attendance (employee_id, date, attendance_type)
             VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE attendance_type=%s
+            ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type=%s
         """, (emp_id, leave_date, att_type, att_type))
         # Deduct leave balance
         deduction = 0.5 if is_half else 1
@@ -9446,7 +9633,8 @@ def leave_action(lid):
                 VALUES (%s, %s, %s,
                     (SELECT annual_quota FROM leave_types WHERE id=%s),
                     %s)
-                ON DUPLICATE KEY UPDATE used_days = used_days + %s
+                ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
+                    used_days = leave_balances.used_days + %s
             """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
             # Deduct comp-off balance if this is a Comp-off leave type
             cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
@@ -9461,7 +9649,8 @@ def leave_action(lid):
                 cursor.execute("""
                     INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
                     VALUES (%s, 0, %s)
-                    ON DUPLICATE KEY UPDATE used_minutes = used_minutes + %s
+                    ON CONFLICT (employee_id) DO UPDATE SET
+                        used_minutes = compoff_balance.used_minutes + %s
                 """, (emp_id, deduct_minutes, deduct_minutes))
 
     db.commit()
@@ -9651,7 +9840,7 @@ def resignation_requests_view():
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
         FROM resignation_requests rr
         JOIN employees e ON rr.employee_id = e.employee_id
-        ORDER BY FIELD(rr.status, 'Pending', 'Accepted', 'Declined'), rr.created_at DESC
+        ORDER BY CASE WHEN rr.status='Pending' THEN 0 WHEN rr.status='Accepted' THEN 1 WHEN rr.status='Declined' THEN 2 ELSE 3 END, rr.created_at DESC
     """)
     resignations = cursor.fetchall()
     cursor.close(); db.close()
@@ -9757,7 +9946,7 @@ def bulk_leave_action():
             cursor.execute("""
                 INSERT INTO attendance (employee_id, date, attendance_type)
                 VALUES (%s, %s, 'Approved Leave')
-                ON DUPLICATE KEY UPDATE attendance_type='Approved Leave'
+                ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type='Approved Leave'
             """, (emp_id, leave_date))
         done += 1
         if emp_email and cfg:
@@ -9818,8 +10007,8 @@ def tickets_view():
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
         FROM tickets t
         JOIN employees e ON t.employee_id = e.employee_id
-        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'),
-                 FIELD(t.priority,'High','Medium','Low'), t.created_at DESC
+        ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1 WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END,
+                 CASE WHEN t.priority='High' THEN 0 WHEN t.priority='Medium' THEN 1 WHEN t.priority='Low' THEN 2 ELSE 3 END, t.created_at DESC
     """)
     all_tickets = cursor.fetchall()
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
@@ -9951,6 +10140,8 @@ def api_login():
     data     = request.get_json() or {}
     username = data.get("username", "")
     password = data.get("password", "")
+    if "\x00" in username or "\x00" in password:
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     with _db() as (cursor, conn):
         cursor.execute("SELECT password FROM admin_users WHERE username=%s", (username,))
         row = cursor.fetchone()
@@ -9958,7 +10149,7 @@ def api_login():
             token = secrets.token_hex(32)
             cursor.execute(
                 "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
-                "VALUES (%s, 'admin', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
+                "VALUES (%s, 'admin', %s, NOW() + INTERVAL '24 hours')",
                 (_hash_token(token), username)
             )
             conn.commit()
@@ -10642,7 +10833,7 @@ def api_employee_login():
     with _db() as (cursor, conn):
         cursor.execute(
             "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
-            "VALUES (%s, 'employee', %s, DATE_ADD(NOW(), INTERVAL 24 HOUR))",
+            "VALUES (%s, 'employee', %s, NOW() + INTERVAL '24 hours')",
             (_hash_token(token), emp_id)
         )
         conn.commit()
@@ -11096,8 +11287,9 @@ def _mobile_biometric_issue_nonce(emp_id):
     with _db() as (cursor, conn):
         cursor.execute(
             "INSERT INTO mobile_biometric_proofs (employee_id, nonce, nonce_expires_at, verified_at) "
-            "VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL %s SECOND), NULL) "
-            "ON DUPLICATE KEY UPDATE nonce=VALUES(nonce), nonce_expires_at=VALUES(nonce_expires_at), verified_at=NULL",
+            "VALUES (%s, %s, NOW() + %s * INTERVAL '1 second', NULL) "
+            "ON CONFLICT (employee_id) DO UPDATE SET "
+            "nonce=EXCLUDED.nonce, nonce_expires_at=EXCLUDED.nonce_expires_at, verified_at=NULL",
             (emp_id, nonce, _MOBILE_BIO_NONCE_TTL_SEC)
         )
         conn.commit()
@@ -11882,7 +12074,7 @@ def api_employee_salary():
     cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
     spd_row  = cursor.fetchone()
     spd      = float(spd_row[0]) if spd_row else 0.0
-    cursor.execute("SELECT date FROM holidays WHERE MONTH(date)=%s AND YEAR(date)=%s", (month, year))
+    cursor.execute("SELECT date FROM holidays WHERE EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s", (month, year))
     holiday_set = {r[0] for r in cursor.fetchall()}
     _, days_in_month = cal.monthrange(year, month)
     billable = sum(
@@ -11894,12 +12086,12 @@ def api_employee_salary():
     )
     cursor.execute("""
         SELECT attendance_type FROM attendance
-        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
     """, (emp_id, month, year))
     att_rows = cursor.fetchall()
     cursor.execute("""
         SELECT COUNT(*) FROM leave_requests
-        WHERE employee_id=%s AND MONTH(leave_date)=%s AND YEAR(leave_date)=%s AND status='Approved'
+        WHERE employee_id=%s AND EXTRACT(MONTH FROM leave_date)=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status='Approved'
     """, (emp_id, month, year))
     leave_days = cursor.fetchone()[0]
     cursor.close(); db.close()
@@ -11943,13 +12135,13 @@ def api_employee_attendance():
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type, worked_minutes
         FROM attendance
-        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
         ORDER BY date DESC
     """, (emp_id, month, year))
     rows = cursor.fetchall()
     cursor.execute("""
         SELECT COUNT(*), attendance_type FROM attendance
-        WHERE employee_id=%s AND MONTH(date)=%s AND YEAR(date)=%s
+        WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
         GROUP BY attendance_type
     """, (emp_id, month, year))
     type_counts = {r[1]: r[0] for r in cursor.fetchall()}
@@ -12095,10 +12287,10 @@ def api_employee_request_overtime():
     cursor.execute("""
         INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay,
                                       status, requested_by_employee, employee_reason)
-        VALUES (%s, %s, %s, %s, 0, 0, 'Pending', 1, %s)
+        VALUES (%s, %s, %s, %s, 0, 0, 'Pending', 1, %s) RETURNING id
     """, (emp_id, ot_date, shift_end, shift_end, reason))
+    oid = cursor.fetchone()[0]
     db.commit()
-    oid = cursor.lastrowid
     cursor.close(); db.close()
     _audit("request_overtime", "overtime_records", emp_id, f"Employee requested OT for {ot_date}: {reason}")
     _create_notification("admin", None, "Overtime Request",
@@ -12139,12 +12331,12 @@ def api_expiring_documents():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.expiry_date,
-               DATEDIFF(d.expiry_date, CURDATE()) AS days_left
+               (d.expiry_date - CURRENT_DATE) AS days_left
         FROM employee_documents d
         JOIN employees e ON e.employee_id = d.employee_id
         WHERE d.expiry_date IS NOT NULL
-          AND d.expiry_date >= CURDATE()
-          AND d.expiry_date <= DATE_ADD(CURDATE(), INTERVAL %s DAY)
+          AND d.expiry_date >= CURRENT_DATE
+          AND d.expiry_date <= CURRENT_DATE + (%s * INTERVAL '1 day')
         ORDER BY d.expiry_date ASC
     """, (days,))
     rows = cursor.fetchall()
@@ -12257,8 +12449,8 @@ def api_tickets():
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
         FROM tickets t
         JOIN employees e ON t.employee_id = e.employee_id
-        ORDER BY FIELD(t.status,'Open','In Progress','Resolved','Closed'),
-                 FIELD(t.priority,'High','Medium','Low'), t.created_at DESC
+        ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1 WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END,
+                 CASE WHEN t.priority='High' THEN 0 WHEN t.priority='Medium' THEN 1 WHEN t.priority='Low' THEN 2 ELSE 3 END, t.created_at DESC
     """)
     rows = cursor.fetchall()
     cursor.close(); db.close()
@@ -12453,7 +12645,8 @@ def payroll_settings():
                 cursor.execute("""
                     INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct)
                     VALUES (%s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE salary_per_day=%s, monthly_ctc=%s, basic_pct=%s
+                    ON CONFLICT (employee_id) DO UPDATE SET
+                        salary_per_day=%s, monthly_ctc=%s, basic_pct=%s
                 """, (eid, spd, ctc, bpct, spd, ctc, bpct))
         db.commit()
         flash("Payroll settings saved.", "success")
@@ -12533,11 +12726,11 @@ def api_shifts_create():
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute(
-            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s)",
+            "INSERT INTO shifts (name, start_time, half_time, end_time) VALUES (%s,%s,%s,%s) RETURNING id",
             (name, start, half, end)
         )
+        sid = cursor.fetchone()[0]
         db.commit()
-        sid = cursor.lastrowid
     except Exception:
         app_log.error("Failed to create shift", exc_info=True)
         cursor.close(); db.close()
@@ -12698,16 +12891,17 @@ def analytics():
         SELECT lt.name, COUNT(*) as cnt
         FROM leave_requests lr
         JOIN leave_types lt ON lr.leave_type_id = lt.id
-        WHERE lr.status='Approved' AND YEAR(lr.leave_date)=%s
+        WHERE lr.status='Approved' AND EXTRACT(YEAR FROM lr.leave_date)=%s
         GROUP BY lt.name ORDER BY cnt DESC
     """, (today.year,))
     leave_by_type = [{'name': r[0], 'count': r[1]} for r in cursor.fetchall()]
 
     cursor.execute("""
         SELECT e.employee_id, e.name,
-               ROUND(COUNT(CASE WHEN a.login_time IS NOT NULL THEN 1 END) / GREATEST(DATEDIFF(LEAST(LAST_DAY(%s), %s), %s) + 1, 1) * 100, 1) AS pct
+               ROUND(COUNT(CASE WHEN a.login_time IS NOT NULL THEN 1 END)::NUMERIC /
+                     GREATEST((LEAST((date_trunc('month', %s::date) + INTERVAL '1 month - 1 day')::date, %s::date) - %s::date) + 1, 1) * 100, 1) AS pct
         FROM employees e
-        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND EXTRACT(MONTH FROM a.date)=%s AND EXTRACT(YEAR FROM a.date)=%s
         GROUP BY e.employee_id, e.name
         ORDER BY pct DESC LIMIT 5
     """, (datetime.date(today.year, today.month, 1), today, datetime.date(today.year, today.month, 1), today.month, today.year))
@@ -12740,7 +12934,7 @@ def analytics():
                COUNT(DISTINCT e.employee_id) as total_emp,
                COUNT(DISTINCT CASE WHEN a.login_time IS NOT NULL THEN a.employee_id END) as present_emp
         FROM employees e
-        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+        LEFT JOIN attendance a ON e.employee_id=a.employee_id AND EXTRACT(MONTH FROM a.date)=%s AND EXTRACT(YEAR FROM a.date)=%s
         WHERE e.department IS NOT NULL AND e.department != ''
         GROUP BY e.department
         ORDER BY present_emp DESC
@@ -12839,9 +13033,10 @@ def analytics():
                COUNT(a.date) as total_days
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id=a.employee_id
-            AND MONTH(a.date)=%s AND YEAR(a.date)=%s
+            AND EXTRACT(MONTH FROM a.date)=%s AND EXTRACT(YEAR FROM a.date)=%s
         GROUP BY e.employee_id, e.name
-        HAVING total_days > 0 AND (present_days / total_days) < 0.5
+        HAVING COUNT(a.date) > 0
+           AND (COUNT(CASE WHEN a.login_time IS NOT NULL THEN 1 END)::NUMERIC / COUNT(a.date)) < 0.5
     """, (today.month, today.year))
     low_att = cursor.fetchall()
     if low_att:
@@ -12899,8 +13094,8 @@ def analytics():
     cursor.execute("""
         SELECT COUNT(*) FROM employee_documents
         WHERE expiry_date IS NOT NULL
-          AND expiry_date >= CURDATE()
-          AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+          AND expiry_date >= CURRENT_DATE
+          AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'
     """)
     expiring_docs = cursor.fetchone()[0]
     if expiring_docs > 0:
@@ -13067,7 +13262,7 @@ def delete_document(did):
         db.commit()
     cursor.close(); db.close()
     flash("Document deleted.", "success")
-    return redirect(request.referrer or '/documents')
+    return redirect(_safe_referrer_redirect(request.referrer or "", "/documents"))
 
 
 
@@ -13176,7 +13371,7 @@ def overtime():
         SELECT o.id, o.employee_id, e.name, o.date, o.shift_end, o.actual_logout,
                o.ot_minutes, o.ot_pay, o.status, o.notes
         FROM overtime_records o JOIN employees e ON e.employee_id=o.employee_id
-        WHERE MONTH(o.date)=%s AND YEAR(o.date)=%s
+        WHERE EXTRACT(MONTH FROM o.date)=%s AND EXTRACT(YEAR FROM o.date)=%s
         ORDER BY o.date DESC
     """, (month, year))
     records = cursor.fetchall()
@@ -13267,7 +13462,8 @@ def overtime_action(oid):
             cursor.execute("""
                 INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
                 VALUES (%s, %s, 0)
-                ON DUPLICATE KEY UPDATE earned_minutes = earned_minutes + %s
+                ON CONFLICT (employee_id) DO UPDATE SET
+                    earned_minutes = compoff_balance.earned_minutes + %s
             """, (emp_id, ot_minutes, ot_minutes))
             db.commit()
             flash(f"Overtime approved. {ot_minutes} OT minutes credited to comp-off balance.", "success")
@@ -13490,8 +13686,8 @@ def create_org():
     db_name = "att_" + subdomain.replace("-", "_")
 
     try:
-        from database import create_tenant_database
-        create_tenant_database(db_name)
+        from database import create_tenant_schema
+        create_tenant_schema(db_name)
     except Exception as exc:
         app_log.error("create_org DB creation failed: %s", exc)
         flash("Failed to create organisation. Please contact support.", "error")
@@ -13517,7 +13713,7 @@ def create_org():
         )
         tcur.execute(
             "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)"
-            " ON DUPLICATE KEY UPDATE password=VALUES(password)",
+            " ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password",
             (admin_username, generate_password_hash(admin_password), admin_email)
         )
         tconn.commit()
@@ -13567,7 +13763,8 @@ def onboarding():
         JOIN employees e ON e.employee_id = eo.employee_id
         JOIN onboarding_templates ot ON ot.id = eo.template_id
         LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id = eo.id
-        GROUP BY eo.id
+        GROUP BY eo.id, e.employee_id, e.name, e.role, e.department,
+                 ot.name, eo.assigned_date, eo.due_date, eo.status
         ORDER BY eo.assigned_date DESC
     """)
     active_onboardings = cursor.fetchall()
@@ -13655,9 +13852,9 @@ def bulk_assign_onboarding():
         cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'", (emp_id, tid))
         if cursor.fetchone():
             continue
-        cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status) VALUES (%s,%s,%s,%s,'In Progress')",
+        cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status) VALUES (%s,%s,%s,%s,'In Progress') RETURNING id",
                        (emp_id, tid, today, due_date))
-        ob_id = cursor.lastrowid
+        ob_id = cursor.fetchone()[0]
         cursor.execute("SELECT id, task_title, task_description, requires_document, due_days FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,))
         for tt in cursor.fetchall():
             cursor.execute("INSERT INTO employee_onboarding_tasks (onboarding_id, template_task_id, employee_id, task_title, task_description, requires_document, due_days, status) VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')",
@@ -13696,7 +13893,9 @@ def export_onboarding_csv():
         JOIN employees e ON eo.employee_id = e.employee_id
         JOIN onboarding_templates ot ON eo.template_id = ot.id
         LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id = eo.id
-        GROUP BY eo.id ORDER BY eo.assigned_date DESC
+        GROUP BY eo.id, e.employee_id, e.name, e.department, ot.name,
+                 eo.assigned_date, eo.due_date, eo.status
+        ORDER BY eo.assigned_date DESC
     """)
     rows = cursor.fetchall()
     cursor.close(); db.close()
@@ -13724,10 +13923,10 @@ def onboarding_template_duplicate():
         cursor.close(); db.close()
         return redirect("/onboarding?tab=templates")
     cursor.execute(
-        "INSERT INTO onboarding_templates (name, description, is_active) VALUES (%s, %s, 1)",
+        "INSERT INTO onboarding_templates (name, description, is_active) VALUES (%s, %s, 1) RETURNING id",
         (f"Copy of {tpl[0]}", tpl[1])
     )
-    new_id = cursor.lastrowid
+    new_id = cursor.fetchone()[0]
     cursor.execute(
         "SELECT task_title, task_description, requires_document, due_days, sort_order "
         "FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,)
@@ -13829,9 +14028,9 @@ def onboarding_assign():
         cursor.close(); db.close()
         return redirect("/onboarding?tab=active")
 
-    cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date) VALUES (%s,%s,%s,%s)",
+    cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date) VALUES (%s,%s,%s,%s) RETURNING id",
                    (emp_id, tid, today, due_date))
-    ob_id = cursor.lastrowid
+    ob_id = cursor.fetchone()[0]
 
     # Copy tasks from template
     cursor.execute("""SELECT id, task_title, task_description, requires_document, due_days
@@ -13975,14 +14174,14 @@ def offer_letter_save():
     db = get_db_connection(); cursor = db.cursor()
     # add new columns if they don't exist yet (migration)
     try:
-        cursor.execute("ALTER TABLE offer_letters ADD COLUMN notice_period_days INT DEFAULT 30")
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30")
         db.commit()
-    except mysql.connector.errors.DatabaseError:
+    except psycopg2.Error:
         db.rollback()
     try:
-        cursor.execute("ALTER TABLE offer_letters ADD COLUMN candidate_address TEXT")
+        cursor.execute("ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT")
         db.commit()
-    except mysql.connector.errors.DatabaseError:
+    except psycopg2.Error:
         db.rollback()
     cursor.execute("SELECT id FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
     existing = cursor.fetchone()
@@ -13999,10 +14198,10 @@ def offer_letter_save():
         cursor.execute("""INSERT INTO offer_letters (onboarding_id,employee_id,designation,department,
             work_location,monthly_ctc,joining_date,offer_valid_until,probation_months,
             reporting_to,additional_notes,notice_period_days,candidate_address)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (ob_id,employee_id,designation,department,work_location,monthly_ctc,
              joining_date,valid_until,probation,reporting_to,notes,notice_days,candidate_addr))
-        letter_id = cursor.lastrowid
+        letter_id = cursor.fetchone()[0]
     db.commit(); cursor.close(); db.close()
     return redirect(f"/offer_letter_view/{letter_id}")
 
@@ -14645,7 +14844,7 @@ def my_onboarding():
         JOIN onboarding_templates ot ON ot.id=eo.template_id
         LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id=eo.id
         WHERE eo.employee_id=%s
-        GROUP BY eo.id ORDER BY eo.assigned_date DESC
+        GROUP BY eo.id, ot.name, eo.assigned_date, eo.due_date, eo.status ORDER BY eo.assigned_date DESC
     """, (emp_id,))
     onboardings = cursor.fetchall()
 

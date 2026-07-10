@@ -2,8 +2,8 @@ import os
 import re
 import time
 import logging
-import mysql.connector
-import mysql.connector.pooling
+import psycopg2
+import psycopg2.pool
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,12 +12,75 @@ _log = logging.getLogger("attendance")
 # Logger is configured in app.py; database.py uses the same named logger so
 # output is consistent without adding a second handler here.
 
+# sslmode: "prefer" encrypts the connection whenever the server supports it
+# (RDS always does) but degrades gracefully to plaintext otherwise, so local
+# Postgres installs without SSL configured (e.g. this repo's dev setup)
+# still work. Set DB_SSLMODE=require (or verify-full, with DB_SSLROOTCERT
+# pointing at the RDS CA bundle) for a stricter production posture.
+#
+# statement_timeout bounds how long any single query may run — without it, a
+# slow/runaway query (buggy report filter, or a deliberate DoS attempt) can
+# hold a connection — and with only `maxconn=20` in the pool, a handful of
+# stuck queries is enough to starve every other request of a connection.
+# connect_timeout bounds how long establishing a new connection may hang if
+# the DB host is unreachable, instead of blocking a worker indefinitely.
 _DB_CONFIG = dict(
     host=os.environ.get("DB_HOST", "localhost"),
-    user=os.environ.get("DB_USER", "root"),
+    port=int(os.environ.get("DB_PORT", "5432")),
+    user=os.environ.get("DB_USER", "postgres"),
     password=os.environ.get("DB_PASS", ""),
-    database=os.environ.get("DB_NAME", "employee_attendance"),
+    dbname=os.environ.get("DB_NAME", "employee_attendance"),
+    sslmode=os.environ.get("DB_SSLMODE", "prefer"),
+    connect_timeout=int(os.environ.get("DB_CONNECT_TIMEOUT", "10")),
+    options=f"-c statement_timeout={int(os.environ.get('DB_STATEMENT_TIMEOUT_MS', '30000'))}",
 )
+if os.environ.get("DB_SSLROOTCERT"):
+    _DB_CONFIG["sslrootcert"] = os.environ["DB_SSLROOTCERT"]
+
+
+class _PooledConnection:
+    """Wraps a psycopg2 pooled connection so `.close()` returns it to the
+    pool (via putconn) instead of actually closing it — psycopg2 pools
+    require that explicitly, unlike mysql-connector's pooled connections
+    where `.close()` already did this. The rest of the codebase's ~240
+    call sites all do `db = get_db_connection(); ...; db.close()`, so
+    wrapping here avoids rewriting every one of them.
+
+    Also absorbs `buffered=`/`dictionary=` kwargs on .cursor() — both are
+    mysql-connector-only options with no psycopg2 equivalent (psycopg2
+    cursors are effectively buffered client-side by default), so this
+    keeps the ~230 existing `cursor(buffered=True)` call sites working
+    unchanged instead of needing every one edited.
+    """
+    __slots__ = ("_pool", "_conn")
+
+    def __init__(self, pool, conn):
+        self._pool = pool
+        self._conn = conn
+
+    def cursor(self, *args, **kwargs):
+        kwargs.pop("buffered", None)
+        kwargs.pop("dictionary", None)
+        return self._conn.cursor(*args, **kwargs)
+
+    def close(self):
+        self._pool.putconn(self._conn)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def _set_search_path(conn, schema_name):
+    """Switch a pooled connection's search_path to the given tenant schema.
+    Equivalent to MySQL's `USE <db>` from the old design, but scoped to a
+    schema within one shared Postgres database instead of a separate
+    physical database per tenant (Postgres has no mid-connection USE)."""
+    if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
+        raise ValueError(f"Invalid tenant schema name: {schema_name!r}")
+    cur = conn.cursor()
+    cur.execute(f'SET search_path TO "{schema_name}", public')
+    cur.close()
+
 
 # ── Default tenant pool ──────────────────────────────────────────────────────
 _pool = None
@@ -26,29 +89,56 @@ def _create_pool(retries=5, delay=3):
     global _pool
     for attempt in range(1, retries + 1):
         try:
-            _pool = mysql.connector.pooling.MySQLConnectionPool(
-                pool_name="att_pool",
-                pool_size=20,
+            _pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=1,
+                maxconn=20,
                 **_DB_CONFIG,
             )
-            _log.info('"Connected to MySQL (attempt %d)"', attempt)
+            _log.info('"Connected to PostgreSQL (attempt %d)"', attempt)
             return
-        except mysql.connector.Error as e:
-            _log.warning('"MySQL not ready (attempt %d/%d): %s"', attempt, retries, e)
+        except psycopg2.Error as e:
+            _log.warning('"PostgreSQL not ready (attempt %d/%d): %s"', attempt, retries, e)
             if attempt < retries:
                 time.sleep(delay)
-    raise RuntimeError("[DB] Could not connect to MySQL after several retries. Is MySQL running?")
+    raise RuntimeError("[DB] Could not connect to PostgreSQL after several retries. Is PostgreSQL running?")
+
+
+def _borrow_connection():
+    """Get a connection from the pool (building/rebuilding it as needed) with
+    autocommit on. MySQL sessions default to autocommit (this app relies on
+    that — most writes never call .commit()). psycopg2 connections default to
+    autocommit=False, where a single failed statement aborts the whole
+    transaction and poisons the connection for every future borrower once
+    it's returned to the pool, so autocommit is set explicitly here to match
+    MySQL's behavior."""
+    global _pool
+    if _pool is None:
+        _create_pool()
+    try:
+        conn = _pool.getconn()
+    except psycopg2.Error:
+        # Pool went stale — rebuild it once and retry
+        _pool = None
+        _create_pool(retries=3, delay=2)
+        conn = _pool.getconn()
+    conn.autocommit = True
+    return conn
 
 
 def get_db_connection():
-    """Return a connection for the current tenant (or the default DB).
+    """Return a connection for the current tenant (or the default "public" schema).
 
-    Checks flask.g.tenant_db if Flask is active, then falls back to the DB_NAME
-    env var.  Import of flask.g is done lazily to avoid circular imports.
+    Checks flask.g.tenant_db if Flask is active, then falls back to "public".
+    Import of flask.g is done lazily to avoid circular imports.
+
+    Always explicitly resets search_path on every borrow, even for the
+    default (non-tenant) case — a pooled connection can come back from any
+    previous borrower, including ones (like init_master_db/get_tenant_db)
+    that pointed it at a tenant schema. Skipping the reset "because it's
+    already the default" assumes the connection's history, which isn't a
+    safe assumption for a shared pool; that assumption previously caused
+    tenant schema search_paths to leak onto unrelated borrows.
     """
-    global _pool
-
-    # Determine target DB name
     tenant_db = None
     try:
         from flask import g as _flask_g
@@ -57,114 +147,67 @@ def get_db_connection():
         # Outside of a Flask application context — skip g lookup
         pass
 
-    target_db = tenant_db or os.environ.get("DB_NAME", "employee_attendance")
-
-    if _pool is None:
-        _create_pool()
-
-    try:
-        conn = _pool.get_connection()
-    except mysql.connector.Error:
-        # Pool went stale — rebuild it once and retry
-        _pool = None
-        _create_pool(retries=3, delay=2)
-        conn = _pool.get_connection()
-
-    # If the target differs from the pool's default DB, switch databases
-    default_db = _DB_CONFIG.get("database", "")
-    if target_db and target_db != default_db:
-        # Validate db name before using in SQL to prevent injection
-        if not re.match(r'^[a-zA-Z0-9_]+$', target_db):
-            raise ValueError(f"Invalid tenant database name: {target_db!r}")
-        cur = conn.cursor()
-        cur.execute(f"USE `{target_db}`")
-        cur.close()
-
-    return conn
+    conn = _borrow_connection()
+    _set_search_path(conn, tenant_db or "public")
+    return _PooledConnection(_pool, conn)
 
 
 # ── Master DB (tenant registry) ──────────────────────────────────────────────
-_master_pool = None
-_MASTER_DB_NAME = "att_master"
-
-def _create_master_pool(retries=5, delay=3):
-    global _master_pool
-    master_cfg = dict(
-        host=os.environ.get("DB_HOST", "localhost"),
-        user=os.environ.get("DB_USER", "root"),
-        password=os.environ.get("DB_PASS", ""),
-        database=_MASTER_DB_NAME,
-    )
-    for attempt in range(1, retries + 1):
-        try:
-            _master_pool = mysql.connector.pooling.MySQLConnectionPool(
-                pool_name="att_master_pool",
-                pool_size=5,
-                **master_cfg,
-            )
-            _log.info('"Connected to master DB att_master (attempt %d)"', attempt)
-            return
-        except mysql.connector.Error as e:
-            _log.warning('"Master DB not ready (attempt %d/%d): %s"', attempt, retries, e)
-            if attempt < retries:
-                time.sleep(delay)
-    raise RuntimeError("[DB] Could not connect to att_master database.")
-
+# Postgres has no mid-connection database switch, so the tenant registry now
+# lives as its own schema in the same physical database as everything else,
+# rather than a second physical MySQL database (att_master).
+_MASTER_SCHEMA = "att_master"
 
 def get_master_db():
-    """Return a connection to the att_master tenant-registry database."""
-    global _master_pool
-    if _master_pool is None:
-        _create_master_pool()
-    try:
-        return _master_pool.get_connection()
-    except mysql.connector.Error:
-        _master_pool = None
-        _create_master_pool(retries=3, delay=2)
-        return _master_pool.get_connection()
+    """Return a connection scoped to the att_master tenant-registry schema."""
+    conn = _borrow_connection()
+    _set_search_path(conn, _MASTER_SCHEMA)
+    return _PooledConnection(_pool, conn)
 
 
 # ── Tenant DB helper ─────────────────────────────────────────────────────────
 
-def get_tenant_db(db_name: str):
-    """Return a pooled connection switched to the given tenant database.
+def get_tenant_db(schema_name: str):
+    """Return a pooled connection switched to the given tenant schema.
 
-    The db_name is validated against ^[a-zA-Z0-9_]+$ before being used in SQL.
+    schema_name is validated against ^[a-zA-Z0-9_]+$ before use (in
+    _set_search_path) to prevent injection via the SET search_path statement.
     """
-    if not re.match(r'^[a-zA-Z0-9_]+$', db_name):
-        raise ValueError(f"Invalid tenant database name: {db_name!r}")
+    conn = _borrow_connection()
+    _set_search_path(conn, schema_name)
+    return _PooledConnection(_pool, conn)
+
+
+# ── Tenant schema provisioning ────────────────────────────────────────────────
+
+def create_tenant_schema(schema_name: str):
+    """Create a new tenant schema in the shared Postgres database.
+
+    Validates schema_name before use. Replaces the old create_tenant_database()
+    — tenants are now schemas within one database, not separate MySQL
+    databases (Postgres can't switch databases mid-connection the way MySQL's
+    USE did, so schema-per-tenant is the equivalent isolation model).
+    """
+    if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
+        raise ValueError(f"Invalid tenant schema name: {schema_name!r}")
     global _pool
     if _pool is None:
         _create_pool()
+    conn = _pool.getconn()
     try:
-        conn = _pool.get_connection()
-    except mysql.connector.Error:
-        _pool = None
-        _create_pool(retries=3, delay=2)
-        conn = _pool.get_connection()
-    cur = conn.cursor()
-    cur.execute(f"USE `{db_name}`")
-    cur.close()
-    return conn
+        cur = conn.cursor()
+        cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+        conn.commit()
+        cur.close()
+        _log.info('"Created tenant schema: %s"', schema_name)
+    finally:
+        _pool.putconn(conn)
 
 
-# ── Tenant database provisioning ─────────────────────────────────────────────
-
+# Kept as an alias so any not-yet-updated call sites fail loudly and
+# obviously rather than silently doing the wrong thing.
 def create_tenant_database(db_name: str):
-    """Create a new tenant database using a root connection (no pool).
-
-    Validates db_name before use.
-    """
-    if not re.match(r'^[a-zA-Z0-9_]+$', db_name):
-        raise ValueError(f"Invalid tenant database name: {db_name!r}")
-    conn = mysql.connector.connect(
-        host=os.environ.get("DB_HOST", "localhost"),
-        user=os.environ.get("DB_USER", "root"),
-        password=os.environ.get("DB_PASS", ""),
+    raise RuntimeError(
+        "create_tenant_database() was replaced by create_tenant_schema() — "
+        "tenants are Postgres schemas now, not separate databases."
     )
-    cur = conn.cursor()
-    cur.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-    conn.commit()
-    cur.close()
-    conn.close()
-    _log.info('"Created tenant database: %s"', db_name)
