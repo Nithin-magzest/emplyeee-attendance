@@ -1,6 +1,6 @@
 # AWS Production Deployment Runbook
 
-Target: existing Linux EC2 instance + RDS MySQL + nginx/certbot for a
+Target: existing Linux EC2 instance + RDS PostgreSQL + nginx/certbot for a
 trusted HTTPS cert + CloudWatch monitoring + automated backups.
 
 Read this top to bottom once before running anything — several steps are
@@ -26,7 +26,8 @@ order-dependent.
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars: vpc_id, subnet_ids, ec2_security_group_id,
-# ec2_instance_id, alert_email. Do NOT put db_password in this file.
+# ec2_instance_id, alert_email, trusted_admin_cidrs. Do NOT put db_password
+# in this file.
 export TF_VAR_db_password="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 24)"
 echo "Save this RDS password somewhere safe — you'll need it for .env: $TF_VAR_db_password"
 
@@ -35,11 +36,24 @@ terraform plan
 terraform apply
 ```
 
-This creates: RDS MySQL (private, 7-day automated backups), a security
-group that only allows the EC2 instance to reach RDS on 3306, an IAM role
-+ instance profile (CloudWatch + S3 backup access), an SNS alert topic,
-CloudWatch alarms (CPU, status check, disk, RDS storage), an S3 bucket for
-backups, and a daily EBS-snapshot policy.
+This creates: RDS PostgreSQL (private, 7-day automated backups), a security
+group that only allows the EC2 instance to reach RDS on 5432, a firewall
+security group for the app server itself (80/443 open to everyone; SSH/RDP/
+direct-DB/alternate-HTTP ports filtered to `trusted_admin_cidrs` only; FTP/
+Telnet/SMTP never opened at all), an IAM role + instance profile
+(CloudWatch + S3 backup access), an SNS alert topic, CloudWatch alarms (CPU,
+status check, disk, RDS storage), an S3 bucket for backups, and a daily
+EBS-snapshot policy.
+
+**Attach the new firewall security group to the instance** — it's created by
+Terraform but not attached automatically, since the instance itself was
+provisioned outside Terraform:
+
+```bash
+terraform output -raw app_firewall_sg_id
+# EC2 console -> instance -> Actions -> Security -> Change security groups
+# -> add the SG ID above (alongside or in place of the instance's current SG)
+```
 
 **Check your email** and confirm the SNS subscription, or alarms will fire
 silently into the void.
@@ -71,9 +85,15 @@ sudo curl -sSL https://raw.githubusercontent.com/Nithin-magzest/emplyeee-attenda
 sudo bash deploy.sh
 ```
 
-First run installs Docker, applies firewall/fail2ban/auto-update hardening,
-clones the repo to `/opt/employee-attendance`, and writes a `.env` template
-with `REPLACE_WITH_*` placeholders — then **stops** so you can fill them in.
+First run installs Podman, applies firewall/fail2ban/auto-update hardening,
+creates an unprivileged `attendance` user that runs the whole stack as
+**rootless Podman** (no root-owned container daemon at all), clones the repo
+to `/opt/employee-attendance`, and writes a `.env` template with
+`REPLACE_WITH_*` placeholders — then **stops** so you can fill them in.
+
+> Use Ubuntu 24.04 LTS for the instance if you can — it ships Podman 4.9.
+> Ubuntu 22.04's stock Podman (3.4.4) is old enough that rootless behavior
+> may not match what deploy.sh assumes.
 
 ```bash
 sudo nano /opt/employee-attendance/.env
@@ -92,7 +112,7 @@ sudo bash deploy.sh
 ```
 
 This builds and starts `app` and `redis` against RDS (the local `db`
-container from `docker-compose.yml` is intentionally skipped via
+container from `compose.yaml` is intentionally skipped via
 `--no-deps`). `nginx` and `certbot` aren't started yet — `nginx.conf` only
 exists as a template (`nginx/nginx.conf.template`, since the real one is
 gitignored and rendered per-domain) until the next step runs. This step
@@ -118,13 +138,14 @@ should now show as trusted (no "Not secure"), resolving the original issue.
 
 In the GitHub repo: Settings → Secrets and variables → Actions, add:
 - `SSH_HOST` — the EC2 instance's public IP or DNS name
-- `SSH_USER` — the SSH user with access to `/opt/employee-attendance` (and
-  passwordless `docker` group membership — already set up by deploy.sh for
-  the `attendance` user, or use your own admin user)
-- `SSH_KEY` — the private key matching a public key in that user's
-  `~/.ssh/authorized_keys`
+- `SSH_USER` — must be `attendance`, the user deploy.sh creates. It runs
+  rootless Podman directly (no daemon, no sudo needed or granted) and owns
+  `/opt/employee-attendance`, so CI can `git pull` + `podman-compose` as
+  itself. Add the CI key to `/home/attendance/.ssh/authorized_keys` on the
+  instance — deploy.sh doesn't provision that for you.
+- `SSH_KEY` — the private key matching that public key
 
-Once set, every push to `master` that passes the lint + Docker build jobs
+Once set, every push to `master` that passes the lint + Podman build jobs
 will SSH in, `git pull`, rebuild, and restart the `app` container
 automatically (see `.github/workflows/deploy.yml`).
 
@@ -135,7 +156,7 @@ automatically (see `.github/workflows/deploy.yml`).
 curl -I https://yourdomain.com/admin
 
 # RDS is NOT reachable from outside the EC2 security group
-nc -zv -w3 <rds_endpoint> 3306   # run from your own machine — should fail/timeout
+nc -zv -w3 <rds_endpoint> 5432   # run from your own machine — should fail/timeout
 
 # Health check
 curl -I https://yourdomain.com/healthz
@@ -150,7 +171,8 @@ GitHub Actions runs green and the live site reflects the change.
 
 ## Ongoing operations
 
-- **Logs**: `docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f app`
+- **Logs**: SSH in as `attendance` (or `sudo -iu attendance`), then
+  `podman-compose -f compose.yaml -f compose.prod.yaml logs -f app`
 - **Manual deploy** (without waiting for CI): re-run step 3's last command on the server.
 - **DB backups**: automatic via RDS (7-day retention, tunable via `db_backup_retention_days` in terraform.tfvars). Manual snapshot: `aws rds create-db-snapshot ...`.
 - **File backups** (employee photos/documents on the EC2 volume): automatic daily EBS snapshot via DLM (7-day retention).

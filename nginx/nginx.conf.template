@@ -2,6 +2,21 @@ upstream app {
     server app:5000;
 }
 
+# limit_req_zone/limit_conn_zone must live in the http context (this file is
+# included inside http{} by the base image's nginx.conf) — they were
+# previously declared inside the `server {}` block below, which is invalid
+# nginx syntax and would make `nginx -s reload`/startup fail outright.
+#
+# Two zones: a tight one for login/auth endpoints (defense-in-depth on top
+# of Flask-Limiter — this still holds even if the app-level lockout has a
+# gap, since nginx sees every request before it reaches gunicorn), and a
+# generous general one as a backstop for everything else, since Flask's
+# default limit (300/min, extensions.py) is otherwise the only thing
+# standing between the app and a request flood.
+limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+
 server {
     listen 80;
     server_name YOUR_DOMAIN;
@@ -38,9 +53,7 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self)" always;
 
     client_max_body_size 20M;
-
-    # Rate-limit the login endpoints at the nginx layer
-    limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+    limit_conn perip 20;
 
     location ~ ^/(admin_login|employee_login|api/login|api/employee/login) {
         limit_req zone=login burst=10 nodelay;
@@ -61,6 +74,7 @@ server {
     }
 
     location / {
+        limit_req zone=general burst=40 nodelay;
         proxy_pass         https://app;
         proxy_ssl_verify   off;
         proxy_set_header   Host              $host;

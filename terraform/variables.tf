@@ -25,6 +25,16 @@ variable "ec2_security_group_id" {
   type        = string
 }
 
+variable "trusted_admin_cidrs" {
+  description = <<-EOT
+    CIDR blocks allowed to reach management/filtered ports (SSH, RDP, direct
+    DB access, alternate HTTP ports) on the app server — e.g. your office IP,
+    home IP, or VPN range as "x.x.x.x/32" entries. Intentionally has no
+    default: a filtered port open to 0.0.0.0/0 isn't filtered at all.
+  EOT
+  type = list(string)
+}
+
 variable "db_name" {
   description = "Initial database name"
   type        = string

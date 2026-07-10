@@ -13,7 +13,7 @@ provider "aws" {
 }
 
 # ---------------------------------------------------------------------------
-# RDS — MySQL (replaces the containerized `db` service for production)
+# RDS — PostgreSQL (replaces the containerized `db` service for production)
 # ---------------------------------------------------------------------------
 
 resource "aws_db_subnet_group" "this" {
@@ -27,13 +27,13 @@ resource "aws_db_subnet_group" "this" {
 
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg"
-  description = "Allow MySQL only from the application EC2 instance"
+  description = "Allow PostgreSQL only from the application EC2 instance"
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "MySQL from app server"
-    from_port       = 3306
-    to_port         = 3306
+    description     = "PostgreSQL from app server"
+    from_port       = 5432
+    to_port         = 5432
     protocol        = "tcp"
     security_groups = [var.ec2_security_group_id]
   }
@@ -50,10 +50,121 @@ resource "aws_security_group" "rds" {
   }
 }
 
+# ---------------------------------------------------------------------------
+# App server firewall policy
+#
+#   OPEN (0.0.0.0/0)     — 80, 443: the only ports the public actually needs
+#                           to reach (nginx redirects 80->443; 80 also serves
+#                           the Let's Encrypt HTTP-01 challenge).
+#   FILTERED (trusted IPs only) — 22 (SSH), 3389 (RDP), 5432/1433 (direct DB
+#                           access), 8080/8443 (alternate HTTP/HTTPS) — never
+#                           exposed to the internet, only to
+#                           var.trusted_admin_cidrs. Several of these aren't
+#                           actually used by this stack (RDP/1433 — this is a
+#                           Linux/Postgres deployment, not Windows/MSSQL) but
+#                           are still explicitly filtered rather than left
+#                           unlisted, matching the requested policy.
+#   CLOSED (no rule at all) — 21 (FTP), 23 (Telnet), 25 (SMTP): legacy
+#                           cleartext protocols this app never runs; security
+#                           groups default-deny anything not explicitly
+#                           allowed, so "closed" means simply never adding a
+#                           rule for them here.
+#
+# NOTE: this SG is a NEW Terraform-managed resource — it is not
+# automatically attached to the existing EC2 instance (which was originally
+# provisioned outside Terraform; see ec2_security_group_id). After `terraform
+# apply`, attach this SG's ID to the instance (in addition to or in place of
+# its current SG) via the EC2 console or:
+#   aws ec2 modify-instance-attribute --instance-id <id> \
+#     --groups <existing-sg-id> $(terraform output -raw app_firewall_sg_id)
+resource "aws_security_group" "app_firewall" {
+  name        = "${var.project_name}-app-firewall"
+  description = "Public web ports open; management/DB ports filtered to trusted IPs; legacy ports closed"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "HTTP (redirects to HTTPS; also serves ACME HTTP-01 challenge)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH — filtered to trusted IPs only"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  ingress {
+    description = "RDP — filtered to trusted IPs only (not used by this Linux deployment; kept filtered per policy rather than unlisted)"
+    from_port   = 3389
+    to_port     = 3389
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  ingress {
+    description = "Direct PostgreSQL access — filtered to trusted IPs only (normal app traffic goes to RDS over the private VPC via aws_security_group.rds, not through here)"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  ingress {
+    description = "MSSQL — filtered to trusted IPs only (not used by this stack; kept filtered per policy rather than unlisted)"
+    from_port   = 1433
+    to_port     = 1433
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  ingress {
+    description = "Alternate HTTP — filtered to trusted IPs only"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  ingress {
+    description = "Alternate HTTPS — filtered to trusted IPs only"
+    from_port   = 8443
+    to_port     = 8443
+    protocol    = "tcp"
+    cidr_blocks = var.trusted_admin_cidrs
+  }
+
+  # 21 (FTP), 23 (Telnet), 25 (SMTP) deliberately have no ingress rule —
+  # security groups default-deny, so this is what "closed" looks like.
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-app-firewall"
+  }
+}
+
 resource "aws_db_instance" "this" {
   identifier     = "${var.project_name}-db"
-  engine         = "mysql"
-  engine_version = "8.0"
+  engine         = "postgres"
+  engine_version = "16"
 
   instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage
@@ -238,7 +349,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 
 # ---------------------------------------------------------------------------
 # Automated backups — EBS snapshots of the EC2 instance via DLM
-# (covers the dataset/, static/employee_docs/, static/qrcodes/ Docker
+# (covers the dataset/, static/employee_docs/, static/qrcodes/ Podman
 #  volumes, which live on the instance's EBS volume and aren't in RDS)
 # ---------------------------------------------------------------------------
 

@@ -1,10 +1,15 @@
 output "rds_endpoint" {
-  description = "Paste this into .env as DB_HOST (strip the :3306 port suffix)"
+  description = "Paste this into .env as DB_HOST (strip the :5432 port suffix)"
   value       = aws_db_instance.this.address
 }
 
 output "rds_port" {
   value = aws_db_instance.this.port
+}
+
+output "app_firewall_sg_id" {
+  description = "Attach this security group to the existing EC2 instance (EC2 console -> Actions -> Security -> Change security groups) — it isn't attached automatically since the instance was originally provisioned outside Terraform"
+  value       = aws_security_group.app_firewall.id
 }
 
 output "ec2_iam_instance_profile_name" {
