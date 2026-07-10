@@ -252,7 +252,7 @@ class TestApiTokenLifecycle:
         token = _admin_token(client, seed_admin)
         cur = db_engine.cursor()
         cur.execute(
-            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL 1 HOUR WHERE token=%s",
+            "UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 hour' WHERE token=%s",
             (_sha256(token),)
         )
         cur.close()
@@ -320,7 +320,8 @@ class TestEmployeeAPI:
         # Insert a throwaway employee
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT IGNORE INTO employees (employee_id, name, email) VALUES ('DEL_TEST_001','Del Test','del@test.local')"
+            "INSERT INTO employees (employee_id, name, email) VALUES ('DEL_TEST_001','Del Test','del@test.local') "
+            "ON CONFLICT (employee_id) DO NOTHING"
         )
         cur.close()
 

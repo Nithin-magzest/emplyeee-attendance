@@ -67,7 +67,8 @@ def _record_login_failure(identifier: str, attempt_type: str = "admin"):
             cur.execute(
                 "INSERT INTO login_attempts (identifier, attempt_type, failed_count, last_attempt) "
                 "VALUES (%s, %s, 1, NOW()) "
-                "ON DUPLICATE KEY UPDATE failed_count=failed_count+1, last_attempt=NOW()",
+                "ON CONFLICT (identifier, attempt_type) DO UPDATE SET "
+                "failed_count=login_attempts.failed_count+1, last_attempt=NOW()",
                 (identifier, attempt_type)
             )
             conn.commit()

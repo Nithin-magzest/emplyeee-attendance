@@ -83,6 +83,50 @@ def _create_notification(recipient_type, title, message, employee_id=None):
         pass
 
 
+# ── Malware scanning (ClamAV) ─────────────────────────────────────────────────
+try:
+    import clamd as _clamd_lib
+    _clamav_available = True
+except ImportError:
+    _clamd_lib = None
+    _clamav_available = False
+
+_CLAMAV_HOST = os.environ.get("CLAMAV_HOST", "clamav")
+_CLAMAV_PORT = int(os.environ.get("CLAMAV_PORT", "3310"))
+_MALWARE_SCAN_ENABLED = os.environ.get("MALWARE_SCAN_ENABLED", "true").strip().lower() not in ("false", "0", "no")
+
+def _scan_for_malware(file_storage):
+    """Scan an uploaded file with ClamAV before it's saved. Returns (is_clean, error_msg).
+    Fails closed (rejects the upload) in production if the scanner is unavailable
+    or unreachable; fails open with a logged warning in development, so a missing
+    local ClamAV instance doesn't block day-to-day dev work.
+
+    Set MALWARE_SCAN_ENABLED=false to turn this off deliberately (e.g. a
+    memory-constrained deployment that can't run ClamAV) — that's a clean
+    skip, not a failure, so it doesn't trigger the fail-closed behavior
+    below and permanently block uploads."""
+    if not _MALWARE_SCAN_ENABLED:
+        return True, None
+    _dev = os.environ.get("APP_ENV", "production") == "development"
+    if not _clamav_available:
+        app_log.error("clamd package not installed — malware scanning skipped")
+        return (True, None) if _dev else (False, "Malware scanning is unavailable — upload rejected.")
+    try:
+        cd = _clamd_lib.ClamdNetworkSocket(host=_CLAMAV_HOST, port=_CLAMAV_PORT, timeout=15)
+        pos = file_storage.stream.tell()
+        file_storage.stream.seek(0)
+        result = cd.instream(file_storage.stream)
+        file_storage.stream.seek(pos)
+        status, signature = result.get("stream", (None, None))
+        if status == "FOUND":
+            app_log.warning("Malware detected in upload %r: %s", file_storage.filename, signature)
+            return False, "This file was flagged by malware scanning and cannot be uploaded."
+        return True, None
+    except Exception as _e:
+        app_log.error("ClamAV scan failed (%s): %s", type(_e).__name__, _e)
+        return (True, None) if _dev else (False, "File could not be scanned for malware — please try again shortly.")
+
+
 # ── File upload validation ─────────────────────────────────────────────────────
 _ALLOWED_MIME_MAP = {
     "pdf":  {"application/pdf"},
@@ -118,6 +162,9 @@ def _validate_upload(file_storage, allowed_exts=None):
     file_storage.stream.seek(0)
     if size_mb > _MAX_DOC_SIZE_MB:
         return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
+    clean, scan_err = _scan_for_malware(file_storage)
+    if not clean:
+        return False, scan_err
     return True, None
 
 
@@ -151,6 +198,9 @@ def _validate_image_file(file):
     file.stream.seek(0)
     if size_mb > _MAX_PHOTO_SIZE_MB:
         return False, f"Photo too large ({size_mb:.1f} MB). Maximum: {_MAX_PHOTO_SIZE_MB} MB."
+    clean, scan_err = _scan_for_malware(file)
+    if not clean:
+        return False, scan_err
     return True, ""
 
 
@@ -320,7 +370,7 @@ def _upsert_co_feature(company_id, field, value):
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {field})
             VALUES (%s, %s)
-            ON DUPLICATE KEY UPDATE {field}=VALUES({field})
+            ON CONFLICT (company_id) DO UPDATE SET {field}=EXCLUDED.{field}
         """, (company_id, value))
         db.commit(); cur.close(); db.close()
     except Exception:
@@ -339,12 +389,12 @@ def _upsert_co_features(company_id, fields_dict):
         cols         = ", ".join(safe_fields.keys())
         vals         = list(safe_fields.values())
         placeholders = ", ".join(["%s"] * len(vals))
-        updates      = ", ".join(f"{k}=VALUES({k})" for k in safe_fields.keys())
+        updates      = ", ".join(f"{k}=EXCLUDED.{k}" for k in safe_fields.keys())
         db = get_db_connection(); cur = db.cursor(buffered=True)
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {cols})
             VALUES (%s, {placeholders})
-            ON DUPLICATE KEY UPDATE {updates}
+            ON CONFLICT (company_id) DO UPDATE SET {updates}
         """, [company_id] + vals)
         db.commit(); cur.close(); db.close()
     except Exception:
