@@ -668,7 +668,7 @@
       body.dark-mode .badge-role{background:#1e3a8a!important;color:#60a5fa!important;border-color:#3b82f6!important}
     </style>
   <link rel="stylesheet" href="/static/tabler-icons.min.css" />
-  <link rel="stylesheet" href="/static/shared.css" />
+  <link rel="stylesheet" href="/static/shared.min.css" />
   </head>
   <body>
 
@@ -906,14 +906,14 @@
                 <div class="u-d-flex u-ai-center u-gap-6 u-p-7-10 u-bg-f8fafc u-br-8">
                   <span class="u-fs-12">⏱</span>
                   {% if login_t and logout_t %}
-                    {% set _s = ((logout_t - login_t).seconds) %}
+                    {% set _s = (logout_t | time_seconds) - (login_t | time_seconds) %}
                     {% set _h = _s // 3600 %}{% set _m = (_s % 3600) // 60 %}
                     <span class="u-fs-12 u-fw-700 u-c-1e293b">{{ _h }}h {{ _m }}m worked</span>
                   {% elif login_t %}
                     <span class="u-fs-12 u-fw-700 u-c-2563eb" id="att-elapsed"
-                      data-lh="{{ (login_t.seconds // 3600) }}"
-                      data-lm="{{ ((login_t.seconds % 3600) // 60) }}"
-                      data-ls="{{ (login_t.seconds % 60) }}">—</span>
+                      data-lh="{{ (login_t | time_seconds) // 3600 }}"
+                      data-lm="{{ ((login_t | time_seconds) % 3600) // 60 }}"
+                      data-ls="{{ (login_t | time_seconds) % 60 }}">—</span>
                   {% else %}
                     <span class="u-fs-12 u-c-94a3b8">Not clocked in today</span>
                   {% endif %}
@@ -4185,6 +4185,6 @@
     </script>
     <!-- /BREAK TIME NOTIFICATION -->
 
-  <script src="/static/darkmode.js"></script>
+  <script src="/static/darkmode.min.js"></script>
 </body>
 </html>
