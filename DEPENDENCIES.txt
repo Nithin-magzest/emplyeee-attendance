@@ -1,0 +1,179 @@
+EMPLOYEE ATTENDANCE SYSTEM — DEPENDENCY MANIFEST
+==================================================
+Everything this project downloads/installs, and what it is for.
+Generated as part of a cleanup/security pass. Regenerate manually if
+requirements.txt, mobile/package.json, or compose.yaml change.
+
+
+1. PYTHON PACKAGES — requirements.txt (installed via `pip install -r requirements.txt`)
+------------------------------------------------------------------------------------
+These run inside the Flask app itself (app.py, database.py, utils/, blueprints/).
+
+Web framework
+  flask            The web framework — routes, sessions, templating, request handling.
+  werkzeug         Flask's underlying WSGI toolkit (dev server, request/response objects,
+                    the debugger). Flask depends on it directly.
+  flask-cors       Adds CORS headers so the mobile app / other origins can call the
+                    /api/* endpoints across domains (controlled by ALLOWED_ORIGINS in .env).
+  flask-limiter    Rate limiting on sensitive endpoints (login, password reset, etc.) to
+                    slow down brute-force attempts.
+  limits           Rate-limit storage backend abstraction used internally by flask-limiter.
+
+Database
+  psycopg2-binary  PostgreSQL driver — every SQL query in the app goes through this.
+
+Face recognition & image processing
+  opencv-python    Camera frame capture/decoding for the face check-in flow.
+  face-recognition Wraps dlib's face-detection/encoding models — compares a captured face
+                    against each employee's stored face encoding at check-in/check-out.
+  numpy            Array math backing face-recognition's encoding vectors and OpenCV frames.
+  pillow           Image loading/resizing/format conversion for uploaded photos and
+                    documents (employee photos, ID proofs).
+
+QR codes
+  qrcode           Generates each employee's QR code (used for QR-based check-in and on
+                    printed ID cards).
+
+Spreadsheets & reports
+  openpyxl         Writes .xlsx exports (monthly reports, salary reports, employee lists).
+  reportlab        Generates PDFs — payslips, offer letters, ID cards.
+
+Cryptography & auth
+  cryptography     Encrypts PII at rest (Aadhar/PAN/bank account fields) via Fernet, using
+                    ENCRYPTION_KEY from .env.
+  webauthn         Server-side WebAuthn/passkey support — fingerprint/biometric login
+                    enrollment and verification for admins and employees.
+  bcrypt           Password hashing (admin and employee login passwords/PINs).
+
+Cache / rate-limit backend
+  redis            Shared rate-limit counters and cache across multiple gunicorn workers
+                    (falls back to in-memory if REDIS_URL is unset — see compose.lowmem.yaml).
+
+Malware scanning
+  clamd            Talks to a running ClamAV daemon (see clamav/clamav:stable image below)
+                    to scan uploaded files (employee documents/photos) before saving them.
+
+Utilities
+  python-dotenv    Loads .env into environment variables at startup.
+  python-json-logger  Structured JSON log output (see the {"module":...,"message":...}
+                    lines this app prints — used by log aggregators in production).
+  setuptools       Packaging/build-tool dependency pulled in transitively by other
+                    libraries; not used directly by app code.
+  typing-extensions  Backport of newer typing features for compatibility across the
+                    supported Python versions.
+
+
+2. PYTHON DEV/TEST PACKAGES — requirements-dev.txt (install alongside requirements.txt
+   for local development: `pip install -r requirements.txt -r requirements-dev.txt`)
+------------------------------------------------------------------------------------
+  pytest           Test runner — runs everything under tests/.
+  pytest-cov       Coverage measurement/reporting for the test suite (--cov flag in CI).
+  flake8           Python linter — style/error checking, not run automatically, but
+                    available for manual/CI use.
+  rcssmin          Minifies static/shared.css -> static/shared.min.css (see minify_static.py).
+  rjsmin           Minifies static/darkmode.js -> static/darkmode.min.js (see minify_static.py).
+
+
+3. FRONTEND JS/CSS — static/ (vendored, served directly to the browser, not npm-managed)
+------------------------------------------------------------------------------------
+  chart.umd.min.js       Chart.js — renders the dashboard/analytics graphs (attendance
+                          trends, department breakdowns, etc).
+  jsQR.min.js             Decodes QR codes from the device camera in the browser — powers
+                          the web-based QR check-in flow (as opposed to the mobile app's
+                          native camera scanner).
+  tabler-icons.min.css    Icon font used throughout the admin/employee UI (buttons, nav,
+                          status badges).
+  darkmode.js / darkmode.min.js   First-party — dark mode toggle. Source (darkmode.js) is
+                          edited directly; the .min.js is what templates actually load,
+                          regenerated by minify_static.py.
+  shared.css / shared.min.css     First-party — the site's shared stylesheet (layout,
+                          components, design tokens). Same source/minified relationship
+                          as darkmode.js above.
+
+
+4. MOBILE APP — mobile/package.json (installed via `npm install` inside mobile/)
+------------------------------------------------------------------------------------
+A React Native / Expo app — the mobile counterpart to the web admin/employee portals.
+
+Framework
+  expo                     The Expo SDK/build toolchain the whole mobile app runs on.
+  react, react-dom         Core React library.
+  react-native             The native rendering layer Expo builds on top of.
+  react-native-web         Lets the same React Native code also run in a browser
+                            (`expo start --web`).
+  @expo/metro-runtime       Metro bundler runtime support for Expo's dev server.
+  @expo/ngrok               Tunnels the local Expo dev server for testing on a physical
+                            device without being on the same network.
+  expo-modules-core         Native-module glue code required by the expo-* packages below.
+
+Navigation
+  @react-navigation/native, /stack, /drawer, /bottom-tabs
+                            Screen navigation — stack transitions, the admin/employee
+                            drawer menus, and bottom tab bars.
+  react-native-gesture-handler, react-native-reanimated, react-native-screens
+                            Low-level gesture/animation/screen-management libraries that
+                            @react-navigation depends on for smooth transitions.
+  react-native-safe-area-context   Keeps UI clear of notches/status bars/home indicators.
+
+Device features (mirror what the web app does with browser APIs)
+  expo-camera               Camera access — QR/face-based check-in scanning.
+  expo-location              GPS — geofenced check-in (mirrors OFFICE_LAT/OFFICE_LON on
+                            the server).
+  expo-local-authentication   Device biometrics (Face ID / fingerprint) as a local unlock
+                            step before check-in.
+  expo-image-picker          Selecting/capturing photos (profile pictures, document
+                            uploads).
+  expo-font                 Loads custom fonts used in the UI.
+  expo-blur, expo-linear-gradient   Visual effects (frosted-glass panels, gradients) used
+                            in card/header components.
+  expo-status-bar            Controls the OS status bar appearance (light/dark) per screen.
+  expo-linking                Deep-linking (e.g. opening the app from a password-reset
+                            email link).
+  @expo/vector-icons          Icon set used across the mobile UI.
+  @react-native-async-storage/async-storage
+                            Persistent local key-value storage — stores the login session
+                            token on-device.
+  @react-native-picker/picker   Native dropdown/picker UI component.
+  react-native-calendars      Calendar UI — leave requests, holiday calendar.
+  react-native-date-picker    Native date/time picker dialogs.
+  react-native-url-polyfill   Polyfills the URL API (some RN JS engines don't have it
+                            built in; axios and others rely on it).
+
+Networking
+  axios                     HTTP client — every API call from the mobile app to the Flask
+                            backend's /api/* endpoints goes through this.
+
+Dev-only
+  @babel/core                JavaScript/JSX compiler used by Expo's build pipeline.
+
+
+5. INFRASTRUCTURE — container images pulled by Podman/Docker Compose (compose*.yaml,
+   Containerfile) — not "installed" into the app, but downloaded to run/deploy it
+------------------------------------------------------------------------------------
+  python:3.11-slim              Base image the Flask app itself is built on
+                                  (Containerfile).
+  postgres:16                    The application database (see compose.yaml's `db`
+                                  service). Not used at all in compose.prod.yaml, which
+                                  instead points at a managed AWS RDS Postgres instance.
+  redis:7-alpine                  Backs the `redis` Python package above — shared
+                                  rate-limit/cache state across gunicorn workers.
+  clamav/clamav:stable            The antivirus daemon the `clamd` Python package talks
+                                  to for scanning uploads.
+  nginxinc/nginx-unprivileged:alpine   Reverse proxy in front of the app — TLS
+                                  termination, static file serving, security headers.
+  certbot/certbot                  Used only in compose.prod.yaml — obtains/renews
+                                  Let's Encrypt TLS certificates for nginx.
+
+
+NOTES
+------------------------------------------------------------------------------------
+- Every entry above with a version FLOOR in requirements.txt (`>=`) was checked against
+  known CVEs with pip-audit during this cleanup pass; floors were raised where an older
+  allowed version had a real vulnerability (flask, werkzeug, flask-cors, pillow,
+  opencv-python, numpy, cryptography, python-dotenv, setuptools). No exact versions are
+  pinned, so a fresh install already picks up the newest compatible release regardless —
+  the floor bump mainly guards against a resolver picking an old, vulnerable version.
+- opencv-python, pillow, and numpy form a face-recognition/dlib dependency chain that
+  should be smoke-tested (face enrollment + check-in) after the next `pip install
+  --upgrade` or image rebuild, since they weren't re-installed/re-tested on this machine
+  (local Python here is 3.7; the app actually deploys on Python 3.11 per Containerfile).
