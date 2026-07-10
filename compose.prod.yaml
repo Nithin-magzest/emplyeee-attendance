@@ -1,0 +1,52 @@
+# Production override — use together with compose.yaml:
+#   podman-compose -f compose.yaml -f compose.prod.yaml up -d --no-deps app nginx certbot redis
+#
+# --no-deps + the explicit service list keeps the local `db` container from
+# the base file out of the prod stack entirely (Compose's depends_on merge
+# is a union across files, so it can't be removed by the override alone).
+# The app connects to RDS instead, via DB_HOST in .env.
+#
+# Note: `volumes:` lists merge across files (union, not replace), so base's
+# app/nginx volume entries — including the ./cert.pem/./key.pem mounts used
+# for the internal app<->nginx TLS hop — still apply here unchanged; we only
+# add what's new for prod below.
+
+services:
+  app:
+    environment:
+      DB_HOST: ${DB_HOST}
+
+  nginx:
+    volumes:
+      # :z — these two dirs are also bind-mounted (writable) into certbot
+      # below, so they need the shared SELinux label, not the private :Z
+      # used elsewhere for single-container mounts.
+      - ./data/certbot/conf:/etc/letsencrypt:ro,z
+      - ./data/certbot/www:/var/www/certbot:ro,z
+
+  certbot:
+    image: certbot/certbot
+    restart: always
+    labels:
+      io.containers.autoupdate: registry
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt:z
+      - ./data/certbot/www:/var/www/certbot:z
+    # /etc/letsencrypt and /var/www/certbot are already writable bind
+    # mounts above; /var/log/letsencrypt is certbot's default log
+    # location and isn't otherwise persisted, so tmpfs is fine (renewal
+    # logs are non-critical — the certs themselves live in the bind mount).
+    read_only: true
+    tmpfs:
+      - /var/log/letsencrypt
+    pids_limit: 50
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"

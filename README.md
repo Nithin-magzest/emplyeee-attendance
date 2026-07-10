@@ -1,6 +1,6 @@
 # Employee Attendance System
 
-A full-featured, self-hosted employee management and attendance platform built with Flask, MySQL, face recognition, WebAuthn (passkeys), and GPS geo-fencing. Includes a React Native mobile app and a full CI/CD pipeline.
+A full-featured, self-hosted employee management and attendance platform built with Flask, PostgreSQL, face recognition, WebAuthn (passkeys), and GPS geo-fencing. Includes a React Native mobile app and a full CI/CD pipeline.
 
 ---
 
@@ -26,12 +26,12 @@ A full-featured, self-hosted employee management and attendance platform built w
 ## Prerequisites
 
 - Python 3.11+
-- MySQL 8.0+
+- PostgreSQL 16+
 - Redis (optional — required for distributed rate limiting in production)
-- `cmake`, `dlib` build tools (for face recognition — see Dockerfile for the full list)
+- `cmake`, `dlib` build tools (for face recognition — see Containerfile for the full list)
 - Node.js 18+ (for mobile app only)
 
-> **Tip:** The easiest way to run everything locally is with Docker. Skip to [Docker quick start](#docker-quick-start).
+> **Tip:** The easiest way to run everything locally is with Podman. Skip to [Podman quick start](#podman-quick-start).
 
 ---
 
@@ -67,9 +67,9 @@ Edit `.env` and fill in every value. The required ones are:
 |---|---|
 | `SECRET_KEY` | Flask session signing key — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ENCRYPTION_KEY` | Fernet key for PII encryption — generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
-| `DB_HOST` | MySQL host (`localhost` for local dev) |
-| `DB_USER` | MySQL username |
-| `DB_PASS` | MySQL password |
+| `DB_HOST` | PostgreSQL host (`localhost` for local dev) |
+| `DB_USER` | PostgreSQL username |
+| `DB_PASS` | PostgreSQL password |
 | `DB_NAME` | Database name (created automatically on first run) |
 | `ADMIN_PASSWORD` | Initial admin account password |
 
@@ -95,23 +95,23 @@ python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing
 python -m pytest tests/test_comprehensive.py -v
 ```
 
-Tests require a running MySQL instance. Set the connection variables in your shell or `.env`:
+Tests require a running PostgreSQL instance. Set the connection variables in your shell or `.env`:
 
 ```bash
-DB_HOST=127.0.0.1 DB_USER=root DB_PASS=yourpass DB_NAME=att_test python -m pytest tests/
+DB_HOST=127.0.0.1 DB_USER=postgres DB_PASS=yourpass DB_NAME=att_test python -m pytest tests/
 ```
 
-The CI pipeline runs tests against a real MySQL 8.0 container — not mocks. This prevents mock/prod divergence.
+The CI pipeline runs tests against a real PostgreSQL 16 container — not mocks. This prevents mock/prod divergence.
 
 ---
 
-## Docker quick start
+## Podman quick start
 
-Runs the full stack (app + MySQL + Redis + nginx) locally:
+Runs the full stack (app + PostgreSQL + Redis + nginx) locally:
 
 ```bash
 cp .env.example .env   # fill in your values first
-docker compose up --build
+podman-compose up --build
 ```
 
 The app is available at `http://localhost` (nginx proxies to the Flask app on port 5000).
@@ -131,6 +131,15 @@ See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full AWS EC2 + RDS + Terrafor
 - [ ] Run `./deploy.sh` to pull, build, and start the containers
 - [ ] Update `mobile/src/config.js` → `API_BASE_URL = 'https://yourdomain.com'` before building the mobile app
 
+**Container hardening (compose.yaml):** every service runs as non-root with
+a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, and a
+pids/memory/CPU limit. Pulled images (postgres, redis, clamav, nginx,
+certbot — not the locally-built `app` image) are labeled for
+`podman auto-update`, which `deploy.sh` enables as a daily systemd timer —
+it pulls a new image if the upstream tag's digest changes and rolls back
+automatically if the new image fails its healthcheck. Container logs are
+capped at 3×10MB per service to prevent unbounded disk growth.
+
 ---
 
 ## Environment variable reference
@@ -143,7 +152,7 @@ All variables are documented with examples in [.env.example](.env.example).
 | `ENCRYPTION_KEY` | Yes | — | PII field encryption |
 | `APP_ENV` | No | `production` | Set to `development` to disable secure cookies |
 | `SIGNUP_SECRET` | No | *(disabled)* | Enables `/create_org` tenant provisioning |
-| `DB_HOST` / `DB_USER` / `DB_PASS` / `DB_NAME` | Yes | — | MySQL connection |
+| `DB_HOST` / `DB_USER` / `DB_PASS` / `DB_NAME` | Yes | — | PostgreSQL connection |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Yes | — | Admin account credentials |
 | `OFFICE_LAT` / `OFFICE_LON` | No | — | GPS geo-fence centre |
 | `APP_URL` | No | *(request host)* | Trusted base URL for email links |
@@ -160,7 +169,7 @@ employee-attendance-system/
 ├── app.py                  # Main Flask application (routes — being migrated to blueprints/)
 ├── wsgi.py                 # WSGI entry point, blueprint registration
 ├── extensions.py           # Shared Flask app, rate limiter, session config
-├── database.py             # MySQL connection helpers
+├── database.py             # PostgreSQL connection helpers
 ├── blueprints/             # Route blueprints (incremental migration from app.py)
 │   ├── health.py           # /healthz, /favicon.ico
 │   ├── notifications.py    # /api/notifications, /web/notifications/*
@@ -175,9 +184,9 @@ employee-attendance-system/
 ├── static/                 # CSS, JS, images
 ├── mobile/                 # React Native mobile app
 ├── tests/                  # pytest integration tests
-├── Dockerfile
-├── docker-compose.yml
-├── docker-compose.prod.yml
+├── Containerfile
+├── compose.yaml
+├── compose.prod.yaml
 ├── nginx/
 ├── .env.example
 └── AWS_DEPLOYMENT.md
@@ -189,19 +198,19 @@ employee-attendance-system/
 
 - **Blueprint migration in progress** — all routes currently live in `app.py` and are being incrementally moved to `blueprints/`. `health.py` and `notifications.py` are the first completed migrations. See `wsgi.py` for the migration status of each module.
 - **CSP** — Content-Security-Policy is generated dynamically per-response. Inline event handlers are sha256-hashed at render time; no `'unsafe-inline'` is used.
-- **Multi-tenancy** — subdomain-based tenant routing via `_resolve_tenant()` in `app.py`. Each organisation gets its own MySQL database. Enable with `SIGNUP_SECRET`.
+- **Multi-tenancy** — subdomain-based tenant routing via `_resolve_tenant()` in `app.py`. Each organisation gets its own PostgreSQL schema within the shared database. Enable with `SIGNUP_SECRET`.
 - **Rate limiting** — `flask-limiter` with Redis backend in production. Falls back to in-memory (per-worker, not shared) without `REDIS_URL`.
 
 ---
 
 ## Tech stack
 
-- **Backend:** Python 3.11, Flask 3, MySQL 8, Gunicorn
+- **Backend:** Python 3.11, Flask 3, PostgreSQL 16, Gunicorn
 - **Auth:** bcrypt, WebAuthn (passkeys), session-based admin auth, Bearer token API auth
 - **Security:** CSRF (custom), CSP (dynamic sha256), HSTS, rate limiting, Fernet PII encryption
 - **Face recognition:** `face_recognition` (dlib-based)
 - **Mobile:** React Native (Expo)
-- **DevOps:** Docker, nginx, Let's Encrypt, GitHub Actions CI/CD, AWS EC2 + RDS + Terraform
+- **DevOps:** Podman, nginx, Let's Encrypt, GitHub Actions CI/CD, AWS EC2 + RDS + Terraform
 
 ---
 

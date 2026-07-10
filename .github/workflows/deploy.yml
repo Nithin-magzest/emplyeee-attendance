@@ -49,8 +49,8 @@ jobs:
 
       - name: Check DevOps files exist
         run: |
-          for f in Dockerfile entrypoint.sh wsgi.py extensions.py \
-                   docker-compose.yml docker-compose.prod.yml \
+          for f in Containerfile entrypoint.sh wsgi.py extensions.py \
+                   compose.yaml compose.prod.yaml \
                    nginx/nginx.conf.template \
                    generate_cert.py init-letsencrypt.sh deploy.sh; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
@@ -63,21 +63,42 @@ jobs:
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
+  security:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Audit Python dependencies (pip-audit)
+        # Scans requirements.txt/-dev.txt against the OSV vulnerability
+        # database. Fails the build on any known CVE in a resolvable
+        # version — bump the affected package's floor in requirements.txt
+        # to fix, don't silence this check.
+        run: |
+          pip install --no-cache-dir pip-audit
+          python -m pip_audit -r requirements.txt -r requirements-dev.txt
+
   test:
     name: Pytest
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, security]
 
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:16
         env:
-          MYSQL_ROOT_PASSWORD: ci_testpass
-          MYSQL_DATABASE: att_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_testpass
+          POSTGRES_DB: att_test
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -pci_testpass"
+          --health-cmd="pg_isready -U postgres -d att_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -95,27 +116,28 @@ jobs:
       - name: Run pytest
         env:
           DB_HOST: 127.0.0.1
-          DB_USER: root
+          DB_PORT: 5432
+          DB_USER: postgres
           DB_PASS: ci_testpass
           DB_NAME: att_test
           SECRET_KEY: ci-test-secret-key-not-used-in-prod
           FLASK_ENV: testing
         run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=80
 
-  docker:
-    name: Docker build
+  podman:
+    name: Podman build
     runs-on: ubuntu-latest
     needs: test
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t attendance-app:ci .
+      - name: Build Podman image
+        run: podman build -t attendance-app:ci .
 
       - name: Verify image starts
         run: |
-          docker run -d --name test-app \
+          podman run -d --name test-app \
             -e DB_HOST=localhost \
             -e DB_USER=test \
             -e DB_PASS=test \
@@ -123,19 +145,23 @@ jobs:
             -e SECRET_KEY=ci-test-key \
             attendance-app:ci || true
           sleep 5
-          docker logs test-app 2>&1 | tail -20
-          docker rm -f test-app || true
+          podman logs test-app 2>&1 | tail -20
+          podman rm -f test-app || true
 
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
-    needs: docker
+    needs: podman
     # Only deploy on a direct push to master, never on pull_request runs
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     environment: production   # requires approval from a repo admin before deploy runs
 
     steps:
       - name: Deploy via SSH
+        # SSH_USER must be the "attendance" user deploy.sh creates — it runs
+        # rootless Podman and owns /opt/employee-attendance directly, so no
+        # sudo is needed (and it has none). Add the CI key to
+        # /home/attendance/.ssh/authorized_keys on the instance.
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -144,10 +170,11 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             set -e
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
             cd /opt/employee-attendance
             git pull origin master
-            COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+            COMPOSE="podman-compose -f compose.yaml -f compose.prod.yaml"
             $COMPOSE build app
             $COMPOSE up -d --no-deps app nginx certbot redis
-            docker image prune -f
+            podman image prune -f
             echo "Deploy complete at $(date)"

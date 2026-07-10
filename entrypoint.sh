@@ -8,10 +8,15 @@ if [ ! -f cert.pem ] || [ ! -f key.pem ]; then
 fi
 
 # ── Start gunicorn via wsgi.py (handles DB init + email worker on startup) ───
+# Workers/threads are env-configurable (defaults unchanged) so a memory-
+# constrained deployment (e.g. compose.lowmem.yaml) can cut worker count
+# without needing its own image build. Each worker duplicates the app's
+# loaded libraries (face_recognition/OpenCV/dlib are the big ones) in RAM,
+# so worker count is the single biggest lever on this container's footprint.
 GUNICORN_ARGS="
   --bind 0.0.0.0:5000
-  --workers 2
-  --threads 2
+  --workers ${GUNICORN_WORKERS:-2}
+  --threads ${GUNICORN_THREADS:-2}
   --timeout 120
   --keep-alive 5
   --access-logfile -
