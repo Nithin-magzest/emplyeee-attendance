@@ -27,7 +27,7 @@ reportlab>=3.6.13,<4.0.0
 # ── Cryptography & auth ───────────────────────────────────────────────────────
 cryptography>=46.0.7
 webauthn>=2.1.0
-bcrypt>=4.2.0
+bcrypt>=5.0.0
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=5.0.0
