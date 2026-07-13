@@ -286,9 +286,11 @@ body.dark-mode .hol-legend { color: var(--text) !important; }
 .dm-toggle:hover { background: rgba(255,255,255,0.13); color: #fff; }
 .dm-toggle .dm-icon { font-size: 15px; }
 
-/* Override per-template margin-top:auto so footer sits just below toggle */
-.sidebar-footer { margin-top: 8px; }
-.sb-footer       { margin-top: 8px; }
+/* Only apply 8px gap when the dark-mode toggle is directly above the footer.
+   Pages without .dm-toggle fall back to their inline margin-top:auto which
+   pins the footer to the bottom of the sidebar regardless of nav content. */
+.dm-toggle + .sidebar-footer { margin-top: 8px; }
+.dm-toggle + .sb-footer       { margin-top: 8px; }
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 900px) {
