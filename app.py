@@ -2984,7 +2984,9 @@ def admin():
         present=present,
         absent=total - present,
         late=late,
-        today=today.strftime("%d %b %Y"),
+        today=today.strftime("%d %b %Y",
+        active_nav="dashboard",
+    ),
         today_rows=today_rows,
         all_employees=all_employees,
         shift_start=SHIFT_START.strftime("%I:%M %p"),
@@ -3179,7 +3181,9 @@ def today_present():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="present", title="Present Today",
-        rows=rows, today=today.strftime("%d %b %Y"),
+        rows=rows, today=today.strftime("%d %b %Y",
+        active_nav="attendance",
+    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 @app.route("/today_absent")
@@ -3203,7 +3207,9 @@ def today_absent():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="absent", title="Absent Today",
-        rows=rows, today=today.strftime("%d %b %Y"),
+        rows=rows, today=today.strftime("%d %b %Y",
+        active_nav="attendance",
+    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 @app.route("/today_late")
@@ -3227,7 +3233,9 @@ def today_late():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="late", title="Late Logins Today",
-        rows=rows, today=today.strftime("%d %b %Y"),
+        rows=rows, today=today.strftime("%d %b %Y",
+        active_nav="attendance",
+    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 # ---------------- ADMIN ACTIONS ----------------
@@ -3676,7 +3684,9 @@ def settings_page():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
-        saved=request.args.get("saved") == "1",
+        saved=request.args.get("saved",
+        active_nav="settings",
+    ) == "1",
         default_start=_co_shift_start,
         default_half=_co_shift_half,
         default_end=_co_shift_end,
@@ -4289,7 +4299,9 @@ def view_holidays():
         })
 
     return render_template("holidays.html", holidays=data, cal_data=cal_data,
-                           year=year, today=today)
+                           year=year, today=today,
+        active_nav="leaves",
+    )
 
 @app.route("/add_holiday", methods=["POST"])
 @admin_required
@@ -4442,6 +4454,8 @@ def employee_profile(emp_id):
         open_tickets=open_tickets,
         shift_name=shift_name,
         today=today,
+    
+        active_nav="employees",
     )
 
 
@@ -4672,6 +4686,7 @@ def view_employees():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+        active_nav="employees",
     )
 
 
@@ -4805,6 +4820,8 @@ def employee_detail(emp_id):
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
         emp_docs=emp_docs,
+    
+        active_nav="employees",
     )
 
 
@@ -5081,7 +5098,9 @@ def admin_leave_types():
     cursor.execute("SELECT id, name, annual_quota, is_paid, is_active FROM leave_types ORDER BY id")
     leave_types = cursor.fetchall()
     cursor.close(); db.close()
-    return render_template("leave_types_admin.html", leave_types=leave_types)
+    return render_template("leave_types_admin.html", leave_types=leave_types,
+        active_nav="leaves",
+    )
 
 
 @app.route("/change_admin_password", methods=["POST"])
@@ -5326,7 +5345,9 @@ def view_photos():
     cursor.execute("SELECT employee_id, name, role, email, face_image, qr_code FROM employees ORDER BY name")
     employees = cursor.fetchall()
     cursor.close(); db.close()
-    return render_template("employee_photos.html", employees=employees)
+    return render_template("employee_photos.html", employees=employees,
+        active_nav="employees",
+    )
 
 
 @app.route("/update_photo/<emp_id>", methods=["POST"])
@@ -5617,7 +5638,9 @@ def admin_shift_swaps():
     swap_rows = cursor.fetchall()
     cursor.close(); db.close()
     return render_template("admin_shift_swaps.html", swap_rows=swap_rows,
-                           ok=request.args.get("ok"), error=request.args.get("error"))
+                           ok=request.args.get("ok",
+        active_nav="employees",
+    ), error=request.args.get("error"))
 
 
 @app.route("/import_indian_holidays", methods=["POST"])
@@ -5824,7 +5847,9 @@ def view_salary():
     data = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("salary.html", salaries=data)
+    return render_template("salary.html", salaries=data,
+        active_nav="salary",
+    )
 
 @app.route("/update_salary", methods=["POST"])
 @admin_required
@@ -5932,7 +5957,9 @@ def monthly_report():
 
     return render_template("monthly_report.html",
         report=report,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        month_name=datetime.date(year, month, 1,
+        active_nav="attendance",
+    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         holiday_count=len(holidays),
@@ -6012,7 +6039,9 @@ def employee_attendance_detail(emp_id, year, month):
     return render_template("employee_attendance_detail.html",
         emp=emp,
         days=days,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        month_name=datetime.date(year, month, 1,
+        active_nav="attendance",
+    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         full_days=full_days,
@@ -6185,6 +6214,8 @@ def bulk_mark_attendance():
         today=today, pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+    
+        active_nav="attendance",
     )
 
 
@@ -6473,7 +6504,9 @@ def salary_report():
 
     return render_template("salary_report.html",
         salary_data=salary_data,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        month_name=datetime.date(year, month, 1,
+        active_nav="salary",
+    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         late_rate=int(LATE_DEDUCTION_RATE * 100),
@@ -6615,7 +6648,9 @@ def email_config():
 
     return render_template("email_config.html",
         config=config,
-        saved=request.args.get("saved") == "1",
+        saved=request.args.get("saved",
+        active_nav="salary",
+    ) == "1",
     )
 
 # ---------------- SEND SALARY EMAIL (single) ----------------
@@ -8579,6 +8614,8 @@ def leave_balance():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
         shift_start="09:00 AM", shift_end="06:00 PM"
+    ,
+        active_nav="leaves",
     )
 
 
@@ -8722,6 +8759,8 @@ def performance():
         total_hike_cost=total_hike_cost,
         total_bonus_pool=total_bonus_pool,
         hike_eligible_count=hike_eligible_count,
+    
+        active_nav="performance",
     )
 
 
@@ -8784,6 +8823,8 @@ def performance_review(emp_id):
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets, co=co
+    ,
+        active_nav="performance",
     )
 
 
@@ -9585,6 +9626,8 @@ def leave_holidays():
         pending_leaves=pending_leaves, pending_tickets=pending_tickets,
         pending_resignations=pending_resignations,
         holidays=holidays_data, cal_data=cal_data, year=year, today=today,
+    
+        active_nav="leaves",
     )
 
 
@@ -9760,7 +9803,9 @@ def leave_calendar():
     next_y = year if month < 12 else year + 1
 
     return render_template("leave_calendar.html",
-        cal_weeks=cal_mod.monthcalendar(year, month),
+        cal_weeks=cal_mod.monthcalendar(year, month,
+        active_nav="leaves",
+    ),
         cal_data=dict(cal_data),
         year=year, month=month,
         month_name=cal_mod.month_name[month],
@@ -9844,7 +9889,9 @@ def resignation_requests_view():
     """)
     resignations = cursor.fetchall()
     cursor.close(); db.close()
-    return render_template("resignation_requests.html", resignations=resignations)
+    return render_template("resignation_requests.html", resignations=resignations,
+        active_nav="leaves",
+    )
 
 
 @app.route("/resignation_action/<int:rid>", methods=["POST"])
@@ -10026,6 +10073,7 @@ def tickets_view():
         today=datetime.date.today().strftime("%d %b %Y"),
         shift_start=SHIFT_START.strftime("%I:%M %p"),
         shift_end=SHIFT_END.strftime("%I:%M %p"),
+        active_nav="leaves",
     )
 
 
@@ -12608,6 +12656,8 @@ def admin_payslips():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets
+    ,
+        active_nav="salary",
     )
 
 
@@ -12681,6 +12731,8 @@ def payroll_settings():
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
         co=co
+    ,
+        active_nav="salary",
     )
 
 
@@ -13138,6 +13190,8 @@ def analytics():
         late_trend=late_trend,
         retention=retention,
         smart_alerts=smart_alerts,
+    
+        active_nav="analytics",
     )
 
 
@@ -13416,7 +13470,9 @@ def overtime():
         pending_tickets=pending_tickets,
         records=records,
         month=month, year=year,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+        month_name=datetime.date(year, month, 1,
+        active_nav="overtime",
+    ).strftime("%B %Y"),
         total_ot_hours=total_ot_hours,
         total_ot_pay=total_ot_pay,
         pending_count=pending_count,
@@ -13548,6 +13604,8 @@ def compoff_old():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets
+    ,
+        active_nav="overtime",
     )
 
 
@@ -13817,6 +13875,8 @@ def onboarding():
         total_overdue=total_overdue,
         default_onboarding_tpl=default_onboarding_tpl,
         pending_leaves=0, pending_resignations=0, pending_tickets=0
+    ,
+        active_nav="onboarding",
     )
 
 @app.route("/onboarding_template_save", methods=["POST"])
@@ -14009,6 +14069,8 @@ def onboarding_template_detail(tid):
     return render_template("onboarding_template_detail.html",
         template=template, tasks=tasks, co=co,
         pending_leaves=0, pending_resignations=0, pending_tickets=0
+    ,
+        active_nav="onboarding",
     )
 
 @app.route("/onboarding_assign", methods=["POST"])
@@ -14097,7 +14159,8 @@ def onboarding_detail(ob_id):
     return render_template("onboarding_detail.html",
         ob=ob, tasks=tasks, co=co,
         today=datetime.date.today(),
-        pending_leaves=0, pending_resignations=0, pending_tickets=0
+        pending_leaves=0, pending_resignations=0, pending_tickets=0,
+        active_nav="onboarding",
     )
 
 @app.route("/onboarding_admin_task_update", methods=["POST"])
@@ -14153,7 +14216,9 @@ def offer_letter(ob_id):
     cursor.close(); db.close()
     return render_template("offer_letter.html", ob=ob, monthly_ctc=monthly_ctc,
                            existing=existing, co=co,
-                           pending_leaves=0, pending_resignations=0, pending_tickets=0)
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0,
+        active_nav="onboarding",
+    )
 
 @app.route("/offer_letter_save", methods=["POST"])
 @admin_required
@@ -14967,6 +15032,8 @@ def org_chart_page():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+    
+        active_nav="admin_tools",
     )
 
 @app.route("/audit_logs")
@@ -15046,6 +15113,8 @@ def admin_tools():
         actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
         pending_leaves=pending_leaves, pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
+    
+        active_nav="admin_tools",
     )
 
 

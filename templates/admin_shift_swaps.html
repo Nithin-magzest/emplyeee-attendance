@@ -1,10 +1,8 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shift Swap Requests</title>
-    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+{% extends "admin_base.html" %}
+
+{% block title %}Shift Swaps{% endblock %}
+
+{% block page_css %}
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
@@ -79,33 +77,9 @@
       body.dark-mode .approve-form input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
       body.dark-mode .empty-state { color: #768390 !important; }
     </style>
-    <link rel="stylesheet" href="/static/shared.min.css" />
-  </head>
-  <body>
+{% endblock %}
 
-    <div class="sidebar">
-      <div class="brand-wrap">
-        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name if co is defined else '' }}</div></div>
-
-      </div>
-      <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
-      <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
-      <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
-      <a class="nav-item" href="/leave_requests"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Leaves &amp; Tickets</a>
-      <a class="nav-item" href="/view_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Holidays</a>
-      <hr class="nav-sep u-mt-12" />
-      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
-      <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-      <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding</a>
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-      <a class="nav-item" href="/audit_logs"><span class="nav-icon"><i class="ti ti-shield-check"></i></span>Audit Logs</a>
-      <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
-      <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-    </div>
-
-    <div class="main">
+{% block main %}
       <div class="page-header">
         <h1>🔄 Shift Swap Requests</h1>
         <p>Review and approve employee shift swap requests. Both employees must agree before admin approval.</p>
@@ -197,8 +171,5 @@
           <div class="empty-state">No shift swap requests yet.</div>
         {% endif %}
       </div>
-    </div>
 
-
-</body>
-</html>
+{% endblock %}

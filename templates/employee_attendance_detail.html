@@ -1,10 +1,8 @@
-﻿<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ emp[1] }} — Attendance Detail</title>
-    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+{% extends "admin_base.html" %}
+
+{% block title %}Attendance Detail{% endblock %}
+
+{% block page_css %}
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
@@ -154,44 +152,11 @@
       body.dark-mode .flash.success { background: #14532d !important; border-color: #166534 !important; color: #86efac !important; }
       body.dark-mode .flash.error   { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
     </style>
-  <link rel="stylesheet" href="/static/shared.min.css" />
-  </head>
-  <body>
+{% endblock %}
 
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-      <div class="brand-wrap">
-        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
-        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
-</div>
-      <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
-      <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
-
-      <a class="nav-item active" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
-      <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
-      <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-      <hr class="nav-sep u-mt-12" />
-      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
-      <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
-      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
-  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
-      <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-      
-      <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
-    </div>
-
-    <!-- MAIN -->
-    <div class="main">
+{% block main %}
 
       <a class="back-link" href="/monthly_report?year={{ year }}&month={{ month }}">← Back to Monthly Report</a>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}"><i class="ti ti-{{ 'circle-check' if category == 'success' else 'alert-circle' }}"></i> {{ message }}</div>
-        {% endfor %}
-      {% endwith %}
 
       <!-- EMPLOYEE CARD -->
       <div class="emp-card">
@@ -388,7 +353,10 @@
         })();
       </script>
 
-    </div><!-- /main -->
+
+{% endblock %}
+
+{% block scripts %}
 
   <!-- ATTENDANCE CORRECTION MODAL -->
   <div class="modal-backdrop" id="editModal">
@@ -468,8 +436,6 @@
     });
   </script>
 
-  <script src="/static/darkmode.min.js"></script>
 
 
-</body>
-</html>
+{% endblock %}
