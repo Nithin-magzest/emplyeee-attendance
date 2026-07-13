@@ -4696,7 +4696,7 @@ def employee_detail(emp_id):
                MAX(a.date)    AS last_seen,
                SUM(CASE WHEN a.attendance_type IN ('Present','Full Day','Approved Leave') OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
                SUM(CASE WHEN a.attendance_type='Half Day' THEN 1 ELSE 0 END) AS half_days,
-               SUM(CASE WHEN a.attendance_type LIKE 'Late%' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days,
+               SUM(CASE WHEN a.attendance_type LIKE 'Late%%' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days,
                COALESCE(sc.salary_per_day, 0) AS salary_per_day,
                e.about_me
         FROM employees e

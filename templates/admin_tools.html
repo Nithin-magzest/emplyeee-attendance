@@ -217,7 +217,6 @@
   <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
   <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
   <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
   <a class="nav-item active" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
   <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
@@ -504,8 +503,8 @@ function render() {
     div.innerHTML = `<div class="node-card">
       ${cc > 0 ? `<div class="reports-badge">${cc}</div>` : ''}
       <div class="avatar-wrap">${n.has_photo
-        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
-        : `<div class="avatar-placeholder u-bg-color">${initials(n.name)}</div>`}</div>
+        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="avatar-placeholder" style="display:none;background:${color}">${initials(n.name)}</div>`
+        : `<div class="avatar-placeholder" style="background:${color}">${initials(n.name)}</div>`}</div>
       <div class="node-name" title="${esc(n.name)}">${esc(n.name)}</div>
       <div class="node-role" title="${esc(n.role)}">${esc(n.role)}</div>
       ${n.department ? `<div class="node-dept">${esc(n.department)}</div>` : ''}
