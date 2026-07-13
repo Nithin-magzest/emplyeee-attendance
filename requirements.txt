@@ -22,7 +22,7 @@ qrcode>=7.4.0
 
 # ── Spreadsheets & reports ────────────────────────────────────────────────────
 openpyxl>=3.1.3
-reportlab>=3.6.13,<4.0.0
+reportlab>=5.0.0,<6.0.0
 
 # ── Cryptography & auth ───────────────────────────────────────────────────────
 cryptography>=46.0.7
