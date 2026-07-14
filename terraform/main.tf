@@ -12,6 +12,14 @@ provider "aws" {
   region = var.aws_region
 }
 
+# CloudFront-scoped WAFv2 Web ACLs (scope = "CLOUDFRONT") must be created in
+# us-east-1 regardless of var.aws_region — an AWS requirement, not a choice
+# made here. Used only by aws_wafv2_web_acl.app in security_hardening.tf.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
 # ---------------------------------------------------------------------------
 # RDS — PostgreSQL (replaces the containerized `db` service for production)
 # ---------------------------------------------------------------------------
