@@ -74,11 +74,13 @@ from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
 from blueprints.auth import auth_bp
 from blueprints.employees import employees_bp
+from blueprints.leave import leave_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(notifications_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(employees_bp)
+app.register_blueprint(leave_bp)
 
 # 🔄 Pending migration (routes still served from app.py below)
 # from blueprints.employees import employees_bp
