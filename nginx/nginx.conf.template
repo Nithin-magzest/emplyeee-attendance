@@ -18,7 +18,14 @@ limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 
 server {
-    listen 80;
+    # nginx runs unprivileged (nginxinc/nginx-unprivileged, cap_drop: ALL —
+    # see compose.yaml) and can't bind ports <1024. The host redirects
+    # public 80/443 -> 8080/8443 via iptables DNAT before packets reach
+    # this container (see deploy.sh's ufw before.rules block) — Let's
+    # Encrypt's HTTP-01 validation and every browser still just uses 80/443
+    # from the outside; only this listen directive needs to match what's
+    # actually bound.
+    listen 8080;
     server_name YOUR_DOMAIN;
 
     # Let's Encrypt HTTP-01 challenge — must stay reachable over plain HTTP
@@ -32,7 +39,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 8443 ssl http2;
     server_name YOUR_DOMAIN;
 
     ssl_certificate     /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem;

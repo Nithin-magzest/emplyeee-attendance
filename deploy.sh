@@ -31,9 +31,39 @@ echo "==> Hardening: firewall (ufw)"
 ufw default deny incoming
 ufw default allow outgoing
 ufw limit 22/tcp    # rate-limited SSH — slows down brute-force attempts
-ufw allow 80/tcp
-ufw allow 443/tcp
+
+# nginx runs as an unprivileged user inside its container (nginx-unprivileged
+# image, cap_drop: ALL — see compose.yaml) and can't bind ports <1024, so it
+# only ever binds 8080/8443 on the host. Redirect the real public ports to
+# those via a PREROUTING DNAT rule in ufw's own nat table (before.rules),
+# rather than granting the container NET_BIND_SERVICE — keeps the container
+# fully unprivileged while 80/443 still work transparently for browsers and
+# Let's Encrypt's HTTP-01 validation (which always uses port 80).
+#
+# iptables' nat/PREROUTING runs before the filter table's INPUT chain, so by
+# the time ufw's own filter rules evaluate a redirected packet, its
+# destination port has ALREADY been rewritten to 8080/8443 — the filter
+# rules below must open the REWRITTEN port, not the original 80/443, or
+# ufw's default-deny-incoming policy drops every "redirected" packet anyway.
+UFW_BEFORE_RULES="/etc/ufw/before.rules"
+if ! grep -q "employee-attendance: 80/443 -> 8080/8443 redirect" "$UFW_BEFORE_RULES"; then
+    { cat <<'EOF'
+# employee-attendance: 80/443 -> 8080/8443 redirect (nginx is unprivileged,
+# can't bind ports <1024 — see compose.yaml / nginx.conf.template)
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+-A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+COMMIT
+EOF
+      cat "$UFW_BEFORE_RULES"
+    } > /tmp/ufw-before.rules.new
+    mv /tmp/ufw-before.rules.new "$UFW_BEFORE_RULES"
+fi
+ufw allow 8080/tcp
+ufw allow 8443/tcp
 ufw --force enable
+ufw reload
 
 echo "==> Hardening: fail2ban (SSH brute-force protection)"
 systemctl enable --now fail2ban
@@ -192,7 +222,9 @@ limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 
 server {
-    listen 80;
+    # See the ufw before.rules NAT block above — public 80 is redirected to
+    # this host port before it reaches nginx, which runs unprivileged.
+    listen 8080;
     server_name _;
 
     client_max_body_size 20M;
