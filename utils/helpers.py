@@ -9,6 +9,27 @@ from contextlib import contextmanager
 
 _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
 from flask import session, request, jsonify, render_template
+
+
+def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
+    """Validate that a redirect target is a relative path (prevents open redirect)."""
+    if dest and dest.startswith("/") and not dest.startswith("//"):
+        return dest
+    return fallback
+
+
+def _safe_referrer_redirect(referrer: str, fallback: str) -> str:
+    """Accept absolute Referer header only when it points back at this same app."""
+    if not referrer:
+        return fallback
+    from urllib.parse import urlparse as _urlparse
+    p = _urlparse(referrer)
+    if not p.scheme and not p.netloc:
+        return _safe_redirect(referrer, fallback)
+    if p.netloc == request.host:
+        path = p.path or "/"
+        return _safe_redirect(path + (("?" + p.query) if p.query else ""), fallback)
+    return fallback
 from database import get_db_connection
 from extensions import app_log
 

@@ -69,7 +69,7 @@ threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-work
 #   🔄 org.py             — multi-tenant org provisioning
 #   🔄 employee_portal.py — employee self-service portal
 
-# ✅ Migrated blueprints
+# ✅ All routes migrated to blueprints — app.py now contains only helpers/init
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
 from blueprints.auth import auth_bp
@@ -77,6 +77,13 @@ from blueprints.employees import employees_bp
 from blueprints.leave import leave_bp
 from blueprints.attendance import attendance_bp
 from blueprints.payroll import payroll_bp
+from blueprints.performance import performance_bp
+from blueprints.tickets import tickets_bp
+from blueprints.documents import documents_bp
+from blueprints.onboarding import onboarding_bp
+from blueprints.org import org_bp
+from blueprints.employee_portal import employee_portal_bp
+from blueprints.admin_views import admin_views_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(notifications_bp)
@@ -85,6 +92,13 @@ app.register_blueprint(employees_bp)
 app.register_blueprint(leave_bp)
 app.register_blueprint(attendance_bp)
 app.register_blueprint(payroll_bp)
+app.register_blueprint(performance_bp)
+app.register_blueprint(tickets_bp)
+app.register_blueprint(documents_bp)
+app.register_blueprint(onboarding_bp)
+app.register_blueprint(org_bp)
+app.register_blueprint(employee_portal_bp)
+app.register_blueprint(admin_views_bp)
 
 # 🔄 Pending migration (routes still served from app.py below)
 # from blueprints.employees import employees_bp
