@@ -409,13 +409,16 @@ def view_break_config():
 @admin_required
 def add_break():
     name     = request.form.get("break_name", "").strip()
-    btime    = request.form.get("break_time", "")
+    btime    = request.form.get("break_time", "").strip()
     duration = int(request.form.get("duration_minutes", 10) or 10)
     dest     = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(request.referrer or "", "/employees?tab=schedule"))
     cid_raw  = request.form.get("company_id", "").strip()
     company_id = int(cid_raw) if cid_raw.isdigit() else None
     sid_raw  = request.form.get("shift_id", "").strip()
     shift_id = int(sid_raw) if sid_raw.isdigit() else None
+    if not name or not btime:
+        flash("Break name and time are required.", "error")
+        return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     if company_id:
@@ -438,11 +441,14 @@ def update_break(bid=None):
         try: bid = int(request.form.get("break_id", ""))
         except: return redirect("/employees?tab=schedule")
     name     = request.form.get("break_name", "").strip()
-    btime    = request.form.get("break_time", "")
+    btime    = request.form.get("break_time", "").strip()
     duration = int(request.form.get("duration_minutes", 10) or 10)
     active   = 1 if request.form.get("is_active") else 0
     dest     = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(request.referrer or "", "/employees?tab=schedule"))
     sid_raw  = request.form.get("shift_id", "").strip()
+    if not name or not btime:
+        flash("Break name and time are required.", "error")
+        return redirect(dest)
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     if sid_raw.isdigit():
@@ -749,10 +755,10 @@ def bulk_mark_attendance():
 
     base_select = (
         "SELECT e.employee_id, e.name, COALESCE(e.department,''), COALESCE(e.designation,''), "
-        "COALESCE(s.shift_name,''), COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''), "
+        "COALESCE(s.name,''), COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''), "
         "COALESCE(TO_CHAR(s.end_time,'HH24:MI'),''), "
         "COALESCE(e.phone,''), COALESCE(e.email,''), "
-        "COALESCE(e.work_mode,'office'), COALESCE(e.date_of_joining,''), "
+        "COALESCE(e.work_mode,'office'), COALESCE(TO_CHAR(e.date_of_joining,'YYYY-MM-DD'),''), "
         "COALESCE(e.gender,''), COALESCE(e.role,'') "
         "FROM employees e LEFT JOIN shifts s ON s.id=e.shift_id "
     )
@@ -994,9 +1000,12 @@ def send_absentee_report():
 
 @attendance_bp.route("/location", methods=["POST"])
 def location():
-    data = request.get_json()
-    session["lat"] = data["lat"]
-    session["lon"] = data["lon"]
+    data = request.get_json(silent=True) or {}
+    lat, lon = data.get("lat"), data.get("lon")
+    if lat is None or lon is None:
+        return jsonify({"status": "error", "msg": "lat and lon required"}), 400
+    session["lat"] = lat
+    session["lon"] = lon
     return jsonify({"status": "ok"})
 
 @attendance_bp.route("/attendance", methods=["POST"])

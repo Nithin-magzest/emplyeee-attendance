@@ -17,6 +17,9 @@ static/employee_docs/
 venv/
 cert.pem
 key.pem
+.coverage
+.pytest_cache/
+htmlcov/
 data/certbot/
 nginx/nginx.conf
 

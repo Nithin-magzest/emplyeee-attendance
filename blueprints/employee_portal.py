@@ -852,7 +852,7 @@ def employee_portal():
         """, (emp_id,))
         incoming_swap_requests = cursor.fetchall()
         cursor.execute("""
-            SELECT e.employee_id, e.name, COALESCE(s.shift_name,''),
+            SELECT e.employee_id, e.name, COALESCE(s.name,''),
                    COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''),
                    COALESCE(TO_CHAR(s.end_time,'HH24:MI'),''),
                    COALESCE(e.department,''), COALESCE(e.designation,'')
