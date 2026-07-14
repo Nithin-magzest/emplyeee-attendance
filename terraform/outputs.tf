@@ -70,3 +70,8 @@ output "network_firewall_arn" {
   description = "Empty/null until var.firewall_subnet_ids is set (see network_firewall.tf) — and even then, only INSPECTS traffic once your VPC's route tables are updated to send app-subnet traffic through the firewall endpoint. Provisioning this resource alone does not put it in the traffic path."
   value       = length(aws_networkfirewall_firewall.app) > 0 ? aws_networkfirewall_firewall.app[0].arn : null
 }
+
+output "honeypot_sg_id" {
+  description = "Attach to the existing EC2 instance the same way as app_firewall_sg_id (it isn't attached automatically) — only do this if you've also set ENABLE_HONEYPOT=1 when running deploy.sh, or these ports open publicly with nothing listening behind them."
+  value       = aws_security_group.honeypot.id
+}

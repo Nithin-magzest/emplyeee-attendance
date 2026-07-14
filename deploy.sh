@@ -62,6 +62,44 @@ EOF
 fi
 ufw allow 8080/tcp
 ufw allow 8443/tcp
+
+# Honeypot ("system32_crypto_admin", compose.yaml + utils/honeypot.py) —
+# deliberately opt-in via ENABLE_HONEYPOT=1, NOT on by default. Unlike the
+# 80/443 redirect above (required for the app itself to be reachable at
+# all), opening FTP/Telnet/SMTP/MSSQL/MySQL/RDP publicly is a genuine,
+# optional increase in internet-facing attack surface — re-running this
+# script on an already-deployed server must never silently open new public
+# ports just because a newer version of the script knows how to.
+if [ "${ENABLE_HONEYPOT:-0}" = "1" ]; then
+    echo "==> Honeypot enabled (ENABLE_HONEYPOT=1) — opening decoy ports 21/23/25/1433/3306/3389"
+    if ! grep -q "employee-attendance: honeypot redirect" "$UFW_BEFORE_RULES"; then
+        { cat <<'EOF'
+# employee-attendance: honeypot redirect (system32_crypto_admin —
+# utils/honeypot.py — runs unprivileged, can't bind ports <1024)
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -p tcp --dport 21 -j REDIRECT --to-port 8021
+-A PREROUTING -p tcp --dport 23 -j REDIRECT --to-port 8023
+-A PREROUTING -p tcp --dport 25 -j REDIRECT --to-port 8025
+COMMIT
+EOF
+          cat "$UFW_BEFORE_RULES"
+        } > /tmp/ufw-before.rules.new
+        mv /tmp/ufw-before.rules.new "$UFW_BEFORE_RULES"
+    fi
+    # 8021/8023/8025 are the rewritten ports the filter table actually sees
+    # (same reasoning as 8080/8443 above); 1433/3306/3389 are unprivileged
+    # already so no redirect — but the security group also has to open
+    # these publicly (see terraform/honeypot.tf, itself opt-in) or nothing
+    # ever reaches this far regardless of what ufw allows.
+    ufw allow 8021/tcp
+    ufw allow 8023/tcp
+    ufw allow 8025/tcp
+    ufw allow 1433/tcp
+    ufw allow 3306/tcp
+    ufw allow 3389/tcp
+fi
+
 ufw --force enable
 ufw reload
 

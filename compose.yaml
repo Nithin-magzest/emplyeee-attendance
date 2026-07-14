@@ -233,6 +233,53 @@ services:
       retries: 3
       start_period: 60s
 
+  # "system32_crypto_admin" — decoy listeners on ports nothing legitimate
+  # here ever uses (FTP/Telnet/SMTP/MSSQL/MySQL/RDP). Any connection is
+  # unambiguous scan/attack activity — see utils/honeypot.py and
+  # terraform/honeypot.tf for the full reasoning. Reuses the app image
+  # (same build) rather than a second Containerfile — it never touches
+  # face_recognition/opencv, so the extra image weight costs nothing at
+  # runtime and this avoids maintaining a second build pipeline for one
+  # small decoy process.
+  honeypot:
+    build: .
+    entrypoint: ["python", "-m", "utils.honeypot"]
+    restart: always
+    user: "1001:1001"
+    networks:
+      - frontend
+      # Deliberately NOT on backend — this must never be able to reach
+      # db/redis/clamav even if a crafted payload somehow compromised it.
+      # Only outbound HTTPS to the alert webhook is needed.
+    ports:
+      - "8021:8021" # decoys public 21 (FTP) via deploy.sh's ufw DNAT, same pattern as nginx's 80->8080
+      - "8023:8023" # decoys public 23 (Telnet)
+      - "8025:8025" # decoys public 25 (SMTP)
+      - "1433:1433" # decoys MSSQL directly — already unprivileged, no redirect needed
+      - "3306:3306" # decoys MySQL directly
+      - "3389:3389" # decoys RDP directly
+    env_file: .env # only needs SECURITY_ALERT_* and ENCRYPTION_KEY (utils.alerts' import chain requires the latter — see utils/honeypot.py)
+    volumes:
+      - honeypot_logs:/var/log/honeypot:z
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128mb
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 20
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   nginx:
     image: nginxinc/nginx-unprivileged:alpine # Hardened unprivileged alternative to stock nginx
     restart: always
@@ -287,3 +334,4 @@ volumes:
   dataset:
   documents:
   clamav_data:
+  honeypot_logs:
