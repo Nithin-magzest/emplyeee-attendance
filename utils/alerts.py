@@ -193,6 +193,9 @@ def _sign(body: bytes) -> str:
 
 
 def _deliver(payload: dict):
+    if not _WEBHOOK_URL.startswith(("https://", "http://")):
+        app_log.warning("Security alert webhook URL has an unexpected scheme; refusing to send")
+        return
     body = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if _SIGNING_SECRET:

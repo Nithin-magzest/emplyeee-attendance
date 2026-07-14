@@ -55,3 +55,8 @@ output "ecr_repository_url" {
   description = "podman login/push target if you adopt ECR as the image registry — see the comment in security_hardening.tf for why this needs a CI/CD workflow change to actually take effect"
   value       = aws_ecr_repository.app.repository_url
 }
+
+output "app_nacl_id" {
+  description = "Provisioned but not attached to any subnet until var.app_subnet_ids is set (see network_acl.tf) — find the EC2 instance's subnet ID (EC2 console -> instance -> Networking tab) and set it there before applying, so this stateless filtering layer actually takes effect."
+  value       = aws_network_acl.app.id
+}

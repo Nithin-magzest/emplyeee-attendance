@@ -21,9 +21,6 @@ os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # exception, by design (see utils/helpers.py). Fixed test-only key, not a
 # real secret.
 os.environ["ENCRYPTION_KEY"] = "_jboJL8OrI9muPNyf0xCNrakSo_Iz5EbJSQ1KpDcAgY="
-os.environ.setdefault("DB_PORT", "5432")
-os.environ.setdefault("DB_USER", "postgres")
-os.environ.setdefault("DB_PASS", "")
 
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
@@ -68,6 +65,14 @@ flask_app.register_blueprint(core_bp)
 # Import app AFTER blueprints are registered so all module-level reads pick
 # up test values AND _register_api_v1_aliases() sees the full route set.
 import app as _app_module  # noqa: F401 — triggers route registration + init_db
+
+# Fall back to typical local-Postgres defaults ONLY if .env (already loaded
+# by database.py's load_dotenv() above) didn't provide them — setting these
+# before the imports would permanently lock out the real .env values, since
+# load_dotenv() never overrides an already-set env var.
+os.environ.setdefault("DB_PORT", "5432")
+os.environ.setdefault("DB_USER", "postgres")
+os.environ.setdefault("DB_PASS", "")
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
