@@ -51,6 +51,11 @@ output "cloudfront_domain_name" {
   value       = length(aws_cloudfront_distribution.app) > 0 ? aws_cloudfront_distribution.app[0].domain_name : null
 }
 
+output "cloudfront_distribution_id" {
+  description = "For verification: aws cloudfront get-distribution --id <this> --query \"Distribution.DistributionConfig.WebACLId\" — should equal waf_web_acl_arn above if the WAF is actually bound."
+  value       = length(aws_cloudfront_distribution.app) > 0 ? aws_cloudfront_distribution.app[0].id : null
+}
+
 output "ecr_repository_url" {
   description = "podman login/push target if you adopt ECR as the image registry — see the comment in security_hardening.tf for why this needs a CI/CD workflow change to actually take effect"
   value       = aws_ecr_repository.app.repository_url
@@ -59,4 +64,9 @@ output "ecr_repository_url" {
 output "app_nacl_id" {
   description = "Provisioned but not attached to any subnet until var.app_subnet_ids is set (see network_acl.tf) — find the EC2 instance's subnet ID (EC2 console -> instance -> Networking tab) and set it there before applying, so this stateless filtering layer actually takes effect."
   value       = aws_network_acl.app.id
+}
+
+output "network_firewall_arn" {
+  description = "Empty/null until var.firewall_subnet_ids is set (see network_firewall.tf) — and even then, only INSPECTS traffic once your VPC's route tables are updated to send app-subnet traffic through the firewall endpoint. Provisioning this resource alone does not put it in the traffic path."
+  value       = length(aws_networkfirewall_firewall.app) > 0 ? aws_networkfirewall_firewall.app[0].arn : null
 }
