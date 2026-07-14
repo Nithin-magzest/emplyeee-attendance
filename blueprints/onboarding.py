@@ -500,7 +500,7 @@ def _generate_offer_letter_pdf(letter, co):
     from reportlab.lib.units import mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Table,
                                     TableStyle, Spacer, HRFlowable)
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
     BLUE  = rl_colors.HexColor("#1d4ed8")
     DARK  = rl_colors.HexColor("#111827")
@@ -530,7 +530,6 @@ def _generate_offer_letter_pdf(letter, co):
         return ParagraphStyle(name, **base)
 
     sNormal  = ps("normal")
-    sBold    = ps("bold",   fontName="Helvetica-Bold")
     sSmall   = ps("small",  fontSize=8,  textColor=GRAY)
     sLabel   = ps("label",  fontSize=8,  fontName="Helvetica-Bold", textColor=BLUE, spaceAfter=4)
     sCenter  = ps("center", alignment=TA_CENTER)
@@ -1166,7 +1165,6 @@ def my_onboarding_task_done():
             f.save(_os.path.join(upload_dir, safe_name))
             doc_path = safe_name
 
-    update_args = [datetime.datetime.now(), task_id]
     if doc_path:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",
                        (datetime.datetime.now(), doc_path, employee_note or None, task_id))

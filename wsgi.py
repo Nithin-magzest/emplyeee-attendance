@@ -140,8 +140,8 @@ if __name__ == "__main__":
     _key  = _os.environ.get("SSL_KEY_PATH")  or _os.path.join(_os.path.dirname(__file__), "key.pem")
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("SSL cert found — starting on https://0.0.0.0:5000")
-        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False,
+        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False,  # nosec B104
                 ssl_context=(_cert, _key))
     else:
         print("No cert.pem / key.pem — starting on http://0.0.0.0:5000")
-        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)  # nosec B104

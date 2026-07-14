@@ -1113,7 +1113,6 @@ def _build_id_card_buf(emp_id):
     DARK  = (15,  40, 100)
     BLUE  = (30,  58, 138)
     MID   = (37,  99, 235)
-    LIGHT = (59, 130, 246)
     PALE  = (219, 234, 254)
     WHITE = (255, 255, 255)
     LGRAY = (241, 245, 249)

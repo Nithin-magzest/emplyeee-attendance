@@ -7,7 +7,7 @@ import hashlib
 import datetime
 import html as _html
 from flask import (
-    Blueprint, request, session, redirect, jsonify, render_template, flash, g,
+    Blueprint, request, session, redirect, jsonify, render_template, g,
 )
 
 from extensions import limiter, app_log, log_security_event

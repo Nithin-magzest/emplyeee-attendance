@@ -1,4 +1,10 @@
-"""Leave blueprint — requests, types, holidays, resignation, overtime, comp-off."""
+"""Leave blueprint — requests, types, holidays, resignation, overtime, comp-off.
+
+Bandit B608 audit note: the nosec-marked queries below interpolate
+`_co_sub`/`_co_join`, a company-scoping fragment that's always a hardcoded
+literal chosen by a bool (`active_cid`) — never user input. Actual values
+are always %s-bound params.
+"""
 import datetime
 import calendar
 import html as _html
@@ -10,7 +16,7 @@ from flask import (
 
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required, employee_api_required
-from utils.helpers import _audit, _create_notification, get_company_settings
+from utils.helpers import _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
 from utils.leave_utils import assign_leave_balances_for_employee, get_indian_holidays
 import utils.config as cfg
@@ -343,9 +349,8 @@ def leave_holidays():
 
     # Leaves data
     active_cid = session.get("active_company_id")
-    _co_join   = "AND e.company_id=%s" if active_cid else ""
-    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args   = (active_cid,) if active_cid else ()
+    _co_join, _co_args = co_scope_column(active_cid, alias="e")
+    _co_sub, _           = co_scope_subquery(active_cid)
 
     cursor.execute(f"""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
@@ -356,13 +361,13 @@ def leave_holidays():
         JOIN employees e ON lr.employee_id = e.employee_id {_co_join}
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         ORDER BY CASE WHEN lr.status='Pending' THEN 0 WHEN lr.status='Approved' THEN 1 WHEN lr.status='Rejected' THEN 2 ELSE 3 END, lr.created_at DESC
-    """, _co_args)
+    """, _co_args)  # nosec B608
     leaves = cursor.fetchall()
     cursor.execute(f"""
         SELECT employee_id, SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
         FROM leave_requests WHERE EXTRACT(YEAR FROM leave_date)=EXTRACT(YEAR FROM CURRENT_DATE) AND status='Approved'
         {_co_sub} GROUP BY employee_id
-    """, _co_args)
+    """, _co_args)  # nosec B608
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
     cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
     leave_types_list = cursor.fetchall()
@@ -371,19 +376,19 @@ def leave_holidays():
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
         FROM tickets t JOIN employees e ON t.employee_id = e.employee_id {_co_join}
         ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1 WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END, t.created_at DESC
-    """, _co_args)
+    """, _co_args)  # nosec B608
     all_tickets = cursor.fetchall()
     cursor.execute(f"""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
         FROM resignation_requests rr JOIN employees e ON rr.employee_id = e.employee_id {_co_join}
         ORDER BY CASE WHEN rr.status='Pending' THEN 0 WHEN rr.status='Accepted' THEN 1 WHEN rr.status='Declined' THEN 2 ELSE 3 END, rr.created_at DESC
-    """, _co_args)
+    """, _co_args)  # nosec B608
     resignations = cursor.fetchall()
-    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_resignations = cursor.fetchone()[0]
 
     # Holidays data
@@ -1108,7 +1113,7 @@ def api_employee_request_overtime():
     cursor.close(); db.close()
     _audit("request_overtime", "overtime_records", emp_id, f"Employee requested OT for {ot_date}: {reason}")
     _create_notification("admin", None, "Overtime Request",
-                         f"Employee {emp_id} has requested overtime on {ot_date}.", f"/overtime")
+                         f"Employee {emp_id} has requested overtime on {ot_date}.", "/overtime")
     return jsonify({"ok": True, "msg": "Overtime request submitted.", "id": oid})
 
 

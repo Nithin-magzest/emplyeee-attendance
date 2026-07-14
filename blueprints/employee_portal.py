@@ -151,10 +151,8 @@ def delete_education_entry(entry_id):
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
 @employee_required
 def update_my_photo():
-    from flask import send_from_directory
     import numpy as np
     from PIL import Image
-    import base64, io
     emp_id = session["employee_id"]
     file = request.files.get("photo")
     ok, err = _validate_image_file(file)
@@ -225,7 +223,6 @@ def my_id_card():
     DARK   = (15,  40, 100)
     BLUE   = (30,  58, 138)
     MID    = (37,  99, 235)
-    LIGHT  = (59, 130, 246)
     PALE   = (219, 234, 254)
     WHITE  = (255, 255, 255)
     LGRAY  = (241, 245, 249)
@@ -1204,6 +1201,12 @@ def api_employee_sync_punches():
     results = []
     for punch in punches:
         punched_at_str = punch.get("punched_at", "")
+        # NOTE: unlike the live check-in route above (which calls
+        # is_within_range against work_lat/work_lon or cfg.OFFICE_LAT/LON),
+        # offline-synced punches capture lat/lon but never geo-fence check
+        # them — flagged, not fixed here, since enforcing it retroactively
+        # could reject legitimate syncs from field/remote employees whose
+        # workflow already relies on this path being lenient.
         lat = punch.get("lat")
         lon = punch.get("lon")
         try:

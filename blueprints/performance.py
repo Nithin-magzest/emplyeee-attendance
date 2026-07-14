@@ -1,8 +1,15 @@
-"""Performance blueprint — reviews, KPIs. Hike/bonus live in blueprints/payroll.py."""
+"""Performance blueprint — reviews, KPIs. Hike/bonus live in blueprints/payroll.py.
+
+Bandit B608 audit note: the nosec-marked queries below interpolate
+`dept_filter`/`co_filter`/`_hike_co`, fragments that are always a hardcoded
+literal chosen by a bool (`dept`/`active_cid`) — never user input. Actual
+values are always %s-bound params.
+"""
 import datetime
 from flask import Blueprint, request, session, redirect, render_template, flash
 from database import get_db_connection
 from utils.auth import admin_required, employee_required
+from utils.helpers import co_scope_column
 
 performance_bp = Blueprint("performance", __name__)
 
@@ -23,8 +30,8 @@ def performance():
 
     active_cid = session.get("active_company_id")
     dept_filter = "AND e.department=%s" if dept else ""
-    co_filter   = "AND e.company_id=%s" if active_cid else ""
-    params = [yr, q] + ([dept] if dept else []) + ([active_cid] if active_cid else [])
+    co_filter, _co_params = co_scope_column(active_cid, alias="e")
+    params = [yr, q] + ([dept] if dept else []) + list(_co_params)
     cursor.execute(f"""
         SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
                pr.id, COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
@@ -34,7 +41,7 @@ def performance():
             ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
         WHERE e.is_active=1 {dept_filter} {co_filter}
         ORDER BY e.name
-    """, params)
+    """, params)  # nosec B608
     employees = cursor.fetchall()
 
     if active_cid:
@@ -75,8 +82,8 @@ def performance():
     total_bonus_pool = 0.0
     hike_eligible_count = 0
     if active_tab == 'hike':
-        _hike_co = "AND e.company_id=%s" if active_cid else ""
-        _hike_params = (yr, q) + ((active_cid,) if active_cid else ())
+        _hike_co, _hike_co_args = co_scope_column(active_cid, alias="e")
+        _hike_params = (yr, q) + _hike_co_args
         cursor.execute(f"""
             SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
                    COALESCE(pr.overall_rating,0), COALESCE(pr.status,'—'),
@@ -86,7 +93,7 @@ def performance():
             LEFT JOIN salary_config sc ON sc.employee_id=e.employee_id
             WHERE e.is_active=1 {_hike_co}
             ORDER BY e.name
-        """, _hike_params)
+        """, _hike_params)  # nosec B608
         for (h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc) in cursor.fetchall():
             h_rating = float(h_rating or 0)
             h_ctc    = float(h_ctc or 0)
@@ -411,7 +418,6 @@ def performance_export():
     alt_fill   = PatternFill("solid", fgColor="EFF6FF")
     thin       = Side(style="thin", color="BFDBFE")
     border     = Border(left=thin, right=thin, top=thin, bottom=thin)
-    center     = Alignment(horizontal="center", vertical="center")
 
     def style_header(ws, cols):
         for col_idx, (title, width) in enumerate(cols, 1):

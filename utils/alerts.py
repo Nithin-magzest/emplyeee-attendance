@@ -202,7 +202,7 @@ def _deliver(payload: dict):
         headers["X-Signature-256"] = "sha256=" + _sign(body)
     req = urllib.request.Request(_WEBHOOK_URL, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:  # nosec B310
             if resp.status >= 300:
                 app_log.warning("Security alert webhook returned HTTP %s", resp.status)
     except urllib.error.URLError as e:

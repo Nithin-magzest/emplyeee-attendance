@@ -16,7 +16,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template,
-    flash, url_for,
+    flash,
 )
 
 from database import get_db_connection

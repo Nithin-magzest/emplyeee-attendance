@@ -126,7 +126,7 @@ async def _serve_port(bind_port: int):
     async def _handler(reader, writer):
         await _handle_connection(reader, writer, bind_port)
 
-    server = await asyncio.start_server(_handler, "0.0.0.0", bind_port)
+    server = await asyncio.start_server(_handler, "0.0.0.0", bind_port)  # nosec B104
     public_port, protocol = DECOY_PORTS[bind_port]
     log.info("honeypot: bound %d, decoying public port %d (%s)", bind_port, public_port, protocol)
     async with server:

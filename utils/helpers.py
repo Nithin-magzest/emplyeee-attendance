@@ -4,11 +4,10 @@ import re
 import datetime
 import threading
 import hashlib
-import base64
 from contextlib import contextmanager
 
 _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
-from flask import session, request, jsonify, render_template
+from flask import session, request
 from database import get_db_connection
 from extensions import app_log, log_security_event
 
@@ -462,7 +461,7 @@ def _upsert_co_feature(company_id, field, value):
             INSERT INTO company_feature_settings (company_id, {field})
             VALUES (%s, %s)
             ON CONFLICT (company_id) DO UPDATE SET {field}=EXCLUDED.{field}
-        """, (company_id, value))
+        """, (company_id, value))  # nosec B608
         db.commit(); cur.close(); db.close()
     except Exception:
         pass
@@ -486,10 +485,34 @@ def _upsert_co_features(company_id, fields_dict):
             INSERT INTO company_feature_settings (company_id, {cols})
             VALUES (%s, {placeholders})
             ON CONFLICT (company_id) DO UPDATE SET {updates}
-        """, [company_id] + vals)
+        """, [company_id] + vals)  # nosec B608
         db.commit(); cur.close(); db.close()
     except Exception:
         pass
+
+
+# ── Company-scoping WHERE fragments ─────────────────────────────────────────
+# Was hand-repeated (6 near-identical copies) across admin_views.py/leave.py —
+# the fragment is always a hardcoded literal chosen by whether an active
+# company is selected, never user input; the actual value is always the
+# single %s-bound param returned alongside it.
+def co_scope_subquery(active_cid, alias=""):
+    """WHERE fragment + params scoping by company via a subquery, for tables
+    that don't have their own company_id column (attendance, leave_requests,
+    tickets, ...). Returns ("", ()) when no active company is selected."""
+    if not active_cid:
+        return "", ()
+    col = f"{alias}.employee_id" if alias else "employee_id"
+    return f"AND {col} IN (SELECT employee_id FROM employees WHERE company_id=%s)", (active_cid,)
+
+
+def co_scope_column(active_cid, alias=""):
+    """WHERE fragment + params scoping by company via a direct company_id
+    column (e.g. the employees table itself)."""
+    if not active_cid:
+        return "", ()
+    col = f"{alias}.company_id" if alias else "company_id"
+    return f"AND {col}=%s", (active_cid,)
 
 
 # ── Error page renderer ───────────────────────────────────────────────────────

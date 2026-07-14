@@ -1,4 +1,17 @@
-"""Admin views blueprint — dashboard, settings, companies, analytics, audit."""
+"""Admin views blueprint — dashboard, settings, companies, analytics, audit.
+
+Bandit B608 audit note (applies to every nosec-marked line in this file):
+Bandit flags f-string-built SQL as possible injection. Verified false
+positive in every case here — the interpolated fragment is always one of:
+  (a) a hardcoded literal string chosen by a bool (the `_co_sub`/`_co_join`/
+      `_co_filter`/`where` pattern, e.g. `"AND company_id=%s" if active_cid
+      else ""`) — never user input;
+  (b) a column name from a fixed allowlist dict (`column`/`cs_col`, checked
+      against `_TOGGLE_COLUMN_MAP`/`_CS_COL_MAP` before use); or
+  (c) a table name iterating a hardcoded Python list literal (`tbl` in
+      `related_tables`).
+All actual values are always passed as %s-bound params, never interpolated.
+"""
 import os
 import datetime
 import calendar
@@ -11,7 +24,7 @@ from extensions import app, app_log
 from utils.auth import admin_required
 from utils.helpers import (
     get_company_settings, get_co_features, _upsert_co_feature,
-    _upsert_co_features, _safe_redirect,
+    _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import _td_to_time
@@ -42,9 +55,8 @@ def admin():
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
     active_cid = session.get("active_company_id")
-    _co_filter = "AND e.company_id=%s" if active_cid else ""
-    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args   = (active_cid,) if active_cid else ()
+    _co_filter, _co_args = co_scope_column(active_cid, alias="e")
+    _co_sub, _            = co_scope_subquery(active_cid)
 
     if active_cid:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
@@ -53,19 +65,19 @@ def admin():
     total = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",  # nosec B608
         (today,) + _co_args
     )
     present = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",  # nosec B608
         (today,) + _co_args
     )
     late = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, a.status, "
+        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, a.status, "  # nosec B608
         f"       a.logout_status, a.attendance_type, e.role "
         f"FROM employees e "
         f"LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
@@ -81,19 +93,19 @@ def admin():
     all_employees = cursor.fetchall()
 
     cursor.execute(
-        f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}",
+        f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}",  # nosec B608
         _co_args
     )
     pending_leaves = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}",
+        f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}",  # nosec B608
         _co_args
     )
     pending_resignations = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}",
+        f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}",  # nosec B608
         _co_args
     )
     pending_tickets = cursor.fetchone()[0]
@@ -195,9 +207,8 @@ def dashboard_live():
     cursor = db.cursor(buffered=True)
     today  = datetime.date.today()
     active_cid = session.get("active_company_id")
-    _co_filter = "AND e.company_id=%s" if active_cid else ""
-    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args   = (active_cid,) if active_cid else ()
+    _co_filter, _co_args = co_scope_column(active_cid, alias="e")
+    _co_sub, _            = co_scope_subquery(active_cid)
 
     if active_cid:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
@@ -206,19 +217,19 @@ def dashboard_live():
     total = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}",  # nosec B608
         (today,) + _co_args
     )
     present = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",
+        f"SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}",  # nosec B608
         (today,) + _co_args
     )
     late = cursor.fetchone()[0]
 
     cursor.execute(
-        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, "
+        f"SELECT e.employee_id, e.name, a.login_time, a.logout_time, "  # nosec B608
         f"       a.status, a.logout_status, a.attendance_type, e.role "
         f"FROM employees e "
         f"LEFT JOIN attendance a ON e.employee_id=a.employee_id AND a.date=%s "
@@ -238,13 +249,13 @@ def dashboard_live():
             "att_type": att_type or "",
         })
 
-    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_leaves = cursor.fetchone()[0]
 
-    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_resignations = cursor.fetchone()[0]
 
-    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
 
     cursor.close(); db.close()
@@ -269,9 +280,8 @@ def attendance_chart_data():
     today  = datetime.date.today()
 
     active_cid = session.get("active_company_id")
-    _co_filter = "AND e.company_id=%s" if active_cid else ""
-    _co_sub    = "AND a.employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args   = (active_cid,) if active_cid else ()
+    _co_filter, _co_args = co_scope_column(active_cid, alias="e")
+    _co_sub, _            = co_scope_subquery(active_cid, alias="a")
 
     # Last 30 days: present count per day
     cursor.execute(f"""
@@ -279,7 +289,7 @@ def attendance_chart_data():
         FROM attendance a
         WHERE a.date >= %s AND a.date <= %s AND a.login_time IS NOT NULL {_co_sub}
         GROUP BY a.date ORDER BY a.date
-    """, (today - datetime.timedelta(days=29), today) + _co_args)
+    """, (today - datetime.timedelta(days=29), today) + _co_args)  # nosec B608
     present_by_day = {str(r[0]): r[1] for r in cursor.fetchall()}
 
     if active_cid:
@@ -307,7 +317,7 @@ def attendance_chart_data():
         WHERE 1=1 {_co_filter}
         GROUP BY COALESCE(e.department, 'Unassigned')
         ORDER BY COALESCE(e.department, 'Unassigned')
-    """, (today,) + _co_args)
+    """, (today,) + _co_args)  # nosec B608
     dept_labels, dept_present, dept_absent = [], [], []
     for dept, p, tot in cursor.fetchall():
         dept_labels.append(dept)
@@ -411,12 +421,6 @@ def settings_page():
         ORDER BY a.created_at DESC
     """)
     ann_list = cursor.fetchall()
-    pub_anns  = [r for r in ann_list if r[5] == 'public']
-    priv_anns = [r for r in ann_list if r[5] == 'private']
-
-    # Employee list for private announcement targeting
-    cursor.execute("SELECT employee_id, name FROM employees WHERE is_active=1 ORDER BY name")
-    ann_emp_list = cursor.fetchall()
 
     # Pending counts
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
@@ -636,7 +640,7 @@ def toggle_auth_method():
             flash("Invalid setting.", "danger")
             return redirect("/settings?tab=attendance")
         db = get_db_connection(); cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))
+        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))  # nosec B608
         db.commit(); cursor.close(); db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"{label} {state}.", "success")
@@ -733,7 +737,7 @@ def toggle_feature():
         _upsert_co_feature(active_cid, cs_col, value)
     else:
         db = get_db_connection(); cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))
+        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))  # nosec B608
         db.commit(); cursor.close(); db.close()
     return jsonify({"ok": True})
 
@@ -934,7 +938,7 @@ def edit_company(cid):
             for tbl in related_tables:
                 try:
                     cursor.execute(
-                        f"UPDATE {tbl} SET employee_id=%s WHERE employee_id=%s",
+                        f"UPDATE {tbl} SET employee_id=%s WHERE employee_id=%s",  # nosec B608
                         (new_eid, old_eid)
                     )
                 except Exception:
@@ -1445,13 +1449,12 @@ def analytics():
 def org_chart_page():
     db = get_db_connection(); cursor = db.cursor(buffered=True)
     active_cid = session.get("active_company_id")
-    _co_sub = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args = (active_cid,) if active_cid else ()
-    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
+    _co_sub, _co_args = co_scope_subquery(active_cid)
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_resignations = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
     if active_cid:
         cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
@@ -1480,15 +1483,13 @@ def admin_tools():
     db = get_db_connection(); cursor = db.cursor(buffered=True)
 
     active_cid = session.get("active_company_id")
-    _co_sub    = "AND employee_id IN (SELECT employee_id FROM employees WHERE company_id=%s)" if active_cid else ""
-    _co_args   = (active_cid,) if active_cid else ()
-    _co_emp    = "AND company_id=%s" if active_cid else ""
+    _co_sub, _co_args = co_scope_subquery(active_cid)
 
-    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
     pending_resignations = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)
+    cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
 
     if active_cid:
@@ -1517,14 +1518,14 @@ def admin_tools():
         )
         params += [active_cid, active_cid]
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-    cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where}", params)
+    cursor.execute(f"SELECT COUNT(*) FROM audit_logs {where}", params)  # nosec B608
     total = cursor.fetchone()[0]
     total_pages = max(1, (total + per_page - 1) // per_page)
     offset = (page - 1) * per_page
     cursor.execute(
         f"""SELECT id, actor, actor_type, action, target_table, target_id,
                    detail, ip_address, created_at
-            FROM audit_logs {where} ORDER BY created_at DESC LIMIT %s OFFSET %s""",
+            FROM audit_logs {where} ORDER BY created_at DESC LIMIT %s OFFSET %s""",  # nosec B608
         params + [per_page, offset]
     )
     logs = cursor.fetchall()

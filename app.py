@@ -5,51 +5,22 @@ try:
 except Exception:
     pass
 
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for, flash, send_from_directory, current_app, Response
-import uuid
-from werkzeug.utils import secure_filename
-from urllib.parse import urlparse
+from flask import request, session, jsonify, redirect, url_for, flash, current_app
 import datetime
 import html as _html
-from utils.face_utils import (
-    face_recognition, _face_recognition_available, _get_known_face_encoding,
-)
-from utils.webauthn_utils import (
-    _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified,
-)
 from database import get_db_connection
-from qr_generator import generate_qr
-import bcrypt as _bcrypt
-from werkzeug.security import check_password_hash as _wz_check_pw
-from functools import wraps
-from contextlib import contextmanager
 import os
-import math
 import re
-import calendar
 import psycopg2
-import smtplib
-import ssl
 import secrets
-import json
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.application import MIMEApplication
-from email import encoders
 import threading
-import io as _io
 import hashlib
 import time
 import base64
 from werkzeug.exceptions import HTTPException
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
 
 load_dotenv()
-
-import logging
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -61,7 +32,7 @@ if _missing_env:
         stacklevel=2
     )
 
-from extensions import app, limiter, app_log, _allowed_origins, log_security_event
+from extensions import app, app_log, limiter
 # Single source of truth for email — app.py used to carry its own complete
 # duplicate of every one of these, including _email_queue_worker. wsgi.py
 # (the real production entrypoint) already starts utils.email_utils's
@@ -72,37 +43,17 @@ from extensions import app, limiter, app_log, _allowed_origins, log_security_eve
 # alert, sent up to twice). The worker is started exactly once now, see
 # the __name__ == "__main__" guard near the bottom of this file.
 from utils.email_utils import (
-    notify_if_new_login_ip, get_email_config, get_admin_emails,
-    send_email_smtp, send_email_async, build_attendance_email,
+    get_email_config, get_admin_emails, send_email_async,
     _email_queue_worker,
 )
-from utils.session_risk import ensure_session_id, is_session_compromised
 # Single source of truth for auth — app.py used to carry its own duplicate
 # copies of every one of these (password hashing, lockout, session/API
 # guards), which had drifted from utils/auth.py's versions and meant three
 # rounds of security work (structured event logging, BOLA risk-scoring,
 # the session kill switch) were silently not reaching any route in this
 # file. Consolidated onto one implementation; see utils/auth.py.
-from utils.auth import (
-    generate_password_hash, check_password_hash, _hash_token,
-    _check_login_lockout, _record_login_failure, _clear_login_failures,
-    admin_required, employee_required, manager_or_admin_required,
-    api_required, employee_api_required,
-)
-# Same consolidation for upload validation — app.py had its own duplicate
-# of these too, so the malware/validation-failure security-event logging
-# added to the utils/helpers.py versions never reached any of app.py's
-# real upload routes. Found by the same duplicate-name check that caught
-# the auth decorators.
-from utils.helpers import (
-    _scan_for_malware, _validate_upload, _validate_image_file,
-    _VALID_CFS_COLS, _upsert_co_feature, _upsert_co_features,
-    encrypt_pii, decrypt_pii, _audit, _create_notification, _db,
-    _error_page, _co_expired, invalidate_settings_cache,
-    get_company_settings, get_auth_config, get_fingerprint_enabled,
-    _read_global_features, get_co_features,
-    _safe_redirect, _safe_referrer_redirect, _safe_app_url,
-)
+from utils.auth import generate_password_hash, check_password_hash
+from utils.helpers import _error_page, invalidate_settings_cache, get_company_settings
 # Shift timings / deduction rates / office geo-fence — app.py used to carry
 # its own separate SHIFT_START / LATE_DEDUCTION_RATE / OFFICE_LAT etc.
 # globals, mutated by its own separate load_default_shift()/
@@ -111,18 +62,6 @@ from utils.helpers import (
 # app.py just never migrated. Now the single source both use, referenced
 # throughout this file as cfg.SHIFT_START etc.
 import utils.config as cfg
-from utils.attendance_utils import (
-    _td_to_time, get_employee_shift, get_attendance_type,
-    classify_by_worked_minutes, calculate_deduction, infer_type_legacy,
-    detect_overtime, get_working_days, fetch_holidays_set,
-    get_billable_past_days, fetch_leave_map, is_within_range,
-)
-# New extraction (not a duplicate-fix like the others above) — these two
-# never had a second copy; they're moving from app.py into their own
-# module for the first time, as part of migrating the payroll routes into
-# blueprints/payroll.py. See utils/salary_utils.py.
-from utils.salary_utils import build_salary_slip_html, compute_salary_entry
-from utils.leave_utils import assign_leave_balances_for_employee
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -1338,7 +1277,6 @@ def init_db():
     try:
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='force_pin_change_flag'")
         if not cursor.fetchone():
-            default_hash = generate_password_hash('1234')
             cursor.execute("SELECT employee_id, password FROM employees")
             for eid, pwd_hash in cursor.fetchall():
                 if pwd_hash and check_password_hash(pwd_hash, '1234'):
@@ -2438,9 +2376,9 @@ if __name__ == "__main__":
     _key  = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("🔒  SSL cert found — starting on https://0.0.0.0:5000")
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,  # nosec B104
                 ssl_context=(_cert, _key))
     else:
         print("⚠   No cert.pem / key.pem — starting on http://0.0.0.0:5000")
         print("    Fingerprint / WebAuthn requires HTTPS. Run: python generate_cert.py")
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)  # nosec B104

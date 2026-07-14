@@ -1,4 +1,10 @@
-"""Attendance blueprint — check-in/out, shifts, breaks, reports."""
+"""Attendance blueprint — check-in/out, shifts, breaks, reports.
+
+Bandit B608 audit note: the nosec-marked queries below interpolate `_co`/
+`_args`, a company-scoping fragment that's always a hardcoded literal chosen
+by a bool (`"AND e.company_id=%s" if active_cid else ""`) — never user
+input. Actual values are always %s-bound params.
+"""
 import os
 import datetime
 import calendar
@@ -11,7 +17,7 @@ from flask import (
 from extensions import limiter, app_log
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required
-from utils.helpers import get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect
+from utils.helpers import get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect, co_scope_column
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
     classify_by_worked_minutes, detect_overtime, get_working_days,
@@ -40,8 +46,8 @@ def today_present():
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
     active_cid = session.get("active_company_id")
-    _co = "AND e.company_id=%s" if active_cid else ""
-    _args = (today,) + ((active_cid,) if active_cid else ())
+    _co, _co_args = co_scope_column(active_cid, alias="e")
+    _args = (today,) + _co_args
     cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role, a.login_time, a.logout_time,
                a.status, a.logout_status, a.attendance_type
@@ -49,7 +55,7 @@ def today_present():
         JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
         WHERE a.login_time IS NOT NULL {_co}
         ORDER BY a.login_time
-    """, _args)
+    """, _args)  # nosec B608
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -65,15 +71,15 @@ def today_absent():
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
     active_cid = session.get("active_company_id")
-    _co = "AND e.company_id=%s" if active_cid else ""
-    _args = (today,) + ((active_cid,) if active_cid else ())
+    _co, _co_args = co_scope_column(active_cid, alias="e")
+    _args = (today,) + _co_args
     cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role
         FROM employees e
         LEFT JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
         WHERE a.employee_id IS NULL {_co}
         ORDER BY e.name
-    """, _args)
+    """, _args)  # nosec B608
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -89,15 +95,15 @@ def today_late():
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
     active_cid = session.get("active_company_id")
-    _co = "AND e.company_id=%s" if active_cid else ""
-    _args = (today,) + ((active_cid,) if active_cid else ())
+    _co, _co_args = co_scope_column(active_cid, alias="e")
+    _args = (today,) + _co_args
     cursor.execute(f"""
         SELECT e.employee_id, e.name, e.role, a.login_time, a.status
         FROM employees e
         JOIN attendance a ON e.employee_id = a.employee_id AND a.date = %s
         WHERE a.status IN ('Late Login', 'Half Day Login') {_co}
         ORDER BY a.login_time
-    """, _args)
+    """, _args)  # nosec B608
     rows = cursor.fetchall()
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close(); db.close()
@@ -203,11 +209,10 @@ def bulk_assign_shift():
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
     if emp_ids:
-        for emp_id in emp_ids:
-            cursor.execute(
-                "UPDATE employees SET shift_id=%s WHERE employee_id=%s",
-                (shift_id if shift_id else None, emp_id)
-            )
+        cursor.execute(
+            "UPDATE employees SET shift_id=%s WHERE employee_id = ANY(%s)",
+            (shift_id if shift_id else None, emp_ids)
+        )
     elif dept_filter:
         cursor.execute(
             "UPDATE employees SET shift_id=%s WHERE department=%s",
@@ -724,19 +729,14 @@ def bulk_mark_attendance():
                 continue
             login_t  = request.form.get(f"login_{eid}", "").strip() or None
             logout_t = request.form.get(f"logout_{eid}", "").strip() or None
-            cursor.execute("SELECT id FROM attendance WHERE employee_id=%s AND date=%s", (eid, date_obj))
-            if cursor.fetchone():
-                cursor.execute(
-                    "UPDATE attendance SET login_time=%s, logout_time=%s, attendance_type=%s, "
-                    "status='Manual', logout_status='Manual' WHERE employee_id=%s AND date=%s",
-                    (login_t, logout_t, att_type, eid, date_obj)
-                )
-            else:
-                cursor.execute(
-                    "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
-                    "attendance_type, status, logout_status) VALUES (%s,%s,%s,%s,%s,'Manual','Manual')",
-                    (eid, date_obj, login_t, logout_t, att_type)
-                )
+            cursor.execute(
+                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+                "attendance_type, status, logout_status) VALUES (%s,%s,%s,%s,%s,'Manual','Manual') "
+                "ON CONFLICT (employee_id, date) DO UPDATE SET "
+                "login_time=EXCLUDED.login_time, logout_time=EXCLUDED.logout_time, "
+                "attendance_type=EXCLUDED.attendance_type, status='Manual', logout_status='Manual'",
+                (eid, date_obj, login_t, logout_t, att_type)
+            )
             saved += 1
         db.commit()
         cursor.close(); db.close()
