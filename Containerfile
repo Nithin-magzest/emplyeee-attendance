@@ -1,37 +1,64 @@
-FROM python:3.11-slim
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
+# Compilers/headers needed only to build dlib (face_recognition) and psycopg2
+# extension wheels. None of this belongs in the image that actually runs.
+FROM python:3.11-slim AS builder
 
-# compose.yaml runs this image with a read-only root filesystem — without
-# this, Python would try (and silently fail) to write .pyc cache files
-# into /app on every import.
-ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
 
-# System deps: OpenCV / dlib (face_recognition), SSL
-# (no Postgres client dev package needed — psycopg2-binary ships precompiled)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake g++ make \
     libboost-all-dev \
     libopenblas-dev liblapack-dev \
     libx11-dev \
-    libgl1 libglib2.0-0 \
     libssl-dev \
     pkg-config \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
-# Install Python deps first (layer cache)
+WORKDIR /build
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# --prefix isolates the installed tree so stage 2 can copy just this, not
+# pip's cache or the compiler toolchain above.
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Copy application code
-COPY . .
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+# Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
+# no build tools — only the shared libs the compiled wheels dlopen at import
+# time (verify with `ldd` against your built .so files if this list drifts).
+FROM python:3.11-slim AS runtime
 
-# Runtime directories that are gitignored
-RUN mkdir -p static/qrcodes static/employee_docs dataset
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-EXPOSE 5000
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libopenblas0-pthread liblapack3 \
+    libx11-6 \
+    libgl1 libglib2.0-0 \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1001 appuser \
+    && useradd --uid 1001 --gid appuser --no-create-home --shell /usr/sbin/nologin appuser
+
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+COPY --chown=appuser:appuser . .
+
+# Runtime directories that are gitignored — compose.yaml mounts named
+# volumes over these, so ownership here only matters for `podman run`
+# without compose (defense in depth, not the primary permission story).
+RUN mkdir -p static/qrcodes static/employee_docs dataset \
+    && chown -R appuser:appuser static dataset
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Baked-in non-root, on top of (not instead of) compose.yaml's explicit
+# `user: "1001:1001"` — that line pins the UID compose's volume mounts are
+# built around; this USER line is what protects a bare `podman run` (no
+# compose, no explicit --user flag) from silently running as root.
+USER appuser
+
+EXPOSE 5000
 ENTRYPOINT ["/entrypoint.sh"]
