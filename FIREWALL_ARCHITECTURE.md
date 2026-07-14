@@ -9,7 +9,7 @@ there.
 
 | # | Type | Status | Primary location |
 |---|------|--------|-------------------|
-| 1 | Packet filtering | Partial (via Security Groups; no explicit NACL) | `terraform/main.tf` |
+| 1 | Packet filtering | Provisioned, not yet attached to a subnet | `terraform/network_acl.tf` |
 | 2 | Stateful inspection | Implemented | `terraform/main.tf` |
 | 3 | Proxy firewall | Implemented (reverse proxy only) | `nginx/nginx.conf.template` |
 | 4 | Next-generation firewall (NGFW) | Not implemented as a single component; partially covered by separate tools | see below |
@@ -29,14 +29,18 @@ Filters purely on IP / port / protocol, no awareness of connection state.
   deny).
 - **The catch**: Security Groups are *stateful* (see §2), not pure packet
   filters. The textbook stateless packet-filtering layer in AWS is the
-  **Network ACL**, applied per-subnet. This project does not define a
-  custom NACL in Terraform — it relies on the VPC's default NACL (allow
-  all in/out), with the Security Group layer doing the real filtering
-  work on top of it.
-- **Gap**: if a genuinely stateless filtering layer is required (e.g. to
-  block a specific CIDR at the subnet boundary regardless of connection
-  state), that means adding an `aws_network_acl` resource — not present
-  today.
+  **Network ACL**, applied per-subnet.
+- **Now provisioned**: `aws_network_acl.app` (`terraform/network_acl.tf`)
+  mirrors the Security Group's inbound policy (80/443 public, 22 filtered
+  to `trusted_admin_cidrs`) as a genuinely stateless layer — including the
+  ephemeral-port-range rule (1024-65535) that stateless filtering requires
+  for return traffic, which the stateful Security Group never needed.
+- **Not attached yet**: `var.app_subnet_ids` defaults to `[]`, so this
+  NACL exists in AWS but applies to nothing — same "provisioned, not
+  attached" pattern as `aws_security_group.app_firewall`. A NACL applies
+  to every resource in a subnet, not just this app, so attaching it is
+  left deliberate rather than automatic: set `app_subnet_ids` to the EC2
+  instance's actual subnet and re-apply once reviewed.
 
 ## 2. Stateful Inspection Firewall
 
@@ -125,8 +129,9 @@ signatures, rate limiting per client.
 
 ## Summary of genuine gaps
 
-1. **No explicit Network ACL** — relying on the VPC default (allow-all),
-   with Security Groups doing the real filtering.
+1. **Network ACL provisioned but not attached** — set `var.app_subnet_ids`
+   and re-apply to actually put it in the traffic path; until then the
+   Security Group is still doing 100% of the real filtering.
 2. **No NGFW / AWS Network Firewall** — deep packet inspection and
    IDS/IPS are not covered by any current component.
 3. **WAF is provisioned but inactive** — requires the CloudFront +
