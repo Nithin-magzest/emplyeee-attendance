@@ -116,8 +116,8 @@ def admin_required(f):
             )
             if is_ajax:
                 return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
-                                "redirect": url_for("admin_login")}), 401
-            return redirect(url_for("admin_login"))
+                                "redirect": url_for("auth.admin_login")}), 401
+            return redirect(url_for("auth.admin_login"))
         return f(*args, **kwargs)
     return wrapper
 
@@ -149,8 +149,8 @@ def manager_or_admin_required(f):
             )
             if is_ajax:
                 return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
-                                "redirect": url_for("admin_login")}), 401
-            return redirect(url_for("admin_login"))
+                                "redirect": url_for("auth.admin_login")}), 401
+            return redirect(url_for("auth.admin_login"))
         if session.get("admin_role", "admin") not in ("admin", "manager"):
             return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
         return f(*args, **kwargs)

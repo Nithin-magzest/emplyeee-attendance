@@ -33,8 +33,10 @@ flask_app = _app_module.app   # the real app with all routes registered
 # here since tests import app.py directly and would otherwise miss them.
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
+from blueprints.auth import auth_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
+flask_app.register_blueprint(auth_bp)
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
