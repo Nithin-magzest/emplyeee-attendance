@@ -16,22 +16,58 @@ os.environ["DB_NAME"]    = "att_test"
 os.environ["DB_HOST"]    = "localhost"
 os.environ["APP_ENV"]    = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
+# utils/helpers.py's PII-encryption bootstrap hard-fails at import time if
+# this is missing, in every environment including tests — no dev/test
+# exception, by design (see utils/helpers.py). Fixed test-only key, not a
+# real secret.
+os.environ["ENCRYPTION_KEY"] = "_jboJL8OrI9muPNyf0xCNrakSo_Iz5EbJSQ1KpDcAgY="
 os.environ.setdefault("DB_PORT", "5432")
 os.environ.setdefault("DB_USER", "postgres")
 os.environ.setdefault("DB_PASS", "")
 
-# Import app AFTER env vars are set so all module-level reads pick up test values.
-# app.py registers all routes on its own Flask `app` instance — use that directly.
-import app as _app_module  # noqa: F401 — triggers route registration + init_db
-flask_app = _app_module.app   # the real app with all routes registered
-
-# wsgi.py (the real production entrypoint) also registers the migrated
-# blueprints (health, notifications) on top of app.py's routes — mirror that
-# here since tests import app.py directly and would otherwise miss them.
+# wsgi.py (the real production entrypoint) registers the migrated
+# blueprints on the shared `app` instance from extensions.py BEFORE
+# importing app.py — mirror that exact order here. app.py's
+# _register_api_v1_aliases() runs at import time and mirrors whatever
+# routes are already in app.url_map, so blueprints registered AFTER
+# `import app` would silently lose their /api/v1/* aliases (a real gap
+# this order previously had: /api/v1/employees 404'd in tests while
+# working in production, because wsgi.py's order is already correct).
+from extensions import app as flask_app
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
+from blueprints.payroll import payroll_bp
+from blueprints.leave import leave_bp
+from blueprints.admin_views import admin_views_bp
+from blueprints.auth import auth_bp
+from blueprints.employees import employees_bp
+from blueprints.attendance import attendance_bp
+from blueprints.tickets import tickets_bp
+from blueprints.performance import performance_bp
+from blueprints.documents import documents_bp
+from blueprints.org import org_bp
+from blueprints.onboarding import onboarding_bp
+from blueprints.employee_portal import employee_portal_bp
+from blueprints.core import core_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
+flask_app.register_blueprint(payroll_bp)
+flask_app.register_blueprint(leave_bp)
+flask_app.register_blueprint(admin_views_bp)
+flask_app.register_blueprint(auth_bp)
+flask_app.register_blueprint(employees_bp)
+flask_app.register_blueprint(attendance_bp)
+flask_app.register_blueprint(tickets_bp)
+flask_app.register_blueprint(performance_bp)
+flask_app.register_blueprint(documents_bp)
+flask_app.register_blueprint(org_bp)
+flask_app.register_blueprint(onboarding_bp)
+flask_app.register_blueprint(employee_portal_bp)
+flask_app.register_blueprint(core_bp)
+
+# Import app AFTER blueprints are registered so all module-level reads pick
+# up test values AND _register_api_v1_aliases() sees the full route set.
+import app as _app_module  # noqa: F401 — triggers route registration + init_db
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
@@ -60,6 +96,24 @@ def _init_test_db(db_engine):
     with flask_app.app_context():
         from app import init_db
         init_db()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _reset_login_attempts(db_engine, _init_test_db):
+    """Clear login_attempts before the session starts.
+
+    att_test is a persistent database, not recreated per run — tests that
+    intentionally trigger failed logins (wrong password, unknown user)
+    accumulate failed_count across every past run. Once a hardcoded test
+    identifier crosses _LOGIN_MAX_ATTEMPTS, locked_until gets set and never
+    clears (only a *successful* login clears it, which these tests never
+    do), so a run days later can spuriously fail on an unrelated assertion
+    because the login page renders "Account locked" instead of "Invalid
+    credentials". Depends on _init_test_db so the table already exists.
+    """
+    cur = db_engine.cursor()
+    cur.execute("DELETE FROM login_attempts")
+    cur.close()
 
 
 @pytest.fixture

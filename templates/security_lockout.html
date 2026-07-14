@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Session Ended — Attendance System</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%; max-width: 440px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(248,113,113,0.35);
+        border-radius: 20px;
+        padding: 40px 36px;
+        text-align: center;
+      }
+      .icon {
+        width: 64px; height: 64px;
+        background: rgba(248,113,113,0.15);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 30px;
+        margin: 0 auto 20px;
+      }
+      h1 { font-size: 20px; color: #f9fafb; margin-bottom: 10px; }
+      p { font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 8px; }
+      .steps {
+        text-align: left;
+        background: rgba(255,255,255,0.04);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin: 20px 0;
+        font-size: 13px;
+        color: #cbd5e1;
+      }
+      .steps li { margin: 6px 0 6px 18px; }
+      a.btn {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 12px 28px;
+        background: #ef4444;
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">🔒</div>
+      <h1>Session Ended for Your Security</h1>
+      <p>Unusual activity was detected on your account and this session was ended automatically.</p>
+      <div class="steps">
+        <p style="color:#f87171;font-weight:700;margin-bottom:8px;">If this wasn't you:</p>
+        <ol>
+          <li>Sign in again and change your password immediately.</li>
+          <li>Contact your administrator so they can review your account.</li>
+          <li>Check your recent activity for anything unfamiliar.</li>
+        </ol>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;">If this was you and it seems like a mistake, contact your administrator to have your account reviewed.</p>
+      <a class="btn" href="/admin_login">Sign In Again</a>
+    </div>
+  </body>
+</html>

@@ -39,6 +39,12 @@ except Exception:
     pass
 
 from dotenv import load_dotenv
+from utils.secrets_loader import load_aws_secrets
+# In production, AWS_SECRET_ID must be set as a plain instance env var
+# (not a secret itself — just its name/ARN). Runs before load_dotenv() so
+# Secrets Manager values win in prod; local dev with no AWS_SECRET_ID falls
+# straight through to .env unaffected.
+load_aws_secrets()
 load_dotenv()
 
 # ── Import shared extensions FIRST (no side-effects) ─────────────────────────
@@ -56,60 +62,68 @@ threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-work
 # Migration status:
 #   ✅ health.py          — /healthz, /favicon.ico
 #   ✅ notifications.py   — /api/notifications/*, /web/notifications/*
-#   🔄 auth.py            — login, logout, password reset, WebAuthn
-#   🔄 employees.py       — employee CRUD, photos, QR, ID cards
-#   🔄 attendance.py      — check-in/out, face recognition, QR scan
-#   🔄 payroll.py         — salary, payslips, reports, export
-#   🔄 leave.py           — leave requests, approval, holidays
-#   🔄 tickets.py         — support tickets
-#   🔄 admin_views.py     — admin dashboard, settings, companies
-#   🔄 performance.py     — KPIs, reviews, hike/bonus
-#   🔄 onboarding.py      — onboarding templates and tasks
-#   🔄 documents.py       — employee document management
-#   🔄 org.py             — multi-tenant org provisioning
-#   🔄 employee_portal.py — employee self-service portal
+#   ✅ payroll.py         — salary, payslips, reports, export (25 routes)
+#   ✅ leave.py           — leave, holidays, resignation, overtime, comp-off (35 routes)
+#   ✅ admin_views.py     — admin dashboard, settings, companies, analytics, audit (28 routes)
+#   ✅ auth.py            — login, logout, password reset, WebAuthn (24 routes)
+#   ✅ employees.py       — employee CRUD, photos, QR, ID cards (24 routes)
+#   ✅ attendance.py      — check-in/out, shifts, breaks, reports (34 routes)
+#   ✅ tickets.py         — support tickets (7 routes)
+#   ✅ performance.py     — KPIs, reviews (10 routes; hike/bonus in payroll.py)
+#   ✅ onboarding.py      — templates, tasks, offer letters (22 routes)
+#   ✅ documents.py       — employee document management (7 routes)
+#   ✅ org.py             — multi-tenant org self-registration (2 routes)
+#   ✅ employee_portal.py — employee self-service, check-in APIs (20 routes)
+#   ✅ core.py            — home, CSP reporting, session-risk stream,
+#                            security lockout, token-based REST API (10 routes)
+#
+# All 15 blueprints migrated. app.py now holds zero route handlers — only
+# shared setup (init_db, error handlers, before/after_request hooks,
+# template filters).
 
 # ✅ Migrated blueprints
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
+from blueprints.payroll import payroll_bp
+from blueprints.leave import leave_bp
+from blueprints.admin_views import admin_views_bp
+from blueprints.auth import auth_bp
+from blueprints.employees import employees_bp
+from blueprints.attendance import attendance_bp
+from blueprints.tickets import tickets_bp
+from blueprints.performance import performance_bp
+from blueprints.documents import documents_bp
+from blueprints.org import org_bp
+from blueprints.onboarding import onboarding_bp
+from blueprints.employee_portal import employee_portal_bp
+from blueprints.core import core_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(notifications_bp)
+app.register_blueprint(payroll_bp)
+app.register_blueprint(leave_bp)
+app.register_blueprint(admin_views_bp)
+app.register_blueprint(auth_bp)
+app.register_blueprint(employees_bp)
+app.register_blueprint(attendance_bp)
+app.register_blueprint(tickets_bp)
+app.register_blueprint(performance_bp)
+app.register_blueprint(documents_bp)
+app.register_blueprint(org_bp)
+app.register_blueprint(onboarding_bp)
+app.register_blueprint(employee_portal_bp)
+app.register_blueprint(core_bp)
 
-# 🔄 Pending migration (routes still served from app.py below)
-# from blueprints.auth import auth_bp
-# from blueprints.employees import employees_bp
-# from blueprints.attendance import attendance_bp
-# from blueprints.payroll import payroll_bp
-# from blueprints.leave import leave_bp
-# from blueprints.tickets import tickets_bp
-# from blueprints.admin_views import admin_views_bp
-# from blueprints.performance import performance_bp
-# from blueprints.onboarding import onboarding_bp
-# from blueprints.documents import documents_bp
-# from blueprints.org import org_bp
-# from blueprints.employee_portal import employee_portal_bp
-#
-# app.register_blueprint(auth_bp)
-# app.register_blueprint(employees_bp)
-# app.register_blueprint(attendance_bp)
-# app.register_blueprint(payroll_bp)
-# app.register_blueprint(leave_bp)
-# app.register_blueprint(tickets_bp)
-# app.register_blueprint(admin_views_bp)
-# app.register_blueprint(performance_bp)
-# app.register_blueprint(onboarding_bp)
-# app.register_blueprint(documents_bp)
-# app.register_blueprint(org_bp)
-# app.register_blueprint(employee_portal_bp)
-
-# ── Load all existing routes from monolithic app.py (transitional) ────────────
-import app as _app_module  # noqa: F401 — registers all @app.route decorators
+# ── app.py: shared setup only (init_db, error handlers, before/after_request
+#    hooks, template filters) — no route handlers remain, but it still needs
+#    importing to run that setup code and register those hooks. ─────────────
+import app as _app_module  # noqa: F401
 
 # ── Startup DB init ───────────────────────────────────────────────────────────
 with app.app_context():
     try:
-        from app import init_master_db, init_db, load_default_shift, load_salary_rules
+        from app import init_master_db, init_db
+        from utils.config import load_default_shift, load_salary_rules
         init_master_db()
         init_db()
         load_default_shift()

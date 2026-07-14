@@ -8,6 +8,18 @@ from utils.auth import (
     _clear_login_failures,
     _LOGIN_MAX_ATTEMPTS,
 )
+from utils.async_writer import _write_queue
+
+
+def _wait_for_async_writes():
+    """_record_login_failure/_clear_login_failures enqueue their DB write
+    onto a background thread instead of writing synchronously (see
+    utils/async_writer.py — the fix for request threads blocking under a
+    brute-force flood). queue.Queue.join() blocks until every enqueued
+    item has had task_done() called, which the writer thread does after
+    each write completes — the precise way to wait for the queue to drain
+    in a test, rather than an arbitrary sleep."""
+    _write_queue.join()
 
 
 # ── Password hashing ──────────────────────────────────────────────────────────
@@ -77,6 +89,7 @@ class TestAccountLockout:
 
     def teardown_method(self):
         _clear_login_failures(self._IDENT)
+        _wait_for_async_writes()
 
     def test_not_locked_initially(self):
         locked, _ = _check_login_lockout(self._IDENT)
@@ -85,6 +98,7 @@ class TestAccountLockout:
     def test_locked_after_max_failures(self):
         for _ in range(_LOGIN_MAX_ATTEMPTS):
             _record_login_failure(self._IDENT)
+        _wait_for_async_writes()
         locked, until = _check_login_lockout(self._IDENT)
         assert locked
         assert until is not None
@@ -93,6 +107,7 @@ class TestAccountLockout:
         for _ in range(_LOGIN_MAX_ATTEMPTS):
             _record_login_failure(self._IDENT)
         _clear_login_failures(self._IDENT)
+        _wait_for_async_writes()
         locked, _ = _check_login_lockout(self._IDENT)
         assert not locked
 

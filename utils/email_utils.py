@@ -1,7 +1,9 @@
 """Email sending — SMTP + DB-backed queue with retry worker."""
 import os
 import ssl
+import html as _html
 import base64
+import datetime as _dt
 import smtplib
 import threading
 import time as _time
@@ -11,19 +13,41 @@ from email.mime.base import MIMEBase
 from email import encoders
 from database import get_db_connection
 from extensions import app_log
+from utils.helpers import decrypt_pii
 
 
 def get_email_config():
-    """Return SMTP config dict from DB, falling back to .env values."""
+    """Return SMTP config dict from DB, falling back to .env values.
+
+    Two bugs fixed here, found by diffing against app.py's copy of this
+    same function before either went live in a blueprint:
+
+    1. Wrong column names. email_config's real schema (app.py's init_db())
+       is smtp_host/smtp_port/smtp_user/smtp_pass/from_name/from_email —
+       this queried host/port/username/password/from_name/from_email,
+       none of which exist. Every call would raise "column does not
+       exist", get swallowed by the bare except below, and silently fall
+       back to .env config — meaning a DB-configured SMTP setup would
+       never actually be honored, with no error surfaced anywhere.
+    2. Missing decryption. smtp_pass is stored encrypted at rest
+       (encrypt_pii on save) — this returned the raw ciphertext as the
+       password, which would have failed SMTP auth on every send.
+
+    Also added ORDER BY id DESC: LIMIT 1 with no ORDER BY doesn't
+    guarantee which row Postgres returns if more than one exists —
+    matches app.py's behavior of always using the most recently saved
+    config.
+    """
     try:
         db = get_db_connection(); cursor = db.cursor(buffered=True)
         cursor.execute(
-            "SELECT host, port, username, password, from_name, from_email FROM email_config LIMIT 1"
+            "SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email "
+            "FROM email_config ORDER BY id DESC LIMIT 1"
         )
         row = cursor.fetchone(); cursor.close(); db.close()
         if row and row[0]:
             return {
-                "host": row[0], "port": row[1], "user": row[2], "password": row[3],
+                "host": row[0], "port": row[1], "user": row[2], "password": decrypt_pii(row[3]),
                 "from_name": row[4], "from_email": row[5] or row[2],
             }
     except Exception:
@@ -146,22 +170,124 @@ def _email_queue_worker():
         _time.sleep(15)
 
 
+def build_new_ip_login_email(display_name, identifier, ip_address, login_time_str):
+    """Account-owner-facing notification: 'a sign-in happened from an IP we
+    haven't seen before for this account.' All interpolated values are
+    escaped — this reaches the same HTML-email sink that needed retrofitting
+    for missing escaping elsewhere in this codebase, so it's done correctly
+    here from the start rather than as a later fix."""
+    _name = _html.escape(str(display_name))
+    _id   = _html.escape(str(identifier))
+    _ip   = _html.escape(str(ip_address))
+    _time_s = _html.escape(str(login_time_str))
+    return f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:540px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #fde68a;">
+  <div style="background:#92400e;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">🔐 New Sign-In Detected</div>
+    <div style="font-size:13px;opacity:0.8;margin-top:4px;">Employee Attendance System</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="color:#334155;font-size:14px;">Hi <strong>{_name}</strong>,</p>
+    <p style="color:#475569;font-size:14px;">We noticed a sign-in to your account (<strong>{_id}</strong>) from an IP address we haven't seen on this account before:</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
+      <tr style="background:#f1f5f9;"><td style="padding:10px 14px;color:#555;font-weight:600;width:120px;">IP Address</td><td style="padding:10px 14px;">{_ip}</td></tr>
+      <tr><td style="padding:10px 14px;color:#555;font-weight:600;">Time</td><td style="padding:10px 14px;">{_time_s}</td></tr>
+    </table>
+    <div style="background:#fef3c7;border-left:4px solid #d97706;border-radius:8px;padding:16px 18px;margin:20px 0;">
+      <p style="margin:0;font-size:13px;color:#92400e;font-weight:700;">Was this you?</p>
+      <p style="margin:8px 0 0;font-size:13px;color:#78350f;">If yes — no action needed, you can ignore this email.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:#78350f;font-weight:700;">If this wasn't you, please do the following now:</p>
+      <ol style="margin:6px 0 0;padding-left:18px;font-size:13px;color:#78350f;">
+        <li>Change your password immediately.</li>
+        <li>Contact your administrator so they can review your account.</li>
+        <li>Check your recent attendance/activity for anything unfamiliar.</li>
+      </ol>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:20px;">This is an automated security notification — replies aren't monitored.</p>
+  </div>
+</div>"""
+
+
+def notify_if_new_login_ip(identifier, attempt_type, ip_address, display_name, to_email):
+    """Record ip_address for this account; queue a 'new sign-in' security
+    email to the account owner only if it's genuinely new against an
+    already-established history.
+
+    Deliberately does NOT alert on an account's very first-ever recorded
+    login — there's no baseline yet to compare against, so treating IP #1
+    as "new" would email every user on every fresh account's first login.
+    Only IP #2-and-onward, the first time each is seen, triggers a mail.
+
+    Best-effort: any failure here is logged and swallowed, never raised —
+    this must not be able to block a login that already succeeded.
+    """
+    if not ip_address or not to_email:
+        return
+    try:
+        db = get_db_connection(); cur = db.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM known_login_ips WHERE identifier=%s AND attempt_type=%s",
+            (identifier, attempt_type)
+        )
+        existing_count = cur.fetchone()[0]
+        cur.execute(
+            "SELECT 1 FROM known_login_ips WHERE identifier=%s AND attempt_type=%s AND ip_address=%s",
+            (identifier, attempt_type, ip_address)
+        )
+        already_known = cur.fetchone() is not None
+        if not already_known:
+            cur.execute(
+                "INSERT INTO known_login_ips (identifier, attempt_type, ip_address) VALUES (%s,%s,%s) "
+                "ON CONFLICT (identifier, attempt_type, ip_address) DO NOTHING",
+                (identifier, attempt_type, ip_address)
+            )
+            db.commit()
+        cur.close(); db.close()
+    except Exception as e:
+        app_log.error("notify_if_new_login_ip: known_login_ips check failed for %s: %s", identifier, e)
+        return
+
+    is_first_ever_login = (existing_count == 0)
+    if already_known or is_first_ever_login:
+        return
+
+    try:
+        cfg = get_email_config()
+        if not cfg:
+            return
+        login_time_str = _dt.datetime.now().strftime("%d %b %Y, %I:%M %p")
+        html_body = build_new_ip_login_email(display_name, identifier, ip_address, login_time_str)
+        send_email_async(to_email, "New Sign-In to Your Account", html_body, cfg)
+    except Exception as e:
+        app_log.error("notify_if_new_login_ip: failed to queue email for %s: %s", identifier, e)
+
+
 def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
+    """Matches app.py's fuller version (extra subtitle + detail table) —
+    this module's copy was plainer; standardized on the one real users
+    have actually been seeing, not the other way around, to avoid a
+    visible regression in email appearance once this becomes the single
+    source both entrypoints use."""
     color        = "#16a34a" if action == "login" else "#2563eb"
     action_label = "Checked In" if action == "login" else "Checked Out"
     return f"""
-<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;
-            border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
     <div style="font-size:20px;font-weight:700;">&#127970; Employee Attendance System</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Attendance Confirmation</div>
   </div>
   <div style="padding:28px;">
-    <p style="color:#334155;">Hello <strong>{employee_name}</strong>,</p>
-    <div style="background:{color};color:#fff;border-radius:12px;padding:18px 22px;margin:20px 0;">
-      <div style="font-size:18px;font-weight:700;">&#10003; {action_label}</div>
-      <div style="margin-top:6px;opacity:0.9;">Status: {status}</div>
-      <div style="margin-top:4px;opacity:0.9;">Time: {time_str} on {today_str}</div>
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{employee_name}</strong>,</p>
+    <div style="background:#ffffff;border:1px solid #dbeafe;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="font-size:28px;font-weight:700;color:{color};text-align:center;margin-bottom:4px;">{action_label}</div>
+      <div style="text-align:center;color:#64748b;font-size:13px;">{today_str}</div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+      <table style="width:100%;font-size:14px;color:#1e293b;">
+        <tr><td style="color:#64748b;padding:4px 0;">Employee ID</td><td style="text-align:right;font-weight:600;">{emp_id}</td></tr>
+        <tr><td style="color:#64748b;padding:4px 0;">Time</td><td style="text-align:right;font-weight:600;">{time_str}</td></tr>
+        <tr><td style="color:#64748b;padding:4px 0;">Status</td><td style="text-align:right;font-weight:600;color:{color};">{status}</td></tr>
+      </table>
     </div>
-    <p style="color:#64748b;font-size:13px;">Employee ID: {emp_id}</p>
+    <p style="font-size:12px;color:#94a3b8;text-align:center;">This is an automated message. Please do not reply.</p>
   </div>
 </div>"""

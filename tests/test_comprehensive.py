@@ -174,9 +174,19 @@ class TestPasswordHashing:
 class TestAccountLockout:
     _ID = "lockout_test_comprehensive_99"
 
+    def _wait_for_async_writes(self):
+        # _record_login_failure/_clear_login_failures enqueue their DB
+        # write onto a background thread rather than writing synchronously
+        # (utils/async_writer.py — fixes request threads blocking under a
+        # brute-force flood). join() blocks until the queue has fully
+        # drained, the precise wait rather than an arbitrary sleep.
+        from utils.async_writer import _write_queue
+        _write_queue.join()
+
     def teardown_method(self):
         from utils.auth import _clear_login_failures
         _clear_login_failures(self._ID)
+        self._wait_for_async_writes()
 
     def test_not_locked_initially(self):
         from utils.auth import _check_login_lockout
@@ -187,6 +197,7 @@ class TestAccountLockout:
         from utils.auth import _record_login_failure, _check_login_lockout, _LOGIN_MAX_ATTEMPTS
         for _ in range(_LOGIN_MAX_ATTEMPTS):
             _record_login_failure(self._ID)
+        self._wait_for_async_writes()
         locked, until = _check_login_lockout(self._ID)
         assert locked
         assert until is not None
@@ -196,6 +207,7 @@ class TestAccountLockout:
         for _ in range(_LOGIN_MAX_ATTEMPTS):
             _record_login_failure(self._ID)
         _clear_login_failures(self._ID)
+        self._wait_for_async_writes()
         locked, _ = _check_login_lockout(self._ID)
         assert not locked
 

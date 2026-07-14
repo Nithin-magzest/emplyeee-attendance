@@ -44,13 +44,20 @@ server {
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
-    # Security headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options SAMEORIGIN always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self)" always;
+    # Security headers are NOT set here at the server level on purpose.
+    # Flask's after_request hook (app.py:_security_headers) is the single
+    # source of truth for every response it serves — it computes a
+    # per-request CSP nonce and sha256-hashes inline event handlers, which
+    # nginx has no way to replicate. Duplicating headers here via add_header
+    # doesn't override Flask's copy, it ADDS a second, conflicting one
+    # alongside it (e.g. a stale Permissions-Policy that blocks the camera
+    # this app needs for face-recognition check-in). Browsers handle
+    # duplicate security headers inconsistently, so pick one layer and
+    # don't set the same header in both.
+    #
+    # The one exception is /static/ below, which nginx serves directly and
+    # Flask never sees — those responses would otherwise carry no security
+    # headers at all.
 
     client_max_body_size 20M;
     limit_conn perip 20;
@@ -70,7 +77,22 @@ server {
     location /static/ {
         alias /app/static/;
         expires 7d;
-        add_header Cache-Control "public, immutable";
+        add_header Cache-Control "public, immutable" always;
+        # Mirrors app.py's _security_headers values exactly, so a static
+        # asset requested directly gets the same posture as an app response.
+        # No Content-Security-Policy here — static files aren't HTML, so a
+        # page-level CSP doesn't apply, and nginx has no nonce to put in one.
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
+        # X-XSS-Protection is deliberately omitted: it's a legacy IE/old-Chrome
+        # heuristic filter, removed from every modern browser, and OWASP now
+        # recommends against re-enabling it (the filter itself had exploitable
+        # bugs) in favor of relying on CSP.
     }
 
     location / {

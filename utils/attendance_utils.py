@@ -1,8 +1,23 @@
 """Attendance calculation helpers."""
 import datetime
 import calendar
+import math
 from database import get_db_connection
 import utils.config as cfg
+
+
+def is_within_range(user_lat, user_lon, office_lat, office_lon):
+    R       = 6371000
+    phi1    = math.radians(user_lat)
+    phi2    = math.radians(office_lat)
+    dphi    = math.radians(office_lat - user_lat)
+    dlambda = math.radians(office_lon - user_lon)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return (R * c) <= cfg.OFFICE_RADIUS_M
 
 
 def _td_to_time(val):
