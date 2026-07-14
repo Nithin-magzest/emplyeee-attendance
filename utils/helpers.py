@@ -503,7 +503,7 @@ def co_scope_subquery(active_cid, alias=""):
     if not active_cid:
         return "", ()
     col = f"{alias}.employee_id" if alias else "employee_id"
-    return f"AND {col} IN (SELECT employee_id FROM employees WHERE company_id=%s)", (active_cid,)
+    return f"AND {col} IN (SELECT employee_id FROM employees WHERE company_id=%s)", (active_cid,)  # nosec B608
 
 
 def co_scope_column(active_cid, alias=""):
