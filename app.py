@@ -2984,9 +2984,8 @@ def admin():
         present=present,
         absent=total - present,
         late=late,
-        today=today.strftime("%d %b %Y",
+        today=today.strftime("%d %b %Y"),
         active_nav="dashboard",
-    ),
         today_rows=today_rows,
         all_employees=all_employees,
         shift_start=SHIFT_START.strftime("%I:%M %p"),
@@ -3684,9 +3683,8 @@ def settings_page():
         pending_leaves=pending_leaves,
         pending_resignations=pending_resignations,
         pending_tickets=pending_tickets,
-        saved=request.args.get("saved",
+        saved=request.args.get("saved") == "1",
         active_nav="settings",
-    ) == "1",
         default_start=_co_shift_start,
         default_half=_co_shift_half,
         default_end=_co_shift_end,
@@ -4263,9 +4261,7 @@ def get_indian_holidays(year):
             pass
     return sorted(result, key=lambda x: x[0])
 
-# ---------------- VIEW HOLIDAYS ----------------
-@app.route("/view_holidays")
-@admin_required
+# ---------------- VIEW HOLIDAYS (legacy helper — no route; /view_holidays redirects to /leave_holidays) ----------------
 def view_holidays():
     year = int(request.args.get("year", datetime.date.today().year))
     db     = get_db_connection()
@@ -4360,7 +4356,7 @@ def edit_employee_page(emp_id):
     cursor.close(); db.close()
     if not emp:
         return "Employee not found", 404
-    return render_template("edit_employee.html", emp=emp)
+    return render_template("edit_employee.html", emp=emp, active_nav="employees")
 
 
 @app.route("/employee_profile/<emp_id>")
@@ -5957,9 +5953,8 @@ def monthly_report():
 
     return render_template("monthly_report.html",
         report=report,
-        month_name=datetime.date(year, month, 1,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
         active_nav="attendance",
-    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         holiday_count=len(holidays),
@@ -6039,9 +6034,8 @@ def employee_attendance_detail(emp_id, year, month):
     return render_template("employee_attendance_detail.html",
         emp=emp,
         days=days,
-        month_name=datetime.date(year, month, 1,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
         active_nav="attendance",
-    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         full_days=full_days,
@@ -6504,9 +6498,8 @@ def salary_report():
 
     return render_template("salary_report.html",
         salary_data=salary_data,
-        month_name=datetime.date(year, month, 1,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
         active_nav="salary",
-    ).strftime("%B %Y"),
         year=year, month=month,
         months=months, years=years,
         late_rate=int(LATE_DEDUCTION_RATE * 100),
@@ -9803,9 +9796,8 @@ def leave_calendar():
     next_y = year if month < 12 else year + 1
 
     return render_template("leave_calendar.html",
-        cal_weeks=cal_mod.monthcalendar(year, month,
+        cal_weeks=cal_mod.monthcalendar(year, month),
         active_nav="leaves",
-    ),
         cal_data=dict(cal_data),
         year=year, month=month,
         month_name=cal_mod.month_name[month],
@@ -13470,9 +13462,8 @@ def overtime():
         pending_tickets=pending_tickets,
         records=records,
         month=month, year=year,
-        month_name=datetime.date(year, month, 1,
+        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
         active_nav="overtime",
-    ).strftime("%B %Y"),
         total_ot_hours=total_ot_hours,
         total_ot_pay=total_ot_pay,
         pending_count=pending_count,

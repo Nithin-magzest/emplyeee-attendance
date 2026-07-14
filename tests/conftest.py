@@ -10,15 +10,18 @@ instance. Set them in .env.test or export before running:
 import os
 import pytest
 
-# Override BEFORE dotenv loads (setdefault wins only if var not already in env).
-# Force-set here so they take priority over any .env file values.
-os.environ["DB_NAME"]    = "att_test"
+# Load .env first so DB_USER/DB_PASS/DB_PORT come from the real credentials file,
+# then force test-specific overrides on top.
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+os.environ["DB_NAME"]    = "att_test"   # always use isolated test DB
 os.environ["DB_HOST"]    = "localhost"
-os.environ["APP_ENV"]    = "development"   # avoids HTTPS-only cookies
+os.environ["APP_ENV"]    = "development"
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 os.environ.setdefault("DB_PORT", "5432")
-os.environ.setdefault("DB_USER", "postgres")
-os.environ.setdefault("DB_PASS", "")
+os.environ.setdefault("DB_USER", os.getenv("DB_USER", "postgres"))
+os.environ.setdefault("DB_PASS", os.getenv("DB_PASS", ""))
 
 # Import app AFTER env vars are set so all module-level reads pick up test values.
 # app.py registers all routes on its own Flask `app` instance — use that directly.
@@ -60,6 +63,10 @@ def _init_test_db(db_engine):
     with flask_app.app_context():
         from app import init_db
         init_db()
+    # Clear transient state tables so stale data from prior runs doesn't bleed in
+    cur = db_engine.cursor()
+    cur.execute("DELETE FROM login_attempts WHERE 1=1")
+    cur.close()
 
 
 @pytest.fixture
