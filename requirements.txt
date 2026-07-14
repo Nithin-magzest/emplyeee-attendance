@@ -3,9 +3,9 @@
 # `pip-audit` pass (see SECURITY_NOTES section in the dependency report) —
 # bump them further if pip-audit finds new advisories, don't lower them.
 flask>=3.1.3
-flask-cors>=6.0.0
+flask-cors>=6.0.5
 flask-limiter>=3.5.0
-limits>=3.10.0
+limits>=5.8.0
 werkzeug>=3.1.6
 gunicorn>=23.0.0
 
@@ -19,16 +19,22 @@ numpy>=1.22.0
 pillow>=12.2.0
 
 # ── QR codes ──────────────────────────────────────────────────────────────────
-qrcode>=7.4.0
+qrcode>=8.2
 
 # ── Spreadsheets & reports ────────────────────────────────────────────────────
-openpyxl>=3.1.3
-reportlab>=3.6.13,<4.0.0
+openpyxl>=3.1.5
+# Dependabot-proposed major bump (3.x -> 5.x) — floor raised per its advisory,
+# but NOT locally verified: this dev sandbox's Python 3.7 can't even install
+# reportlab 5.x (needs >=3.9), so PDF generation (payslips, offer letters,
+# onboarding docs — see utils/salary_utils.py, blueprints/onboarding.py) needs
+# a real smoke test against 5.x before this is trusted, via CI or a
+# Python 3.11 environment matching the production container.
+reportlab>=5.0.0,<6.0.0
 
 # ── Cryptography & auth ───────────────────────────────────────────────────────
 cryptography>=46.0.7
 webauthn>=2.1.0
-bcrypt>=4.2.0
+bcrypt>=5.0.0
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=5.0.0
@@ -38,7 +44,7 @@ clamd>=1.0.2
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
-python-json-logger>=3.0.0
+python-json-logger>=4.1.0
 setuptools>=78.1.1
 typing-extensions>=4.7.0
 
