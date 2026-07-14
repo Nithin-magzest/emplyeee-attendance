@@ -1396,6 +1396,37 @@ def init_db():
     except Exception:
         pass
 
+    # Performance indexes v3 — found via a real query-usage audit (grepped
+    # every WHERE/JOIN against these columns before adding, not guessed):
+    # offer_letters.response_token is looked up on EVERY candidate-facing
+    # request (/offer_letter_pdf, /offer_letter_respond) with no index at
+    # all — the highest-value one here. The rest cover employee-scoped
+    # tables that were missing from v1/v2 despite the same WHERE
+    # employee_id=%s pattern as the tables v1 already covers.
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v3'")
+        if not cursor.fetchone():
+            _idx_stmts_v3 = [
+                "CREATE INDEX IF NOT EXISTS idx_offer_letters_token ON offer_letters(response_token)",
+                "CREATE INDEX IF NOT EXISTS idx_offer_letters_onboarding ON offer_letters(onboarding_id)",
+                "CREATE INDEX IF NOT EXISTS idx_ob_tasks_onboarding ON employee_onboarding_tasks(onboarding_id)",
+                "CREATE INDEX IF NOT EXISTS idx_perf_kpis_review ON performance_kpis(review_id)",
+                "CREATE INDEX IF NOT EXISTS idx_emp_docs_emp ON employee_documents(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_incentives_emp ON employee_incentives(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_overtime_emp ON overtime_records(employee_id)",
+                "CREATE INDEX IF NOT EXISTS idx_swap_requester_target ON shift_swap_requests(requester_id, target_id)",
+            ]
+            for stmt in _idx_stmts_v3:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v3')")
+            db.commit()
+    except Exception:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")

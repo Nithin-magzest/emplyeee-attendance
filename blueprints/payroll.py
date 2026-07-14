@@ -724,17 +724,29 @@ def apply_hike():
     cursor.execute("SELECT min_rating, max_rating, hike_pct FROM hike_config ORDER BY min_rating DESC")
     bands = cursor.fetchall()
 
+    # Batch-fetch instead of 2 SELECTs per employee — this is frequently a
+    # whole-company action (dozens to hundreds of employees selected at
+    # once), so the per-employee round-trips were the dominant cost here.
+    cursor.execute(
+        "SELECT employee_id, COALESCE(overall_rating,0) FROM performance_reviews "
+        "WHERE employee_id = ANY(%s) AND quarter=%s AND year=%s",
+        (emp_ids, q, yr)
+    )
+    ratings = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+    cursor.execute(
+        "SELECT employee_id, COALESCE(monthly_ctc,0), last_hike_quarter, last_hike_year "
+        "FROM salary_config WHERE employee_id = ANY(%s)",
+        (emp_ids,)
+    )
+    salaries = {row[0]: (float(row[1]), row[2], row[3]) for row in cursor.fetchall()}
+
     today = datetime.date.today()
     updated = 0
     for emp_id in emp_ids:
-        cursor.execute(
-            "SELECT COALESCE(overall_rating,0) FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s",
-            (emp_id, q, yr)
-        )
-        row = cursor.fetchone()
-        if not row or float(row[0]) == 0:
+        rating = ratings.get(emp_id, 0.0)
+        if rating == 0:
             continue
-        rating = float(row[0])
         hike_pct = 0.0
         for (mn, mx, hp) in bands:
             if float(mn) <= rating <= float(mx):
@@ -742,17 +754,13 @@ def apply_hike():
                 break
         if hike_pct <= 0:
             continue
-        cursor.execute(
-            "SELECT COALESCE(monthly_ctc,0), last_hike_quarter, last_hike_year FROM salary_config WHERE employee_id=%s",
-            (emp_id,)
-        )
-        sc = cursor.fetchone()
-        if not sc or float(sc[0]) == 0:
+        sc = salaries.get(emp_id)
+        if not sc or sc[0] == 0:
             continue
+        current_ctc, last_hike_q, last_hike_yr = sc
         # Idempotency: skip if this quarter's hike was already applied
-        if sc[1] == q and sc[2] == yr:
+        if last_hike_q == q and last_hike_yr == yr:
             continue
-        current_ctc = float(sc[0])
         new_ctc = round(current_ctc * (1 + hike_pct / 100), 2)
         new_spd = round(new_ctc / 26, 2)
         cursor.execute(
@@ -798,16 +806,34 @@ def award_performance_bonus():
     bands = cursor.fetchall()
 
     bonus_month = {1: 3, 2: 6, 3: 9, 4: 12}.get(q, q * 3)
+
+    # Same batching approach as apply_hike above — 3 SELECTs per employee
+    # collapsed into 3 SELECTs total, regardless of how many are selected.
+    cursor.execute(
+        "SELECT employee_id, COALESCE(overall_rating,0) FROM performance_reviews "
+        "WHERE employee_id = ANY(%s) AND quarter=%s AND year=%s",
+        (emp_ids, q, yr)
+    )
+    ratings = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+    cursor.execute(
+        "SELECT employee_id, COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id = ANY(%s)",
+        (emp_ids,)
+    )
+    ctcs = {row[0]: float(row[1]) for row in cursor.fetchall()}
+
+    cursor.execute(
+        "SELECT DISTINCT employee_id FROM employee_incentives "
+        "WHERE employee_id = ANY(%s) AND goal_id=%s AND month=%s AND year=%s",
+        (emp_ids, goal_id, bonus_month, yr)
+    )
+    already_awarded = {row[0] for row in cursor.fetchall()}
+
     awarded = 0
     for emp_id in emp_ids:
-        cursor.execute(
-            "SELECT COALESCE(overall_rating,0) FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s",
-            (emp_id, q, yr)
-        )
-        row = cursor.fetchone()
-        if not row or float(row[0]) == 0:
+        rating = ratings.get(emp_id, 0.0)
+        if rating == 0:
             continue
-        rating = float(row[0])
         inc_pct = 0.0
         for (mn, mx, ip) in bands:
             if float(mn) <= rating <= float(mx):
@@ -815,19 +841,14 @@ def award_performance_bonus():
                 break
         if inc_pct <= 0:
             continue
-        cursor.execute("SELECT COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
-        sc = cursor.fetchone()
-        if not sc or float(sc[0]) == 0:
+        ctc = ctcs.get(emp_id, 0.0)
+        if ctc == 0:
             continue
-        bonus_amount = round(float(sc[0]) * inc_pct / 100, 2)
+        bonus_amount = round(ctc * inc_pct / 100, 2)
         if bonus_amount <= 0:
             continue
         # Skip if this bonus was already awarded for this employee/quarter/year
-        cursor.execute(
-            "SELECT id FROM employee_incentives WHERE employee_id=%s AND goal_id=%s AND month=%s AND year=%s",
-            (emp_id, goal_id, bonus_month, yr)
-        )
-        if cursor.fetchone():
+        if emp_id in already_awarded:
             continue
         cursor.execute(
             "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",

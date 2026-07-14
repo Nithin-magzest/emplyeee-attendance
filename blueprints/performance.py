@@ -324,14 +324,17 @@ def my_performance():
     """, (emp_id,))
     reviews = cursor.fetchall()
 
-    reviews_data = []
-    for rev in reviews:
+    review_ids = [rev[0] for rev in reviews]
+    kpis_by_review = {rid: [] for rid in review_ids}
+    if review_ids:
         cursor.execute("""
-            SELECT kpi_title, target, achievement, weight, rating, comments
-            FROM performance_kpis WHERE review_id=%s ORDER BY id
-        """, (rev[0],))
-        kpis = cursor.fetchall()
-        reviews_data.append({"review": rev, "kpis": kpis})
+            SELECT review_id, kpi_title, target, achievement, weight, rating, comments
+            FROM performance_kpis WHERE review_id = ANY(%s) ORDER BY id
+        """, (review_ids,))
+        for row in cursor.fetchall():
+            kpis_by_review[row[0]].append(row[1:])
+
+    reviews_data = [{"review": rev, "kpis": kpis_by_review[rev[0]]} for rev in reviews]
 
     cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()

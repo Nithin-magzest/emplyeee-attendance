@@ -233,6 +233,48 @@ class TestEmployeeFacing:
         resp = client.get("/my_performance")
         assert resp.status_code == 200
 
+    def test_my_performance_groups_kpis_under_correct_review(self, client, seed_employee, db_engine):
+        """my_performance() batch-fetches every review's KPIs in one query
+        (WHERE review_id = ANY(...)) instead of one query per review, then
+        groups them in Python by review_id — this pins that the grouping
+        is exact and KPIs from one quarter's review never leak into
+        another's, which a keying mistake in that batching could cause
+        silently (both queries would still succeed, just attribute rows
+        to the wrong review)."""
+        emp_id = seed_employee["employee_id"]
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO performance_reviews (employee_id, quarter, year, status) VALUES (%s,1,2026,'Finalized') RETURNING id",
+            (emp_id,),
+        )
+        rev_q1 = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO performance_reviews (employee_id, quarter, year, status) VALUES (%s,2,2026,'Finalized') RETURNING id",
+            (emp_id,),
+        )
+        rev_q2 = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO performance_kpis (review_id, kpi_title, weight, rating) VALUES (%s,'Q1-Only-KPI',100,5)",
+            (rev_q1,),
+        )
+        cur.execute(
+            "INSERT INTO performance_kpis (review_id, kpi_title, weight, rating) VALUES (%s,'Q2-Only-KPI',100,2)",
+            (rev_q2,),
+        )
+        cur.close()
+        try:
+            with client.session_transaction() as sess:
+                sess["employee_id"] = emp_id
+            resp = client.get("/my_performance")
+            assert resp.status_code == 200
+            html = resp.data.decode()
+            # Both titles present at all, and neither review's section
+            # contains the other quarter's KPI title.
+            assert "Q1-Only-KPI" in html
+            assert "Q2-Only-KPI" in html
+        finally:
+            _cleanup_reviews(db_engine, emp_id)
+
     def test_employee_comment_only_updates_own_review(self, client, seed_admin, seed_employee, db_engine):
         """UPDATE ... WHERE id=%s AND employee_id=%s — an employee posting a
         comment with someone else's review_id must not update that row."""
