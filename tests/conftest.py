@@ -37,12 +37,14 @@ from blueprints.auth import auth_bp
 from blueprints.employees import employees_bp
 from blueprints.leave import leave_bp
 from blueprints.attendance import attendance_bp
+from blueprints.payroll import payroll_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
 flask_app.register_blueprint(auth_bp)
 flask_app.register_blueprint(employees_bp)
 flask_app.register_blueprint(leave_bp)
 flask_app.register_blueprint(attendance_bp)
+flask_app.register_blueprint(payroll_bp)
 
 # Re-run v1 alias registration so blueprint routes (/api/employees etc.)
 # also get /api/v1/* mirrors — the first run in app.py fires before blueprints register.
