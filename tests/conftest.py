@@ -34,9 +34,15 @@ flask_app = _app_module.app   # the real app with all routes registered
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
 from blueprints.auth import auth_bp
+from blueprints.employees import employees_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
 flask_app.register_blueprint(auth_bp)
+flask_app.register_blueprint(employees_bp)
+
+# Re-run v1 alias registration so blueprint routes (/api/employees etc.)
+# also get /api/v1/* mirrors — the first run in app.py fires before blueprints register.
+_app_module._register_api_v1_aliases()
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
