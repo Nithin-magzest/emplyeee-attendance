@@ -421,19 +421,31 @@ def _bust_settings_cache(response):
 
 @app.after_request
 def _inject_csrf_meta(response):
-    """Inject CSRF meta tag and auto-inject script into every HTML page."""
-    if response.status_code >= 300 or not response.content_type.startswith("text/html"):
+    """Inject CSRF meta tag and auto-inject script into every HTML page.
+
+    CSP nonce injection (the second half below) must run for EVERY
+    text/html response regardless of status code — _security_headers sets
+    a nonce-requiring CSP header unconditionally, including on error pages
+    (404/403/500). This function used to skip everything for status>=300,
+    which meant every error page shipped a <style> tag with no nonce while
+    the CSP header demanded one — the browser correctly blocked it, which
+    is the "Applying inline style violates CSP" error seen on any page that
+    hit an error handler. CSRF meta-tag/script injection still only makes
+    sense on normal (status<300) pages, so that part stays gated.
+    """
+    if not response.content_type.startswith("text/html"):
         return response
     try:
         from flask import g
-        token = _csrf_token()
-        meta  = f'<meta name="csrf-token" content="{token}" />'.encode()
-        data  = response.get_data()
-        data  = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
-        _body_scripts = _CSRF_SCRIPT
-        if session.get("admin_logged_in") or session.get("employee_id"):
-            _body_scripts += _KILLSWITCH_SCRIPT
-        data  = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
+        data = response.get_data()
+        if response.status_code < 300:
+            token = _csrf_token()
+            meta  = f'<meta name="csrf-token" content="{token}" />'.encode()
+            data  = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+            _body_scripts = _CSRF_SCRIPT
+            if session.get("admin_logged_in") or session.get("employee_id"):
+                _body_scripts += _KILLSWITCH_SCRIPT
+            data  = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
         nonce = getattr(g, "csp_nonce", None)
         if nonce:
             nb = nonce.encode()

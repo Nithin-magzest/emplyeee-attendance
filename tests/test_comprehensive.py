@@ -861,6 +861,21 @@ class TestSecurityHeaders:
         csp = resp.headers.get("Content-Security-Policy", "")
         assert "script-src" in csp or "default-src" in csp or csp == ""
 
+    def test_error_page_style_tag_carries_csp_nonce(self, client):
+        """_security_headers sets a nonce-requiring CSP header on every
+        text/html response, including error pages — the nonce must
+        actually be injected into the <style> tag those pages ship, or the
+        browser blocks its own error page's inline styles as a CSP
+        violation (regression: _inject_csrf_meta used to skip ALL
+        processing, nonce injection included, for status>=300 responses)."""
+        resp = client.get("/this-route-does-not-exist-xyz")
+        assert resp.status_code == 404
+        csp = resp.headers.get("Content-Security-Policy", "")
+        assert "nonce-" in csp
+        nonce = csp.split("nonce-")[1].split("'")[0]
+        body = resp.get_data(as_text=True)
+        assert f'<style nonce="{nonce}"' in body
+
 
 # ===========================================================================
 # 21. CSRF PROTECTION
