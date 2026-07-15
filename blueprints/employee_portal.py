@@ -1193,22 +1193,38 @@ def api_employee_sync_punches():
 
     db2  = get_db_connection()
     cur2 = db2.cursor(buffered=True)
-    cur2.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
-    if not cur2.fetchone():
+    cur2.execute("SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s", (emp_id,))
+    _emp_row = cur2.fetchone()
+    if not _emp_row:
         cur2.close(); db2.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
+    _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
 
     results = []
     for punch in punches:
         punched_at_str = punch.get("punched_at", "")
-        # NOTE: unlike the live check-in route above (which calls
-        # is_within_range against work_lat/work_lon or cfg.OFFICE_LAT/LON),
-        # offline-synced punches capture lat/lon but never geo-fence check
-        # them — flagged, not fixed here, since enforcing it retroactively
-        # could reject legitimate syncs from field/remote employees whose
-        # workflow already relies on this path being lenient.
+        # Same geo-fence check as the live check-in route (is_within_range
+        # against work_lat/work_lon for wfh, else cfg.OFFICE_LAT/LON) —
+        # previously captured but never enforced here, unlike the live
+        # route. Only checked when the client actually sent coordinates,
+        # matching the live route's "if lat and lon:" gate.
         lat = punch.get("lat")
         lon = punch.get("lon")
+        if lat and lon:
+            try:
+                lat_f = float(lat)
+                lon_f = float(lon)
+            except (ValueError, TypeError):
+                results.append({"id": punch.get("id"), "ok": False, "msg": "Invalid lat/lon values."})
+                continue
+            if _work_mode == 'wfh':
+                if _work_lat and _work_lon and not is_within_range(lat_f, lon_f, float(_work_lat), float(_work_lon)):
+                    results.append({"id": punch.get("id"), "ok": False, "msg": "Outside registered home location."})
+                    continue
+            else:
+                if not is_within_range(lat_f, lon_f, cfg.OFFICE_LAT, cfg.OFFICE_LON):
+                    results.append({"id": punch.get("id"), "ok": False, "msg": "Outside office premises."})
+                    continue
         try:
             _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
             _pt = _pt.replace(tzinfo=None)
