@@ -195,6 +195,11 @@
                placeholder="Enter your password"
                required autocomplete="current-password" />
 
+        {% if show_captcha %}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:20px;"></div>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        {% endif %}
+
         <button type="submit" class="btn-login">Sign In →</button>
       </form>
 

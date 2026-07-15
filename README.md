@@ -159,6 +159,8 @@ All variables are documented with examples in [.env.example](.env.example).
 | `ALLOWED_ORIGINS` | No | `*` | CORS whitelist — set your domain in production |
 | `REDIS_URL` | No | `memory://` | Rate-limiter backend — use Redis in production |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | — | Brevo (or any) SMTP for email delivery |
+| `ANTHROPIC_API_KEY` | No | *(disabled)* | Enables the employee portal's AI chat widget |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | No | *(disabled)* | CAPTCHA challenge on `/admin_login` after 2 failed attempts |
 
 ---
 

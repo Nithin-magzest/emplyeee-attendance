@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security Dashboard — SOC Analyst</title>
+    <link rel="stylesheet" href="/static/shared.min.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #0b0f19; color: #cbd5e1; min-height: 100vh; padding: 32px; }
+      .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+      .hdr h1 { font-size: 20px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.2px; }
+      .hdr .badge { display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: 20px;
+                    background: #1e293b; border: 1px solid #334155; color: #38bdf8; font-size: 11px;
+                    font-weight: 700; letter-spacing: 0.5px; vertical-align: middle; }
+      .btn-lock { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 9px 18px;
+                  border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .btn-lock:hover { background: #334155; }
+      .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 20px;
+               margin-bottom: 22px; }
+      .panel-title { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase;
+                     letter-spacing: 0.6px; margin-bottom: 14px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { text-align: left; padding: 8px 10px; color: #64748b; font-weight: 600; font-size: 11px;
+           text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #1f2937; }
+      td { padding: 9px 10px; border-bottom: 1px solid #161e2e; color: #cbd5e1; }
+      tr:last-child td { border-bottom: none; }
+      .score-hot { color: #f87171; font-weight: 700; }
+      .empty { padding: 24px; text-align: center; color: #475569; font-size: 13px; }
+      .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; color: #94a3b8; }
+      .log-scroll { max-height: 480px; overflow-y: auto; }
+    </style>
+  </head>
+  <body>
+    <div class="hdr">
+      <h1>Security Dashboard <span class="badge">SOC ANALYST</span></h1>
+      <button class="btn-lock" onclick="lockAndLeave()">🔒 Lock &amp; Exit</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Force-Terminated Sessions ({{ compromised_sessions|length }})</div>
+      {% if compromised_sessions %}
+      <table>
+        <thead>
+          <tr><th>Identifier</th><th>Type</th><th>Score</th><th>Reason</th><th>Session</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          {% for sid, identifier, attempt_type, score, last_reason, updated_at in compromised_sessions %}
+          <tr>
+            <td>{{ identifier }}</td>
+            <td>{{ attempt_type }}</td>
+            <td class="score-hot">{{ score }}</td>
+            <td>{{ last_reason or '—' }}</td>
+            <td class="mono">{{ sid[:12] }}…</td>
+            <td>{{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No sessions currently force-terminated.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Active Login Lockouts ({{ active_lockouts|length }})</div>
+      {% if active_lockouts %}
+      <table>
+        <thead>
+          <tr><th>Identifier</th><th>Type</th><th>Failed Attempts</th><th>Locked Until</th><th>Last Attempt</th></tr>
+        </thead>
+        <tbody>
+          {% for identifier, attempt_type, failed_count, locked_until, last_attempt in active_lockouts %}
+          <tr>
+            <td>{{ identifier }}</td>
+            <td>{{ attempt_type }}</td>
+            <td>{{ failed_count }}</td>
+            <td>{{ locked_until.strftime('%Y-%m-%d %H:%M:%S') if locked_until else '—' }}</td>
+            <td>{{ last_attempt.strftime('%Y-%m-%d %H:%M:%S') if last_attempt else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No active lockouts.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Security Posture</div>
+      <table>
+        <tbody>
+          <tr><td>HSTS</td><td>{{ '✅ Enforced on every response' if security_posture.hsts_enabled else '❌ Disabled' }}</td></tr>
+          <tr><td>Content-Security-Policy</td><td>{{ '✅ Dynamic per-request nonce, always on' if security_posture.csp_enabled else '❌ Disabled' }}</td></tr>
+          <tr><td>Rate-limit backend</td><td>{{ security_posture.rate_limit_backend }}</td></tr>
+          <tr><td>Malware scanning (uploads)</td><td>{{ '✅ Enabled' if security_posture.malware_scan_enabled else '⚠️ Disabled' }}</td></tr>
+          <tr><td>Admin login CAPTCHA</td><td>{{ '✅ Configured (Cloudflare Turnstile)' if security_posture.login_captcha_configured else '⚠️ Not configured' }}</td></tr>
+          <tr><td>Security alert webhook</td><td>{{ '✅ Configured' if security_posture.email_alert_webhook_configured else '⚠️ Not configured' }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Admin MFA Enrollment ({{ admin_mfa_status|length }})</div>
+      {% if admin_mfa_status %}
+      <table>
+        <thead><tr><th>Username</th><th>Role</th><th>TOTP Enrolled</th></tr></thead>
+        <tbody>
+          {% for username, role, totp_enabled in admin_mfa_status %}
+          <tr>
+            <td>{{ username }}</td>
+            <td>{{ role }}</td>
+            <td>{{ '✅ Yes' if totp_enabled else '⚠️ No' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No admin accounts found.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Security Event Log — most recent {{ security_events|length }}</div>
+      {% if security_events %}
+      <div class="log-scroll">
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Level</th><th>Event Type</th><th>Message</th><th>Identifier</th><th>IP</th><th>Path</th></tr>
+        </thead>
+        <tbody>
+          {% for event_type, level, message, identifier, ip, path, method, created_at in security_events %}
+          <tr>
+            <td class="mono">{{ created_at.strftime('%Y-%m-%d %H:%M:%S') if created_at else '—' }}</td>
+            <td class="{{ 'score-hot' if level == 'ERROR' else '' }}">{{ level }}</td>
+            <td>{{ event_type }}</td>
+            <td>{{ message }}</td>
+            <td>{{ identifier or '—' }}</td>
+            <td class="mono">{{ ip or '—' }}</td>
+            <td class="mono">{{ method or '' }} {{ path or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty">No security events recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <script>
+      function lockAndLeave() {
+        fetch('/api/security/soc/lock', { method: 'POST' })
+          .catch(function() {})
+          .finally(function() { window.location.href = '/admin'; });
+      }
+    </script>
+  </body>
+</html>

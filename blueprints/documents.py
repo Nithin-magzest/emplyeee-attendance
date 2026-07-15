@@ -6,7 +6,7 @@ from flask import Blueprint, request, session, redirect, render_template, flash,
 from extensions import app
 from database import get_db_connection
 from werkzeug.utils import secure_filename
-from utils.auth import admin_required
+from utils.auth import admin_required, enforce_ownership
 from utils.helpers import _audit, _validate_upload, _safe_referrer_redirect
 
 documents_bp = Blueprint("documents", __name__)
@@ -142,7 +142,11 @@ def download_document(did):
         flash("Document not found.", "danger")
         return redirect('/documents')
     doc_emp_id, original_name, stored_name = row
-    if not is_admin and emp_session != doc_emp_id:
+    # This check existed before but never logged a denial — a real IDOR
+    # probe against someone else's payslip/ID-document upload would have
+    # been invisible. enforce_ownership() logs it at ERROR, which feeds the
+    # same alerting webhook the payslip endpoint already uses.
+    if not enforce_ownership(doc_emp_id, "document", did):
         flash("Access denied.", "danger")
         return redirect('/employee_portal')
     folder = os.path.join(app.root_path, 'static', 'employee_docs', doc_emp_id)

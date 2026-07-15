@@ -1,6 +1,11 @@
 """Authentication decorators, login lockout, and password hashing."""
+import os
+import json
+import time
 import datetime
 import hashlib
+import urllib.request
+import urllib.error
 import bcrypt as _bcrypt
 from functools import wraps
 from contextlib import contextmanager
@@ -53,6 +58,83 @@ def _db():
 _LOGIN_MAX_ATTEMPTS    = 5
 _LOGIN_LOCKOUT_MINUTES = 15
 
+# ── CAPTCHA gate (Cloudflare Turnstile) ────────────────────────────────────────
+# Unconfigured (no TURNSTILE_SECRET_KEY) means the gate is simply never
+# triggered — deliberately fail-open on missing config, not fail-closed.
+# Failing closed here would mean "every login past attempt 2 is permanently
+# rejected until an admin sets the key," a self-inflicted denial of service
+# on the login system itself, unlike e.g. the malware-scan fail-closed
+# default in utils/helpers.py where the blast radius is one rejected upload.
+_TURNSTILE_SITE_KEY   = os.environ.get("TURNSTILE_SITE_KEY", "")
+_TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY", "")
+_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+CAPTCHA_AFTER_ATTEMPTS = 2
+
+
+def turnstile_enabled() -> bool:
+    return bool(_TURNSTILE_SITE_KEY and _TURNSTILE_SECRET_KEY)
+
+
+def _mask_identifier(identifier: str) -> str:
+    """Obscure a username/employee-ID/email before it ever reaches a log
+    line — logs get shipped to less-trusted places (CloudWatch, a Slack
+    webhook channel) than the DB itself, and there's no operational need
+    for the full identifier to appear in either. The DB-side lockout logic
+    (_check_login_lockout etc.) always uses the real, unmasked identifier —
+    only what gets logged is obscured."""
+    if not identifier:
+        return "(empty)"
+    if "@" in identifier:
+        local, _, domain = identifier.partition("@")
+        return f"{local[:1]}***@{domain}"
+    if len(identifier) <= 3:
+        return identifier[0] + "*" * (len(identifier) - 1)
+    return identifier[:2] + "*" * (len(identifier) - 3) + identifier[-1]
+
+
+def _get_failed_count(identifier: str, attempt_type: str = "admin") -> int:
+    """Synchronous read of the current failed-attempt count — used only to
+    decide whether to render the CAPTCHA widget for the *next* attempt.
+    Deliberately NOT read-after-write against _record_login_failure, which
+    enqueues its DB write onto the background writer thread (see its own
+    docstring) and may not have landed yet; callers instead compute
+    "current + 1" against this value rather than re-querying post-write."""
+    try:
+        with _db() as (cur, _):
+            cur.execute(
+                "SELECT failed_count FROM login_attempts WHERE identifier=%s AND attempt_type=%s",
+                (identifier, attempt_type),
+            )
+            row = cur.fetchone()
+        return row[0] if row else 0
+    except Exception:
+        return 0
+
+
+def verify_turnstile(token: str, remote_ip: str) -> bool:
+    """Server-side verification against Cloudflare's siteverify endpoint —
+    the client-submitted token proves nothing on its own without this
+    round trip. Same urllib.request pattern already used for webhook
+    delivery (utils/alerts.py) and the AI assistant's API call
+    (utils/ai_assistant.py) — no new dependency."""
+    if not _TURNSTILE_SECRET_KEY or not token:
+        return False
+    try:
+        import urllib.parse
+        body = urllib.parse.urlencode({
+            "secret": _TURNSTILE_SECRET_KEY,
+            "response": token,
+            "remoteip": remote_ip or "",
+        }).encode()
+        req = urllib.request.Request(_TURNSTILE_VERIFY_URL, data=body, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
+            result = json.loads(resp.read().decode("utf-8"))
+        return bool(result.get("success"))
+    except Exception as e:
+        app_log.warning("Turnstile verification request failed: %s", e)
+        return False
+
+
 def _check_login_lockout(identifier: str, attempt_type: str = "admin"):
     try:
         with _db() as (cur, _):
@@ -86,7 +168,7 @@ def _record_login_failure(identifier: str, attempt_type: str = "admin"):
     """
     log_security_event(
         "auth.failure", "Failed login attempt", level="WARNING",
-        identifier=identifier, attempt_type=attempt_type,
+        identifier=_mask_identifier(identifier), attempt_type=attempt_type,
     )
     enqueue_write(_record_login_failure_db, identifier, attempt_type)
 
@@ -118,7 +200,7 @@ def _record_login_failure_db(identifier: str, attempt_type: str = "admin"):
                 conn.commit()
                 log_security_event(
                     "auth.lockout", "Account locked after repeated failed logins", level="ERROR",
-                    identifier=identifier, attempt_type=attempt_type,
+                    identifier=_mask_identifier(identifier), attempt_type=attempt_type,
                     failed_count=row[0], locked_until=lockout_until.isoformat(),
                 )
     except Exception:
@@ -317,3 +399,144 @@ def employee_api_required(f):
         _flask_g.api_emp_id = row[0]
         return f(*args, **kwargs)
     return wrapper
+
+
+# ── Email Settings 2FA step-up gate ───────────────────────────────────────────
+# Same time.time()-in-session idiom as the WebAuthn fingerprint window
+# (utils/webauthn_utils.py:_WA_FP_VERIFY_WINDOW_SEC), but NOT single-use/popped
+# — this gate needs to stay valid across several requests (view, edit, reveal
+# password) within the window, and the window is refreshed on every authorized
+# request so it reads as "15 minutes of inactivity", matching the requirement,
+# rather than a fixed 15 minutes from the moment the code was entered.
+EMAIL_2FA_WINDOW_SEC = 15 * 60
+
+def email_settings_step_up_valid() -> bool:
+    ts = session.get("email_2fa_verified_at", 0)
+    return bool(ts) and (time.time() - ts) <= EMAIL_2FA_WINDOW_SEC
+
+def email_settings_step_up_refresh():
+    session["email_2fa_verified_at"] = time.time()
+
+def email_settings_step_up_clear():
+    session.pop("email_2fa_verified_at", None)
+
+
+# ── SOC Analyst security dashboard step-up gate ───────────────────────────────
+# Deliberately a SEPARATE step-up flag from the Email Settings one above, even
+# though both ultimately check the same enrolled TOTP secret (utils/totp.py —
+# one MFA seed per admin account, reused across every step-up gate, matching
+# how a real authenticator app works: one enrollment, many uses). Passing the
+# Email Settings gate must not silently also unlock the SOC dashboard, and
+# vice versa — each sensitive area gets its own proof-of-recent-verification,
+# not one that leaks scope to the others.
+#
+# Shorter window than Email Settings (10 min vs 15) because this gate sits in
+# front of security telemetry (who's compromised, who's locked out) rather
+# than a config form — a smaller blast radius if a SOC analyst's unlocked tab
+# is left unattended, but still short enough not to force re-entering a code
+# on every click while actively triaging.
+SOC_ANALYST_ROLE = "soc_analyst"
+SOC_2FA_WINDOW_SEC = 10 * 60
+
+def soc_step_up_valid() -> bool:
+    ts = session.get("soc_2fa_verified_at", 0)
+    return bool(ts) and (time.time() - ts) <= SOC_2FA_WINDOW_SEC
+
+def soc_step_up_refresh():
+    session["soc_2fa_verified_at"] = time.time()
+
+def soc_step_up_clear():
+    session.pop("soc_2fa_verified_at", None)
+
+
+# ── Security Settings hub step-up gate ────────────────────────────────────────
+# Third instance of the same time.time()-in-session step-up pattern as Email
+# Settings and SOC Analyst above, guarding the consolidated "Security" tab in
+# Settings (session timeout, audit log, MFA status, SOC entry point, security
+# posture — all in one place, per the row-wise hub requirement). Kept as its
+# own small set of functions rather than generalizing all three into one
+# parameterized helper — three short, independently-readable instances is
+# still cheap enough that a shared abstraction would mostly just hide which
+# gate a given call site is using; revisit if a fourth one shows up.
+#
+# Unlike the SOC gate, this one has NO role restriction — every admin can
+# open this hub with just their own TOTP code. The SOC row *inside* the hub
+# still enforces its own separate, role-gated step-up before revealing
+# anything (session_risk data, admin MFA rosters) — this gate only protects
+# the lower-sensitivity directory/config view (is MFA on, is CAPTCHA on,
+# session timeout value), not the security dashboard's actual telemetry.
+SECURITY_SETTINGS_2FA_WINDOW_SEC = 10 * 60
+
+def security_settings_step_up_valid() -> bool:
+    ts = session.get("security_settings_2fa_verified_at", 0)
+    return bool(ts) and (time.time() - ts) <= SECURITY_SETTINGS_2FA_WINDOW_SEC
+
+def security_settings_step_up_refresh():
+    session["security_settings_2fa_verified_at"] = time.time()
+
+def security_settings_step_up_clear():
+    session.pop("security_settings_2fa_verified_at", None)
+
+def require_security_settings_2fa(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not security_settings_step_up_valid():
+            log_security_event(
+                "access.denied", "Security Settings hub accessed without a valid 2FA step-up",
+                level="WARNING", identifier=session.get("admin_username"),
+            )
+            return jsonify({"ok": False, "msg": "2FA verification required"}), 403
+        security_settings_step_up_refresh()
+        return f(*args, **kwargs)
+    return wrapper
+
+def require_email_2fa(f):
+    """Protects the Email Settings API routes. Must sit UNDER @admin_required
+    (i.e. @admin_required above, @require_email_2fa below) so an
+    unauthenticated caller gets the normal admin-login redirect/401 rather
+    than a confusing 403 about 2FA."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not email_settings_step_up_valid():
+            log_security_event(
+                "access.denied", "Email Settings accessed without a valid 2FA step-up",
+                level="WARNING", identifier=session.get("admin_username"),
+            )
+            return jsonify({"ok": False, "msg": "2FA verification required"}), 403
+        email_settings_step_up_refresh()
+        return f(*args, **kwargs)
+    return wrapper
+
+
+# ── Object-level authorization (BOLA/IDOR guard) ──────────────────────────────
+def enforce_ownership(resource_owner_id, resource_type, resource_id=None):
+    """Check whether the current session may access a resource it doesn't own.
+
+    Centralizes the ownership idiom that already existed hand-rolled in
+    payroll.py (view_payslip) and documents.py (download_document): admin
+    bypass, else the session's own employee_id must equal the resource's
+    owning employee_id. Call this AFTER fetching the row (you need to know
+    who owns it), not as a pre-request decorator — most resources here are
+    looked up by an opaque row id (document id, payslip period), not by an
+    id that itself encodes the owner.
+
+    Every denial logs at ERROR, which utils/alerts.py turns into a real-time
+    webhook alert (extensions.py:log_security_event) — a BOLA probe is never
+    silently swallowed, regardless of which route calls this.
+
+    Returns True if access is allowed, False if it should be denied (caller
+    decides the response — redirect, flash, 403 JSON, etc., to match its
+    existing route style).
+    """
+    if session.get("admin_logged_in"):
+        return True
+    requester = session.get("employee_id")
+    if requester and requester == resource_owner_id:
+        return True
+    log_security_event(
+        "access.denied", f"Attempted cross-employee access to {resource_type}",
+        level="ERROR", identifier=requester or "anonymous",
+        resource_type=resource_type, resource_id=resource_id,
+        requested_owner=resource_owner_id,
+    )
+    return False

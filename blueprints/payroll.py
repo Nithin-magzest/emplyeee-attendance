@@ -20,8 +20,8 @@ from flask import (
 )
 
 from database import get_db_connection
-from extensions import log_security_event, app_log
-from utils.auth import admin_required, employee_required, api_required
+from extensions import app_log
+from utils.auth import admin_required, employee_required, api_required, enforce_ownership
 from utils.helpers import _audit, decrypt_pii, encrypt_pii
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp
 from utils.attendance_utils import (
@@ -299,37 +299,44 @@ def salary_report_export():
 @payroll_bp.route("/email_config", methods=["GET", "POST"])
 @admin_required
 def email_config():
+    # GET used to render this standalone page with the SMTP password
+    # decrypted straight into the form's HTML and no step-up gate at all —
+    # worse than the ciphertext-leak bug on the /settings copy of this form,
+    # since here it was the real plaintext. Retired in favor of the
+    # 2FA-gated Email tab; redirecting (rather than deleting the route)
+    # keeps the "Setup Email First" link on the salary report page working.
+    if request.method == "GET":
+        return redirect("/settings?tab=email")
+
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    host       = request.form["smtp_host"].strip()
+    port       = int(request.form["smtp_port"])
+    user       = request.form["smtp_user"].strip()
+    password   = request.form.get("smtp_pass", "").strip()
+    from_name  = request.form.get("from_name", "Attendance System").strip()
+    from_email = request.form.get("from_email", "").strip() or user
 
-    if request.method == "POST":
-        host       = request.form["smtp_host"].strip()
-        port       = int(request.form["smtp_port"])
-        user       = request.form["smtp_user"].strip()
-        password   = request.form["smtp_pass"].strip()
-        from_name  = request.form.get("from_name", "Attendance System").strip()
-        from_email = request.form.get("from_email", "").strip() or user
+    # A blank or masked password means "leave the stored one unchanged" —
+    # previously any save re-encrypted whatever was in the field, and since
+    # GET used to prefill that field with ciphertext, an untouched save
+    # would silently corrupt the real password into unusable garbage.
+    if password and password != "********":
+        encrypted_password = encrypt_pii(password)
+    else:
+        cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
+        prev = cursor.fetchone()
+        encrypted_password = prev[0] if prev else ""
 
-        cursor.execute("DELETE FROM email_config")
-        cursor.execute(
-            "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) VALUES (%s,%s,%s,%s,%s,%s)",
-            (host, port, user, encrypt_pii(password), from_name, from_email)
-        )
-        db.commit()
-        cursor.close()
-        db.close()
-        return redirect("/settings?tab=email&saved=1")
-
-    cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
-    row    = cursor.fetchone()
-    config = {"host": row[0], "port": row[1], "user": row[2], "password": decrypt_pii(row[3]), "from_name": row[4], "from_email": row[5] or row[2]} if row else None
+    cursor.execute("DELETE FROM email_config")
+    cursor.execute(
+        "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) VALUES (%s,%s,%s,%s,%s,%s)",
+        (host, port, user, encrypted_password, from_name, from_email)
+    )
+    db.commit()
     cursor.close()
     db.close()
-
-    return render_template("email_config.html",
-        config=config,
-        saved=request.args.get("saved") == "1",
-    )
+    return redirect("/settings?tab=email&saved=1")
 
 # ---------------- SEND SALARY EMAIL (single) ----------------
 
@@ -1104,20 +1111,11 @@ def api_send_salary_email():
 
 @payroll_bp.route("/view_payslip/<emp_id>/<int:year>/<int:month>")
 def view_payslip(emp_id, year, month):
-    is_admin = session.get("admin_logged_in")
-    is_own   = session.get("employee_id") == emp_id
-    if not is_admin and not is_own:
-        # emp_id is a raw URL parameter — this is exactly the BOLA/IDOR
-        # shape (a valid session trying to view a DIFFERENT employee's
-        # salary data by editing the URL). Ownership check already existed;
-        # it just wasn't logged anywhere, so a real probing attempt would
-        # have been invisible. ERROR severity feeds the alerting webhook
-        # (utils/alerts.py), not just the log stream.
-        log_security_event(
-            "access.denied", "Attempted cross-employee payslip access",
-            level="ERROR", identifier=session.get("employee_id") or "anonymous",
-            requested_emp_id=emp_id,
-        )
+    # emp_id is a raw URL parameter — this is exactly the BOLA/IDOR shape
+    # (a valid session trying to view a DIFFERENT employee's salary data by
+    # editing the URL). enforce_ownership() logs any denial at ERROR, which
+    # feeds the alerting webhook (utils/alerts.py), not just the log stream.
+    if not enforce_ownership(emp_id, "payslip", f"{year}-{month:02d}"):
         return redirect("/employee_login")
 
     db = get_db_connection()

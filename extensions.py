@@ -100,6 +100,40 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
         send_security_alert(event_type, message, level="ERROR",
                              ip=ip, path=path, method=method, **fields)
 
+    # Every event (not just ERROR) also lands in the security_events table,
+    # queryable by the SOC dashboard — the log stream above is for
+    # tail/grep/SIEM ingestion, this is for "a SOC analyst opens a page and
+    # sees recent events" without needing log-file access. Async via the
+    # same background-writer queue as session-risk/lockout writes, so a
+    # burst of events (e.g. a brute-force flood) can't add DB-write latency
+    # to the request thread that's already under load. Lazy import for the
+    # same circularity reason as utils.alerts above: utils/async_writer.py
+    # imports app_log from this module.
+    from utils.async_writer import enqueue_write
+    enqueue_write(_persist_security_event, event_type, level.upper(), message,
+                  fields.get("identifier"), ip, path, method,
+                  {k: v for k, v in fields.items() if k != "identifier"})
+
+
+def _persist_security_event(event_type, level, message, identifier, ip, path, method, extra_fields):
+    """Runs on the background writer thread only — see utils/async_writer.py.
+    Never let a persistence failure here affect the caller; log_security_event
+    has already done its real job (the log line + any webhook) by the time
+    this runs."""
+    import json as _json
+    from database import get_db_connection
+    try:
+        db = get_db_connection(); cur = db.cursor()
+        cur.execute(
+            "INSERT INTO security_events (event_type, level, message, identifier, ip, path, method, extra_json) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            (event_type[:80], level[:10], message[:500], identifier, ip, path, method,
+             _json.dumps(extra_fields, default=str)[:4000] if extra_fields else None),
+        )
+        db.commit(); cur.close(); db.close()
+    except Exception as e:
+        app_log.error("Failed to persist security event to DB: %s", e)
+
 # ── Flask app ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder="templates", static_folder="static")
 

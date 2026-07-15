@@ -12,10 +12,38 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
+      /* ── TIME-OF-DAY THEME ──
+         Afternoon (12:00-17:00) is the default palette below — unset vars.
+         Morning/evening/night override via [data-time-theme] on <body>,
+         set by /static/time-theme.min.js. Only applies when the user
+         hasn't explicitly picked light/dark mode (that always wins — see
+         time-theme.min.js). Sidebar gradient + active-nav accent only,
+         everything else stays as-is on purpose (subtle, formal shift). */
+      :root {
+        --brand-grad-1: #0f2460;
+        --brand-grad-2: #1a3a8f;
+        --brand-accent: #60a5fa;
+      }
+      body[data-time-theme="morning"] {
+        --brand-grad-1: #132743;
+        --brand-grad-2: #2c5282;
+        --brand-accent: #7dd3fc;
+      }
+      body[data-time-theme="evening"] {
+        --brand-grad-1: #2e1f47;
+        --brand-grad-2: #4c3575;
+        --brand-accent: #c4b5fd;
+      }
+      body[data-time-theme="night"] {
+        --brand-grad-1: #0a0e1a;
+        --brand-grad-2: #1a2035;
+        --brand-accent: #64748b;
+      }
+
       /* ── SIDEBAR ── */
       .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        background: linear-gradient(180deg, var(--brand-grad-1) 0%, var(--brand-grad-2) 100%);
         padding: 22px 14px; color: white;
         display: flex; flex-direction: column; flex-shrink: 0;
         box-shadow: 4px 0 20px rgba(0,0,0,0.18);
@@ -51,7 +79,7 @@
       }
       .nav-item.active::before {
         content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
-        width: 3px; border-radius: 2px; background: #60a5fa;
+        width: 3px; border-radius: 2px; background: var(--brand-accent);
       }
       .nav-icon {
         width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
@@ -127,6 +155,47 @@
       .hbtn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
       .hbtn-green  { background: #16a34a; color: white; }
       .hbtn-blue   { background: #2563eb; color: white; }
+
+      /* ── ADMIN SEARCH ── */
+      .admin-search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
+      .admin-search-icon {
+        position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+        color: #94a3b8; font-size: 16px; pointer-events: none;
+      }
+      .admin-search-input {
+        width: 100%; padding: 10px 14px 10px 38px; border: 1px solid #e2e8f0; border-radius: 10px;
+        font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: 0.15s;
+      }
+      .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+      .admin-search-results {
+        position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 500;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 16px 40px rgba(15,23,42,0.18);
+        max-height: 420px; overflow-y: auto; display: none;
+      }
+      .admin-search-results.open { display: block; }
+      .asr-group-label {
+        padding: 8px 14px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: #94a3b8;
+      }
+      .asr-item {
+        display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+        text-decoration: none; color: inherit; cursor: pointer;
+      }
+      .asr-item:hover, .asr-item.active { background: #eff6ff; }
+      .asr-icon {
+        width: 30px; height: 30px; border-radius: 8px; background: #eef2f7; color: #2563eb;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px;
+      }
+      .asr-label { font-size: 13px; font-weight: 600; color: #1e293b; }
+      .asr-sub { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+      .asr-empty { padding: 20px 14px; text-align: center; color: #94a3b8; font-size: 12.5px; }
+      body.dark-mode .admin-search-input { background: #22272e; border-color: #444c56; color: #cdd9e5 !important; }
+      body.dark-mode .admin-search-results { background: #22272e; border-color: #444c56; }
+      body.dark-mode .asr-item:hover, body.dark-mode .asr-item.active { background: #2d333b; }
+      body.dark-mode .asr-label { color: #cdd9e5; }
+      body.dark-mode .asr-sub { color: #8b949e; }
+      body.dark-mode .asr-icon { background: #2d333b; }
+      @media (max-width: 900px) { .admin-search-wrap { order: 3; max-width: 100%; flex-basis: 100%; } }
 
       /* ── STAT CARDS ── */
       .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 24px; }
@@ -351,6 +420,26 @@
   <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
     
   <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <!-- Top-level, always visible to every admin (unlike the SOC row
+           below, which only renders for admin_role=='soc_analyst') — this
+           is the entry to the MFA-gated Security hub itself, a standalone
+           page (templates/security_hub.html), not a Settings tab. The gate
+           is the TOTP check on that page, not who can see this link. -->
+      <a class="nav-item" href="/security"><span class="nav-icon"><i class="ti ti-shield-lock"></i></span>Security</a>
+      {% if session.get('admin_role') == 'soc_analyst' %}
+      <!-- Only rendered server-side for a session whose admin_role is
+           already soc_analyst — a regular admin's or manager's page HTML
+           never contains this link at all (not just CSS-hidden), so there's
+           nothing to notice in view-source either. The route behind it
+           (blueprints/admin_views.py:soc_security_dashboard) still enforces
+           the exact same role+TOTP-step-up check independently — this is a
+           discoverability improvement for legitimate SOC analysts, not a
+           replacement for that server-side gate. The corner trigger further
+           down the page still works too, for anyone who prefers it. -->
+      <a class="nav-item" href="#" onclick="socGateOpen(); return false;">
+        <span class="nav-icon"><i class="ti ti-shield-lock"></i></span>SOC / Security Center
+      </a>
+      {% endif %}
       <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
       
       <div class="co-panel">
@@ -397,9 +486,16 @@
           <h1>Admin Dashboard</h1>
           <div class="sub">{{ today }} &nbsp;·&nbsp; <span id="clock"></span></div>
         </div>
+        <div class="admin-search-wrap" id="adminSearchWrap">
+          <i class="ti ti-search admin-search-icon"></i>
+          <input type="text" id="adminSearchInput" class="admin-search-input"
+                 placeholder="Search employees, tickets, leaves, pages…"
+                 title="Admin search" autocomplete="off" />
+          <div class="admin-search-results" id="adminSearchResults"></div>
+        </div>
         <div class="header-actions">
           <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green">⬇ Export Month</a>
-          <button onclick="sendAbsenteeReport()" class="hbtn hbtn-blue">📧 Email Absentees</button>
+          <button type="button" onclick="sendAbsenteeReport()" class="hbtn hbtn-blue">📧 Email Absentees</button>
         </div>
       </div>
 
@@ -1560,7 +1656,262 @@
       setInterval(loadCharts, 120000);
     </script>
   <script src="/static/darkmode.min.js"></script>
+  <script src="/static/time-theme.min.js"></script>
 
+  <!-- ADMIN SEARCH -->
+  <script>
+  (function() {
+    var STATIC_PAGES = [
+      {label: 'Dashboard', sub: 'Admin home', url: '/admin', icon: 'home'},
+      {label: 'Employees', sub: 'Manage employees', url: '/employees', icon: 'users'},
+      {label: 'Attendance', sub: 'Monthly attendance report', url: '/monthly_report', icon: 'calendar-check'},
+      {label: 'Mark Attendance', sub: 'Bulk mark attendance', url: '/bulk_mark_attendance', icon: 'pencil-check'},
+      {label: 'Salary & Payslips', sub: 'Payroll & payslips', url: '/salary_report', icon: 'coin'},
+      {label: 'Leaves & Holidays', sub: 'Leave requests, holidays', url: '/leave_holidays', icon: 'calendar-event'},
+      {label: 'OT & Comp-off', sub: 'Overtime, comp-off', url: '/overtime', icon: 'clock-bolt'},
+      {label: 'Performance & Comms', sub: 'Reviews, announcements', url: '/performance', icon: 'chart-line'},
+      {label: 'Onboarding', sub: 'New-hire onboarding', url: '/onboarding', icon: 'checklist'},
+      {label: 'Analytics', sub: 'Charts & insights', url: '/analytics', icon: 'chart-bar'},
+      {label: 'Org Chart', sub: 'Reporting structure', url: '/org_chart', icon: 'hierarchy'},
+      {label: 'Admin Tools', sub: 'System tools', url: '/admin_tools', icon: 'tool'},
+      {label: 'Settings', sub: 'Company settings', url: '/settings', icon: 'settings'},
+      {label: 'Companies', sub: 'Manage companies', url: '/companies', icon: 'building'},
+      {label: 'Tickets', sub: 'Support tickets', url: '/tickets', icon: 'ticket'},
+    ];
+    var GROUP_LABELS = {employee: 'Employees', ticket: 'Tickets', leave: 'Leave Requests', page: 'Pages'};
+    var GROUP_ICONS  = {employee: 'user', ticket: 'ticket', leave: 'calendar-event', page: 'apps'};
+
+    var input   = document.getElementById('adminSearchInput');
+    var results = document.getElementById('adminSearchResults');
+    var wrap    = document.getElementById('adminSearchWrap');
+    var debounceTimer = null;
+    var flatItems = [];
+    var activeIndex = -1;
+
+    function el(tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function renderGroups(groups) {
+      flatItems = [];
+      activeIndex = -1;
+      results.innerHTML = '';
+      var any = false;
+      groups.forEach(function(g) {
+        if (!g.items.length) return;
+        any = true;
+        results.appendChild(el('div', 'asr-group-label', GROUP_LABELS[g.type]));
+        g.items.forEach(function(item) {
+          var idx = flatItems.length;
+          flatItems.push(item);
+          var a = el('a', 'asr-item');
+          a.href = item.url;
+          a.dataset.idx = idx;
+          var icon = el('span', 'asr-icon');
+          icon.innerHTML = '<i class="ti ti-' + GROUP_ICONS[g.type] + '"></i>';
+          var textWrap = el('span');
+          textWrap.appendChild(el('div', 'asr-label', item.label));
+          if (item.sub) textWrap.appendChild(el('div', 'asr-sub', item.sub));
+          a.appendChild(icon);
+          a.appendChild(textWrap);
+          results.appendChild(a);
+        });
+      });
+      if (!any) results.appendChild(el('div', 'asr-empty', 'No matches found.'));
+      results.classList.add('open');
+    }
+
+    function setActive(idx) {
+      var items = results.querySelectorAll('.asr-item');
+      items.forEach(function(it) { it.classList.remove('active'); });
+      if (idx >= 0 && idx < items.length) {
+        items[idx].classList.add('active');
+        items[idx].scrollIntoView({block: 'nearest'});
+        activeIndex = idx;
+      }
+    }
+
+    function search(q) {
+      var qLower = q.toLowerCase();
+      var pageMatches = STATIC_PAGES.filter(function(p) {
+        return p.label.toLowerCase().indexOf(qLower) !== -1 || p.sub.toLowerCase().indexOf(qLower) !== -1;
+      }).slice(0, 6);
+
+      fetch('/api/admin/search?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var byType = {employee: [], ticket: [], leave: []};
+          (data.results || []).forEach(function(r) { if (byType[r.type]) byType[r.type].push(r); });
+          renderGroups([
+            {type: 'employee', items: byType.employee},
+            {type: 'ticket', items: byType.ticket},
+            {type: 'leave', items: byType.leave},
+            {type: 'page', items: pageMatches},
+          ]);
+        })
+        .catch(function() {
+          renderGroups([{type: 'page', items: pageMatches}]);
+        });
+    }
+
+    input.addEventListener('input', function() {
+      var q = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (q.length < 2) { results.classList.remove('open'); return; }
+      debounceTimer = setTimeout(function() { search(q); }, 220);
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (!results.classList.contains('open')) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIndex + 1, flatItems.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        var target = flatItems[activeIndex >= 0 ? activeIndex : 0];
+        if (target) window.location.href = target.url;
+      } else if (e.key === 'Escape') {
+        results.classList.remove('open');
+        input.blur();
+      }
+    });
+
+    input.addEventListener('focus', function() {
+      if (input.value.trim().length >= 2 && flatItems.length) results.classList.add('open');
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!wrap.contains(e.target)) results.classList.remove('open');
+    });
+  })();
+  </script>
+  <!-- /ADMIN SEARCH -->
+
+  <!-- SOC ANALYST GATE
+       Visually hidden corner trigger + MFA step-up modal. IMPORTANT: this
+       element being hard to see is a UX/discretion choice, not the security
+       control — the real gate is entirely server-side (role check + TOTP,
+       see blueprints/admin_views.py:api_soc_verify_2fa). A non-SOC admin
+       who finds and clicks this gets a generic "Verification failed."
+       message no matter what they enter; the backend can't be reasoned
+       about from anything visible here, including this comment being in
+       the page source. -->
+  <style>
+    #soc-gate-trigger {
+      position: fixed; bottom: 6px; right: 6px; width: 16px; height: 16px;
+      padding: 0; border: none; background: transparent; opacity: 0.035;
+      cursor: default; z-index: 9998;
+    }
+    /* Keyboard-reachable on purpose — an invisible element only a mouse can
+       ever find would be unusable by a legitimate SOC analyst navigating
+       with Tab. A sighted mouse user still can't casually notice it. */
+    #soc-gate-trigger:focus-visible {
+      opacity: 0.6; outline: 1px dashed #64748b; outline-offset: 2px;
+    }
+    #soc-gate-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(2,6,23,0.72);
+      z-index: 9999; align-items: center; justify-content: center;
+    }
+    #soc-gate-overlay.open { display: flex; }
+    #soc-gate-modal {
+      background: #0f172a; border: 1px solid #1f2937; border-radius: 14px;
+      padding: 28px 26px; width: 100%; max-width: 320px; text-align: center;
+    }
+    #soc-gate-modal h2 { font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+    #soc-gate-modal p { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+    #soc-gate-code {
+      width: 100%; padding: 12px; text-align: center; letter-spacing: 5px;
+      font-size: 18px; font-weight: 700; background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; color: #f1f5f9; outline: none; margin-bottom: 14px;
+    }
+    #soc-gate-code:focus { border-color: #38bdf8; }
+    #soc-gate-submit {
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
+      background: #0284c7; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    #soc-gate-submit:hover { background: #0369a1; }
+    #soc-gate-err { margin-top: 10px; font-size: 12px; color: #f87171; display: none; }
+  </style>
+
+  <!-- aria-label is intentionally generic, not empty: a blank label is
+       broken accessibility (announces as nothing), but the real security
+       boundary doesn't depend on this string either way — see the block
+       comment above. -->
+  <button id="soc-gate-trigger" type="button" aria-label="Advanced" tabindex="0" onclick="socGateOpen()"></button>
+
+  <div id="soc-gate-overlay">
+    <div id="soc-gate-modal">
+      <h2>Verification Required</h2>
+      <p>Enter your 6-digit authentication code.</p>
+      <input type="text" id="soc-gate-code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+             placeholder="000000" autocomplete="one-time-code" />
+      <button id="soc-gate-submit" type="button" onclick="socGateSubmit()">Verify &amp; Continue</button>
+      <div id="soc-gate-err">Verification failed.</div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    var overlay = document.getElementById('soc-gate-overlay');
+    var codeEl  = document.getElementById('soc-gate-code');
+    var errEl   = document.getElementById('soc-gate-err');
+
+    window.socGateOpen = function() {
+      errEl.style.display = 'none';
+      codeEl.value = '';
+      overlay.classList.add('open');
+      codeEl.focus();
+    };
+
+    function close() {
+      overlay.classList.remove('open');
+    }
+
+    window.socGateSubmit = function() {
+      var code = codeEl.value.trim();
+      errEl.style.display = 'none';
+      fetch('/api/security/soc/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code }),
+      })
+        .then(function(r) {
+          // A 404 here means "not authorized" (wrong role, bad code, or no
+          // session) by design — this route never distinguishes why. Any
+          // other non-OK status is treated the same way: generic failure,
+          // no detail that could help someone iterate toward success.
+          if (!r.ok) throw new Error('denied');
+          return r.json();
+        })
+        .then(function(d) {
+          if (!d.ok || !d.redirect) throw new Error('denied');
+          window.location.href = d.redirect;
+        })
+        .catch(function() {
+          errEl.style.display = 'block';
+          codeEl.value = '';
+          codeEl.focus();
+        });
+    };
+
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+    codeEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') socGateSubmit();
+      if (e.key === 'Escape') close();
+    });
+
+    // Cross-page entry: the Security Settings hub (templates/settings.html)
+    // has its own row linking here with ?open_soc=1 as a shortcut, since
+    // that hub's own modal can't submit into this page's DOM — this just
+    // saves an extra click, the actual gate is still the same POST below.
+    if (new URLSearchParams(window.location.search).get('open_soc') === '1') {
+      socGateOpen();
+    }
+  })();
+  </script>
+  <!-- /SOC ANALYST GATE -->
 
 </body>
 </html>

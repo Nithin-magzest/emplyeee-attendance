@@ -192,6 +192,15 @@
     #testResult.ok  { background: #dcfce7; color: #15803d; }
     #testResult.err { background: #fee2e2; color: #dc2626; }
 
+    /* ── EMAIL SETTINGS 2FA GATE ── */
+    #email-2fa-gate { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 18px; }
+    #email-2fa-gate input[type="text"] { text-align: center; letter-spacing: 4px; font-size: 18px; font-weight: 700; }
+    #email-2fa-secret { background: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+    .err { margin-top: 8px; font-size: 12px; padding: 8px 12px; border-radius: 8px; background: #fee2e2; color: #dc2626; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
     /* ── BULK ASSIGN BAR ── */
     .bulk-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; margin-bottom: 14px; }
     .bulk-bar label { font-size: 13px; color: #0369a1; font-weight: 600; }
@@ -964,7 +973,6 @@
         </button>
         <div class="subnav-dd-menu" id="dd-sys">
           <button class="subnav-dd-item active" id="ddi-email"      onclick="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
-          <button class="subnav-dd-item"        id="ddi-security"   onclick="switchSub('sys','security')">   <i class="ti ti-shield-lock"></i> Security</button>
           <button class="subnav-dd-item"        id="ddi-appearance" onclick="switchSub('sys','appearance')"> <i class="ti ti-palette"></i>    Appearance</button>
         </div>
       </div>
@@ -979,15 +987,63 @@
             <div class="two-col">
               <div class="section">
                 <div class="section-title">📡 SMTP Configuration</div>
-                <form method="POST" action="/email_config">
-                  <div class="field"><label>SMTP Host</label><input type="text" name="smtp_host" placeholder="smtp.gmail.com" value="{{ email_config.host if email_config else '' }}" /></div>
-                  <div class="field"><label>Port</label><input type="number" name="smtp_port" placeholder="587" value="{{ email_config.port if email_config else 587 }}" /></div>
-                  <div class="field"><label>Username</label><input type="email" name="smtp_user" placeholder="you@gmail.com" value="{{ email_config.user if email_config else '' }}" /></div>
-                  <div class="field"><label>Password / App Password</label><input type="password" name="smtp_pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" value="{{ email_config.password if email_config else '' }}" /></div>
-                  <div class="field"><label>From Name</label><input type="text" name="from_name" placeholder="HR Team" value="{{ email_config.from_name if email_config else '' }}" /></div>
-                  <div class="field"><label>From Email</label><input type="email" name="from_email" placeholder="hr@company.com" value="{{ email_config.from_email if email_config else '' }}" /></div>
-                  <button type="submit" class="btn-submit">Save SMTP</button>
-                </form>
+
+                <!-- Locked state: no SMTP data has been fetched yet — nothing
+                     sensitive is in the page until this gate is passed. -->
+                <div id="email-2fa-gate">
+                  <div class="u-d-flex u-ai-center u-gap-8 u-mb-10">
+                    <i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i>
+                    <div class="u-fs-14 u-fw-700 u-c-1e293b">Identity Verification Required</div>
+                  </div>
+                  <div class="u-fs-12 u-c-64748b u-mb-14">
+                    SMTP settings include a stored password. Confirm it's you before this loads.
+                  </div>
+
+                  <!-- First-time enrollment sub-view (hidden unless no TOTP is set up yet) -->
+                  <div id="email-2fa-enroll" style="display:none;">
+                    <div class="u-fs-12 u-c-64748b u-mb-10">Scan with Google Authenticator (or any TOTP app), then enter the 6-digit code it shows to confirm setup.</div>
+                    <img id="email-2fa-qr" alt="2FA QR code" style="width:160px;height:160px;display:block;margin:0 auto 10px;" />
+                    <div class="u-fs-11 u-c-94a3b8 u-ta-center u-mb-14">Can't scan? Enter manually: <code id="email-2fa-secret"></code></div>
+                    <div class="field"><label>6-digit code</label>
+                      <input type="text" id="email-2fa-enroll-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
+                    </div>
+                    <button type="button" class="btn-submit" onclick="confirmEmail2faEnroll()">Confirm & Enable</button>
+                    <div id="email-2fa-enroll-err" class="err" style="display:none;"></div>
+                  </div>
+
+                  <!-- Normal unlock sub-view (shown once TOTP is already enrolled) -->
+                  <div id="email-2fa-verify" style="display:none;">
+                    <div class="field"><label>6-digit code</label>
+                      <input type="text" id="email-2fa-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
+                    </div>
+                    <button type="button" class="btn-submit" onclick="verifyEmail2fa()">Verify & Unlock</button>
+                    <div id="email-2fa-err" class="err" style="display:none;"></div>
+                  </div>
+                </div>
+
+                <!-- Unlocked state: populated from /api/settings/email only
+                     after verifyEmail2fa() succeeds. Hidden by default. -->
+                <div id="email-settings-panel" style="display:none;">
+                  <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                    <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                    <button type="button" class="btn-test" onclick="lockEmailSettings()">🔒 Lock now</button>
+                  </div>
+                  <div class="field"><label>SMTP Host</label><input type="text" id="es-host" placeholder="smtp.gmail.com" /></div>
+                  <div class="field"><label>Port</label><input type="number" id="es-port" placeholder="587" /></div>
+                  <div class="field"><label>Username</label><input type="email" id="es-user" placeholder="you@gmail.com" /></div>
+                  <div class="field">
+                    <label>Password / App Password</label>
+                    <div class="u-d-flex u-gap-8">
+                      <input type="password" id="es-pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" style="flex:1;" />
+                      <button type="button" class="btn-test" onclick="revealEmailPassword()">👁 Reveal</button>
+                    </div>
+                  </div>
+                  <div class="field"><label>From Name</label><input type="text" id="es-from-name" placeholder="HR Team" /></div>
+                  <div class="field"><label>From Email</label><input type="email" id="es-from-email" placeholder="hr@company.com" /></div>
+                  <button type="button" class="btn-submit" onclick="saveEmailSettings()">Save SMTP</button>
+                  <div id="email-settings-err" class="err" style="display:none;"></div>
+                </div>
+
                 <div class="test-card u-mt-14">
                   <div class="u-fs-13 u-fw-700 u-c-1e293b">Test Connection</div>
                   <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" onclick="sendTestEmail()">Send Test</button></div>
@@ -1003,28 +1059,6 @@
                   {% endfor %}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- SECURITY -->
-          <div class="s3-section" id="ss-security">
-            <div class="sec-header">
-              <div class="sec-icon u-bg-fef2f2"><i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i></div>
-              <div><div class="sec-title">Security</div><div class="sec-sub">Session management and access control</div></div>
-            </div>
-            <div class="section">
-              <form method="POST" action="/save_security_settings">
-                <div class="two-col">
-                  <div class="field"><label>Session Timeout</label><select name="session_timeout">{% for t in [15,30,60,120,240] %}<option value="{{ t }}" {% if features.session_timeout==t %}selected{% endif %}>{{ t }} minutes</option>{% endfor %}</select><div class="field-note">Auto-logout inactive admins after this duration.</div></div>
-                  <div class="field"><label>Audit Log</label><a href="/admin_tools?tab=audit" class="btn-submit u-d-inline-block u-tdec-none">View Audit Log &#8594;</a></div>
-                </div>
-                <div class="feat-card u-mb-16">
-                  <div class="feat-icon">🔐</div>
-                  <div class="feat-body"><div class="feat-name">Two-Factor Authentication</div><div class="feat-desc">Extra login security for admin accounts (coming soon)</div></div>
-                  <label class="toggle"><input type="checkbox" disabled /><span class="toggle-slider u-op-d45 u-cur-not-allowed"></span></label>
-                </div>
-                <button type="submit" class="btn-submit">Save Security Settings</button>
-              </form>
             </div>
           </div>
 
@@ -1223,7 +1257,7 @@
 
   <script>
     /* ── 3-TAB + DROPDOWN SUB-NAV ── */
-    var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',email:'sys',security:'sys',appearance:'sys' };
+    var groupMap  = { company:'org',attendance:'org',payroll:'fin',salary:'fin',email:'sys',appearance:'sys' };
     var firstSub  = { org:'company', fin:'payroll', sys:'email' };
     var crumbData = {
       company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Organisation details' },
@@ -1231,8 +1265,7 @@
       attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
       payroll:    { icon:'<i class="ti ti-coin u-c-ca8a04"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
       salary:     { icon:'<i class="ti ti-cash u-c-16a34a"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
-      email:      { icon:'<i class="ti ti-mail u-c-0284c7"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' },
-      security:   { icon:'<i class="ti ti-shield-lock u-c-dc2626"></i>', bg:'#fef2f2', title:'Security',       sub:'Session and access' }
+      email:      { icon:'<i class="ti ti-mail u-c-0284c7"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' }
     };
 
     /* ── SET PIN MODAL ── */
@@ -1525,6 +1558,152 @@
         })
         .catch(function() { res.textContent = '❌ Network error.'; res.className = 'err'; });
     }
+
+    /* ── EMAIL SETTINGS 2FA GATE ──────────────────────────────────────────
+       Unlock state lives ONLY in this closure variable — never localStorage,
+       never sessionStorage. A page reload always starts locked again, which
+       is the point: nothing survives if the machine is left unattended. The
+       server session flag (utils/auth.py:email_settings_step_up_valid) is
+       the real authority; this JS timer is a UX/defense-in-depth mirror of
+       it, not a substitute — every fetch below still gets a 403 from the
+       server if the session-side window already expired. */
+    (function() {
+      var unlocked = false;
+      var idleTimer = null;
+      var IDLE_MS = 15 * 60 * 1000;
+
+      function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        if (!unlocked) return;
+        idleTimer = setTimeout(lockEmailSettings, IDLE_MS);
+      }
+      ['mousemove', 'keydown', 'click', 'scroll'].forEach(function(evt) {
+        document.addEventListener(evt, function() { if (unlocked) resetIdleTimer(); }, { passive: true });
+      });
+
+      window.lockEmailSettings = function() {
+        unlocked = false;
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        document.getElementById('email-settings-panel').style.display = 'none';
+        document.getElementById('email-2fa-gate').style.display = '';
+        document.getElementById('es-pass').value = '';
+        fetch('/api/settings/2fa/lock', { method: 'POST' }).catch(function() {});
+      };
+
+      window.initEmail2faGate = function() {
+        fetch('/api/settings/2fa/setup')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) return;
+            if (d.already_enabled) {
+              document.getElementById('email-2fa-verify').style.display = '';
+              document.getElementById('email-2fa-enroll').style.display = 'none';
+            } else {
+              document.getElementById('email-2fa-qr').src = d.qr_code;
+              document.getElementById('email-2fa-secret').textContent = d.secret;
+              document.getElementById('email-2fa-enroll').style.display = '';
+              document.getElementById('email-2fa-verify').style.display = 'none';
+            }
+          })
+          .catch(function() {});
+      };
+
+      window.confirmEmail2faEnroll = function() {
+        var code = document.getElementById('email-2fa-enroll-code').value.trim();
+        var err  = document.getElementById('email-2fa-enroll-err');
+        err.style.display = 'none';
+        fetch('/api/settings/2fa/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.style.display = 'block'; return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      window.verifyEmail2fa = function() {
+        var code = document.getElementById('email-2fa-code').value.trim();
+        var err  = document.getElementById('email-2fa-err');
+        err.style.display = 'none';
+        fetch('/api/settings/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.style.display = 'block'; return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      function unlockEmailSettingsUI() {
+        unlocked = true;
+        fetch('/api/settings/email')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { unlocked = false; window.initEmail2faGate(); return; }
+            var c = d.config || {};
+            document.getElementById('es-host').value       = c.host || '';
+            document.getElementById('es-port').value       = c.port || 587;
+            document.getElementById('es-user').value       = c.user || '';
+            document.getElementById('es-pass').value       = c.password || '';
+            document.getElementById('es-from-name').value  = c.from_name || '';
+            document.getElementById('es-from-email').value = c.from_email || '';
+            document.getElementById('email-2fa-gate').style.display = 'none';
+            var panel = document.getElementById('email-settings-panel');
+            panel.style.display = '';
+            panel.classList.add('fade-in');
+            resetIdleTimer();
+          })
+          .catch(function() { window.lockEmailSettings(); });
+      }
+
+      window.revealEmailPassword = function() {
+        fetch('/api/settings/email/reveal-password', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { alert(d.msg || 'Could not reveal password.'); return; }
+            var field = document.getElementById('es-pass');
+            field.value = d.password;
+            field.type  = 'text';
+            setTimeout(function() { field.type = 'password'; }, 8000);
+          })
+          .catch(function() { alert('Network error.'); });
+      };
+
+      window.saveEmailSettings = function() {
+        var err = document.getElementById('email-settings-err');
+        err.style.display = 'none';
+        fetch('/api/settings/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host:       document.getElementById('es-host').value.trim(),
+            port:       document.getElementById('es-port').value.trim(),
+            user:       document.getElementById('es-user').value.trim(),
+            password:   document.getElementById('es-pass').value,
+            from_name:  document.getElementById('es-from-name').value.trim(),
+            from_email: document.getElementById('es-from-email').value.trim(),
+          }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Save failed.'; err.style.display = 'block'; return; }
+            resetIdleTimer();
+            alert('SMTP settings saved.');
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      document.addEventListener('DOMContentLoaded', window.initEmail2faGate);
+      if (document.readyState !== 'loading') window.initEmail2faGate();
+    })();
 
     /* ── SHIFT ASSIGN ── */
     async function assignShift(empId, sel) {

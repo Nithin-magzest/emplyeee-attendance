@@ -16,6 +16,8 @@ from utils.auth import (
     generate_password_hash, check_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     admin_required, employee_required, employee_api_required,
+    _get_failed_count, verify_turnstile, turnstile_enabled,
+    CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY,
 )
 from utils.helpers import get_company_settings, invalidate_settings_cache, _audit, _db, _safe_app_url
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
@@ -114,6 +116,27 @@ def admin_login():
         if locked:
             return render_template("admin_login.html",
                 error=f"Account locked until {until} due to too many failed attempts.")
+
+        # CAPTCHA gate: once this identifier has CAPTCHA_AFTER_ATTEMPTS (2)
+        # failures already on record, every further attempt must carry a
+        # verified Turnstile token before the password is even checked.
+        # No-op entirely when Turnstile isn't configured (turnstile_enabled()
+        # is False) — see utils/auth.py's fail-open rationale.
+        current_failed_count = _get_failed_count(identifier)
+        needs_captcha = turnstile_enabled() and current_failed_count >= CAPTCHA_AFTER_ATTEMPTS
+        if needs_captcha:
+            token = request.form.get("cf-turnstile-response", "")
+            if not verify_turnstile(token, request.remote_addr):
+                return render_template("admin_login.html",
+                    error="Please complete the verification challenge.",
+                    show_captcha=True, turnstile_site_key=_TURNSTILE_SITE_KEY)
+
+        # Whether the failure paths below should show the widget on the
+        # NEXT attempt — computed from current_failed_count rather than a
+        # fresh DB read, since _record_login_failure's write is async and
+        # may not have landed by the time this response is built.
+        will_need_captcha = turnstile_enabled() and (current_failed_count + 1) >= CAPTCHA_AFTER_ATTEMPTS
+
         # Try admin credentials first
         with _db() as (cursor, db):
             cursor.execute("SELECT password, COALESCE(role,'admin'), email FROM admin_users WHERE username=%s", (identifier,))
@@ -147,7 +170,8 @@ def admin_login():
             stored_pwd = emp_row[3]
             if not stored_pwd or not check_password_hash(stored_pwd, password):
                 _record_login_failure(identifier)
-                return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
+                return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
+                    show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
             _clear_login_failures(identifier)
             # Upgrade legacy hash to bcrypt on first successful login
             if stored_pwd and not stored_pwd.startswith("$2"):
@@ -169,7 +193,8 @@ def admin_login():
                 return redirect("/force_change_pin")
             return redirect("/employee_portal")
         _record_login_failure(identifier)
-        return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.")
+        return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
+            show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
     return render_template("admin_login.html")
 
 

@@ -4,6 +4,7 @@ from flask import Blueprint, request, session, redirect, jsonify, render_templat
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required, employee_api_required
 from utils.email_utils import get_email_config, send_email_async
+from utils.helpers import _create_notification
 import utils.config as cfg
 
 tickets_bp = Blueprint("tickets", __name__)
@@ -26,6 +27,8 @@ def raise_ticket():
         (emp_id, category, subject, description, priority)
     )
     db.commit(); cursor.close(); db.close()
+    _create_notification('admin', "🎫 New Support Ticket",
+                          f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
     return redirect("/employee_portal?ticket_sent=1#tickets")
 
 @tickets_bp.route("/tickets")
@@ -73,7 +76,7 @@ def ticket_action(tid):
 
     cursor.execute("""
         SELECT t.subject, t.category, t.priority, t.description,
-               e.name, e.email
+               e.name, e.email, t.employee_id
         FROM tickets t
         JOIN employees e ON t.employee_id = e.employee_id
         WHERE t.id = %s
@@ -86,10 +89,17 @@ def ticket_action(tid):
     )
     db.commit(); cursor.close(); db.close()
 
+    if row:
+        _create_notification(
+            'employee', f"🎫 Ticket Update: {row[0]}",
+            f"Your ticket status is now {new_status}." + (f" — {admin_response}" if admin_response else ""),
+            row[6]
+        )
+
     msg = ""
     msg_type = "success"
     if row and admin_response:
-        subject_text, category, priority, description, emp_name, emp_email = row
+        subject_text, category, priority, description, emp_name, emp_email, _emp_id = row
         if emp_email:
             _ecfg = get_email_config()
             if _ecfg:
@@ -174,6 +184,8 @@ def api_employee_raise_ticket():
         (emp_id, category, subject, description, priority)
     )
     db.commit(); cursor.close(); db.close()
+    _create_notification('admin', "🎫 New Support Ticket",
+                          f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
     return jsonify({"ok": True, "msg": "Ticket raised successfully."})
 
 @tickets_bp.route("/api/tickets", methods=["GET"])
@@ -210,10 +222,18 @@ def api_ticket_action(tid):
         return jsonify({"ok": False, "msg": f"status must be one of {allowed}"}), 400
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT subject, employee_id FROM tickets WHERE id=%s", (tid,))
+    row = cursor.fetchone()
     cursor.execute(
         "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
         (new_status, admin_response or None, tid)
     )
     db.commit(); cursor.close(); db.close()
+    if row:
+        _create_notification(
+            'employee', f"🎫 Ticket Update: {row[0]}",
+            f"Your ticket status is now {new_status}." + (f" — {admin_response}" if admin_response else ""),
+            row[1]
+        )
     return jsonify({"ok": True, "status": new_status})
 

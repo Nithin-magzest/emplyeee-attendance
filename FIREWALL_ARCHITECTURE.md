@@ -12,7 +12,7 @@ there.
 | 1 | Packet filtering | Provisioned, not yet attached to a subnet | `terraform/network_acl.tf` |
 | 2 | Stateful inspection | Implemented | `terraform/main.tf` |
 | 3 | Proxy firewall | Implemented (reverse proxy only) | `nginx/nginx.conf.template` |
-| 4 | Next-generation firewall (NGFW) | Not implemented as a single component; partially covered by separate tools | see below |
+| 4 | Next-generation firewall (NGFW) | Resource-complete, not yet in the traffic path (no subnet association or route-table wiring) | `terraform/network_firewall.tf` |
 | 5 | Web Application Firewall | Provisioned, not yet in the traffic path | `terraform/security_hardening.tf` |
 
 ---
@@ -82,21 +82,29 @@ Combines deep packet inspection, intrusion prevention, and
 application-awareness into one appliance — AWS's actual product for this
 is **AWS Network Firewall** (Suricata-compatible IDS/IPS rules).
 
-- **What exists**: no single NGFW component. Instead, three separate
-  tools each cover a slice of what an NGFW would do:
-  - `aws_wafv2_web_acl.app`'s managed rule groups — signature-based
-    threat detection at the HTTP layer (§5)
-  - ClamAV (`compose.yaml` `clamav` service, port `3310`) — content
-    inspection on every uploaded file, independent of network traffic
-  - Flask-Limiter (`extensions.py`) — application-layer rate/anomaly
-    control per-route
-- **Gap**: none of these do real deep packet inspection or run IDS/IPS
-  signature sets against raw traffic. A genuine NGFW would mean deploying
-  `aws_networkfirewall_firewall` in the VPC's traffic path (or a
-  third-party appliance) — real ongoing cost (~$0.395/hr + per-GB
-  processing) and complexity that isn't justified at this app's current
-  traffic volume. Flagging it as a deliberate gap rather than silently
-  covering it with the WAF.
+- **What exists**: `aws_networkfirewall_firewall`, its rule group, and its
+  policy (`terraform/network_firewall.tf`) — a starter Suricata ruleset
+  (blocks FTP/Telnet, alerts on suspiciously long URIs) evaluated in
+  `STRICT_ORDER` with an `aws:alert_strict` default (monitor, not block,
+  until the ruleset has been watched in CloudWatch and proven not to flag
+  legitimate traffic). Complements, rather than replaces, three
+  application-layer tools already covering their own slice:
+  - `aws_wafv2_web_acl.app`'s managed rule groups — HTTP-layer signatures (§5)
+  - ClamAV (`compose.yaml` `clamav` service) — content inspection on uploads
+  - Flask-Limiter (`extensions.py`) — per-route rate/anomaly control
+- **Gap**: the firewall/policy/rule-group resources only actually exist in
+  AWS once `var.firewall_subnet_ids` is set to real, dedicated subnet
+  IDs (`count = length(var.firewall_subnet_ids) > 0 ? 1 : 0` — currently
+  `[]`, so nothing is provisioned). Even once set, **no traffic passes
+  through it** until the VPC's route tables are edited to send app-subnet
+  traffic via the firewall subnet and back — Network Firewall only
+  inspects what a route table explicitly routes to its endpoint, and this
+  Terraform config has never managed route tables (this project's
+  VPC/subnets are pre-existing, externally-managed infrastructure). Real
+  ongoing cost starts the moment the firewall itself is created:
+  ~$0.395/hr (~$285/month) + $0.065/GB processed, independent of the
+  route-table wiring being finished — flagging this as a cost decision to
+  make deliberately, not a mechanical `terraform apply`.
 
 ## 5. Web Application Firewall (WAF)
 
@@ -132,8 +140,10 @@ signatures, rate limiting per client.
 1. **Network ACL provisioned but not attached** — set `var.app_subnet_ids`
    and re-apply to actually put it in the traffic path; until then the
    Security Group is still doing 100% of the real filtering.
-2. **No NGFW / AWS Network Firewall** — deep packet inspection and
-   IDS/IPS are not covered by any current component.
+2. **NGFW resource-complete but not provisioned or wired into the traffic
+   path** — set `var.firewall_subnet_ids` to provision it (real ongoing
+   cost starts immediately), then separately edit the VPC's route tables
+   to actually send traffic through it; neither step happens automatically.
 3. **WAF is provisioned but inactive** — requires the CloudFront +
    DNS cutover described in `terraform/security_hardening.tf` and
    `AWS_DEPLOYMENT.md` before it protects live traffic.

@@ -187,6 +187,14 @@ def inject_overdue_onboardings():
 _SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute — stolen cookie cannot be used indefinitely
 
 @app.before_request
+def _perf_start_timer():
+    """Stash a start time for _perf_record below (registered first so it
+    wraps every other before_request hook's cost too)."""
+    from flask import g
+    g._perf_start = time.perf_counter()
+
+
+@app.before_request
 def _enforce_session_lifetime():
     """Expire sessions that are older than the absolute max age, regardless of activity."""
     if request.path.startswith("/static/") or request.path == "/healthz":
@@ -396,15 +404,24 @@ def _security_headers(response):
             _ev_hashes = set()
         _unsafe_hashes = " 'unsafe-hashes'" if _ev_hashes else ""
         _hash_src = (" " + " ".join(sorted(_ev_hashes))) if _ev_hashes else ""
+        # Cloudflare Turnstile (admin_login's CAPTCHA gate — utils/auth.py)
+        # loads a live script from Cloudflare's own edge and renders in an
+        # iframe; neither can be self-hosted the way jsQR/Tabler Icons were,
+        # so this is a deliberate, path-scoped exception rather than a
+        # blanket relaxation of the CSP for every page.
+        _is_turnstile_page = request.path == "/admin_login"
+        _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
+        _frame_src = "https://challenges.cloudflare.com" if _is_turnstile_page else "'none'"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             "style-src-attr 'unsafe-inline'; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
-            "connect-src 'self'; "
+            f"connect-src 'self'{_turnstile_src}; "
+            f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
             "report-uri /csp-report;"
         )
@@ -455,6 +472,19 @@ def _inject_csrf_meta(response):
         response.set_data(data)
     except Exception:
         pass
+    return response
+
+
+@app.after_request
+def _perf_record(response):
+    """Record real request timing/error-rate for the Security hub's
+    Performance & Quality panel. Skips static assets — they're served
+    differently (cached, no app logic) and would skew the average down."""
+    from flask import g
+    start = getattr(g, "_perf_start", None)
+    if start is not None and not request.path.startswith("/static/"):
+        from utils.perf_metrics import record as _record_perf
+        _record_perf((time.perf_counter() - start) * 1000, response.status_code)
     return response
 
 # ---------------- AUDIT LOGGING ----------------
@@ -969,6 +999,22 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS security_events (
+            id          SERIAL PRIMARY KEY,
+            event_type  VARCHAR(80) NOT NULL,
+            level       VARCHAR(10) NOT NULL,
+            message     VARCHAR(500) NOT NULL,
+            identifier  VARCHAR(150),
+            ip          VARCHAR(64),
+            path        VARCHAR(255),
+            method      VARCHAR(10),
+            extra_json  TEXT,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events (created_at DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events (event_type)")
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_queue (
             id           SERIAL PRIMARY KEY,
             to_email     VARCHAR(255) NOT NULL,
@@ -1248,6 +1294,8 @@ def init_db():
         "ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_employee_id VARCHAR(50) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token VARCHAR(80) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS totp_enabled SMALLINT NOT NULL DEFAULT 0",
     ]:
         try:
             cursor.execute(sql)
