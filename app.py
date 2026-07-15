@@ -35,13 +35,14 @@ if _missing_env:
 from extensions import app, app_log, limiter
 # Single source of truth for email — app.py used to carry its own complete
 # duplicate of every one of these, including _email_queue_worker. wsgi.py
-# (the real production entrypoint) already starts utils.email_utils's
-# worker thread, then imports app.py as a side effect, which used to
+# (the production entrypoint) already starts utils.email_utils's worker
+# thread, then imports app.py as a side effect, which used to
 # unconditionally start ITS OWN second worker thread on top — two threads
 # racing on the same email_queue table with no row locking, a live
 # duplicate-delivery risk in production (every payslip, every security
 # alert, sent up to twice). The worker is started exactly once now, see
-# the __name__ == "__main__" guard near the bottom of this file.
+# the __name__ == "__main__" guard near the bottom of this file — it only
+# fires for a bare `python app.py`, never when wsgi.py imports this module.
 from utils.email_utils import (
     get_email_config, get_admin_emails, send_email_async,
     _email_queue_worker,
@@ -2366,6 +2367,35 @@ def _register_api_v1_aliases():
             view_func=_vf,
             methods=_rule.methods,
         )
+
+# ── Self-register blueprints when app.py is the entrypoint ────────────────────
+# wsgi.py and tests/conftest.py both register every blueprint on the shared
+# `app` instance BEFORE importing this module (documented in conftest.py) —
+# in that case core.home is already present and this is a no-op. Only a bare
+# `python app.py` reaches this branch, so it's the one path where app.py must
+# register the blueprints itself before _register_api_v1_aliases() runs,
+# otherwise every route (including "/") would 404 and v1 aliases would be
+# built from an empty url_map.
+if "core.home" not in app.view_functions:
+    from blueprints.health import health_bp
+    from blueprints.notifications import notifications_bp
+    from blueprints.payroll import payroll_bp
+    from blueprints.leave import leave_bp
+    from blueprints.admin_views import admin_views_bp
+    from blueprints.auth import auth_bp
+    from blueprints.employees import employees_bp
+    from blueprints.attendance import attendance_bp
+    from blueprints.tickets import tickets_bp
+    from blueprints.performance import performance_bp
+    from blueprints.documents import documents_bp
+    from blueprints.org import org_bp
+    from blueprints.onboarding import onboarding_bp
+    from blueprints.employee_portal import employee_portal_bp
+    from blueprints.core import core_bp
+    for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
+                auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
+                documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp):
+        app.register_blueprint(_bp)
 
 _register_api_v1_aliases()
 
