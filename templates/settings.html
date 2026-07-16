@@ -1018,6 +1018,17 @@
                     </div>
                     <button type="button" class="btn-submit" onclick="verifyEmail2fa()">Verify & Unlock</button>
                     <div id="email-2fa-err" class="err" style="display:none;"></div>
+                    <div class="u-ta-center" style="margin-top:10px;">
+                      <a href="#" class="u-fs-11 u-c-94a3b8" onclick="event.preventDefault();document.getElementById('email-2fa-lost').style.display='';this.style.display='none';">Lost access to your authenticator?</a>
+                    </div>
+                    <div id="email-2fa-lost" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fecaca;">
+                      <div class="u-fs-11 u-c-64748b u-mb-8">Confirm your password to reset MFA and get a fresh QR code.</div>
+                      <div class="field"><label>Password</label>
+                        <input type="password" id="email-2fa-reset-password" autocomplete="current-password" />
+                      </div>
+                      <button type="button" class="btn-submit" onclick="resetEmail2fa()">Reset &amp; Get New QR Code</button>
+                      <div id="email-2fa-reset-err" class="err" style="display:none;"></div>
+                    </div>
                   </div>
                 </div>
 
@@ -1638,6 +1649,25 @@
           .then(function(d) {
             if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.style.display = 'block'; return; }
             unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      window.resetEmail2fa = function() {
+        var password = document.getElementById('email-2fa-reset-password').value;
+        var err = document.getElementById('email-2fa-reset-err');
+        err.style.display = 'none';
+        fetch('/api/settings/2fa/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Reset failed'; err.style.display = 'block'; return; }
+            document.getElementById('email-2fa-reset-password').value = '';
+            document.getElementById('email-2fa-lost').style.display = 'none';
+            window.initEmail2faGate();
           })
           .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
       };

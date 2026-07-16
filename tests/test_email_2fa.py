@@ -194,6 +194,30 @@ class TestEmailSettingsRoutes:
                     (seed_admin["username"],))
         db_engine.commit(); cur.close()
 
+    def test_reset_requires_correct_password(self, client, enrolled_admin):
+        username, _ = enrolled_admin
+        _admin_session(client, username)
+        resp = client.post("/api/settings/2fa/reset", json={"password": "wrong"})
+        assert resp.status_code == 401
+        assert resp.get_json()["ok"] is False
+
+    def test_reset_with_correct_password_issues_fresh_secret(self, client, enrolled_admin, seed_admin, db_engine):
+        username, old_secret = enrolled_admin
+        _admin_session(client, username)
+        resp = client.post("/api/settings/2fa/reset", json={"password": seed_admin["password"]})
+        assert resp.get_json()["ok"] is True
+
+        cur = db_engine.cursor()
+        cur.execute("SELECT totp_secret, totp_enabled FROM admin_users WHERE username=%s", (username,))
+        secret_enc, enabled = cur.fetchone()
+        cur.close()
+        assert secret_enc is None
+        assert enabled == 0
+
+        setup = client.get("/api/settings/2fa/setup").get_json()
+        assert setup["already_enabled"] is False
+        assert setup["secret"] != old_secret
+
     def test_verify_2fa_wrong_code_denied(self, client, enrolled_admin):
         username, _ = enrolled_admin
         _admin_session(client, username)

@@ -3,7 +3,21 @@
 background writer thread (utils/async_writer.py), so the SOC dashboard has
 real data to show instead of just the log stream."""
 import time
+import psycopg2
+import pytest
 from extensions import log_security_event
+
+
+def _purge_security_events(db_engine, identifier):
+    """security_events is append-only in Postgres (a BEFORE UPDATE OR DELETE
+    trigger rejects mutation — see app.py's _reject_audit_mutation) so test
+    cleanup needs the same explicit, narrow bypass a DBA would use; the app
+    itself never sets this GUC, so this doesn't weaken production behavior."""
+    cur = db_engine.cursor()
+    cur.execute("SET audit.bypass = 'on'")
+    cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
+    cur.execute("SET audit.bypass = 'off'")
+    cur.close()
 
 
 def _wait_for_event(db_engine, identifier, timeout=2):
@@ -35,9 +49,7 @@ class TestSecurityEventPersistence:
         assert level == "WARNING"
         assert message == "A test security event"
 
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
-        db_engine.commit(); cur.close()
+        _purge_security_events(db_engine, identifier)
 
     def test_extra_fields_stored_as_json(self, client, db_engine):
         identifier = "TEST_PERSIST_002"
@@ -56,9 +68,7 @@ class TestSecurityEventPersistence:
         assert "custom_value" in extra_json
         assert "42" in extra_json
 
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
-        db_engine.commit(); cur.close()
+        _purge_security_events(db_engine, identifier)
 
     def test_error_level_still_persists_alongside_webhook(self, client, db_engine, monkeypatch):
         # send_security_alert is lazily imported inside log_security_event;
@@ -75,6 +85,62 @@ class TestSecurityEventPersistence:
         assert row is not None
         assert row[1] == "ERROR"
 
-        cur = db_engine.cursor()
+        _purge_security_events(db_engine, identifier)
+
+
+class TestAuditTablesAreAppendOnly:
+    """security_events and audit_logs must be tamper-resistant even against
+    a party with direct DB access (not just app-level guards) — a BEFORE
+    UPDATE OR DELETE trigger (app.py's _reject_audit_mutation) rejects
+    mutation unless the narrow `audit.bypass` session GUC is explicitly set,
+    which the app itself never does. The trigger is FOR EACH ROW, so it only
+    fires on rows actually matched — each test seeds one real row first."""
+
+    def _seed(self, cur, identifier):
+        cur.execute(
+            "INSERT INTO security_events (event_type, level, message, identifier) "
+            "VALUES ('test.immutability_probe', 'INFO', 'probe', %s)",
+            (identifier,),
+        )
+
+    def _cleanup(self, cur, identifier):
+        cur.execute("SET audit.bypass = 'on'")
         cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
-        db_engine.commit(); cur.close()
+        cur.execute("SET audit.bypass = 'off'")
+
+    def test_delete_without_bypass_is_rejected(self, db_engine):
+        identifier = "IMMUTABLE_PROBE_DELETE"
+        cur = db_engine.cursor()
+        self._seed(cur, identifier)
+        try:
+            cur.execute("SET audit.bypass = 'off'")
+            with pytest.raises(psycopg2.errors.RaiseException):
+                cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
+        finally:
+            db_engine.rollback()
+            self._cleanup(cur, identifier)
+            cur.close()
+
+    def test_update_without_bypass_is_rejected(self, db_engine):
+        identifier = "IMMUTABLE_PROBE_UPDATE"
+        cur = db_engine.cursor()
+        self._seed(cur, identifier)
+        try:
+            cur.execute("SET audit.bypass = 'off'")
+            with pytest.raises(psycopg2.errors.RaiseException):
+                cur.execute("UPDATE security_events SET message='tampered' WHERE identifier=%s", (identifier,))
+        finally:
+            db_engine.rollback()
+            self._cleanup(cur, identifier)
+            cur.close()
+
+    def test_delete_with_bypass_succeeds(self, db_engine):
+        identifier = "IMMUTABLE_PROBE_BYPASS"
+        cur = db_engine.cursor()
+        self._seed(cur, identifier)
+        cur.execute("SET audit.bypass = 'on'")
+        cur.execute("DELETE FROM security_events WHERE identifier=%s", (identifier,))
+        cur.execute("SET audit.bypass = 'off'")
+        cur.execute("SELECT 1 FROM security_events WHERE identifier=%s", (identifier,))
+        assert cur.fetchone() is None
+        cur.close()

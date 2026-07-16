@@ -28,7 +28,7 @@ from utils.auth import (
     soc_step_up_valid, soc_step_up_refresh, soc_step_up_clear,
     SECURITY_SETTINGS_2FA_WINDOW_SEC, require_security_settings_2fa,
     security_settings_step_up_refresh, security_settings_step_up_clear,
-    turnstile_enabled,
+    turnstile_enabled, check_password_hash,
 )
 from utils.helpers import (
     get_company_settings, get_co_features, _upsert_co_feature,
@@ -38,6 +38,7 @@ from utils.helpers import (
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.totp import (
     get_or_create_admin_totp_secret, mark_totp_enabled, verify_totp_code, totp_qr_data_uri,
+    reset_admin_totp_secret,
 )
 from utils.attendance_utils import _td_to_time
 from utils.perf_metrics import snapshot as get_perf_snapshot
@@ -407,6 +408,19 @@ def attendance_chart_data():
     })
 
 
+@admin_views_bp.route("/admin/mfa-required")
+@admin_required
+def admin_mfa_required_page():
+    """Forced-enrollment landing page: app.py's _enforce_admin_mfa_enrollment
+    before_request hook redirects every admin/manager/soc_analyst session
+    without TOTP enrolled here, and here only, until they complete it. Not
+    @require_security_settings_2fa or similar — an unenrolled admin can't
+    pass a TOTP step-up gate they haven't set up yet, so this page (and the
+    /api/settings/2fa/setup + /api/settings/2fa/enable it calls) is
+    deliberately reachable on @admin_required alone."""
+    return render_template("admin_mfa_required.html")
+
+
 @admin_views_bp.route("/security")
 @admin_required
 def security_hub_page():
@@ -693,6 +707,58 @@ def api_email_2fa_enable():
     return jsonify({"ok": True})
 
 
+@admin_views_bp.route("/api/settings/2fa/reset", methods=["POST"])
+@admin_required
+@limiter.limit("5 per hour")
+def api_email_2fa_reset():
+    """Re-enrollment for an admin who deleted the entry from their
+    authenticator app: without this they can never produce a valid code
+    again for any TOTP-gated area (Security hub, SOC, Email Settings), since
+    the old secret is gone from their device but still enabled server-side.
+    Requires the account password again — an active session alone isn't
+    enough proof to strip an existing MFA factor.
+
+    Logged at ERROR (not WARNING) specifically so it fires the real-time
+    security webhook alert alongside a best-effort email to the admin's own
+    registered address — stripping an MFA factor is exactly the kind of rare,
+    high-consequence action that deserves an out-of-band notice, so the
+    legitimate owner finds out even if a stolen session + phished password
+    did this, not them."""
+    username = session.get("admin_username")
+    password = (request.get_json(silent=True) or {}).get("password", "")
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT password, email FROM admin_users WHERE username=%s", (username,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row or not check_password_hash(row[0], password):
+        log_security_event("auth.2fa_reset_denied", "TOTP reset attempt failed password check",
+                            level="WARNING", identifier=username)
+        return jsonify({"ok": False, "msg": "Incorrect password"}), 401
+    admin_email = row[1]
+    reset_admin_totp_secret(username)
+    email_settings_step_up_clear()
+    security_settings_step_up_clear()
+    log_security_event("auth.2fa_reset", "Admin reset their TOTP secret for re-enrollment",
+                        level="ERROR", identifier=username)
+    if admin_email:
+        config = get_email_config()
+        if config:
+            try:
+                send_email_smtp(
+                    admin_email, "Your two-factor authentication was reset",
+                    "<p>The two-factor authentication (TOTP) on your admin account "
+                    f"(<b>{username}</b>) was just reset, and the old authenticator "
+                    "entry no longer works.</p>"
+                    "<p>If you just did this yourself to re-enroll, no action is needed.</p>"
+                    "<p><b>If you did not do this</b>, someone may have your password — "
+                    "change it immediately and review the security event log.</p>",
+                    config,
+                )
+            except Exception:
+                app_log.error("Failed to send 2FA-reset notification to admin %s", username, exc_info=True)
+    return jsonify({"ok": True})
+
+
 @admin_views_bp.route("/api/settings/verify-2fa", methods=["POST"])
 @admin_required
 def api_settings_verify_2fa():
@@ -820,24 +886,22 @@ def api_reveal_email_password():
 # standard decorators.
 #
 # This 404-for-everything behavior is a SECONDARY, cosmetic layer on top of
-# the actual access control (the role check + TOTP verification below), not
-# a replacement for it — hiding a route's existence does not make it secure
-# on its own; anyone who already has the URL (view-source, browser history,
-# a leaked internal doc) can still hit it, and the same role+TOTP checks
-# still gate them exactly as if the route were listed on a public sitemap.
-@admin_views_bp.route("/api/security/soc/verify-2fa", methods=["POST"])
-@limiter.limit("10 per minute")
-def api_soc_verify_2fa():
+# the actual access control (the role check + TOTP step-up below), not a
+# replacement for it — hiding a route's existence does not make it secure on
+# its own; anyone who already has the URL (view-source, browser history, a
+# leaked internal doc) can still hit it, and the same role+TOTP checks still
+# gate them exactly as if the route were listed on a public sitemap.
+def _soc_session_or_404():
+    """Role-only guard, shared by the verify-2fa endpoint below and as the
+    first half of the dashboard/events routes' check (both also require a
+    live soc_step_up_valid() window on top of this). Must be an
+    authenticated soc_analyst session. Returns (username, role) on success;
+    aborts 404 (never 401/403 — no acknowledgment this route exists to a
+    session that isn't entitled to it) otherwise."""
     username  = session.get("admin_username")
     role      = session.get("admin_role")
     logged_in = bool(session.get("admin_logged_in") and username)
-
     if not logged_in or role != SOC_ANALYST_ROLE:
-        # An anonymous hit here is indistinguishable from routine URL
-        # scanning (INFO, no alert). An authenticated admin/manager session
-        # hitting a route their own role doesn't grant IS a genuine
-        # escalation signal, same severity class as the existing
-        # insufficient-role check in manager_or_admin_required.
         log_security_event(
             "access.escalation_attempt" if logged_in else "access.denied",
             "Unauthorized Escalation Attempt: SOC Analyst gate probed by a non-SOC session"
@@ -846,9 +910,21 @@ def api_soc_verify_2fa():
             identifier=username or "anonymous", attempted_role=role or "none",
         )
         abort(404)
+    return username, role
 
-    code = (request.get_json(silent=True) or {}).get("code", "")
-    if not verify_totp_code(username, code, require_enabled=True):
+
+@admin_views_bp.route("/api/security/soc/verify-2fa", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_soc_verify_2fa():
+    """The step-up gate itself: the admin's TOTP authenticator code
+    (utils/totp.py), required on top of the role check above before the
+    dashboard or its events API will respond with anything but a 404."""
+    username, _role = _soc_session_or_404()
+
+    body      = request.get_json(silent=True) or {}
+    totp_code = body.get("code", "")
+
+    if not verify_totp_code(username, totp_code, require_enabled=True):
         log_security_event(
             "access.escalation_attempt",
             "Unauthorized Escalation Attempt: invalid TOTP against the SOC Analyst gate "
@@ -858,9 +934,20 @@ def api_soc_verify_2fa():
         abort(404)
 
     soc_step_up_refresh()
-    log_security_event("auth.step_up_verified", "SOC Analyst completed 2FA step-up",
+    log_security_event("auth.step_up_verified", "SOC Analyst completed MFA step-up",
                         level="INFO", identifier=username)
     return jsonify({"ok": True, "redirect": "/admin/security-dashboard"})
+
+
+@admin_views_bp.route("/api/security/soc/lock", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_soc_lock():
+    """Explicit re-lock, mirroring /api/settings/2fa/lock. Not gated behind
+    the role/step-up check on purpose — dropping your OWN step-up state is
+    always safe to allow, and gating it would just mean a stale unlocked tab
+    can't be manually locked by the person sitting at it."""
+    soc_step_up_clear()
+    return jsonify({"ok": True})
 
 
 def _compute_security_posture():
@@ -882,33 +969,68 @@ def _compute_security_posture():
     }
 
 
+def _security_events_summary(cursor):
+    """Aggregate stats over the FULL security_events history (not just the
+    most-recent page) — the "complete log analysis" a SOC analyst needs to
+    judge whether the last 50 rows they're looking at are routine noise or
+    the tail of something bigger."""
+    cursor.execute("SELECT COUNT(*) FROM security_events")
+    total = cursor.fetchone()[0]
+    cursor.execute("SELECT level, COUNT(*) FROM security_events GROUP BY level")
+    by_level = {level: count for level, count in cursor.fetchall()}
+    cursor.execute(
+        "SELECT event_type, COUNT(*) c FROM security_events GROUP BY event_type ORDER BY c DESC LIMIT 8"
+    )
+    top_event_types = cursor.fetchall()
+    cursor.execute("SELECT COUNT(DISTINCT identifier) FROM security_events WHERE identifier IS NOT NULL")
+    distinct_identifiers = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(DISTINCT ip) FROM security_events WHERE ip IS NOT NULL")
+    distinct_ips = cursor.fetchone()[0]
+    cursor.execute("SELECT MIN(created_at), MAX(created_at) FROM security_events")
+    oldest, newest = cursor.fetchone()
+    return {
+        "total": total,
+        "by_level": by_level,
+        "top_event_types": top_event_types,
+        "distinct_identifiers": distinct_identifiers,
+        "distinct_ips": distinct_ips,
+        "oldest": oldest, "newest": newest,
+    }
+
+
+def _soc_session_and_stepup_or_404():
+    """Full gate for the dashboard and its events API: role (via
+    _soc_session_or_404) AND a live TOTP step-up window. A valid role alone
+    is not enough past this point — matches api_soc_verify_2fa's own check,
+    just re-asserted on every subsequent request rather than only at
+    unlock time."""
+    username, role = _soc_session_or_404()
+    if not soc_step_up_valid():
+        log_security_event(
+            "access.escalation_attempt",
+            "Unauthorized Escalation Attempt: SOC Security Dashboard accessed without a valid step-up window",
+            level="ERROR", identifier=username, attempted_role=role,
+        )
+        abort(404)
+    return username, role
+
+
 @admin_views_bp.route("/admin/security-dashboard")
 def soc_security_dashboard():
     """The page both the sidebar 'SOC / Security Center' link and the hidden
     corner trigger unlock. Real data, not a mockup: recent force-terminated
     sessions (utils/session_risk.py — includes the Wi-Fi device-posture kill
     events from /api/employee/device_risk), active login lockouts, per-admin
-    MFA enrollment, config-derived security posture flags, and the most
-    recent entries from security_events — every log_security_event() call
-    anywhere in the app (extensions.py), not just the ones severe enough to
-    trigger a webhook alert. This is the actual "observe security and
-    vulnerabilities" surface for a SOC analyst, not just a kill-switch
-    status page. Guarded by the identical role+step-up check as the verify
-    route above, with the same 404-disguise — bookmarking or guessing this
-    URL directly buys nothing without both a SOC-tier session AND a live
-    step-up window."""
-    username = session.get("admin_username")
-    role     = session.get("admin_role")
-    if not (session.get("admin_logged_in") and username and role == SOC_ANALYST_ROLE
-            and soc_step_up_valid()):
-        log_security_event(
-            "access.escalation_attempt" if session.get("admin_logged_in") else "access.denied",
-            "Unauthorized Escalation Attempt: SOC Security Dashboard accessed without a valid gate",
-            level="ERROR" if session.get("admin_logged_in") else "INFO",
-            identifier=username or "anonymous", attempted_role=role or "none",
-        )
-        abort(404)
-
+    MFA enrollment, config-derived security posture flags, an all-time
+    summary of security_events, and a paginated/filterable log table backed
+    by /api/security/soc/events — every log_security_event() call anywhere
+    in the app (extensions.py), not just the ones severe enough to trigger a
+    webhook alert. This is the actual "observe security and vulnerabilities"
+    surface for a SOC analyst, not just a kill-switch status page. Guarded by
+    the identical role+step-up check as the verify route above, with the
+    same 404-disguise — bookmarking or guessing this URL directly buys
+    nothing without both a SOC-tier session AND a live step-up window."""
+    _soc_session_and_stepup_or_404()
     soc_step_up_refresh()  # rolling window here too, same reasoning as Email Settings
 
     db = get_db_connection(); cursor = db.cursor(buffered=True)
@@ -926,31 +1048,182 @@ def soc_security_dashboard():
     active_lockouts = cursor.fetchall()
     cursor.execute("SELECT username, role, COALESCE(totp_enabled, 0) FROM admin_users ORDER BY username")
     admin_mfa_status = cursor.fetchall()
-    cursor.execute("""
-        SELECT event_type, level, message, identifier, ip, path, method, created_at
-        FROM security_events ORDER BY created_at DESC LIMIT 200
-    """)
-    security_events = cursor.fetchall()
+    events_summary = _security_events_summary(cursor)
     cursor.close(); db.close()
 
     return render_template("soc_security_dashboard.html",
         compromised_sessions=compromised_sessions,
         active_lockouts=active_lockouts,
         admin_mfa_status=admin_mfa_status,
-        security_events=security_events,
+        events_summary=events_summary,
         security_posture=_compute_security_posture(),
     )
 
 
-@admin_views_bp.route("/api/security/soc/lock", methods=["POST"])
-@limiter.limit("10 per minute")
-def api_soc_lock():
-    """Explicit re-lock, mirroring /api/settings/2fa/lock. Not gated behind
-    the role/step-up check on purpose — dropping your OWN step-up state is
-    always safe to allow, and gating it would just mean a stale unlocked tab
-    can't be manually locked by the person sitting at it."""
-    soc_step_up_clear()
+_EVENT_LEVELS = {"ERROR", "WARNING", "INFO"}
+
+
+@admin_views_bp.route("/api/security/soc/events")
+@limiter.limit("60 per minute")
+def api_soc_events():
+    """Paginated, filterable security_events query backing the SOC
+    dashboard's log table — the "complete logs" view, since the page load
+    above only carries an all-time summary, not every row. Same role+step-up
+    gate as the dashboard itself (404-disguised, not a separate trust
+    boundary)."""
+    _soc_session_and_stepup_or_404()
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+    try:
+        per_page = min(200, max(1, int(request.args.get("per_page", 50))))
+    except ValueError:
+        per_page = 50
+
+    where = []
+    params = []
+    level = request.args.get("level", "").strip().upper()
+    if level in _EVENT_LEVELS:
+        where.append("level = %s")
+        params.append(level)
+    event_type = request.args.get("event_type", "").strip()
+    if event_type:
+        where.append("event_type = %s")
+        params.append(event_type)
+    identifier = request.args.get("identifier", "").strip()
+    if identifier:
+        where.append("identifier ILIKE %s")
+        params.append(f"%{identifier}%")
+    q = request.args.get("q", "").strip()
+    if q:
+        where.append("message ILIKE %s")
+        params.append(f"%{q}%")
+    start_date = request.args.get("start_date", "").strip()
+    if start_date:
+        where.append("created_at >= %s")
+        params.append(start_date)
+    end_date = request.args.get("end_date", "").strip()
+    if end_date:
+        where.append("created_at <= %s")
+        params.append(end_date)
+
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(f"SELECT COUNT(*) FROM security_events {where_sql}", params)  # nosec B608 — where_sql built from a fixed allowlist of hardcoded conditions above, all values passed as %s params
+    total = cursor.fetchone()[0]
+    cursor.execute(
+        f"SELECT event_type, level, message, identifier, ip, path, method, created_at "
+        f"FROM security_events {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",  # nosec B608 — same as above
+        params + [per_page, (page - 1) * per_page],
+    )
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+
+    return jsonify({
+        "ok": True,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": max(1, -(-total // per_page)),
+        "events": [
+            {
+                "event_type": r[0], "level": r[1], "message": r[2], "identifier": r[3],
+                "ip": r[4], "path": r[5], "method": r[6],
+                "created_at": r[7].strftime("%Y-%m-%d %H:%M:%S") if r[7] else None,
+            }
+            for r in rows
+        ],
+    })
+
+
+# ── SOC tactical mitigation: application-layer IP ban ─────────────────────────
+# One-click ban straight from a row in the events log above (or typed in
+# manually). Enforced by app.py's _enforce_ip_ban before_request hook, which
+# runs before every other hook in the app — a banned IP never reaches
+# session/auth logic. This is NOT a substitute for a real edge/WAF ban
+# (terraform/network_firewall.tf provisions one, deploy-time only); it's the
+# thing a SOC analyst can do immediately, from this panel, without cloud API
+# credentials wired into the app.
+
+@admin_views_bp.route("/api/security/soc/banned-ips")
+def api_soc_banned_ips():
+    _soc_session_and_stepup_or_404()
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT ip, reason, banned_by, banned_at, expires_at FROM banned_ips "
+        "WHERE expires_at IS NULL OR expires_at > NOW() ORDER BY banned_at DESC"
+    )
+    rows = cursor.fetchall()
+    cursor.close(); db.close()
+    return jsonify({"ok": True, "banned_ips": [
+        {
+            "ip": r[0], "reason": r[1], "banned_by": r[2],
+            "banned_at": r[3].strftime("%Y-%m-%d %H:%M:%S") if r[3] else None,
+            "expires_at": r[4].strftime("%Y-%m-%d %H:%M:%S") if r[4] else None,
+        }
+        for r in rows
+    ]})
+
+
+@admin_views_bp.route("/api/security/soc/ban-ip", methods=["POST"])
+@limiter.limit("20 per minute")
+def api_soc_ban_ip():
+    username, _role = _soc_session_and_stepup_or_404()
+    body = request.get_json(silent=True) or {}
+    ip = (body.get("ip") or "").strip()
+    reason = (body.get("reason") or "").strip()[:300] or None
+    duration_raw = body.get("duration_minutes")
+
+    import ipaddress
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return jsonify({"ok": False, "msg": "Invalid IP address"}), 400
+
+    expires_at = None
+    if duration_raw not in (None, "", 0, "0"):
+        try:
+            minutes = int(duration_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "msg": "Invalid duration"}), 400
+        if minutes > 0:
+            expires_at = datetime.datetime.now() + datetime.timedelta(minutes=minutes)
+
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO banned_ips (ip, reason, banned_by, expires_at) VALUES (%s,%s,%s,%s) "
+        "ON CONFLICT (ip) DO UPDATE SET reason=EXCLUDED.reason, banned_by=EXCLUDED.banned_by, "
+        "banned_at=CURRENT_TIMESTAMP, expires_at=EXCLUDED.expires_at",
+        (ip, reason, username, expires_at),
+    )
+    db.commit(); cursor.close(); db.close()
+
+    log_security_event("soc.ip_banned", f"SOC analyst banned IP {ip}",
+                        level="ERROR", identifier=username, target_ip=ip, reason=reason or "(none given)")
     return jsonify({"ok": True})
+
+
+@admin_views_bp.route("/api/security/soc/unban-ip", methods=["POST"])
+@limiter.limit("20 per minute")
+def api_soc_unban_ip():
+    username, _role = _soc_session_and_stepup_or_404()
+    body = request.get_json(silent=True) or {}
+    ip = (body.get("ip") or "").strip()
+    if not ip:
+        return jsonify({"ok": False, "msg": "IP required"}), 400
+
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
+    db.commit(); cursor.close(); db.close()
+
+    log_security_event("soc.ip_unbanned", f"SOC analyst unbanned IP {ip}",
+                        level="WARNING", identifier=username, target_ip=ip)
+    return jsonify({"ok": True})
+
+
 
 
 # ── Security Settings hub (Settings → System → Security) ─────────────────────

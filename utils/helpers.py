@@ -7,6 +7,15 @@ import hashlib
 from contextlib import contextmanager
 
 _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
+
+# Employee IDs are used to build filesystem paths (dataset/<emp_id>.jpg,
+# static/qrcodes/<emp_id>.png) before the DB row necessarily exists yet
+# (registration), so a DB existence check can't be relied on to reject
+# path-traversal characters the way it does for update-in-place routes.
+_EMP_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,32}$')
+
+def validate_emp_id(emp_id: str) -> bool:
+    return bool(emp_id) and bool(_EMP_ID_RE.match(emp_id))
 from flask import session, request
 from database import get_db_connection
 from extensions import app_log, log_security_event
@@ -309,7 +318,7 @@ def get_company_settings():
         db = get_db_connection(); cursor = db.cursor(buffered=True)
         cursor.execute(
             "SELECT company_name, company_tagline, company_logo, currency_symbol, timezone, "
-            "setup_done, COALESCE(company_code,'') FROM company_settings LIMIT 1"
+            "setup_done, COALESCE(company_code,''), COALESCE(session_timeout,30) FROM company_settings LIMIT 1"
         )
         row = cursor.fetchone(); cursor.close(); db.close()
         if row:
@@ -317,6 +326,7 @@ def get_company_settings():
                 "company_name": row[0], "company_tagline": row[1],
                 "company_logo": row[2], "currency_symbol": row[3],
                 "company_code": row[6], "timezone": row[4], "setup_done": bool(row[5]),
+                "session_timeout": row[7],
             }
             with _settings_lock:
                 _co_cache["data"]    = result
@@ -326,7 +336,7 @@ def get_company_settings():
         pass
     return {"company_name": "My Company", "company_tagline": "Employee Attendance System",
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
-            "setup_done": False, "company_code": ""}
+            "setup_done": False, "company_code": "", "session_timeout": 30}
 
 _AUTH_CONFIG_DEFAULTS = {
     "fingerprint_enabled": False, "qr_enabled": True, "face_enabled": True,

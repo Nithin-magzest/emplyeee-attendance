@@ -78,6 +78,13 @@ os.environ.setdefault("DB_PASS", "")
 # time (not dynamically from config), so we patch the instance directly.
 _app_module.limiter.enabled = False
 
+# Disable the mandatory-admin-MFA-enrollment gate (app.py's
+# _enforce_admin_mfa_enrollment) for the suite by default — most tests log in
+# admin sessions directly via session_transaction without an enrolled TOTP
+# secret, same reasoning as disabling the rate limiter above. Tests for the
+# gate itself (tests/test_mandatory_admin_mfa.py) re-enable it locally.
+flask_app.config["MANDATORY_ADMIN_MFA"] = False
+
 
 @pytest.fixture(scope="session")
 def db_engine():

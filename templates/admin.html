@@ -12,33 +12,37 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
-      /* ── TIME-OF-DAY THEME ──
-         Afternoon (12:00-17:00) is the default palette below — unset vars.
-         Morning/evening/night override via [data-time-theme] on <body>,
-         set by /static/time-theme.min.js. Only applies when the user
-         hasn't explicitly picked light/dark mode (that always wins — see
-         time-theme.min.js). Sidebar gradient + active-nav accent only,
-         everything else stays as-is on purpose (subtle, formal shift). */
+      /* ── TIME-OF-DAY THEME: the sun moving across the sidebar ──
+         Afternoon (12:00-17:00) is "full shine" — the default palette
+         below (unset vars) — bright, saturated sky blue + gold accent.
+         Morning is sunrise (indigo night sky breaking into warm coral/gold
+         near the horizon), evening is sunset (dusk purple into a burnt-
+         orange glow), night is calm dark navy. Overridden via
+         [data-time-theme] on <body>, set by /static/time-theme.min.js —
+         only applies when the user hasn't explicitly picked light/dark
+         mode (that always wins, see time-theme.min.js). Sidebar gradient +
+         active-nav accent + the sun-indicator emoji next to the logo. */
       :root {
-        --brand-grad-1: #0f2460;
-        --brand-grad-2: #1a3a8f;
-        --brand-accent: #60a5fa;
+        --brand-grad-1: #0c4a6e;
+        --brand-grad-2: #0ea5e9;
+        --brand-accent: #fbbf24;
       }
       body[data-time-theme="morning"] {
-        --brand-grad-1: #132743;
-        --brand-grad-2: #2c5282;
-        --brand-accent: #7dd3fc;
+        --brand-grad-1: #372f68;
+        --brand-grad-2: #e0793e;
+        --brand-accent: #fde68a;
       }
       body[data-time-theme="evening"] {
-        --brand-grad-1: #2e1f47;
-        --brand-grad-2: #4c3575;
-        --brand-accent: #c4b5fd;
+        --brand-grad-1: #4c1d6b;
+        --brand-grad-2: #d2470f;
+        --brand-accent: #fdba74;
       }
       body[data-time-theme="night"] {
-        --brand-grad-1: #0a0e1a;
-        --brand-grad-2: #1a2035;
+        --brand-grad-1: #05070f;
+        --brand-grad-2: #151c33;
         --brand-accent: #64748b;
       }
+      #sun-indicator { font-size: 17px; line-height: 1; margin-left: auto; }
 
       /* ── SIDEBAR ── */
       .sidebar {
@@ -402,7 +406,9 @@
         <div>
           <div class="brand">Admin Panel</div>
           <div class="brand-sub">{{ co.company_name }}</div>
-        </div></div>
+        </div>
+        <span id="sun-indicator" title="Time-of-day theme" aria-hidden="true"></span>
+      </div>
 
       <a class="nav-item active" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
@@ -1790,14 +1796,14 @@
   <!-- /ADMIN SEARCH -->
 
   <!-- SOC ANALYST GATE
-       Visually hidden corner trigger + MFA step-up modal. IMPORTANT: this
-       element being hard to see is a UX/discretion choice, not the security
-       control — the real gate is entirely server-side (role check + TOTP,
-       see blueprints/admin_views.py:api_soc_verify_2fa). A non-SOC admin
-       who finds and clicks this gets a generic "Verification failed."
-       message no matter what they enter; the backend can't be reasoned
-       about from anything visible here, including this comment being in
-       the page source. -->
+       Visually hidden corner trigger + MFA step-up modal. IMPORTANT:
+       this element being hard to see is a UX/discretion choice, not the
+       security control — the real gate is entirely server-side (role check
+       + TOTP, see blueprints/admin_views.py: api_soc_verify_2fa). A non-SOC
+       admin who finds and clicks this gets a generic "Verification failed." message
+       no matter what they enter; the backend can't be reasoned about from
+       anything visible here, including this comment being in the page
+       source. -->
   <style>
     #soc-gate-trigger {
       position: fixed; bottom: 6px; right: 6px; width: 16px; height: 16px;
@@ -1844,11 +1850,11 @@
   <div id="soc-gate-overlay">
     <div id="soc-gate-modal">
       <h2>Verification Required</h2>
-      <p>Enter your 6-digit authentication code.</p>
+      <p>Enter your 6-digit authenticator code to continue.</p>
       <input type="text" id="soc-gate-code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-             placeholder="000000" autocomplete="one-time-code" />
+             placeholder="Authenticator code" autocomplete="one-time-code" />
       <button id="soc-gate-submit" type="button" onclick="socGateSubmit()">Verify &amp; Continue</button>
-      <div id="soc-gate-err">Verification failed.</div>
+      <div id="soc-gate-err">Verification failed — check the code above.</div>
     </div>
   </div>
 
@@ -1878,10 +1884,10 @@
         body: JSON.stringify({ code: code }),
       })
         .then(function(r) {
-          // A 404 here means "not authorized" (wrong role, bad code, or no
-          // session) by design — this route never distinguishes why. Any
-          // other non-OK status is treated the same way: generic failure,
-          // no detail that could help someone iterate toward success.
+          // A 404 here means "not authorized" (wrong role, bad TOTP code, or
+          // no session) by design — this route never distinguishes why. Any
+          // other non-OK status is treated the same way: generic failure, no
+          // detail that could help someone iterate toward success.
           if (!r.ok) throw new Error('denied');
           return r.json();
         })

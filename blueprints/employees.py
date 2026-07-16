@@ -7,11 +7,11 @@ from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash,
 )
 
-from extensions import app, app_log
+from extensions import app, app_log, limiter
 from database import get_db_connection
 from qr_generator import generate_qr
-from utils.auth import admin_required, generate_password_hash, api_required
-from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, encrypt_pii
+from utils.auth import admin_required, generate_password_hash, api_required, role_required
+from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, encrypt_pii, validate_emp_id
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import _td_to_time
 from utils.leave_utils import assign_leave_balances_for_employee
@@ -24,7 +24,8 @@ UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
 
 
 @employees_bp.route("/admin_action", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("20 per minute")
 def admin_action():
     action = request.form.get("action")
     db     = get_db_connection()
@@ -72,6 +73,10 @@ def admin_action():
         except (KeyError, ValueError) as _e:
             cursor.close(); db.close()
             flash(f"Missing or invalid field in registration form: {_e}", "error")
+            return redirect("/admin")
+        if not validate_emp_id(emp_id):
+            cursor.close(); db.close()
+            flash("Employee ID may only contain letters, digits, hyphens and underscores.", "error")
             return redirect("/admin")
         # Auto-increment emp_id if it's already taken
         cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (emp_id,))
@@ -264,7 +269,8 @@ def admin_action():
 
 
 @employees_bp.route("/delete_employee/<emp_id>", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def delete_employee(emp_id):
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -777,6 +783,9 @@ def add_employee_page():
 
     if not name or not emp_id:
         flash("Name and Employee ID are required.", "error")
+        return redirect("/employees")
+    if not validate_emp_id(emp_id):
+        flash("Employee ID may only contain letters, digits, hyphens and underscores.", "error")
         return redirect("/employees")
 
     db     = get_db_connection()
@@ -1336,6 +1345,8 @@ def api_register_employee():
     file   = request.files.get("face")
     if not name or not emp_id or not file:
         return jsonify({"ok": False, "msg": "name, emp_id and face image required"}), 400
+    if not validate_emp_id(emp_id):
+        return jsonify({"ok": False, "msg": "emp_id may only contain letters, digits, hyphens and underscores"}), 400
     # Validate extension, MIME type, magic bytes and size before writing to disk.
     ok, err = _validate_image_file(file)
     if not ok:

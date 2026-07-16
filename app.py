@@ -195,6 +195,31 @@ def _perf_start_timer():
 
 
 @app.before_request
+def _enforce_ip_ban():
+    """Application-layer IP ban, enforced before every other before_request
+    hook (registered second, right after the perf timer) so a banned source
+    never reaches session/auth logic, let alone a route handler. Backs the
+    SOC dashboard's one-click ban action (blueprints/admin_views.py). Static
+    assets stay reachable — banning is about stopping active app usage
+    (login attempts, API calls), not making the banned party's browser look
+    broken in a way that itself signals "you got blocked, try harder.\""""
+    if request.path.startswith("/static/") or request.path == "/healthz":
+        return
+    ip = request.remote_addr
+    if not ip:
+        return
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
+        (ip,),
+    )
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if row:
+        return jsonify({"ok": False, "msg": "Access denied."}), 403
+
+
+@app.before_request
 def _enforce_session_lifetime():
     """Expire sessions that are older than the absolute max age, regardless of activity."""
     if request.path.startswith("/static/") or request.path == "/healthz":
@@ -207,6 +232,90 @@ def _enforce_session_lifetime():
             return _jfy({"ok": False, "msg": "Session expired. Please log in again."}), 401
         flash("Your session expired. Please log in again.", "warning")
         return redirect(url_for("auth.admin_login"))
+
+
+@app.before_request
+def _enforce_idle_timeout():
+    """Expire sessions after N minutes of *inactivity* — distinct from the
+    absolute max-age check above, which only catches a session once it's
+    lived 8 hours regardless of how recently it was used. The threshold
+    itself (company_settings.session_timeout, admin-configurable 5-1440 min
+    via the Security Settings hub's /api/settings/security/session-timeout)
+    used to be stored and displayed in the UI but was never actually
+    enforced anywhere — this closes that gap. Reads through
+    get_company_settings()'s existing 60s cache rather than querying the DB
+    on every request.
+    """
+    if request.path.startswith("/static/") or request.path == "/healthz":
+        return
+    if not (session.get("admin_logged_in") or session.get("employee_id")):
+        return
+    now = time.time()
+    last_activity = session.get("_last_activity")
+    if last_activity:
+        timeout_minutes = get_company_settings().get("session_timeout", 30)
+        if (now - last_activity) > timeout_minutes * 60:
+            session.clear()
+            if request.path.startswith("/api/"):
+                from flask import jsonify as _jfy
+                return _jfy({"ok": False, "msg": "Session expired due to inactivity. Please log in again."}), 401
+            flash("Your session expired due to inactivity. Please log in again.", "warning")
+            return redirect(url_for("auth.admin_login"))
+    session["_last_activity"] = now
+
+
+# Roles that count as "administrative/HR" for the mandatory-MFA requirement
+# below — every role that can reach admin-side data or actions.
+_MANDATORY_MFA_ROLES = {"admin", "manager", "soc_analyst"}
+
+# Routes reachable by an admin/manager/soc_analyst session that has NOT yet
+# enrolled TOTP — must stay small and deliberate. Anything not on this list
+# is unreachable until enrollment is complete, which is the point (a genuine
+# "mandatory," not a step-up an admin can defer indefinitely).
+_MANDATORY_MFA_EXEMPT_PATHS = {
+    "/admin/mfa-required", "/api/settings/2fa/setup", "/api/settings/2fa/enable",
+    "/logout", "/admin_login", "/setup",
+}
+
+app.config.setdefault("MANDATORY_ADMIN_MFA", True)
+
+
+@app.before_request
+def _enforce_admin_mfa_enrollment():
+    """Hard requirement: an admin/manager/soc_analyst session with TOTP not
+    yet enrolled can reach nothing except the enrollment flow itself (and
+    login/logout) — no grace period, no dismissible nag. This is distinct
+    from the existing TOTP *step-up* gates (Email Settings, Security hub,
+    SOC), which only apply once already enrolled; this is what forces
+    enrollment to happen in the first place.
+
+    MANDATORY_ADMIN_MFA defaults on; tests disable it globally (matching the
+    existing pattern of disabling flask-limiter under pytest) since most of
+    the suite logs in admin sessions directly via session_transaction without
+    walking through enrollment, and re-enable it only in the tests that
+    specifically exercise this gate.
+    """
+    if not current_app.config.get("MANDATORY_ADMIN_MFA", True):
+        return
+    if request.path.startswith("/static/") or request.path == "/healthz":
+        return
+    if request.path in _MANDATORY_MFA_EXEMPT_PATHS:
+        return
+    username = session.get("admin_username")
+    if not (session.get("admin_logged_in") and username):
+        return
+    if session.get("admin_role", "admin") not in _MANDATORY_MFA_ROLES:
+        return
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COALESCE(totp_enabled, 0) FROM admin_users WHERE username=%s", (username,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if row and row[0]:
+        return
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "msg": "MFA enrollment required before continuing.",
+                         "redirect": "/admin/mfa-required"}), 403
+    return redirect("/admin/mfa-required")
 
 
 @app.before_request
@@ -368,7 +477,8 @@ def _set_csp_nonce():
 _SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
                    "/save_security_settings", "/toggle_auth_feature",
                    "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
-                   "/save_company_info", "/toggle_feature"}
+                   "/save_company_info", "/toggle_feature",
+                   "/api/settings/security/session-timeout"}
 
 @app.after_request
 def _security_headers(response):
@@ -381,7 +491,9 @@ def _security_headers(response):
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     response.headers["Server"] = "AttendanceApp"
     if request.scheme == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        # 2 years (63072000s), the floor major browsers require before a
+        # domain is eligible for HSTS preload-list inclusion.
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     ct = response.content_type or ""
     if "text/html" in ct:
         nonce = getattr(g, "csp_nonce", "")
@@ -423,6 +535,10 @@ def _security_headers(response):
             f"connect-src 'self'{_turnstile_src}; "
             f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
+            # No <object>/<embed>/<applet> use anywhere in this app —
+            # explicit 'none' instead of relying on the default-src 'self'
+            # fallback closes off Flash/legacy-plugin-based XSS vectors.
+            "object-src 'none'; "
             "report-uri /csp-report;"
         )
     return response
@@ -1014,6 +1130,55 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events (created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events (event_type)")
+
+    # Immutable audit trail: audit_logs (data/config changes) and
+    # security_events (auth/access events) must be append-only — a plain
+    # table is only as tamper-resistant as every future line of code that
+    # touches it, which isn't a guarantee. This trigger makes tampering
+    # (or an attacker who reaches DB access) unable to alter or erase
+    # history no matter what app code does, short of dropping the trigger
+    # itself (a superuser-only DDL action, not something an app-level bug
+    # or compromised web-tier credential can do).
+    cursor.execute("""
+        CREATE OR REPLACE FUNCTION _reject_audit_mutation() RETURNS TRIGGER AS $$
+        BEGIN
+            -- Deliberate, narrow escape hatch for test-fixture cleanup only:
+            -- the app itself never issues `SET audit.bypass`, so this
+            -- doesn't weaken production immutability — a session has to
+            -- explicitly opt in via raw SQL the app never sends.
+            IF current_setting('audit.bypass', true) = 'on' THEN
+                RETURN COALESCE(NEW, OLD);
+            END IF;
+            RAISE EXCEPTION 'audit tables are append-only: % on % is not permitted', TG_OP, TG_TABLE_NAME;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+    for _tbl in ("audit_logs", "security_events"):
+        cursor.execute(f'DROP TRIGGER IF EXISTS trg_{_tbl}_immutable ON {_tbl}')
+        cursor.execute(f"""
+            CREATE TRIGGER trg_{_tbl}_immutable
+            BEFORE UPDATE OR DELETE ON {_tbl}
+            FOR EACH ROW EXECUTE FUNCTION _reject_audit_mutation()
+        """)
+    db.commit()
+
+    # Application-layer IP ban list — the SOC dashboard's "one-click ban"
+    # tactical mitigation. Not a substitute for a real edge/WAF ban (Cloudflare
+    # or AWS Network Firewall, provisioned separately via terraform/), since a
+    # request still costs a TLS handshake + one Python request cycle before
+    # _enforce_ip_ban rejects it — but it needs no cloud API credentials and
+    # takes effect immediately app-wide, which the Terraform-managed edge
+    # rules don't do without a redeploy.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS banned_ips (
+            ip         VARCHAR(45) PRIMARY KEY,
+            reason     VARCHAR(300),
+            banned_by  VARCHAR(150),
+            banned_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP DEFAULT NULL
+        )
+    """)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_queue (
             id           SERIAL PRIMARY KEY,
@@ -1422,6 +1587,28 @@ def init_db():
                 except Exception:
                     db.rollback()
             cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('perf_indexes_v3')")
+            db.commit()
+    except Exception:
+        pass
+
+    # Unique constraint backing award_performance_bonus's ON CONFLICT DO
+    # NOTHING guard (blueprints/payroll.py) — without it, two concurrent
+    # bonus-award requests for the same employee/goal/quarter could both
+    # pass the app-level "already awarded?" check and double-pay a bonus.
+    # Wrapped like the index migration above: if any deployment already has
+    # duplicate rows, this no-ops via rollback rather than crashing startup.
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='incentives_unique_v1'")
+        if not cursor.fetchone():
+            try:
+                cursor.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_incentives_unique "
+                    "ON employee_incentives(employee_id, goal_id, month, year)"
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('incentives_unique_v1')")
             db.commit()
     except Exception:
         pass

@@ -49,24 +49,38 @@ def create_org():
         flash("Admin password must be at least 8 characters.", "error")
         return redirect("/create_org")
 
-    # Check subdomain not taken
+    # Derive DB name
+    db_name = "att_" + subdomain.replace("-", "_")
+
+    # Check subdomain not taken — and, critically, that the derived schema
+    # name doesn't already exist at all. Checking only the `tenants` registry
+    # row (as before) missed two cases: (1) a subdomain like "master" derives
+    # db_name "att_master", which IS the tenant-registry schema itself —
+    # CREATE SCHEMA IF NOT EXISTS would then silently no-op and the rest of
+    # this flow would run tenant-schema migrations and INSERT an
+    # attacker-controlled admin account *inside the registry schema*; (2) a
+    # schema left over from a previously failed provisioning attempt (schema
+    # created, but the tenants-row insert further down failed) has no
+    # `tenants` row, so it would look "available" and get silently reused —
+    # and the old `ON CONFLICT ... DO UPDATE SET password=...` below would
+    # have let a new signup overwrite an existing admin's password in it.
     try:
         from database import get_master_db
         mconn = get_master_db()
         mcur  = mconn.cursor(buffered=True)
         mcur.execute("SELECT id FROM tenants WHERE subdomain=%s", (subdomain,))
-        if mcur.fetchone():
-            mcur.close(); mconn.close()
+        taken = mcur.fetchone() is not None
+        if not taken:
+            mcur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name=%s", (db_name,))
+            taken = mcur.fetchone() is not None
+        mcur.close(); mconn.close()
+        if taken:
             flash(f"Subdomain '{subdomain}' is already taken. Choose another.", "error")
             return redirect("/create_org")
-        mcur.close(); mconn.close()
     except Exception as exc:
         app_log.error("create_org subdomain check failed: %s", exc)
         flash("Could not check subdomain availability. Please try again.", "error")
         return redirect("/create_org")
-
-    # Derive DB name
-    db_name = "att_" + subdomain.replace("-", "_")
 
     try:
         from database import create_tenant_schema
@@ -95,9 +109,13 @@ def create_org():
             "UPDATE company_settings SET company_name=%s, setup_done=1 WHERE id=1",
             (company_name,)
         )
+        # Plain INSERT, no ON CONFLICT: the schema-existence check above
+        # guarantees this is a brand-new schema, so a conflict here means a
+        # genuine race (two signups for the same subdomain at once) rather
+        # than legitimate reuse — fail loudly via the except below instead of
+        # silently overwriting whichever admin_users row won the race.
         tcur.execute(
-            "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)"
-            " ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password",
+            "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)",
             (admin_username, generate_password_hash(admin_password), admin_email)
         )
         tconn.commit()

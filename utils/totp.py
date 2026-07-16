@@ -40,6 +40,20 @@ def mark_totp_enabled(admin_username: str):
     db.commit(); cursor.close(); db.close()
 
 
+def reset_admin_totp_secret(admin_username: str):
+    """Wipes the stored secret and disables 2FA so the next call to
+    get_or_create_admin_totp_secret issues a brand-new secret/QR — for an
+    admin who deleted the entry from their authenticator app and can no
+    longer produce a code for the old secret."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
+        (admin_username,),
+    )
+    db.commit(); cursor.close(); db.close()
+
+
 def verify_totp_code(admin_username: str, code: str, require_enabled: bool = True) -> bool:
     """require_enabled=False is only for the one-time enrollment-confirmation
     step, where totp_enabled is still 0 by definition. Every other caller

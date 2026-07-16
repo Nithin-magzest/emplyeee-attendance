@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Two-Factor Authentication Required — Attendance System</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        display: flex; align-items: center; justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%; max-width: 380px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(56,189,248,0.35);
+        border-radius: 20px;
+        padding: 36px 32px;
+        text-align: center;
+      }
+      .icon {
+        width: 60px; height: 60px;
+        background: rgba(56,189,248,0.15);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 18px;
+      }
+      h1 { font-size: 19px; color: #f9fafb; margin-bottom: 10px; }
+      p { font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-bottom: 16px; }
+      img#mfa-qr { width: 160px; height: 160px; display: block; margin: 0 auto 12px; border-radius: 8px; }
+      code#mfa-secret {
+        display: inline-block; background: rgba(255,255,255,0.08); color: #e2e8f0;
+        padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 16px;
+      }
+      input#mfa-code {
+        width: 100%; padding: 12px; text-align: center; letter-spacing: 5px;
+        font-size: 18px; font-weight: 700; background: #1e293b; border: 1px solid #334155;
+        border-radius: 8px; color: #f1f5f9; outline: none; margin-bottom: 14px;
+      }
+      input#mfa-code:focus { border-color: #38bdf8; }
+      button#mfa-submit {
+        width: 100%; padding: 12px; border: none; border-radius: 8px;
+        background: #0284c7; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+      }
+      button#mfa-submit:hover { background: #0369a1; }
+      #mfa-err { margin-top: 12px; font-size: 12px; color: #f87171; display: none; }
+      a.logout-link { display: inline-block; margin-top: 18px; font-size: 12px; color: #64748b; text-decoration: none; }
+      a.logout-link:hover { color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">🔐</div>
+      <h1>Two-Factor Authentication Required</h1>
+      <p>Administrative accounts must enroll an authenticator app before continuing.
+         Scan the code below, then enter the 6-digit code it shows.</p>
+      <img id="mfa-qr" alt="2FA QR code" />
+      <div>Can't scan? Enter manually: <code id="mfa-secret"></code></div>
+      <input type="text" id="mfa-code" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+             placeholder="000000" autocomplete="one-time-code" />
+      <button id="mfa-submit" type="button" onclick="mfaSubmit()">Confirm &amp; Continue</button>
+      <div id="mfa-err">Invalid code — please try again.</div>
+      <a class="logout-link" href="/logout">Log out instead</a>
+    </div>
+
+    <script>
+      var qrEl     = document.getElementById('mfa-qr');
+      var secretEl = document.getElementById('mfa-secret');
+      var codeEl   = document.getElementById('mfa-code');
+      var errEl    = document.getElementById('mfa-err');
+
+      fetch('/api/settings/2fa/setup')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.ok && d.already_enabled) {
+            // Enrolled in another tab/session already — nothing left to do here.
+            window.location.href = '/admin';
+            return;
+          }
+          if (d.ok) {
+            qrEl.src = d.qr_code;
+            secretEl.textContent = d.secret;
+          }
+        })
+        .catch(function() {});
+
+      window.mfaSubmit = function() {
+        var code = codeEl.value.trim();
+        errEl.style.display = 'none';
+        fetch('/api/settings/2fa/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { errEl.textContent = d.msg || 'Invalid code'; errEl.style.display = 'block'; return; }
+            window.location.href = '/admin';
+          })
+          .catch(function() { errEl.textContent = 'Network error.'; errEl.style.display = 'block'; });
+      };
+
+      codeEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') mfaSubmit(); });
+    </script>
+  </body>
+</html>

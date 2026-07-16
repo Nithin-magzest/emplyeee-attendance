@@ -150,6 +150,37 @@ class TestFullProvisioning:
         finally:
             _drop_schema(db_engine, schema_name)
 
+    def test_subdomain_colliding_with_master_registry_schema_rejected(self, client, db_engine, signup_enabled):
+        # subdomain "master" derives db_name "att_master" — the tenant
+        # registry schema itself. Previously this only checked the tenants
+        # table (which has no row for "master"), so CREATE SCHEMA IF NOT
+        # EXISTS would silently no-op and the flow would seed an
+        # attacker-controlled admin account straight into the registry
+        # schema. Must be rejected before any provisioning happens.
+        from app import init_master_db
+        init_master_db()
+
+        resp = client.post("/create_org", data={
+            "signup_secret": signup_enabled, "company_name": "Evil Org",
+            "subdomain": "master", "admin_username": "evil_admin",
+            "admin_password": "password123",
+        }, follow_redirects=False)
+        assert resp.status_code in (301, 302)
+        assert resp.headers.get("Location") == "/create_org"
+
+        # If the vulnerability were still present, the tenant-schema migration
+        # would have run against att_master, creating an admin_users table
+        # there (att_master normally only ever has `tenants`) and seeding
+        # evil_admin into it.
+        cur = db_engine.cursor()
+        cur.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema='att_master' AND table_name='admin_users'"
+        )
+        polluted = cur.fetchone() is not None
+        cur.close()
+        assert not polluted, "tenant schema migration leaked into the master registry schema"
+
     def test_duplicate_subdomain_rejected(self, client, db_engine, signup_enabled):
         from app import init_master_db
         init_master_db()

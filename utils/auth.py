@@ -305,6 +305,48 @@ def employee_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+def role_required(*allowed_roles):
+    """Like admin_required, but also requires session['admin_role'] to be one
+    of allowed_roles. admin_required alone only checks admin_logged_in, so it
+    grants every admin-side role (admin/manager/soc_analyst) equally — use
+    this instead for routes that must stay admin-only (payroll mutation,
+    employee deletion, credential resets, PII-bearing payslip views)."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if not session.get("admin_logged_in"):
+                log_security_event("access.denied", "Unauthenticated request to role-restricted route",
+                                    level="INFO", required="|".join(allowed_roles))
+                is_ajax = (
+                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                    or request.headers.get("Accept", "").startswith("application/json")
+                    or request.is_json
+                )
+                if is_ajax:
+                    return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
+                                    "redirect": url_for("auth.admin_login")}), 401
+                return redirect(url_for("auth.admin_login"))
+            _killed = _reject_if_compromised("auth.admin_login")
+            if _killed:
+                return _killed
+            if session.get("admin_role", "admin") not in allowed_roles:
+                log_security_event("access.denied", "Insufficient role for restricted route",
+                                    level="ERROR", required="|".join(allowed_roles),
+                                    actual_role=session.get("admin_role"),
+                                    identifier=session.get("admin_username"))
+                sid = session.get("_sid")
+                if sid:
+                    evaluate_session_risk(
+                        sid, session.get("admin_username") or "unknown", "admin",
+                        weight=25, event_type="access.denied",
+                        reason="Repeated insufficient-role access attempts",
+                    )
+                return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def manager_or_admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -450,21 +492,15 @@ def soc_step_up_clear():
 
 
 # ── Security Settings hub step-up gate ────────────────────────────────────────
-# Third instance of the same time.time()-in-session step-up pattern as Email
-# Settings and SOC Analyst above, guarding the consolidated "Security" tab in
-# Settings (session timeout, audit log, MFA status, SOC entry point, security
-# posture — all in one place, per the row-wise hub requirement). Kept as its
-# own small set of functions rather than generalizing all three into one
-# parameterized helper — three short, independently-readable instances is
-# still cheap enough that a shared abstraction would mostly just hide which
-# gate a given call site is using; revisit if a fourth one shows up.
+# Same time.time()-in-session step-up pattern as Email Settings, guarding the
+# consolidated "Security" tab in Settings (session timeout, audit log, MFA
+# status, SOC entry point, security posture — all in one place, per the
+# row-wise hub requirement).
 #
-# Unlike the SOC gate, this one has NO role restriction — every admin can
-# open this hub with just their own TOTP code. The SOC row *inside* the hub
-# still enforces its own separate, role-gated step-up before revealing
-# anything (session_risk data, admin MFA rosters) — this gate only protects
-# the lower-sensitivity directory/config view (is MFA on, is CAPTCHA on,
-# session timeout value), not the security dashboard's actual telemetry.
+# This one has NO role restriction — every admin can open this hub with just
+# their own TOTP code. The SOC dashboard linked *from* this hub still
+# enforces its own separate, role-gated step-up (soc_step_up_valid above)
+# when its row is followed.
 SECURITY_SETTINGS_2FA_WINDOW_SEC = 10 * 60
 
 def security_settings_step_up_valid() -> bool:

@@ -20,8 +20,8 @@ from flask import (
 )
 
 from database import get_db_connection
-from extensions import app_log
-from utils.auth import admin_required, employee_required, api_required, enforce_ownership
+from extensions import app_log, limiter, log_security_event
+from utils.auth import admin_required, employee_required, api_required, enforce_ownership, role_required
 from utils.helpers import _audit, decrypt_pii, encrypt_pii
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp
 from utils.attendance_utils import (
@@ -63,7 +63,8 @@ def view_salary():
 
 
 @payroll_bp.route("/update_salary", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("20 per minute")
 def update_salary():
     emp_id     = request.form["emp_id"]
     salary     = request.form["salary"]
@@ -205,13 +206,24 @@ def salary_report_export():
 
     db     = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
-               COALESCE(e.role,''), COALESCE(e.department,'')
-        FROM employees e
-        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-        ORDER BY e.name
-    """)
+    active_cid = session.get("active_company_id")
+    if active_cid:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+                   COALESCE(e.role,''), COALESCE(e.department,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            WHERE e.company_id = %s
+            ORDER BY e.name
+        """, (active_cid,))
+    else:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+                   COALESCE(e.role,''), COALESCE(e.department,'')
+            FROM employees e
+            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
+            ORDER BY e.name
+        """)
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
@@ -297,7 +309,8 @@ def salary_report_export():
 # ---------------- EMAIL CONFIG ----------------
 
 @payroll_bp.route("/email_config", methods=["GET", "POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def email_config():
     # GET used to render this standalone page with the SMTP password
     # decrypted straight into the form's HTML and no step-up gate at all —
@@ -421,7 +434,8 @@ def send_salary_email():
 # ---------------- SEND ALL SALARY EMAILS ----------------
 
 @payroll_bp.route("/send_all_salary_emails", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("5 per minute")
 def send_all_salary_emails():
     year  = int(request.form["year"])
     month = int(request.form["month"])
@@ -717,7 +731,8 @@ def my_attendance_pdf():
 
 
 @payroll_bp.route("/apply_hike", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def apply_hike():
     q   = int(request.form.get("quarter", 1))
     yr  = int(request.form.get("year", datetime.date.today().year))
@@ -770,12 +785,19 @@ def apply_hike():
             continue
         new_ctc = round(current_ctc * (1 + hike_pct / 100), 2)
         new_spd = round(new_ctc / 26, 2)
+        # The idempotency guard is repeated in this UPDATE's WHERE clause
+        # (not just the Python-level skip above) so it's checked-and-set
+        # atomically in one statement — closes the race where two concurrent
+        # apply_hike submissions both read last_hike_quarter != q before
+        # either had committed, which would otherwise double-apply the hike.
         cursor.execute(
             "UPDATE salary_config SET monthly_ctc=%s, salary_per_day=%s, last_revised=%s, "
-            "last_hike_quarter=%s, last_hike_year=%s WHERE employee_id=%s",
-            (new_ctc, new_spd, today, q, yr, emp_id)
+            "last_hike_quarter=%s, last_hike_year=%s "
+            "WHERE employee_id=%s AND (last_hike_quarter IS DISTINCT FROM %s OR last_hike_year IS DISTINCT FROM %s)",
+            (new_ctc, new_spd, today, q, yr, emp_id, q, yr)
         )
-        updated += 1
+        if cursor.rowcount:
+            updated += 1
 
     db.commit()
     cursor.close(); db.close()
@@ -785,7 +807,8 @@ def apply_hike():
 
 
 @payroll_bp.route("/award_performance_bonus", methods=["POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def award_performance_bonus():
     q   = int(request.form.get("quarter", 1))
     yr  = int(request.form.get("year", datetime.date.today().year))
@@ -855,13 +878,21 @@ def award_performance_bonus():
         if bonus_amount <= 0:
             continue
         # Skip if this bonus was already awarded for this employee/quarter/year
+        # (Python-level fast path). ON CONFLICT DO NOTHING below is the real
+        # guard against the race where two concurrent award requests both
+        # read "not yet awarded" before either had committed — it relies on
+        # the unique index on (employee_id, goal_id, month, year) created by
+        # the incentives_unique_v1 migration in app.py's init_db().
         if emp_id in already_awarded:
             continue
         cursor.execute(
-            "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) VALUES (%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) "
+            "VALUES (%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (employee_id, goal_id, month, year) DO NOTHING",
             (emp_id, goal_id, bonus_month, yr, bonus_amount, f"Performance bonus Q{q} {yr} — Rating: {rating}/5")
         )
-        awarded += 1
+        if cursor.rowcount:
+            awarded += 1
 
     db.commit()
     cursor.close(); db.close()
@@ -1117,6 +1148,19 @@ def view_payslip(emp_id, year, month):
     # feeds the alerting webhook (utils/alerts.py), not just the log stream.
     if not enforce_ownership(emp_id, "payslip", f"{year}-{month:02d}"):
         return redirect("/employee_login")
+    # enforce_ownership() grants any admin-side session a bypass regardless
+    # of role — too broad for this route specifically, since it renders
+    # plaintext PAN/UAN/bank account details. Restrict the non-owner
+    # (i.e. admin) path to the "admin" role; the employee's own session
+    # viewing their own payslip already passed the ownership check above
+    # and is unaffected by this.
+    if session.get("admin_logged_in") and session.get("admin_role", "admin") != "admin":
+        log_security_event(
+            "access.denied", "Non-admin role attempted to view an employee payslip",
+            level="ERROR", identifier=session.get("admin_username"),
+            resource_type="payslip", resource_id=f"{emp_id}:{year}-{month:02d}",
+        )
+        return redirect("/employee_login")
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1243,7 +1287,8 @@ def admin_payslips():
 
 
 @payroll_bp.route("/payroll_settings", methods=["GET", "POST"])
-@admin_required
+@role_required("admin")
+@limiter.limit("20 per minute")
 def payroll_settings():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

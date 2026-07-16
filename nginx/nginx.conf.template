@@ -2,6 +2,13 @@ upstream app {
     server app:5000;
 }
 
+# Removes the "Server: nginx/x.x.x" header (and the version string from
+# nginx's own generated error pages) — one less thing that hands an attacker
+# a precise CVE lookup for free. Belongs in the http{} context (this file is
+# included inside it by the base image's nginx.conf), same reasoning as the
+# limit_req_zone directives below.
+server_tokens off;
+
 # limit_req_zone/limit_conn_zone must live in the http context (this file is
 # included inside http{} by the base image's nginx.conf) — they were
 # previously declared inside the `server {}` block below, which is invalid

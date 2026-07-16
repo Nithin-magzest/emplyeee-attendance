@@ -155,10 +155,17 @@ else:
         except Exception:
             pass
 
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"]   = os.environ.get("APP_ENV", "production") != "development"
-app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
-app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours
+app.config["SESSION_COOKIE_HTTPONLY"] = True   # blocks document.cookie read via injected/XSS'd JS
+app.config["SESSION_COOKIE_SECURE"]   = os.environ.get("APP_ENV", "production") != "development"  # never sent over plaintext HTTP
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"  # never attached to a cross-site request — closes CSRF via cookie-riding
+app.config["SESSION_COOKIE_PATH"]     = "/"    # explicit for clarity; Flask's own default, stated rather than implied
+# SESSION_COOKIE_DOMAIN deliberately left unset: omitting it makes the
+# cookie host-only (RFC 6265) — it's sent ONLY to this exact hostname, not
+# to sibling subdomains. Setting an explicit Domain here would WIDEN scope
+# (e.g. exposing it to every *.example.com subdomain), the opposite of a
+# security "limit" despite Domain sounding like a restriction.
+app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours absolute ceiling — utils/session_risk.py's kill switch and
+                                                    # app.py's _enforce_idle_timeout handle inactivity separately
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
