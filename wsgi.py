@@ -38,8 +38,9 @@ try:
 except Exception:
     pass
 
+import os as _os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "hashi", ".env"))
 
 # ── Import shared extensions FIRST (no side-effects) ─────────────────────────
 from extensions import app, app_log  # noqa: F401
@@ -100,31 +101,6 @@ app.register_blueprint(org_bp)
 app.register_blueprint(employee_portal_bp)
 app.register_blueprint(admin_views_bp)
 
-# 🔄 Pending migration (routes still served from app.py below)
-# from blueprints.employees import employees_bp
-# from blueprints.attendance import attendance_bp
-# from blueprints.payroll import payroll_bp
-# from blueprints.leave import leave_bp
-# from blueprints.tickets import tickets_bp
-# from blueprints.admin_views import admin_views_bp
-# from blueprints.performance import performance_bp
-# from blueprints.onboarding import onboarding_bp
-# from blueprints.documents import documents_bp
-# from blueprints.org import org_bp
-# from blueprints.employee_portal import employee_portal_bp
-#
-# app.register_blueprint(auth_bp)
-# app.register_blueprint(employees_bp)
-# app.register_blueprint(attendance_bp)
-# app.register_blueprint(payroll_bp)
-# app.register_blueprint(leave_bp)
-# app.register_blueprint(tickets_bp)
-# app.register_blueprint(admin_views_bp)
-# app.register_blueprint(performance_bp)
-# app.register_blueprint(onboarding_bp)
-# app.register_blueprint(documents_bp)
-# app.register_blueprint(org_bp)
-# app.register_blueprint(employee_portal_bp)
 
 # ── Load all existing routes from monolithic app.py (transitional) ────────────
 import app as _app_module  # noqa: F401 — registers all @app.route decorators

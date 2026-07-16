@@ -1,9 +1,11 @@
 """Documents blueprint — employee document management."""
 import datetime
 import os
+import uuid
 
 from flask import (Blueprint, session, request, redirect, render_template,
-                   flash, url_for, jsonify, send_file, abort)
+                   flash, url_for, jsonify, send_file, abort, send_from_directory)
+from werkzeug.utils import secure_filename
 
 from extensions import app_log
 from database import get_db_connection
@@ -12,6 +14,8 @@ from utils.helpers import (_audit, _validate_upload, get_company_settings,
                            _safe_referrer_redirect, _db)
 
 documents_bp = Blueprint("documents", __name__)
+
+_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
 
 def _doc_admin_ctx(cursor):
     cursor.execute("SELECT company_name FROM company_settings LIMIT 1")

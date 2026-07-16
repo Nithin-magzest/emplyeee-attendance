@@ -44,7 +44,7 @@ def _db():
 
 
 # ── Account lockout ───────────────────────────────────────────────────────────
-_LOGIN_MAX_ATTEMPTS    = 10
+_LOGIN_MAX_ATTEMPTS    = 5
 _LOGIN_LOCKOUT_MINUTES = 15
 
 def _check_login_lockout(identifier: str, attempt_type: str = "admin"):
@@ -133,7 +133,7 @@ def employee_required(f):
             return redirect("/employee_login")
         # Prevent bypassing forced password change by navigating directly to portal
         from flask import request as _req
-        if session.get("_fpc") and _req.endpoint != "force_change_pin":
+        if session.get("_fpc") and _req.endpoint not in ("auth.force_change_pin", "force_change_pin"):
             return redirect("/force_change_pin")
         return f(*args, **kwargs)
     return wrapper

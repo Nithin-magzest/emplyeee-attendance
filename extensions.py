@@ -30,7 +30,7 @@ _env_key = os.environ.get("SECRET_KEY", "").strip()
 if _env_key:
     app.secret_key = _env_key
 else:
-    _key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
+    _key_file = os.path.join(os.path.dirname(__file__), "hashi", ".secret_key")
     if os.path.exists(_key_file):
         with open(_key_file) as _f:
             app.secret_key = _f.read().strip()

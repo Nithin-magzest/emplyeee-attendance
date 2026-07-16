@@ -100,7 +100,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
 
-load_dotenv()
+_HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
+load_dotenv(_HASHI_ENV)
 
 import logging
 
@@ -122,8 +123,17 @@ from extensions import app, limiter, app_log, _allowed_origins
 _APP_URL = os.environ.get("APP_URL", "").rstrip("/")
 
 def _safe_app_url() -> str:
-    """Return a trusted base URL, never derived from the Host header."""
-    return _APP_URL if _APP_URL else request.host_url.rstrip("/")
+    """Return a trusted base URL. In production APP_URL must be set — falling
+    back to request.host_url is unsafe because the Host header is attacker-controlled."""
+    if _APP_URL:
+        return _APP_URL
+    if os.environ.get("APP_ENV", "production") != "development":
+        app_log.warning(
+            "APP_URL is not set in hashi/.env — password-reset links will use the "
+            "request Host header, which is unsafe in production. "
+            "Set APP_URL=https://yourdomain.com in hashi/.env to fix this."
+        )
+    return request.host_url.rstrip("/")
 
 def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     """Validate that a redirect target is a relative path (prevents open redirect)."""
@@ -1639,12 +1649,17 @@ def init_db():
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS emergency_contact_relation VARCHAR(50) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS aadhar_number VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pan_number VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS aadhar_number TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pan_number TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_account VARCHAR(30) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_ifsc VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS uan_number VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_account TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_ifsc TEXT DEFAULT NULL",
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS uan_number TEXT DEFAULT NULL",
+        "ALTER TABLE employees ALTER COLUMN aadhar_number TYPE TEXT",
+        "ALTER TABLE employees ALTER COLUMN pan_number TYPE TEXT",
+        "ALTER TABLE employees ALTER COLUMN bank_account TYPE TEXT",
+        "ALTER TABLE employees ALTER COLUMN bank_ifsc TYPE TEXT",
+        "ALTER TABLE employees ALTER COLUMN uan_number TYPE TEXT",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_mode VARCHAR(20) DEFAULT 'office'",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_lat DECIMAL(10,8) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_lon DECIMAL(11,8) DEFAULT NULL",

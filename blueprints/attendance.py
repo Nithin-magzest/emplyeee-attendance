@@ -22,7 +22,24 @@ from utils.attendance_utils import (
     classify_by_worked_minutes, detect_overtime,
     fetch_holidays_set, get_working_days, get_billable_past_days,
 )
-from utils.config import SHIFT_START, SHIFT_HALF, SHIFT_END
+from utils.config import (
+    SHIFT_START, SHIFT_HALF, SHIFT_END,
+    GRACE_MINUTES, OFFICE_LAT, OFFICE_LON, OFFICE_RADIUS_M,
+)
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dataset")
+
+_WA_FP_VERIFY_WINDOW_SEC    = 120
+_MOBILE_BIO_VERIFY_WINDOW_SEC = 120
+
+try:
+    import face_recognition as face_recognition
+    _face_recognition_available = True
+except Exception:
+    face_recognition = None
+    _face_recognition_available = False
+
+_face_enc_cache: dict = {}
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -450,9 +467,9 @@ def admin_shift_swaps():
     swap_rows = cursor.fetchall()
     cursor.close(); db.close()
     return render_template("admin_shift_swaps.html", swap_rows=swap_rows,
-                           ok=request.args.get("ok",
-        active_nav="employees",
-    ), error=request.args.get("error"))
+                           ok=request.args.get("ok"),
+                           active_nav="employees",
+                           error=request.args.get("error"))
 
 
 @attendance_bp.route("/monthly_report")
@@ -735,10 +752,10 @@ def bulk_mark_attendance():
 
     base_select = (
         "SELECT e.employee_id, e.name, COALESCE(e.department,''), COALESCE(e.designation,''), "
-        "COALESCE(s.shift_name,''), COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''), "
+        "COALESCE(s.name,''), COALESCE(TO_CHAR(s.start_time,'HH24:MI'),''), "
         "COALESCE(TO_CHAR(s.end_time,'HH24:MI'),''), "
         "COALESCE(e.phone,''), COALESCE(e.email,''), "
-        "COALESCE(e.work_mode,'office'), COALESCE(e.date_of_joining,''), "
+        "COALESCE(e.work_mode,'office'), COALESCE(TO_CHAR(e.date_of_joining,'YYYY-MM-DD'),''), "
         "COALESCE(e.gender,''), COALESCE(e.role,'') "
         "FROM employees e LEFT JOIN shifts s ON s.id=e.shift_id "
     )
@@ -1074,7 +1091,7 @@ def attendance():
         if not os.path.exists(face_path):
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Face image missing. Please re-register."})
-        known_encoding = _get_known_face_encoding(employee_id, face_path)
+        known_encoding = _get_known_face_encoding(emp_id, face_path)
         if known_encoding is None:
             cursor.close(); db.close()
             return jsonify({"ok": False, "msg": "Stored face image is invalid. Please re-register."})

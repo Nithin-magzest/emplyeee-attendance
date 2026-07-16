@@ -2,6 +2,7 @@
 import calendar
 import csv
 import datetime
+import html as _html
 import io
 import os
 
@@ -17,9 +18,18 @@ from utils.attendance_utils import (
     infer_type_legacy, fetch_holidays_set, get_working_days, get_billable_past_days,
 )
 from utils.config import (load_salary_rules, load_default_shift,
-                          LATE_DEDUCTION_RATE, HALF_DAY_RATE)
+                          LATE_DEDUCTION_RATE, HALF_DAY_RATE,
+                          HOLIDAY_PAY, LEAVE_PAY)
 
 payroll_bp = Blueprint("payroll", __name__)
+
+_VALID_CFS_COLS = frozenset({
+    "face_auth_enabled", "geo_enabled", "geo_radius", "qr_enabled", "pin_enabled",
+    "fingerprint_enabled", "biometric_enabled", "notify_leave", "notify_payslip",
+    "notify_resignation", "notify_doc_expiry", "session_timeout",
+    "late_deduction_pct", "half_day_deduction_pct", "grace_minutes",
+    "shift_start", "shift_half", "shift_end", "holiday_pay", "leave_pay",
+})
 
 def _upsert_co_features(company_id, fields_dict):
     """Insert or update multiple fields in company_feature_settings."""
@@ -305,6 +315,7 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
         "name":          name,
         "spd":           round(spd_f, 2),
         "billable":      effective_billable,
+        "present":       full_days + half_days + late_days,
         "holiday_days":  holiday_days,
         "leave_days":    leave_days_count,
         "full_days":     full_days,

@@ -8,8 +8,9 @@ import os
 import re
 import secrets
 
-from flask import (Blueprint, session, request, redirect, render_template,
-                   flash, url_for, jsonify, send_file, abort, Response)
+from flask import (Blueprint, current_app, session, request, redirect,
+                   render_template, flash, url_for, jsonify, send_file,
+                   abort, Response)
 
 from extensions import app_log, limiter
 from database import get_db_connection
@@ -24,6 +25,36 @@ from utils.config import (SHIFT_START, SHIFT_HALF, SHIFT_END,
                           load_salary_rules, load_default_shift)
 
 admin_views_bp = Blueprint("admin_views", __name__)
+
+try:
+    import face_recognition as face_recognition
+    _face_recognition_available = True
+except Exception:
+    face_recognition = None
+    _face_recognition_available = False
+
+_VALID_CFS_COLS = frozenset({
+    "face_auth_enabled", "geo_enabled", "geo_radius", "qr_enabled", "pin_enabled",
+    "fingerprint_enabled", "biometric_enabled", "notify_leave", "notify_payslip",
+    "notify_resignation", "notify_doc_expiry", "session_timeout",
+    "late_deduction_pct", "half_day_deduction_pct", "grace_minutes",
+    "shift_start", "shift_half", "shift_end", "holiday_pay", "leave_pay",
+})
+
+_TOGGLE_COLUMN_MAP = {
+    "fingerprint": "fingerprint_enabled",
+    "qr":          "qr_enabled",
+    "face":        "face_enabled",
+    "location":    "location_enabled",
+    "password":    "employee_password_auth",
+}
+_TOGGLE_LABEL_MAP = {
+    "fingerprint": "Fingerprint / Biometric",
+    "qr":          "QR Code",
+    "face":        "Face Recognition",
+    "location":    "Location Verification",
+    "password":    "Password Login",
+}
 
 
 def _read_global_features():
@@ -137,7 +168,8 @@ def _enroll_fingerprint_from_form(emp_id, cursor, db):
     fp_attestation = request.form.get("fingerprint_attestation", "").strip()
     if not fp_attestation:
         return
-    _ok, _err = _wa_verify_and_store_registration(
+    from app import _wa_verify_and_store_registration as _wa_reg
+    _ok, _err = _wa_reg(
         emp_id, fp_attestation, session.get("wa_reg_challenge"), cursor, db
     )
     session.pop("wa_reg_challenge", None)
@@ -436,9 +468,8 @@ def today_present():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="present", title="Present Today",
-        rows=rows, today=today.strftime("%d %b %Y",
+        rows=rows, today=today.strftime("%d %b %Y"),
         active_nav="attendance",
-    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 
@@ -463,9 +494,8 @@ def today_absent():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="absent", title="Absent Today",
-        rows=rows, today=today.strftime("%d %b %Y",
+        rows=rows, today=today.strftime("%d %b %Y"),
         active_nav="attendance",
-    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 
@@ -490,9 +520,8 @@ def today_late():
     cursor.close(); db.close()
     return render_template("today_attendance.html",
         filter_type="late", title="Late Logins Today",
-        rows=rows, today=today.strftime("%d %b %Y",
+        rows=rows, today=today.strftime("%d %b %Y"),
         active_nav="attendance",
-    ),
         pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
 
 
@@ -566,7 +595,7 @@ def admin_action():
             flash(_img_err, "error")
             cursor.close(); db.close()
             return redirect("/admin")
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
 
         # Validate that the uploaded photo contains a detectable face
@@ -680,7 +709,7 @@ def admin_action():
             flash(_img_err, "error")
             cursor.close(); db.close()
             return redirect("/admin")
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         file.save(filepath)
         if _face_recognition_available:
             test_img = face_recognition.load_image_file(filepath)
@@ -746,7 +775,7 @@ def settings_page():
     # Email config
     cursor.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email FROM email_config ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
-    email_config = {"host": row[0], "port": row[1], "user": row[2], "password": row[3], "from_name": row[4], "from_email": row[5] or row[2]} if row else None
+    email_config = {"host": row[0], "port": row[1], "user": row[2], "password": "••••••••" if row[3] else "", "from_name": row[4], "from_email": row[5] or row[2]} if row else None
 
     # Shifts (with company)
     cursor.execute("""
@@ -1169,7 +1198,7 @@ def switch_company():
         flash("Company not found.", "error")
         return redirect(dest)
     cname, stored_pin = row
-    if stored_pin and stored_pin != pin:
+    if stored_pin and not secrets.compare_digest(stored_pin, pin):
         flash(f"Incorrect PIN for {cname}.", "error")
         return redirect(dest + ("&" if "?" in dest else "?") + "pin_error=1&pin_cid=" + str(cid))
     session["active_company_id"] = cid
@@ -1307,8 +1336,8 @@ def edit_company(cid):
                 except Exception:
                     pass
 
-            old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
-            new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
+            old_img = os.path.join(current_app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
+            new_img = os.path.join(current_app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
             old_qr  = os.path.join("static", "qrcodes", old_eid + ".png")
             new_qr  = os.path.join("static", "qrcodes", new_eid + ".png")
 

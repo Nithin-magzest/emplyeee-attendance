@@ -1,6 +1,7 @@
 """Org blueprint — multi-tenant org provisioning, org chart."""
 import datetime
 import os
+import re
 import secrets
 
 from flask import (Blueprint, session, request, redirect, render_template,
@@ -12,6 +13,9 @@ from utils.auth import admin_required, api_required, generate_password_hash
 from utils.helpers import get_company_settings, _db, _audit
 
 org_bp = Blueprint("org", __name__)
+
+_SUBDOMAIN_RE  = re.compile(r'^[a-z0-9\-]+$')
+_SIGNUP_SECRET = os.environ.get("SIGNUP_SECRET", "").strip()
 
 
 def init_master_db():

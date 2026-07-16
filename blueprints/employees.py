@@ -20,6 +20,17 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "
 employees_bp = Blueprint("employees", __name__)
 
 
+def _td_to_time(val):
+    if val is None:
+        return None
+    if isinstance(val, datetime.time):
+        return val
+    total = int(val.total_seconds())
+    h, rem = divmod(total, 3600)
+    m, s   = divmod(rem, 60)
+    return datetime.time(h % 24, m, s)
+
+
 def _build_id_card_buf(emp_id):
     """Generate the front+back ID card PNG and return a BytesIO buffer, or None if not found."""
     from PIL import Image, ImageDraw, ImageFont
@@ -943,6 +954,7 @@ def regenerate_qr(emp_id):
         flash("Employee not found.", "error")
         cursor.close(); db.close()
         return redirect("/employees")
+    from qr_generator import generate_qr
     qr_path = generate_qr(emp_id)
     cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (qr_path, emp_id))
     db.commit()
