@@ -5,7 +5,44 @@ mitigation endpoints (blueprints/admin_views.py: ban-ip/unban-ip/banned-ips)."""
 import datetime
 import pyotp
 import pytest
+import blueprints.org as org_module
 import utils.totp as totp_module
+
+
+def _drop_schema(db_engine, schema_name):
+    cur = db_engine.cursor()
+    cur.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+    cur.execute("DELETE FROM att_master.tenants WHERE db_name=%s", (schema_name,))
+    db_engine.commit(); cur.close()
+
+
+@pytest.fixture
+def signup_enabled_org(client, db_engine):
+    """Provisions one real tenant schema via the actual /create_org flow —
+    the multi-tenant hook-ordering bug this file regression-tests is
+    specifically about which physical schema a query lands in, so a mocked
+    tenant wouldn't exercise it. Yields (subdomain, schema_name)."""
+    from app import init_master_db
+    init_master_db()
+
+    original_secret = org_module._SIGNUP_SECRET
+    org_module._SIGNUP_SECRET = "test-ip-ban-signup-secret"
+    subdomain = "ipban-test-org"
+    schema_name = "att_" + subdomain.replace("-", "_")
+    _drop_schema(db_engine, schema_name)
+    try:
+        resp = client.post("/create_org", data={
+            "signup_secret": org_module._SIGNUP_SECRET,
+            "company_name": "IP Ban Test Org",
+            "subdomain": subdomain,
+            "admin_username": "ipban_admin",
+            "admin_password": "password123",
+        }, follow_redirects=False)
+        assert resp.status_code in (301, 302), "test setup failed: org provisioning did not succeed"
+        yield subdomain, schema_name
+    finally:
+        org_module._SIGNUP_SECRET = original_secret
+        _drop_schema(db_engine, schema_name)
 
 
 def _admin_session(client, username, role="admin"):
@@ -141,3 +178,51 @@ class TestSocBanEndpoints:
         assert expires_at > datetime.datetime.now()
 
         _unban(db_engine, "198.51.100.7")
+
+
+class TestMultiTenantIpBanScopesToCorrectSchema:
+    """Regression test for a hook-ordering bug: _enforce_ip_ban (and
+    _enforce_admin_mfa_enrollment) call get_db_connection(), which reads
+    flask.g.tenant_db and falls back to the "public" schema if it isn't set
+    yet (database.py). _resolve_tenant is what actually sets g.tenant_db from
+    the request's Host header — it must run BEFORE both of those hooks, or
+    every tenant's ban check silently queries "public".banned_ips instead of
+    its own schema, making the ban a permanent no-op for every multi-tenant
+    org. Uses a real provisioned tenant schema, not a mock, since the bug is
+    specifically about which physical schema a query lands in."""
+
+    def test_ban_in_tenant_schema_blocks_requests_to_that_subdomain(self, client, db_engine, signup_enabled_org):
+        subdomain, schema_name = signup_enabled_org
+        banned_ip = "192.0.2.55"
+
+        cur = db_engine.cursor()
+        cur.execute(
+            f'INSERT INTO "{schema_name}".banned_ips (ip, reason, banned_by) VALUES (%s,%s,%s)',  # nosec B608 — schema_name comes from this test's own provisioning call above, not user input
+            (banned_ip, "regression test", "tester"),
+        )
+        db_engine.commit(); cur.close()
+
+        host = f"{subdomain}.example.com"
+        resp = client.get("/admin_login", headers={"Host": host},
+                           environ_overrides={"REMOTE_ADDR": banned_ip})
+        assert resp.status_code == 403, (
+            "IP banned in the tenant's own schema was not enforced — "
+            "_enforce_ip_ban likely ran before _resolve_tenant and checked "
+            "the wrong (public) schema"
+        )
+
+    def test_ban_in_one_tenant_does_not_leak_to_default_schema(self, client, db_engine, signup_enabled_org):
+        subdomain, schema_name = signup_enabled_org
+        banned_ip = "192.0.2.56"
+
+        cur = db_engine.cursor()
+        cur.execute(
+            f'INSERT INTO "{schema_name}".banned_ips (ip, reason, banned_by) VALUES (%s,%s,%s)',  # nosec B608 — same as above
+            (banned_ip, "regression test", "tester"),
+        )
+        db_engine.commit(); cur.close()
+
+        # No tenant-matching Host header this time — resolves to the default
+        # "public" schema, which never got this ban row.
+        resp = client.get("/admin_login", environ_overrides={"REMOTE_ADDR": banned_ip})
+        assert resp.status_code != 403

@@ -195,6 +195,55 @@ def _perf_start_timer():
 
 
 @app.before_request
+def _resolve_tenant():
+    """Determine the tenant database for this request and store it in
+    g.tenant_db. Registered second — right after the perf timer, before
+    every other hook — because get_db_connection() (database.py) reads
+    g.tenant_db and silently falls back to the "public" schema if it isn't
+    set yet. _enforce_ip_ban and _enforce_admin_mfa_enrollment both call
+    get_db_connection() directly; running this hook after either of them
+    would make both checks query the wrong tenant's data on every single
+    request in a multi-tenant deployment — a full bypass of both controls,
+    not a rare edge case."""
+    from flask import g as _g
+
+    # Skip for static files and special paths
+    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin")
+    if any(request.path.startswith(p) for p in skip_prefixes):
+        return
+
+    # 1. Already resolved in this session
+    if session.get("tenant_db"):
+        _g.tenant_db = session["tenant_db"]
+        return
+
+    # 2. Subdomain resolution
+    host = request.host.split(":")[0]  # strip port
+    parts = host.split(".")
+    if len(parts) >= 3:
+        subdomain = parts[0]
+        try:
+            from database import get_master_db
+            conn = get_master_db()
+            cur = conn.cursor(buffered=True)
+            cur.execute(
+                "SELECT db_name FROM tenants WHERE subdomain=%s AND status='active'",
+                (subdomain,)
+            )
+            row = cur.fetchone()
+            cur.close(); conn.close()
+            if row:
+                _g.tenant_db = row[0]
+                session["tenant_db"] = row[0]
+                return
+        except Exception:
+            pass  # master DB not yet set up — fall through to default
+
+    # 3. Default single-tenant fallback
+    _g.tenant_db = os.environ.get("DB_NAME", "employee_attendance")
+
+
+@app.before_request
 def _enforce_ip_ban():
     """Application-layer IP ban, enforced before every other before_request
     hook (registered second, right after the perf timer) so a banned source
@@ -342,47 +391,6 @@ def _enforce_csrf():
             login_url = url_for("auth.employee_login") if request.path.startswith("/employee") or "employee" in request.path else url_for("auth.admin_login")
             return redirect(login_url)
         return jsonify({"ok": False, "msg": "Session expired. Please refresh and try again."}), 403
-
-
-@app.before_request
-def _resolve_tenant():
-    """Determine the tenant database for this request and store it in g.tenant_db."""
-    from flask import g as _g
-
-    # Skip for static files and special paths
-    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin")
-    if any(request.path.startswith(p) for p in skip_prefixes):
-        return
-
-    # 1. Already resolved in this session
-    if session.get("tenant_db"):
-        _g.tenant_db = session["tenant_db"]
-        return
-
-    # 2. Subdomain resolution
-    host = request.host.split(":")[0]  # strip port
-    parts = host.split(".")
-    if len(parts) >= 3:
-        subdomain = parts[0]
-        try:
-            from database import get_master_db
-            conn = get_master_db()
-            cur = conn.cursor(buffered=True)
-            cur.execute(
-                "SELECT db_name FROM tenants WHERE subdomain=%s AND status='active'",
-                (subdomain,)
-            )
-            row = cur.fetchone()
-            cur.close(); conn.close()
-            if row:
-                _g.tenant_db = row[0]
-                session["tenant_db"] = row[0]
-                return
-        except Exception:
-            pass  # master DB not yet set up — fall through to default
-
-    # 3. Default single-tenant fallback
-    _g.tenant_db = os.environ.get("DB_NAME", "employee_attendance")
 
 
 _CSRF_HEAD_RE    = re.compile(rb'</head>', re.IGNORECASE)
