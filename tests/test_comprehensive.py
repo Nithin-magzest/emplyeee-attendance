@@ -945,9 +945,11 @@ class TestOrgChart:
 # ===========================================================================
 
 class TestWebAuthn:
-    def test_registration_options_requires_employee_id(self, client):
+    def test_registration_options_rejects_unauthenticated_request(self, client):
+        # No admin/employee session and no prior face-match — must be refused,
+        # not just fall back to a generic "employee" id. See test_webauthn_enrollment_authz.py.
         resp = client.get("/webauthn/registration-options")
-        assert resp.status_code in (200, 400)
+        assert resp.status_code == 403
 
     def test_authentication_options_returns_json(self, client, seed_employee):
         resp = client.get(f"/webauthn/authentication-options?emp_id={seed_employee['employee_id']}")

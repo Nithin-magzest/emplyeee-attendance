@@ -1,4 +1,5 @@
 """Auth blueprint — login, logout, password reset, WebAuthn."""
+import os
 import re
 import time
 import base64
@@ -10,7 +11,7 @@ from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, g,
 )
 
-from extensions import limiter, app_log, log_security_event
+from extensions import app, limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
     generate_password_hash, check_password_hash, _hash_token,
@@ -22,11 +23,21 @@ from utils.auth import (
 from utils.helpers import get_company_settings, invalidate_settings_cache, _audit, _db, _safe_app_url
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
 from utils.session_risk import ensure_session_id
+from utils.face_utils import verify_uploaded_face
 from utils.webauthn_utils import (
     webauthn, _webauthn_available, _wa_rp_id, _wa_check_rp_id, _wa_origins,
     _wa_b64url_encode, _wa_b64url_decode, _wa_verify_and_store_registration,
     _mobile_biometric_issue_nonce, _mobile_biometric_attest,
 )
+
+UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
+
+# How long a successful kiosk face-match (see api_kiosk_enroll_face_verify)
+# stays valid as proof of identity before it must be redone. Mirrors the
+# window pattern used for wa_fp_verified_at/soc_2fa_verified_at elsewhere —
+# short enough that a stolen session cookie right after enrollment can't
+# reuse a stale face-match to enroll a second, different employee_id.
+KIOSK_FACE_VERIFY_WINDOW_SEC = 5 * 60
 if _webauthn_available:
     from utils.webauthn_utils import (
         AuthenticatorSelectionCriteria, AuthenticatorAttachment,
@@ -492,6 +503,62 @@ def webauthn_status():
     })
 
 
+def _wa_authorize_enrollment(emp_id):
+    """Return None if this session is allowed to enroll a passkey for emp_id,
+    else an error string. Three legitimate paths, none of which trust a bare
+    client-supplied emp_id on its own:
+      - an authenticated admin, enrolling on an employee's behalf
+      - an authenticated employee, enrolling their own credential
+      - a kiosk visitor who just passed a real face match against emp_id's
+        on-file photo (see api_kiosk_enroll_face_verify) within the last
+        KIOSK_FACE_VERIFY_WINDOW_SEC seconds
+    Without this, /webauthn/registration-options + webauthn-register(-kiosk)
+    would let anyone enroll their own device's biometric against ANY
+    employee_id and then check in as that employee indefinitely."""
+    if session.get("admin_logged_in"):
+        return None
+    session_emp = session.get("employee_id")
+    if session_emp:
+        return None if session_emp.strip().upper() == emp_id else "Not authorized to enroll a passkey for this employee."
+    face_emp = session.get("wa_face_verified_emp_id")
+    face_at  = session.get("wa_face_verified_at", 0)
+    if face_emp and face_emp.upper() == emp_id and (time.time() - face_at) < KIOSK_FACE_VERIFY_WINDOW_SEC:
+        return None
+    return "Identity not verified. Please verify your face or log in first."
+
+
+@auth_bp.route("/api/employee/kiosk-enroll-face-verify", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_kiosk_enroll_face_verify():
+    """Public kiosk endpoint: proves the person at the kiosk is the employee
+    they claim before /webauthn/registration-options will hand out enrollment
+    options for that employee_id. This is the real identity check that was
+    previously missing entirely — a QR scan or typed employee_id alone proves
+    nothing about who is physically present."""
+    employee_id = (request.form.get("employee_id") or "").strip().upper()
+    face_photo  = request.files.get("face_photo")
+    if not employee_id:
+        return jsonify({"ok": False, "msg": "employee_id required"}), 400
+    if not face_photo:
+        return jsonify({"ok": False, "msg": "Face photo required."}), 400
+
+    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT face_image FROM employees WHERE employee_id=%s", (employee_id,))
+    row = cursor.fetchone()
+    cursor.close(); db.close()
+    if not row:
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+
+    face_dir  = os.path.join(UPLOAD_FOLDER, "face_logs")
+    ok, msg   = verify_uploaded_face(employee_id, row[0], face_photo, face_dir)
+    if not ok:
+        return jsonify({"ok": False, "msg": msg}), 401
+
+    session["wa_face_verified_emp_id"] = employee_id
+    session["wa_face_verified_at"]     = time.time()
+    return jsonify({"ok": True})
+
+
 @auth_bp.route("/webauthn/registration-options", methods=["GET"])
 def webauthn_registration_options():
     """Server-generated WebAuthn registration options with challenge stored in session."""
@@ -500,6 +567,15 @@ def webauthn_registration_options():
     try:
         emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
         emp_name = (request.args.get("name") or emp_id).strip()
+
+        auth_err = _wa_authorize_enrollment(emp_id)
+        if auth_err:
+            return jsonify({"ok": False, "msg": auth_err}), 403
+        # Single-use: a face match only ever authorizes the enrollment it was
+        # taken for, never a second later request in the same session.
+        session.pop("wa_face_verified_emp_id", None)
+        session.pop("wa_face_verified_at", None)
+
         rp_id    = _wa_rp_id()
         rp_err   = _wa_check_rp_id(rp_id)
         if rp_err:

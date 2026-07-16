@@ -1085,6 +1085,29 @@
         }
 
         try {
+          // Identity gate: the server refuses to hand out enrolment options
+          // for this employee_id unless this session already proved (via a
+          // real face match) that the person here is actually that employee
+          // — a QR scan or typed ID alone doesn't prove that.
+          $("fpHint").textContent = "⏳ Verifying your identity — look at the camera…";
+          await openCamera("user");
+          await new Promise(r => setTimeout(r, 1200)); // let the camera settle before capturing
+          const faceB64  = captureFrame();
+          const faceBlob = await (await fetch("data:image/jpeg;base64," + faceB64)).blob();
+          stopCamera();
+
+          const faceForm = new FormData();
+          faceForm.append("employee_id", empId);
+          faceForm.append("face_photo", faceBlob, "enrol_face.jpg");
+          const faceR = await fetch("/api/employee/kiosk-enroll-face-verify", { method: "POST", body: faceForm });
+          const faceJson = await faceR.json().catch(() => ({ ok: false, msg: "Server returned non-JSON response (HTTP " + faceR.status + ")" }));
+          if (!faceJson.ok) {
+            $("fpHint").textContent = "❌ " + (faceJson.msg || "Identity verification failed.");
+            $("fpHint").style.color = "#f59e0b";
+            btn.disabled = false; btn.textContent = "🔐 Enrol Fingerprint";
+            return;
+          }
+
           $("fpHint").textContent = "⏳ Getting enrolment options…";
           const optR = await fetch(`/webauthn/registration-options?emp_id=${encodeURIComponent(empId)}&name=${encodeURIComponent(empId)}`);
           if (!optR.ok) {

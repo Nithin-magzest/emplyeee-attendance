@@ -7,6 +7,7 @@ neither can own it exclusively without the other importing across a
 blueprint boundary.
 """
 import os
+import datetime
 
 try:
     import face_recognition
@@ -34,3 +35,35 @@ def _get_known_face_encoding(emp_id: str, face_path: str):
     enc  = encs[0] if encs else None
     _face_enc_cache[emp_id] = (mtime, enc)
     return enc
+
+
+def verify_uploaded_face(emp_id: str, registered_face_path: str, face_photo_storage, save_dir: str):
+    """Compare an uploaded photo (werkzeug FileStorage) against an employee's
+    on-file registered face. Returns (ok, error_msg). The one place in this
+    app that turns a claimed employee_id into a real, server-verified proof
+    that the person in front of the camera is actually that employee —
+    used both by attendance check-in and by the WebAuthn kiosk-enrollment
+    identity gate, since a client-supplied employee_id string alone (QR scan
+    content, typed input) proves nothing on its own."""
+    if not _face_recognition_available:
+        return False, "Face recognition is currently unavailable on this server. Contact your admin."
+    if not registered_face_path or not os.path.exists(registered_face_path):
+        return False, "No registered face found. Please contact your admin."
+    try:
+        from PIL import Image as _PILImage
+        os.makedirs(save_dir, exist_ok=True)
+        ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        face_path = os.path.join(save_dir, f"{emp_id}_{ts}.jpg")
+        img = _PILImage.open(face_photo_storage.stream).convert("RGB")
+        img.save(face_path, "JPEG", quality=80)
+
+        known_enc     = _get_known_face_encoding(emp_id, registered_face_path)
+        test_img_data = face_recognition.load_image_file(face_path)
+        test_encs     = face_recognition.face_encodings(test_img_data)
+        if known_enc is None or not test_encs:
+            return False, "Face not detected clearly. Please retake the photo."
+        if not face_recognition.compare_faces([known_enc], test_encs[0], tolerance=0.5)[0]:
+            return False, "Face did not match. Please try again."
+        return True, None
+    except Exception:
+        return False, "Face verification failed. Please retake the photo."
