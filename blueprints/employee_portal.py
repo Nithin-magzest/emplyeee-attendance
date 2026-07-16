@@ -9,7 +9,7 @@ from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection
 from utils.auth import employee_required, employee_api_required, check_password_hash, generate_password_hash
 from utils.helpers import (
-    _audit, _db, encrypt_pii, decrypt_pii, _validate_image_file, get_auth_config,
+    _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -40,16 +40,16 @@ def update_my_profile():
     emp_id = session["employee_id"]
     fields = {
         "phone":                      request.form.get("phone", "").strip() or None,
-        "gender":                     request.form.get("gender", "").strip() or None,
-        "dob":                        request.form.get("dob", "").strip() or None,
-        "blood_group":                request.form.get("blood_group", "").strip() or None,
-        "address":                    request.form.get("address", "").strip() or None,
-        "city":                       request.form.get("city", "").strip() or None,
-        "state":                      request.form.get("state", "").strip() or None,
-        "pincode":                    request.form.get("pincode", "").strip() or None,
-        "emergency_contact_name":     request.form.get("emergency_contact_name", "").strip() or None,
-        "emergency_contact_phone":    request.form.get("emergency_contact_phone", "").strip() or None,
-        "emergency_contact_relation": request.form.get("emergency_contact_relation", "").strip() or None,
+        "gender":                     encrypt_pii(request.form.get("gender", "").strip() or None),
+        "dob":                        encrypt_pii(request.form.get("dob", "").strip() or None),
+        "blood_group":                encrypt_pii(request.form.get("blood_group", "").strip() or None),
+        "address":                    encrypt_pii(request.form.get("address", "").strip() or None),
+        "city":                       encrypt_pii(request.form.get("city", "").strip() or None),
+        "state":                      encrypt_pii(request.form.get("state", "").strip() or None),
+        "pincode":                    encrypt_pii(request.form.get("pincode", "").strip() or None),
+        "emergency_contact_name":     encrypt_pii(request.form.get("emergency_contact_name", "").strip() or None),
+        "emergency_contact_phone":    encrypt_pii(request.form.get("emergency_contact_phone", "").strip() or None),
+        "emergency_contact_relation": encrypt_pii(request.form.get("emergency_contact_relation", "").strip() or None),
         "about_me":                   request.form.get("about_me", "").strip() or None,
     }
     db = get_db_connection()
@@ -72,7 +72,7 @@ def update_my_bank_details():
     fields = {
         "aadhar_number": encrypt_pii(request.form.get("aadhar_number", "").strip() or None),
         "pan_number":    encrypt_pii(request.form.get("pan_number", "").upper().strip() or None),
-        "bank_name":     request.form.get("bank_name", "").strip() or None,
+        "bank_name":     encrypt_pii(request.form.get("bank_name", "").strip() or None),
         "bank_account":  encrypt_pii(request.form.get("bank_account", "").strip() or None),
         "bank_ifsc":     encrypt_pii(request.form.get("bank_ifsc", "").upper().strip() or None),
         "uan_number":    encrypt_pii(request.form.get("uan_number", "").strip() or None),
@@ -220,6 +220,8 @@ def my_id_card():
         """, (emp_id,))
         row = cursor.fetchone()
     cursor.close(); db.close()
+    if row:
+        row = row[:7] + (decrypt_pii(row[7]),) + row[8:]  # [7]=blood_group
 
     # ── Colours ──────────────────────────────────────────
     DARK   = (15,  40, 100)
@@ -470,10 +472,15 @@ def employee_portal():
     # [27]=qr_code [28]=work_mode [29]=about_me [30]=manager_name [31]=department
     # [32]=fingerprint_credential_id
     fp_enrolled = bool(emp[32]) if len(emp) > 32 else False
-    # Decrypt PII fields
-    for _pii_idx in (21, 22, 24, 25, 26):
+    # Decrypt PII fields: [11]=gender [13]=blood_group [14]=address [15]=city
+    # [16]=state [17]=pincode [18]=ec_name [19]=ec_phone [20]=ec_relation
+    # [21]=aadhar_number [22]=pan_number [23]=bank_name [24]=bank_account
+    # [25]=bank_ifsc [26]=uan_number. [12]=dob handled separately since the
+    # template calls .strftime() on it (see decrypt_pii_date).
+    for _pii_idx in (11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26):
         if _pii_idx < len(emp):
             emp[_pii_idx] = decrypt_pii(emp[_pii_idx])
+    emp[12] = decrypt_pii_date(emp[12])
 
     today = datetime.date.today()
     cursor.execute(
@@ -1615,12 +1622,13 @@ def api_employee_profile():
             "employee_id": row[0], "name": row[1], "email": row[2],
             "role": row[3], "department": row[4],
             "phone": row[5],
-            "dob": str(row[6]) if row[6] else None,
-            "gender": row[7], "blood_group": row[8],
-            "address": row[9], "city": row[10], "state": row[11], "pincode": row[12],
+            "dob": decrypt_pii(row[6]) if row[6] else None,
+            "gender": decrypt_pii(row[7]), "blood_group": decrypt_pii(row[8]),
+            "address": decrypt_pii(row[9]), "city": decrypt_pii(row[10]),
+            "state": decrypt_pii(row[11]), "pincode": decrypt_pii(row[12]),
             "about_me": row[13],
-            "emergency_contact_name": row[14], "emergency_contact_phone": row[15],
-            "bank_name": row[16], "bank_account": decrypt_pii(row[17]), "bank_ifsc": decrypt_pii(row[18]),
+            "emergency_contact_name": decrypt_pii(row[14]), "emergency_contact_phone": decrypt_pii(row[15]),
+            "bank_name": decrypt_pii(row[16]), "bank_account": decrypt_pii(row[17]), "bank_ifsc": decrypt_pii(row[18]),
             "pan_number": decrypt_pii(row[19]), "aadhar_number": decrypt_pii(row[20]),
             "salary_per_day": float(row[21]),
             "join_date": str(row[22]) if row[22] else None,

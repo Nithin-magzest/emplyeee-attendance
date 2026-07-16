@@ -1180,6 +1180,7 @@ def view_payslip(emp_id, year, month):
         return "Employee not found", 404
     name, email, spd, monthly_ctc, basic_pct, designation, dept, pan, uan, bank_acct, bank_nm = row
     pan = decrypt_pii(pan); uan = decrypt_pii(uan); bank_acct = decrypt_pii(bank_acct)
+    bank_nm = decrypt_pii(bank_nm)
 
     # Payroll config
     cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")

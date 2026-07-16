@@ -107,6 +107,25 @@ def decrypt_pii(value: str) -> str:
         return value
 
 
+def decrypt_pii_date(value):
+    """decrypt_pii() for employees.dob: that column used to be a native DATE
+    and callers throughout the app call .strftime() on what it returns —
+    widening it to TEXT so Fernet ciphertext fits (see app.py's
+    employee_pii_columns_to_text_v1 migration) would otherwise silently
+    turn every one of those call sites into an AttributeError. Returns a
+    datetime.date (or None), never a bare string, so existing .strftime()
+    call sites keep working unchanged."""
+    if not value:
+        return None
+    decrypted = decrypt_pii(value)
+    if isinstance(decrypted, datetime.date):
+        return decrypted
+    try:
+        return datetime.datetime.strptime(str(decrypted), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
 # ── Token hashing ─────────────────────────────────────────────────────────────
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()

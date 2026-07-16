@@ -11,7 +11,7 @@ from extensions import app, app_log, limiter
 from database import get_db_connection
 from qr_generator import generate_qr
 from utils.auth import admin_required, generate_password_hash, api_required, role_required
-from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, encrypt_pii, validate_emp_id
+from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import _td_to_time
 from utils.leave_utils import assign_leave_balances_for_employee
@@ -52,20 +52,20 @@ def admin_action():
             manager_name    = request.form.get("manager_name", "").strip() or None
             salary_per_day_raw = request.form.get("salary_per_day", "").strip()
             salary_per_day  = float(salary_per_day_raw) if salary_per_day_raw else None
-            gender          = request.form.get("gender", "").strip() or None
+            gender          = encrypt_pii(request.form.get("gender", "").strip() or None)
             dob_raw         = request.form.get("dob", "").strip()
-            dob             = dob_raw if dob_raw else None
-            blood_group     = request.form.get("blood_group", "").strip() or None
-            address         = request.form.get("address", "").strip() or None
-            city            = request.form.get("city", "").strip() or None
-            state           = request.form.get("state", "").strip() or None
-            pincode         = request.form.get("pincode", "").strip() or None
-            ec_name         = request.form.get("emergency_contact_name", "").strip() or None
-            ec_phone        = request.form.get("emergency_contact_phone", "").strip() or None
-            ec_relation     = request.form.get("emergency_contact_relation", "").strip() or None
+            dob             = encrypt_pii(dob_raw) if dob_raw else None
+            blood_group     = encrypt_pii(request.form.get("blood_group", "").strip() or None)
+            address         = encrypt_pii(request.form.get("address", "").strip() or None)
+            city            = encrypt_pii(request.form.get("city", "").strip() or None)
+            state           = encrypt_pii(request.form.get("state", "").strip() or None)
+            pincode         = encrypt_pii(request.form.get("pincode", "").strip() or None)
+            ec_name         = encrypt_pii(request.form.get("emergency_contact_name", "").strip() or None)
+            ec_phone        = encrypt_pii(request.form.get("emergency_contact_phone", "").strip() or None)
+            ec_relation     = encrypt_pii(request.form.get("emergency_contact_relation", "").strip() or None)
             aadhar          = encrypt_pii(request.form.get("aadhar_number", "").strip() or None)
             pan             = encrypt_pii(request.form.get("pan_number", "").strip().upper() or None)
-            bank_name       = request.form.get("bank_name", "").strip() or None
+            bank_name       = encrypt_pii(request.form.get("bank_name", "").strip() or None)
             bank_account    = encrypt_pii(request.form.get("bank_account", "").strip() or None)
             bank_ifsc       = encrypt_pii(request.form.get("bank_ifsc", "").strip().upper() or None)
             uan             = encrypt_pii(request.form.get("uan_number", "").strip() or None)
@@ -326,11 +326,16 @@ def employee_profile(emp_id):
         emp = cursor.fetchone()
         if not emp:
             return "Employee not found", 404
-        # Decrypt PII: [19]=aadhar_number, [20]=pan_number, [22]=bank_account, [23]=bank_ifsc, [24]=uan_number
+        # Decrypt PII: [5]=gender [7]=blood_group [12]=address [13]=city
+        # [14]=state [15]=pincode [16]=ec_name [17]=ec_phone [18]=ec_relation
+        # [19]=aadhar_number [20]=pan_number [21]=bank_name [22]=bank_account
+        # [23]=bank_ifsc [24]=uan_number. [6]=dob is handled separately since
+        # the template calls .strftime() on it (see decrypt_pii_date).
         emp = list(emp)
-        for _pii_idx in (19, 20, 22, 23, 24):
+        for _pii_idx in (5, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24):
             if _pii_idx < len(emp):
                 emp[_pii_idx] = decrypt_pii(emp[_pii_idx])
+        emp[6] = decrypt_pii_date(emp[6])
 
         # Attendance this month
         cursor.execute("""
@@ -415,18 +420,18 @@ def edit_employee():
     manager_name    = request.form.get("manager_name",    "").strip() or None
     manager_id      = request.form.get("manager_id",      "").strip() or None
     phone           = request.form.get("phone",           "").strip() or None
-    gender          = request.form.get("gender",          "").strip() or None
-    dob             = request.form.get("dob",             "").strip() or None
-    blood_group     = request.form.get("blood_group",     "").strip() or None
+    gender          = encrypt_pii(request.form.get("gender",         "").strip() or None)
+    dob             = encrypt_pii(request.form.get("dob",            "").strip() or None)
+    blood_group     = encrypt_pii(request.form.get("blood_group",    "").strip() or None)
     shift_id_raw    = request.form.get("shift_id",        "").strip()
     shift_id        = int(shift_id_raw) if shift_id_raw else None
-    address         = request.form.get("address",         "").strip() or None
-    city            = request.form.get("city",            "").strip() or None
-    state           = request.form.get("state",           "").strip() or None
-    pincode         = request.form.get("pincode",         "").strip() or None
-    ec_name         = request.form.get("ec_name",         "").strip() or None
-    ec_phone        = request.form.get("ec_phone",        "").strip() or None
-    ec_rel          = request.form.get("ec_rel",          "").strip() or None
+    address         = encrypt_pii(request.form.get("address",       "").strip() or None)
+    city            = encrypt_pii(request.form.get("city",          "").strip() or None)
+    state           = encrypt_pii(request.form.get("state",         "").strip() or None)
+    pincode         = encrypt_pii(request.form.get("pincode",       "").strip() or None)
+    ec_name         = encrypt_pii(request.form.get("ec_name",       "").strip() or None)
+    ec_phone        = encrypt_pii(request.form.get("ec_phone",      "").strip() or None)
+    ec_rel          = encrypt_pii(request.form.get("ec_rel",        "").strip() or None)
     work_mode       = request.form.get("work_mode",       "office").strip() or "office"
     work_lat_raw    = request.form.get("work_lat",        "").strip()
     work_lon_raw    = request.form.get("work_lon",        "").strip()
@@ -475,6 +480,7 @@ def api_employee_info(emp_id):
      phone, gender, dob, blood_group, shift_id,
      address, city, state, pincode,
      ec_name, ec_phone, ec_rel, mgr_id) = row
+    dob_date = decrypt_pii_date(dob)
     return jsonify({
         "emp_id":          eid,
         "name":            name         or "",
@@ -490,17 +496,17 @@ def api_employee_info(emp_id):
         "has_photo":       bool(face_image and os.path.exists(face_image)),
         "has_qr":          bool(qr_code  and os.path.exists(qr_code)),
         "phone":           phone        or "",
-        "gender":          gender       or "",
-        "dob":             dob.strftime("%Y-%m-%d") if dob else "",
-        "blood_group":     blood_group  or "",
+        "gender":          decrypt_pii(gender)       or "",
+        "dob":             dob_date.strftime("%Y-%m-%d") if dob_date else "",
+        "blood_group":     decrypt_pii(blood_group)  or "",
         "shift_id":        shift_id     or "",
-        "address":         address      or "",
-        "city":            city         or "",
-        "state":           state        or "",
-        "pincode":         pincode      or "",
-        "ec_name":         ec_name      or "",
-        "ec_phone":        ec_phone     or "",
-        "ec_rel":          ec_rel       or "",
+        "address":         decrypt_pii(address)      or "",
+        "city":            decrypt_pii(city)         or "",
+        "state":           decrypt_pii(state)        or "",
+        "pincode":         decrypt_pii(pincode)      or "",
+        "ec_name":         decrypt_pii(ec_name)       or "",
+        "ec_phone":        decrypt_pii(ec_phone)      or "",
+        "ec_rel":          decrypt_pii(ec_rel)        or "",
     })
 
 
@@ -564,6 +570,7 @@ def view_employees():
             emp_status = "On Leave"
         else:
             emp_status = "Active"
+        row = row[:14] + (decrypt_pii(row[14]),) + row[15:]  # [14]=gender
         employees.append(row + (emp_status,))
 
     total          = len(employees)
@@ -678,11 +685,18 @@ def employee_detail(emp_id):
         flash("Employee not found.", "error")
         return redirect("/employees")
 
-    # Decrypt PII fields: [23]=aadhar_number, [24]=pan_number, [26]=bank_account, [27]=bank_ifsc, [28]=uan_number
+    # Decrypt PII fields: [12]=gender [14]=blood_group [17]=address [18]=city
+    # [19]=state [20]=pincode [21]=ec_name [22]=ec_phone [23]=ec_relation
+    # [24]=aadhar_number [25]=pan_number [26]=bank_name [27]=bank_account
+    # [28]=bank_ifsc [29]=uan_number. [13]=dob handled separately (see
+    # decrypt_pii_date). NOTE: this replaces an existing off-by-one bug that
+    # decrypted the wrong indices (23,24,26,27,28) and left pan_number/
+    # uan_number displayed as raw ciphertext on this page.
     row = list(row)
-    for _pii_idx in (23, 24, 26, 27, 28):
+    for _pii_idx in (12, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29):
         if _pii_idx < len(row):
             row[_pii_idx] = decrypt_pii(row[_pii_idx])
+    row[13] = decrypt_pii_date(row[13])
 
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
     is_resigned = cursor.fetchone()[0] > 0
@@ -1118,6 +1132,7 @@ def _build_id_card_buf(emp_id):
 
     if not row:
         return None
+    row = row[:7] + (decrypt_pii(row[7]),) + row[8:]  # [7]=blood_group
 
     DARK  = (15,  40, 100)
     BLUE  = (30,  58, 138)

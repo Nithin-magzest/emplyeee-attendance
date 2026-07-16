@@ -1621,6 +1621,42 @@ def init_db():
     except Exception:
         pass
 
+    # Widen employee PII columns to TEXT so they can hold Fernet-encrypted
+    # values (utils/helpers.py's encrypt_pii) — a base64 Fernet token has
+    # ~100+ chars of fixed IV/HMAC/timestamp overhead even for a 2-character
+    # plaintext like a blood group, which overflows every VARCHAR(N) column
+    # below (and dob's native DATE type can't hold text/ciphertext at all).
+    # Existing plaintext rows keep working unchanged — decrypt_pii() already
+    # falls back to returning its input as-is when it isn't a valid Fernet
+    # token, so nothing needs to be migrated, only re-saved to pick up
+    # encryption going forward, same pattern already used for aadhar/pan/
+    # bank_account/bank_ifsc/uan.
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='employee_pii_columns_to_text_v1'")
+        if not cursor.fetchone():
+            _pii_widen_stmts = [
+                "ALTER TABLE employees ALTER COLUMN dob TYPE TEXT USING dob::text",
+                "ALTER TABLE employees ALTER COLUMN gender TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN blood_group TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN city TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN state TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN pincode TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN emergency_contact_name TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN emergency_contact_phone TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN emergency_contact_relation TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN bank_name TYPE TEXT",
+            ]
+            for stmt in _pii_widen_stmts:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('employee_pii_columns_to_text_v1')")
+            db.commit()
+    except Exception:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")

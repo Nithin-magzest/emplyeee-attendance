@@ -2055,12 +2055,18 @@ def analytics():
     """, (datetime.date(today.year, today.month, 1), today, datetime.date(today.year, today.month, 1), today.month, today.year))
     top_present = [{'name': r[1], 'employee_id': r[0], 'pct': float(r[2] or 0)} for r in cursor.fetchall()]
 
-    cursor.execute("""
-        SELECT gender, COUNT(*) as cnt FROM employees
-        WHERE gender IS NOT NULL AND gender != ''
-        GROUP BY gender
-    """)
-    gender_data = [{'gender': r[0], 'count': r[1]} for r in cursor.fetchall()]
+    # gender is Fernet-encrypted (non-deterministic ciphertext — the same
+    # plaintext never produces the same bytes twice), so GROUP BY gender at
+    # the SQL level would group by ciphertext and put every employee in
+    # their own bucket. Aggregate in Python instead, after decrypting.
+    cursor.execute("SELECT gender FROM employees WHERE gender IS NOT NULL AND gender != ''")
+    _gender_counts = {}
+    for (_g_enc,) in cursor.fetchall():
+        _g = decrypt_pii(_g_enc)
+        if _g:
+            _gender_counts[_g] = _gender_counts.get(_g, 0) + 1
+    gender_data = [{'gender': g, 'count': c} for g, c in
+                   sorted(_gender_counts.items(), key=lambda kv: -kv[1])]
 
     # Attendance heatmap — last 35 days (5 weeks) present count per day
     heatmap_start = today - datetime.timedelta(days=34)

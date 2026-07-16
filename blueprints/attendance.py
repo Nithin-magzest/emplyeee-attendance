@@ -17,7 +17,7 @@ from flask import (
 from extensions import limiter, app_log
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required
-from utils.helpers import get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect, co_scope_column
+from utils.helpers import get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect, co_scope_column, decrypt_pii
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
     classify_by_worked_minutes, detect_overtime, get_working_days,
@@ -767,7 +767,8 @@ def bulk_mark_attendance():
         cursor.execute(base_select + "WHERE e.is_active=1 AND e.company_id=%s ORDER BY e.name", (active_cid,))
     else:
         cursor.execute(base_select + "WHERE e.is_active=1 ORDER BY e.name")
-    employees = cursor.fetchall()
+    # [11]=gender is Fernet-encrypted at rest — decrypt before display.
+    employees = [row[:11] + (decrypt_pii(row[11]),) + row[12:] for row in cursor.fetchall()]
 
     cursor.execute(
         "SELECT employee_id, login_time, logout_time, attendance_type "
