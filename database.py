@@ -64,7 +64,23 @@ class _PooledConnection:
         return self._conn.cursor(*args, **kwargs)
 
     def close(self):
-        self._pool.putconn(self._conn)
+        if self._conn is not None:
+            self._pool.putconn(self._conn)
+            self._conn = None
+
+    def __del__(self):
+        # Safety net for the ~200 call sites that do `db = get_db_connection();
+        # ...; db.close()` with no try/finally: if a handler raises before
+        # reaching .close(), CPython drops this object's refcount to zero as
+        # soon as the local variable goes out of scope (no reference cycle
+        # here), running __del__ right away — return the connection to the
+        # pool instead of leaking it out of circulation forever. Not a
+        # substitute for closing explicitly (GC timing isn't guaranteed on
+        # every Python implementation), just a backstop for the common case.
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def __getattr__(self, name):
         return getattr(self._conn, name)
@@ -84,6 +100,7 @@ def _set_search_path(conn, schema_name):
 
 # ── Default tenant pool ──────────────────────────────────────────────────────
 _pool = None
+
 
 def _create_pool(retries=5, delay=3):
     global _pool
@@ -170,6 +187,7 @@ def get_db_connection():
 # lives as its own schema in the same physical database as everything else,
 # rather than a second physical MySQL database (att_master).
 _MASTER_SCHEMA = "att_master"
+
 
 def get_master_db():
     """Return a connection scoped to the att_master tenant-registry schema."""

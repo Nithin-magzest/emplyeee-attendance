@@ -51,6 +51,10 @@ class TestAdminSearchEndpoint:
         assert any(r["type"] == "employee" for r in results)
 
     def test_finds_ticket_by_subject(self, client, seed_admin, seed_employee, db_engine):
+        # att_test is a persistent, shared DB (see conftest.py) — a plain
+        # trailing DELETE never runs if an assertion below fails, leaving a
+        # row that inflates every future run's hit count. try/finally
+        # guarantees cleanup regardless of outcome.
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO tickets (employee_id, category, subject, description, priority) "
@@ -60,17 +64,18 @@ class TestAdminSearchEndpoint:
         db_engine.commit()
         cur.close()
 
-        _admin_session(client, seed_admin)
-        resp = client.get("/api/admin/search?q=VeryUniqueTicketSubject")
-        results = resp.get_json()["results"]
-        ticket_hits = [r for r in results if r["type"] == "ticket"]
-        assert len(ticket_hits) == 1
-        assert ticket_hits[0]["label"] == "VeryUniqueTicketSubject"
-
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM tickets WHERE subject='VeryUniqueTicketSubject'")
-        db_engine.commit()
-        cur.close()
+        try:
+            _admin_session(client, seed_admin)
+            resp = client.get("/api/admin/search?q=VeryUniqueTicketSubject")
+            results = resp.get_json()["results"]
+            ticket_hits = [r for r in results if r["type"] == "ticket"]
+            assert len(ticket_hits) == 1
+            assert ticket_hits[0]["label"] == "VeryUniqueTicketSubject"
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM tickets WHERE subject='VeryUniqueTicketSubject'")
+            db_engine.commit()
+            cur.close()
 
     def test_finds_leave_request_by_reason(self, client, seed_admin, seed_employee, db_engine):
         import datetime
@@ -82,16 +87,17 @@ class TestAdminSearchEndpoint:
         db_engine.commit()
         cur.close()
 
-        _admin_session(client, seed_admin)
-        resp = client.get("/api/admin/search?q=VeryUniqueLeaveReasonXYZ")
-        results = resp.get_json()["results"]
-        leave_hits = [r for r in results if r["type"] == "leave"]
-        assert len(leave_hits) == 1
-
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM leave_requests WHERE reason='VeryUniqueLeaveReasonXYZ'")
-        db_engine.commit()
-        cur.close()
+        try:
+            _admin_session(client, seed_admin)
+            resp = client.get("/api/admin/search?q=VeryUniqueLeaveReasonXYZ")
+            results = resp.get_json()["results"]
+            leave_hits = [r for r in results if r["type"] == "leave"]
+            assert len(leave_hits) == 1
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM leave_requests WHERE reason='VeryUniqueLeaveReasonXYZ'")
+            db_engine.commit()
+            cur.close()
 
     def test_no_match_returns_empty_results(self, client, seed_admin):
         _admin_session(client, seed_admin)

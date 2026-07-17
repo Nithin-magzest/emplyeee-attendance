@@ -30,9 +30,9 @@ def _get_known_face_encoding(emp_id: str, face_path: str):
     cached = _face_enc_cache.get(emp_id)
     if cached and cached[0] == mtime:
         return cached[1]
-    img  = face_recognition.load_image_file(face_path)
+    img = face_recognition.load_image_file(face_path)
     encs = face_recognition.face_encodings(img)
-    enc  = encs[0] if encs else None
+    enc = encs[0] if encs else None
     _face_enc_cache[emp_id] = (mtime, enc)
     return enc
 
@@ -52,14 +52,14 @@ def verify_uploaded_face(emp_id: str, registered_face_path: str, face_photo_stor
     try:
         from PIL import Image as _PILImage
         os.makedirs(save_dir, exist_ok=True)
-        ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         face_path = os.path.join(save_dir, f"{emp_id}_{ts}.jpg")
         img = _PILImage.open(face_photo_storage.stream).convert("RGB")
         img.save(face_path, "JPEG", quality=80)
 
-        known_enc     = _get_known_face_encoding(emp_id, registered_face_path)
+        known_enc = _get_known_face_encoding(emp_id, registered_face_path)
         test_img_data = face_recognition.load_image_file(face_path)
-        test_encs     = face_recognition.face_encodings(test_img_data)
+        test_encs = face_recognition.face_encodings(test_img_data)
         if known_enc is None or not test_encs:
             return False, "Face not detected clearly. Please retake the photo."
         if not face_recognition.compare_faces([known_enc], test_encs[0], tolerance=0.5)[0]:

@@ -29,7 +29,7 @@ leave_bp = Blueprint("leave", __name__)
 @admin_required
 def view_holidays():
     year = int(request.args.get("year", datetime.date.today().year))
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT * FROM holidays ORDER BY date")
     data = cursor.fetchall()
@@ -45,7 +45,7 @@ def view_holidays():
 
     # Build calendar data, weeks starting Sunday (firstweekday=6)
     sun_cal = calendar.Calendar(firstweekday=6)
-    today   = datetime.date.today()
+    today = datetime.date.today()
     cal_data = []
     for month in range(1, 13):
         month_holidays = {}  # day_number -> (id, name)
@@ -53,10 +53,10 @@ def view_holidays():
             if date_obj.year == year and date_obj.month == month:
                 month_holidays[date_obj.day] = (hid, hname)
         cal_data.append({
-            'month_num':  month,
+            'month_num': month,
             'month_name': calendar.month_name[month],
-            'weeks':      sun_cal.monthdayscalendar(year, month),
-            'holidays':   month_holidays,
+            'weeks': sun_cal.monthdayscalendar(year, month),
+            'holidays': month_holidays,
         })
 
     return render_template("holidays.html", holidays=data, cal_data=cal_data,
@@ -66,13 +66,13 @@ def view_holidays():
 @leave_bp.route("/add_holiday", methods=["POST"])
 @admin_required
 def add_holiday():
-    date         = request.form["date"]
-    year         = date[:4]
-    entry_type   = request.form.get("type", "Holiday")
+    date = request.form["date"]
+    year = date[:4]
+    entry_type = request.form.get("type", "Holiday")
     holiday_name = request.form["holiday_name"].strip()
     if entry_type == "Leave":
         holiday_name = "Leave:" + holiday_name
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, holiday_name))
@@ -87,13 +87,13 @@ def add_holiday():
 @leave_bp.route("/admin_leave_types", methods=["GET", "POST"])
 @admin_required
 def admin_leave_types():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     if request.method == "POST":
         action = request.form.get("action", "")
         if action == "add":
-            name    = request.form.get("name", "").strip()
-            quota   = int(request.form.get("annual_quota", 12) or 12)
+            name = request.form.get("name", "").strip()
+            quota = int(request.form.get("annual_quota", 12) or 12)
             is_paid = 1 if request.form.get("is_paid") else 0
             if name:
                 cursor.execute(
@@ -101,9 +101,9 @@ def admin_leave_types():
                     (name, quota, is_paid)
                 )
         elif action == "edit":
-            lt_id   = int(request.form.get("lt_id", 0))
-            name    = request.form.get("name", "").strip()
-            quota   = int(request.form.get("annual_quota", 12) or 12)
+            lt_id = int(request.form.get("lt_id", 0))
+            name = request.form.get("name", "").strip()
+            quota = int(request.form.get("annual_quota", 12) or 12)
             is_paid = 1 if request.form.get("is_paid") else 0
             if lt_id and name:
                 cursor.execute(
@@ -121,12 +121,14 @@ def admin_leave_types():
             if lt_id:
                 cursor.execute("DELETE FROM leave_types WHERE id=%s", (lt_id,))
         db.commit()
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/admin_leave_types")
 
     cursor.execute("SELECT id, name, annual_quota, is_paid, is_active FROM leave_types ORDER BY id")
     leave_types = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("leave_types_admin.html", leave_types=leave_types)
 
 
@@ -135,7 +137,7 @@ def admin_leave_types():
 def import_indian_holidays():
     year = int(request.form.get("year", datetime.date.today().year))
     holidays_list = get_indian_holidays(year)
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     for date_obj, name in holidays_list:
         try:
@@ -146,7 +148,8 @@ def import_indian_holidays():
         except Exception:
             pass
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return redirect(f"/leave_holidays?tab=holidays&year={year}")
 
 
@@ -154,7 +157,7 @@ def import_indian_holidays():
 @admin_required
 def delete_holiday(hid):
     year = request.form.get("year", datetime.date.today().year)
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM holidays WHERE id=%s", (hid,))
     db.commit()
@@ -166,14 +169,14 @@ def delete_holiday(hid):
 @leave_bp.route("/request_leave", methods=["POST"])
 @employee_required
 def request_leave():
-    emp_id     = session["employee_id"]
-    emp_name   = session["employee_name"]
-    leave_start  = request.form.get("leave_date_start", "").strip()
-    leave_end    = request.form.get("leave_date_end", "").strip() or leave_start
-    reason       = request.form.get("reason", "").strip()
+    emp_id = session["employee_id"]
+    emp_name = session["employee_name"]
+    leave_start = request.form.get("leave_date_start", "").strip()
+    leave_end = request.form.get("leave_date_end", "").strip() or leave_start
+    reason = request.form.get("reason", "").strip()
     leave_type_id_raw = request.form.get("leave_type_id", "").strip()
     leave_type_id = int(leave_type_id_raw) if leave_type_id_raw.isdigit() else None
-    is_half_day      = 1 if request.form.get("is_half_day") else 0
+    is_half_day = 1 if request.form.get("is_half_day") else 0
     half_day_session = request.form.get("half_day_session", "Morning") if is_half_day else None
     if not reason or not leave_start:
         return redirect("/employee_portal")
@@ -194,7 +197,7 @@ def request_leave():
         date_label = (leave_start if num_days == 1
                       else f"{leave_start} – {leave_end} ({num_days} days)")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cur = start_dt
     while cur <= end_dt:
@@ -205,15 +208,16 @@ def request_leave():
         )
         cur += datetime.timedelta(days=1)
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     config = get_email_config()
     if config:
         # reason is free text straight from the employee's own request form —
         # escape everything user-supplied before it lands in an HTML email an
         # admin will open, or it's a stored-XSS/content-injection vector.
-        _safe_name   = _html.escape(str(emp_name))
-        _safe_eid    = _html.escape(str(emp_id))
+        _safe_name = _html.escape(str(emp_name))
+        _safe_eid = _html.escape(str(emp_id))
         _safe_period = _html.escape(str(date_label))
         _safe_reason = _html.escape(str(reason))
         html_body = f"""
@@ -302,25 +306,26 @@ def leave_balance():
             'total': total, 'used': used, 'remaining': remaining
         })
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("leave_balance.html",
-        co=co, year=year,
-        leave_types=leave_types,
-        emp_balances=emp_balances,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        shift_start="09:00 AM", shift_end="06:00 PM"
-    )
+                           co=co, year=year,
+                           leave_types=leave_types,
+                           emp_balances=emp_balances,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           shift_start="09:00 AM", shift_end="06:00 PM"
+                           )
 
 
 @leave_bp.route("/set_leave_balance", methods=["POST"])
 @admin_required
 def set_leave_balance():
     emp_id = request.form.get("employee_id")
-    lt_id  = int(request.form.get("leave_type_id"))
-    total  = int(request.form.get("total_days", 0))
-    year   = int(request.form.get("year", datetime.date.today().year))
+    lt_id = int(request.form.get("leave_type_id"))
+    total = int(request.form.get("total_days", 0))
+    year = int(request.form.get("year", datetime.date.today().year))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
@@ -329,7 +334,8 @@ def set_leave_balance():
         ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET total_days=%s
     """, (emp_id, lt_id, year, total, total))
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash("Leave balance updated successfully.", "success")
     return redirect(f"/leave_balance?year={year}")
 
@@ -342,15 +348,16 @@ def leave_requests_redirect():
 @leave_bp.route("/leave_holidays")
 @admin_required
 def leave_holidays():
-    tab  = request.args.get("tab", "leaves")
+    tab = request.args.get("tab", "leaves")
     year = int(request.args.get("year", datetime.date.today().year))
     today = datetime.date.today()
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
 
     # Leaves data
     active_cid = session.get("active_company_id")
     _co_join, _co_args = co_scope_column(active_cid, alias="e")
-    _co_sub, _           = co_scope_subquery(active_cid)
+    _co_sub, _ = co_scope_subquery(active_cid)
 
     cursor.execute(f"""
         SELECT lr.id, e.name, lr.employee_id, lr.leave_date, lr.reason, lr.status, lr.created_at,
@@ -410,15 +417,16 @@ def leave_holidays():
                          'weeks': sun_cal.monthdayscalendar(year, month), 'holidays': month_holidays})
 
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("leave_holidays.html",
-        co=co, tab=tab,
-        leaves=leaves, leave_used=leave_used, leave_types_list=leave_types_list,
-        all_tickets=all_tickets, resignations=resignations,
-        pending_leaves=pending_leaves, pending_tickets=pending_tickets,
-        pending_resignations=pending_resignations,
-        holidays=holidays_data, cal_data=cal_data, year=year, today=today,
-    )
+                           co=co, tab=tab,
+                           leaves=leaves, leave_used=leave_used, leave_types_list=leave_types_list,
+                           all_tickets=all_tickets, resignations=resignations,
+                           pending_leaves=pending_leaves, pending_tickets=pending_tickets,
+                           pending_resignations=pending_resignations,
+                           holidays=holidays_data, cal_data=cal_data, year=year, today=today,
+                           )
 
 
 @leave_bp.route("/leave_action/<int:lid>", methods=["POST"])
@@ -428,7 +436,7 @@ def leave_action(lid):
     if action not in ("Approved", "Rejected"):
         return redirect("/leave_holidays?tab=leaves")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     # Fetch leave + employee details before updating
@@ -486,7 +494,8 @@ def leave_action(lid):
                 """, (emp_id, deduct_minutes, deduct_minutes))
 
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if leave_row:
         _audit(f"leave_{action.lower()}", "leave_requests", lid,
                f"Employee {leave_row[0]} leave on {leave_row[1]} — {action}")
@@ -508,10 +517,10 @@ def leave_action(lid):
             if not cfg_row:
                 flash("Leave updated but SMTP not configured — email not sent.", "warning")
             else:
-                color    = "#16a34a" if action == "Approved" else "#dc2626"
-                icon     = "✅" if action == "Approved" else "❌"
+                color = "#16a34a" if action == "Approved" else "#dc2626"
+                icon = "✅" if action == "Approved" else "❌"
                 date_str = leave_date.strftime('%d %b %Y') if hasattr(leave_date, 'strftime') else str(leave_date)
-                _safe_name   = _html.escape(str(emp_name))
+                _safe_name = _html.escape(str(emp_name))
                 _safe_reason = _html.escape(str(reason)) if reason else '—'
                 html_body = f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
@@ -548,14 +557,18 @@ def leave_calendar():
     import calendar as cal_mod
     from collections import defaultdict
     today = datetime.date.today()
-    year  = int(request.args.get("year",  today.year))
+    year = int(request.args.get("year", today.year))
     month = int(request.args.get("month", today.month))
-    if month < 1:  month = 12; year -= 1
-    if month > 12: month = 1;  year += 1
+    if month < 1:
+        month = 12
+        year -= 1
+    if month > 12:
+        month = 1
+        year += 1
 
     _, last_day = cal_mod.monthrange(year, month)
-    start_date  = datetime.date(year, month, 1)
-    end_date    = datetime.date(year, month, last_day)
+    start_date = datetime.date(year, month, 1)
+    end_date = datetime.date(year, month, last_day)
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -575,8 +588,8 @@ def leave_calendar():
     for ld, name, eid, half, ltype, sess in cursor.fetchall():
         day = ld.day if hasattr(ld, 'day') else int(str(ld)[8:10])
         cal_data[day].append({"name": name, "emp_id": eid,
-                               "is_half": bool(half), "leave_type": ltype,
-                               "session": sess or "Morning"})
+                              "is_half": bool(half), "leave_type": ltype,
+                              "session": sess or "Morning"})
 
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE status='Pending'")
     pending_leaves = cursor.fetchone()[0]
@@ -584,7 +597,8 @@ def leave_calendar():
     pending_resignations = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     prev_m = month - 1 if month > 1 else 12
     prev_y = year if month > 1 else year - 1
@@ -592,26 +606,26 @@ def leave_calendar():
     next_y = year if month < 12 else year + 1
 
     return render_template("leave_calendar.html",
-        cal_weeks=cal_mod.monthcalendar(year, month),
-        cal_data=dict(cal_data),
-        year=year, month=month,
-        month_name=cal_mod.month_name[month],
-        today=today,
-        prev_m=prev_m, prev_y=prev_y,
-        next_m=next_m, next_y=next_y,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-    )
+                           cal_weeks=cal_mod.monthcalendar(year, month),
+                           cal_data=dict(cal_data),
+                           year=year, month=month,
+                           month_name=cal_mod.month_name[month],
+                           today=today,
+                           prev_m=prev_m, prev_y=prev_y,
+                           next_m=next_m, next_y=next_y,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           )
 
 
 @leave_bp.route("/request_resignation", methods=["POST"])
 @employee_required
 def request_resignation():
-    emp_id          = session["employee_id"]
-    emp_name        = session["employee_name"]
+    emp_id = session["employee_id"]
+    emp_name = session["employee_name"]
     last_working_day = request.form.get("last_working_day", "").strip()
-    reason          = request.form.get("resign_reason", "").strip()
+    reason = request.form.get("resign_reason", "").strip()
     if not reason or not last_working_day:
         return redirect("/employee_portal#resign")
 
@@ -624,20 +638,21 @@ def request_resignation():
     if lwd < min_lwd:
         return redirect("/employee_portal#resign")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "INSERT INTO resignation_requests (employee_id, last_working_day, reason) VALUES (%s,%s,%s)",
         (emp_id, last_working_day, reason)
     )
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     config = get_email_config()
     if config:
         _safe_name = _html.escape(str(emp_name))
-        _safe_eid  = _html.escape(str(emp_id))
-        _safe_lwd  = _html.escape(str(last_working_day))
+        _safe_eid = _html.escape(str(emp_id))
+        _safe_lwd = _html.escape(str(last_working_day))
         _safe_reason = _html.escape(str(reason))
         html_body = f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
@@ -670,7 +685,7 @@ def request_resignation():
 @leave_bp.route("/resignation_requests")
 @admin_required
 def resignation_requests_view():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at
@@ -679,7 +694,8 @@ def resignation_requests_view():
         ORDER BY CASE WHEN rr.status='Pending' THEN 0 WHEN rr.status='Accepted' THEN 1 WHEN rr.status='Declined' THEN 2 ELSE 3 END, rr.created_at DESC
     """)
     resignations = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("resignation_requests.html", resignations=resignations)
 
 
@@ -690,7 +706,7 @@ def resignation_action(rid):
     if action not in ("Accepted", "Declined"):
         return redirect("/resignation_requests")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT rr.employee_id, rr.last_working_day, rr.reason,
@@ -702,7 +718,8 @@ def resignation_action(rid):
     resign_row = cursor.fetchone()
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if resign_row:
         _audit(f"resignation_{action.lower()}", "resignation_requests", rid,
                f"Employee {resign_row[0]} resignation {action}")
@@ -719,10 +736,10 @@ def resignation_action(rid):
         if emp_email:
             cfg_row = get_email_config()
             if cfg_row:
-                color   = "#16a34a" if action == "Accepted" else "#dc2626"
-                icon    = "✅" if action == "Accepted" else "❌"
+                color = "#16a34a" if action == "Accepted" else "#dc2626"
+                icon = "✅" if action == "Accepted" else "❌"
                 lwd_str = lwd.strftime('%d %b %Y') if hasattr(lwd, 'strftime') else str(lwd)
-                _safe_name   = _html.escape(str(emp_name))
+                _safe_name = _html.escape(str(emp_name))
                 _safe_reason = _html.escape(str(reason)) if reason else '—'
                 html_body = f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">
@@ -754,8 +771,8 @@ def resignation_action(rid):
 @leave_bp.route("/bulk_leave_action", methods=["POST"])
 @admin_required
 def bulk_leave_action():
-    action   = request.form.get("action", "")
-    raw_ids  = request.form.getlist("leave_ids")
+    action = request.form.get("action", "")
+    raw_ids = request.form.getlist("leave_ids")
     if action not in ("Approved", "Rejected") or not raw_ids:
         return redirect("/leave_holidays?tab=leaves")
     try:
@@ -763,9 +780,9 @@ def bulk_leave_action():
     except ValueError:
         return redirect("/leave_holidays?tab=leaves")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    done   = 0
+    done = 0
     cfg_row = get_email_config()
 
     for lid in ids:
@@ -788,8 +805,8 @@ def bulk_leave_action():
             """, (emp_id, leave_date))
         done += 1
         if emp_email and cfg_row:
-            color    = "#16a34a" if action == "Approved" else "#dc2626"
-            icon     = "✅" if action == "Approved" else "❌"
+            color = "#16a34a" if action == "Approved" else "#dc2626"
+            icon = "✅" if action == "Approved" else "❌"
             date_str = leave_date.strftime('%d %b %Y') if hasattr(leave_date, 'strftime') else str(leave_date)
             _safe_name = _html.escape(str(emp_name))
             html_body = f"""
@@ -806,7 +823,8 @@ def bulk_leave_action():
             send_email_async(emp_email, f"Leave {action} — {date_str}", html_body, cfg_row)
 
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash(f"Bulk action: {action} applied to {done} leave request(s).", "success")
     return redirect("/leave_holidays?tab=leaves")
 
@@ -814,11 +832,12 @@ def bulk_leave_action():
 @leave_bp.route("/api/holidays", methods=["GET"])
 @api_required
 def api_holidays():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT date, name FROM holidays ORDER BY date")
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "holidays": [{"date": str(r[0]), "name": r[1]} for r in rows]})
 
 
@@ -834,7 +853,8 @@ def api_leave_requests():
         ORDER BY lr.created_at DESC
     """)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "leaves": [
         {"id": r[0], "employee_id": r[1], "name": r[2],
          "leave_date": str(r[3]) if r[3] else None,
@@ -856,7 +876,9 @@ def api_leave_action(lid):
     cursor.execute("SELECT employee_id, leave_date FROM leave_requests WHERE id=%s", (lid,))
     row = cursor.fetchone()
     cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     if row:
         icon = "✅" if action == "Approved" else "❌"
         _create_notification(
@@ -880,7 +902,8 @@ def api_resignation_requests():
         ORDER BY rr.created_at DESC
     """)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "resignations": [
         {"id": r[0], "employee_id": r[1], "name": r[2],
          "last_working_day": str(r[3]) if r[3] else None,
@@ -902,7 +925,9 @@ def api_resignation_action(rid):
     cursor.execute("SELECT employee_id, last_working_day FROM resignation_requests WHERE id=%s", (rid,))
     row = cursor.fetchone()
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     if row:
         icon = "✅" if action == "Accepted" else "❌"
         _create_notification(
@@ -917,19 +942,21 @@ def api_resignation_action(rid):
 @leave_bp.route("/api/employee/leave_request", methods=["POST"])
 @employee_api_required
 def api_employee_leave_request():
-    emp_id     = g.api_emp_id
-    data       = request.get_json() or {}
+    emp_id = g.api_emp_id
+    data = request.get_json() or {}
     leave_date = data.get("leave_date", "").strip()
-    reason     = data.get("reason", "").strip()
+    reason = data.get("reason", "").strip()
     if not leave_date or not reason:
         return jsonify({"ok": False, "msg": "leave_date and reason required"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
         (emp_id, leave_date, reason)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _create_notification(
         'admin',
         "📋 New Leave Request",
@@ -941,10 +968,10 @@ def api_employee_leave_request():
 @leave_bp.route("/api/employee/resign", methods=["POST"])
 @employee_api_required
 def api_employee_resign():
-    emp_id           = g.api_emp_id
-    data             = request.get_json() or {}
+    emp_id = g.api_emp_id
+    data = request.get_json() or {}
     last_working_day = data.get("last_working_day", "").strip()
-    reason           = data.get("reason", "").strip()
+    reason = data.get("reason", "").strip()
     if not last_working_day or not reason:
         return jsonify({"ok": False, "msg": "last_working_day and reason required"}), 400
     try:
@@ -954,7 +981,7 @@ def api_employee_resign():
     min_lwd = datetime.date.today() + datetime.timedelta(days=30)
     if lwd < min_lwd:
         return jsonify({"ok": False, "msg": "Last working day must be at least 30 days from today"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
@@ -971,8 +998,8 @@ def api_employee_resign():
     )
     config = get_email_config()
     if config:
-        _safe_eid    = _html.escape(str(emp_id))
-        _safe_lwd    = _html.escape(str(last_working_day))
+        _safe_eid = _html.escape(str(emp_id))
+        _safe_lwd = _html.escape(str(last_working_day))
         _safe_reason = _html.escape(str(reason))
         html_body = (
             f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;'
@@ -992,7 +1019,8 @@ def api_employee_resign():
                 f"Resignation Notice — {emp_name} (Last day: {last_working_day})",
                 html_body, config
             )
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "msg": "Resignation submitted successfully."})
 
 
@@ -1000,7 +1028,7 @@ def api_employee_resign():
 @employee_api_required
 def api_employee_leaves():
     emp_id = g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT id, leave_date, reason, status, created_at
@@ -1009,9 +1037,10 @@ def api_employee_leaves():
     """, (emp_id,))
     leaves = cursor.fetchall()
     approved = sum(1 for r in leaves if r[3] == "Approved")
-    pending  = sum(1 for r in leaves if r[3] == "Pending")
+    pending = sum(1 for r in leaves if r[3] == "Pending")
     rejected = sum(1 for r in leaves if r[3] == "Rejected")
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({
         "ok": True,
         "summary": {"approved": approved, "pending": pending, "rejected": rejected, "total": len(leaves)},
@@ -1026,7 +1055,7 @@ def api_employee_leaves():
 @employee_api_required
 def api_employee_cancel_leave(lid):
     emp_id = g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     # Ownership enforced in SQL itself (id + employee_id), not just in Python —
     # a mismatched id/employee_id pair simply doesn't match any row, so this
@@ -1034,19 +1063,24 @@ def api_employee_cancel_leave(lid):
     cursor.execute("SELECT status, leave_date FROM leave_requests WHERE id=%s AND employee_id=%s", (lid, emp_id))
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Leave request not found."}), 404
     if row[0] != "Pending":
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": f"Cannot cancel a leave that is already {row[0]}."}), 400
     if row[1] <= datetime.date.today():
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Cannot cancel a leave for today or a past date."}), 400
     cursor.execute(
         "UPDATE leave_requests SET status='Cancelled', cancelled_at=NOW() WHERE id=%s",
         (lid,)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
     return jsonify({"ok": True, "msg": "Leave request cancelled."})
 
@@ -1055,7 +1089,7 @@ def api_employee_cancel_leave(lid):
 @employee_required
 def cancel_leave_web(lid):
     emp_id = session["employee_id"]
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT status, leave_date FROM leave_requests WHERE id=%s AND employee_id=%s", (lid, emp_id))
     row = cursor.fetchone()
@@ -1072,7 +1106,8 @@ def cancel_leave_web(lid):
         db.commit()
         flash("Leave request cancelled successfully.", "success")
         _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?tab=leave#leave-history")
 
 
@@ -1080,9 +1115,9 @@ def cancel_leave_web(lid):
 @employee_api_required
 def api_employee_request_overtime():
     emp_id = g.api_emp_id
-    data   = request.get_json() or {}
+    data = request.get_json() or {}
     ot_date = data.get("date", str(datetime.date.today()))
-    reason  = (data.get("reason") or "").strip()
+    reason = (data.get("reason") or "").strip()
     if not reason:
         return jsonify({"ok": False, "msg": "Reason is required."}), 400
     try:
@@ -1092,11 +1127,12 @@ def api_employee_request_overtime():
     if ot_date < datetime.date.today():
         return jsonify({"ok": False, "msg": "Cannot request OT for a past date."}), 400
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id FROM overtime_records WHERE employee_id=%s AND date=%s", (emp_id, ot_date))
     if cursor.fetchone():
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "An overtime record already exists for that date."}), 400
 
     cursor.execute("SELECT shift_end FROM shifts s JOIN employees e ON e.shift_id=s.id WHERE e.employee_id=%s", (emp_id,))
@@ -1110,7 +1146,8 @@ def api_employee_request_overtime():
     """, (emp_id, ot_date, shift_end, shift_end, reason))
     oid = cursor.fetchone()[0]
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     _audit("request_overtime", "overtime_records", emp_id, f"Employee requested OT for {ot_date}: {reason}")
     _create_notification("admin", None, "Overtime Request",
                          f"Employee {emp_id} has requested overtime on {ot_date}.", "/overtime")
@@ -1121,14 +1158,15 @@ def api_employee_request_overtime():
 @employee_api_required
 def api_employee_my_overtime():
     emp_id = g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT id, date, ot_minutes, ot_pay, status, notes, requested_by_employee, employee_reason
         FROM overtime_records WHERE employee_id=%s ORDER BY date DESC LIMIT 30
     """, (emp_id,))
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({
         "ok": True,
         "records": [
@@ -1142,11 +1180,12 @@ def api_employee_my_overtime():
 @leave_bp.route("/api/employee/holidays", methods=["GET"])
 @employee_api_required
 def api_employee_holidays():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT date, name FROM holidays ORDER BY date")
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     today = datetime.date.today()
     return jsonify({
         "ok": True,
@@ -1176,7 +1215,7 @@ def overtime():
 
     today = datetime.date.today()
     month = int(request.args.get('month', today.month))
-    year  = int(request.args.get('year',  today.year))
+    year = int(request.args.get('year', today.year))
     active_tab = request.args.get('tab', 'ot')
 
     # OT records
@@ -1190,15 +1229,16 @@ def overtime():
     records = cursor.fetchall()
 
     total_ot_minutes = sum(r[6] for r in records)
-    total_ot_hours   = round(total_ot_minutes / 60, 1)
-    total_ot_pay     = sum(float(r[7]) for r in records)
-    pending_count    = sum(1 for r in records if r[8] == 'Pending')
-    approved_count   = sum(1 for r in records if r[8] == 'Approved')
+    total_ot_hours = round(total_ot_minutes / 60, 1)
+    total_ot_pay = sum(float(r[7]) for r in records)
+    pending_count = sum(1 for r in records if r[8] == 'Pending')
+    approved_count = sum(1 for r in records if r[8] == 'Approved')
 
     # Comp-off settings
-    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+    cursor.execute(
+        "SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
     cfg_row = cursor.fetchone() or (120, 480)
-    min_ot_minutes  = int(cfg_row[0])
+    min_ot_minutes = int(cfg_row[0])
     minutes_per_day = int(cfg_row[1])
 
     # Comp-off balances per employee
@@ -1212,40 +1252,41 @@ def overtime():
     compoff_balances = []
     for emp_id, name, role, dept, earned, used in cursor.fetchall():
         earned_days = round(earned / minutes_per_day, 2) if minutes_per_day else 0
-        used_days   = round(used   / minutes_per_day, 2) if minutes_per_day else 0
-        avail_days  = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
+        used_days = round(used / minutes_per_day, 2) if minutes_per_day else 0
+        avail_days = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
         compoff_balances.append({
             "emp_id": emp_id, "name": name, "role": role, "dept": dept,
             "earned_min": earned, "used_min": used,
             "earned_days": earned_days, "used_days": used_days, "avail_days": avail_days
         })
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("overtime.html",
-        co=co,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        records=records,
-        month=month, year=year,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
-        total_ot_hours=total_ot_hours,
-        total_ot_pay=total_ot_pay,
-        pending_count=pending_count,
-        approved_count=approved_count,
-        active_tab=active_tab,
-        min_ot_minutes=min_ot_minutes,
-        minutes_per_day=minutes_per_day,
-        compoff_balances=compoff_balances,
-    )
+                           co=co,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           records=records,
+                           month=month, year=year,
+                           month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           total_ot_hours=total_ot_hours,
+                           total_ot_pay=total_ot_pay,
+                           pending_count=pending_count,
+                           approved_count=approved_count,
+                           active_tab=active_tab,
+                           min_ot_minutes=min_ot_minutes,
+                           minutes_per_day=minutes_per_day,
+                           compoff_balances=compoff_balances,
+                           )
 
 
 @leave_bp.route("/overtime_action/<int:oid>", methods=["POST"])
 @admin_required
 def overtime_action(oid):
     action = request.form.get('action', '').strip()
-    notes  = request.form.get('notes', '').strip()
+    notes = request.form.get('notes', '').strip()
     if action not in ('approve', 'reject'):
         flash("Invalid action.", "danger")
         return redirect('/overtime?tab=ot')
@@ -1265,12 +1306,12 @@ def overtime_action(oid):
 
     # Credit comp-off balance when approving
     if status == 'Approved' and ot_row and ot_row[2] != 'Approved':
-        emp_id     = ot_row[0]
+        emp_id = ot_row[0]
         ot_minutes = ot_row[1]
         # Get compoff threshold settings
         cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120) FROM company_settings LIMIT 1")
         min_row = cursor.fetchone()
-        min_ot  = int(min_row[0]) if min_row else 120
+        min_ot = int(min_row[0]) if min_row else 120
         if ot_minutes >= min_ot:
             cursor.execute("""
                 INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
@@ -1284,7 +1325,7 @@ def overtime_action(oid):
             flash(f"Overtime approved. OT below threshold ({min_ot} min) — no comp-off credited.", "success")
     elif status == 'Rejected' and ot_row and ot_row[2] == 'Approved':
         # Reverse comp-off if previously approved
-        emp_id     = ot_row[0]
+        emp_id = ot_row[0]
         ot_minutes = ot_row[1]
         cursor.execute("""
             UPDATE compoff_balance SET earned_minutes = GREATEST(0, earned_minutes - %s)
@@ -1295,7 +1336,8 @@ def overtime_action(oid):
     else:
         flash(f"Overtime record {status.lower()}.", "success")
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return redirect('/overtime?tab=ot')
 
 
@@ -1312,11 +1354,12 @@ def compoff_old():
     cursor = db.cursor(buffered=True)
 
     # Settings
-    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480), COALESCE(company_name,'') FROM company_settings LIMIT 1")
+    cursor.execute(
+        "SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480), COALESCE(company_name,'') FROM company_settings LIMIT 1")
     cfg_row = cursor.fetchone() or (120, 480, '')
-    min_ot_minutes      = int(cfg_row[0])
-    minutes_per_day     = int(cfg_row[1])
-    company_name        = cfg_row[2]
+    min_ot_minutes = int(cfg_row[0])
+    minutes_per_day = int(cfg_row[1])
+    company_name = cfg_row[2]
 
     # Employee balances
     cursor.execute("""
@@ -1329,8 +1372,8 @@ def compoff_old():
     balances = []
     for emp_id, name, role, dept, earned, used in cursor.fetchall():
         earned_days = round(earned / minutes_per_day, 2) if minutes_per_day else 0
-        used_days   = round(used   / minutes_per_day, 2) if minutes_per_day else 0
-        avail_days  = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
+        used_days = round(used / minutes_per_day, 2) if minutes_per_day else 0
+        avail_days = max(0, round((earned - used) / minutes_per_day, 2)) if minutes_per_day else 0
         balances.append({
             "emp_id": emp_id, "name": name, "role": role, "dept": dept,
             "earned_min": earned, "used_min": used,
@@ -1351,29 +1394,32 @@ def compoff_old():
     pending_resignations = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("compoff.html",
-        balances=balances, ot_records=ot_records,
-        min_ot_minutes=min_ot_minutes, minutes_per_day=minutes_per_day,
-        company_name=company_name,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets
-    )
+                           balances=balances, ot_records=ot_records,
+                           min_ot_minutes=min_ot_minutes, minutes_per_day=minutes_per_day,
+                           company_name=company_name,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets
+                           )
 
 
 @leave_bp.route("/compoff_settings", methods=["POST"])
 @admin_required
 def compoff_settings():
-    min_ot  = int(request.form.get("min_ot_minutes", 120))
-    mpd     = int(request.form.get("minutes_per_day", 480))
+    min_ot = int(request.form.get("min_ot_minutes", 120))
+    mpd = int(request.form.get("minutes_per_day", 480))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         UPDATE company_settings SET compoff_min_ot_minutes=%s, compoff_minutes_per_day=%s
     """, (min_ot, mpd))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Comp-off settings saved.", "success")
     return redirect("/overtime?tab=settings")
 
@@ -1385,18 +1431,20 @@ def my_compoff():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    cursor.execute("SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+    cursor.execute(
+        "SELECT COALESCE(compoff_min_ot_minutes,120), COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
     cfg_row = cursor.fetchone() or (120, 480)
-    min_ot_minutes  = int(cfg_row[0])
+    min_ot_minutes = int(cfg_row[0])
     minutes_per_day = int(cfg_row[1])
 
-    cursor.execute("SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
+    cursor.execute(
+        "SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
     bal = cursor.fetchone() or (0, 0)
     earned_min, used_min = bal
-    avail_min   = max(0, earned_min - used_min)
+    avail_min = max(0, earned_min - used_min)
     earned_days = round(earned_min / minutes_per_day, 2) if minutes_per_day else 0
-    used_days   = round(used_min   / minutes_per_day, 2) if minutes_per_day else 0
-    avail_days  = round(avail_min  / minutes_per_day, 2) if minutes_per_day else 0
+    used_days = round(used_min / minutes_per_day, 2) if minutes_per_day else 0
+    avail_days = round(avail_min / minutes_per_day, 2) if minutes_per_day else 0
 
     # My OT records
     cursor.execute("""
@@ -1418,15 +1466,17 @@ def my_compoff():
     lt_row = cursor.fetchone()
     compoff_lt_id = lt_row[0] if lt_row else None
 
-    cursor.execute("SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute(
+        "SELECT name, COALESCE(role,''), COALESCE(department,''), face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp_info = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("my_compoff.html",
-        emp_id=emp_id, emp_info=emp_info,
-        earned_days=earned_days, used_days=used_days, avail_days=avail_days,
-        earned_min=earned_min, used_min=used_min, avail_min=avail_min,
-        minutes_per_day=minutes_per_day, min_ot_minutes=min_ot_minutes,
-        ot_records=ot_records, compoff_leaves=compoff_leaves,
-        compoff_lt_id=compoff_lt_id
-    )
+                           emp_id=emp_id, emp_info=emp_info,
+                           earned_days=earned_days, used_days=used_days, avail_days=avail_days,
+                           earned_min=earned_min, used_min=used_min, avail_min=avail_min,
+                           minutes_per_day=minutes_per_day, min_ot_minutes=min_ot_minutes,
+                           ot_records=ot_records, compoff_leaves=compoff_leaves,
+                           compoff_lt_id=compoff_lt_id
+                           )

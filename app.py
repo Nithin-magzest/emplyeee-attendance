@@ -32,7 +32,7 @@ if _missing_env:
         stacklevel=2
     )
 
-from extensions import app, app_log, limiter
+from extensions import app, app_log, limiter  # noqa: F401 — re-exported: tests/conftest.py does app.limiter.enabled = False
 # Single source of truth for email — app.py used to carry its own complete
 # duplicate of every one of these, including _email_queue_worker. wsgi.py
 # (the production entrypoint) already starts utils.email_utils's worker
@@ -54,7 +54,10 @@ from utils.email_utils import (
 # the session kill switch) were silently not reaching any route in this
 # file. Consolidated onto one implementation; see utils/auth.py.
 from utils.auth import generate_password_hash, check_password_hash
-from utils.helpers import _error_page, invalidate_settings_cache, get_company_settings
+from utils.helpers import (
+    _error_page, invalidate_settings_cache, get_company_settings,
+    get_companies_list, get_overdue_onboarding_count,
+)
 # Shift timings / deduction rates / office geo-fence — app.py used to carry
 # its own separate SHIFT_START / LATE_DEDUCTION_RATE / OFFICE_LAT etc.
 # globals, mutated by its own separate load_default_shift()/
@@ -73,12 +76,14 @@ import utils.config as cfg
 # _INJECTION_PATTERN_RE moved to blueprints/auth.py — its only caller
 # (admin_login) migrated there.
 
+
 @app.context_processor
 def inject_common_vars():
     return dict(
         shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
         shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
     )
+
 
 @app.template_filter('qr_url')
 def _qr_url_filter(p):
@@ -112,6 +117,8 @@ def fmt_time_filter(value):
 # breakdowns) used to rely on mysql-connector's timedelta.seconds. psycopg2
 # returns datetime.time instead, which has no .seconds — this filter gives
 # templates a type-agnostic "total seconds" so that math still works.
+
+
 @app.template_filter("time_seconds")
 def time_seconds_filter(value):
     if value is None:
@@ -124,6 +131,7 @@ def time_seconds_filter(value):
 # secret_key, session cookie flags, and PERMANENT_SESSION_LIFETIME are
 # authoritative in extensions.py. Do not duplicate them here.
 
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
@@ -133,27 +141,26 @@ if not os.path.exists(UPLOAD_FOLDER):
 # ---------------- CSRF PROTECTION ----------------
 _EMP_ID_RE = re.compile(r'^[A-Za-z0-9_\-]+$')
 
+
 def _csrf_token():
     if "_csrf" not in session:
         session["_csrf"] = secrets.token_hex(32)
     return session["_csrf"]
 
+
 app.jinja_env.globals["csrf_token"] = _csrf_token
-app.jinja_env.globals["timedelta"]  = datetime.timedelta
+app.jinja_env.globals["timedelta"] = datetime.timedelta
+
 
 @app.context_processor
 def inject_companies_context():
-    """Inject active company and companies list into every admin template."""
+    """Inject active company and companies list into every admin template.
+    Reads through get_companies_list()'s 30s cache rather than querying the
+    companies table on every single admin page render."""
     if not session.get("admin_logged_in"):
         return {}
     try:
-        db = get_db_connection(); cur = db.cursor(buffered=True)
-        cur.execute("""
-            SELECT id, name, COALESCE(code,''), COALESCE(pin,'')
-            FROM companies ORDER BY name
-        """)
-        rows = cur.fetchall()
-        cur.close(); db.close()
+        rows = get_companies_list()
         active_cid = session.get("active_company_id")
         active_company = None
         for r in rows:
@@ -167,24 +174,21 @@ def inject_companies_context():
     except Exception:
         return {"all_companies": [], "active_company": None}
 
+
 @app.context_processor
 def inject_overdue_onboardings():
+    """Reads through get_overdue_onboarding_count()'s 20s cache rather than
+    running a COUNT query on every single admin page render."""
     if not session.get("admin_logged_in"):
         return {}
     try:
-        db = get_db_connection(); cur = db.cursor()
-        today = datetime.date.today()
-        cur.execute("""
-            SELECT COUNT(*) FROM employee_onboarding
-            WHERE status != 'Completed' AND due_date < %s
-        """, (today,))
-        count = cur.fetchone()[0]
-        cur.close(); db.close()
-        return {"overdue_onboardings": count}
+        return {"overdue_onboardings": get_overdue_onboarding_count()}
     except Exception:
         return {"overdue_onboardings": 0}
 
+
 _SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute — stolen cookie cannot be used indefinitely
+
 
 @app.before_request
 def _perf_start_timer():
@@ -231,7 +235,8 @@ def _resolve_tenant():
                 (subdomain,)
             )
             row = cur.fetchone()
-            cur.close(); conn.close()
+            cur.close()
+            conn.close()
             if row:
                 _g.tenant_db = row[0]
                 session["tenant_db"] = row[0]
@@ -257,13 +262,15 @@ def _enforce_ip_ban():
     ip = request.remote_addr
     if not ip:
         return
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
         (ip,),
     )
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if row:
         return jsonify({"ok": False, "msg": "Access denied."}), 403
 
@@ -355,15 +362,17 @@ def _enforce_admin_mfa_enrollment():
         return
     if session.get("admin_role", "admin") not in _MANDATORY_MFA_ROLES:
         return
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COALESCE(totp_enabled, 0) FROM admin_users WHERE username=%s", (username,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if row and row[0]:
         return
     if request.path.startswith("/api/"):
         return jsonify({"ok": False, "msg": "MFA enrollment required before continuing.",
-                         "redirect": "/admin/mfa-required"}), 403
+                        "redirect": "/admin/mfa-required"}), 403
     return redirect("/admin/mfa-required")
 
 
@@ -388,16 +397,17 @@ def _enforce_csrf():
         # Browser form submissions: redirect to login so the user gets a fresh session+token
         if request.accept_mimetypes.accept_html and not request.headers.get("X-Requested-With"):
             flash("Your session expired. Please log in again.", "warning")
-            login_url = url_for("auth.employee_login") if request.path.startswith("/employee") or "employee" in request.path else url_for("auth.admin_login")
+            login_url = url_for("auth.employee_login") if request.path.startswith(
+                "/employee") or "employee" in request.path else url_for("auth.admin_login")
             return redirect(login_url)
         return jsonify({"ok": False, "msg": "Session expired. Please refresh and try again."}), 403
 
 
-_CSRF_HEAD_RE    = re.compile(rb'</head>', re.IGNORECASE)
-_CSRF_BODY_RE    = re.compile(rb'</body>', re.IGNORECASE)
+_CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
+_CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
 # Matches <script>/<style> tags without a nonce — used to inject CSP nonces
-_SCRIPT_TAG_RE   = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-_STYLE_TAG_RE    = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])',  re.IGNORECASE)
+_SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
+_STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 # Capture inline event-handler values for dynamic CSP sha256 hash generation.
 # Two patterns: double-quoted and single-quoted attribute values.
 _CSP_EV_DQ = re.compile(
@@ -416,7 +426,7 @@ _CSP_EV_SQ = re.compile(
     rb"|transitionend|wheel)\s*=\s*'([^']*)'",
     re.IGNORECASE,
 )
-_CSRF_SCRIPT  = (
+_CSRF_SCRIPT = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
     b'if(!m)return;'
@@ -477,16 +487,19 @@ _KILLSWITCH_SCRIPT = (
     b'})();</script>'
 )
 
+
 @app.before_request
 def _set_csp_nonce():
     from flask import g
     g.csp_nonce = secrets.token_urlsafe(16)
+
 
 _SETTINGS_PATHS = {"/settings", "/setup", "/admin_set_recovery_email",
                    "/save_security_settings", "/toggle_auth_feature",
                    "/toggle_fingerprint", "/save_company_code", "/save_geo_settings",
                    "/save_company_info", "/toggle_feature",
                    "/api/settings/security/session-timeout"}
+
 
 @app.after_request
 def _security_headers(response):
@@ -561,6 +574,7 @@ def _bust_settings_cache(response):
         invalidate_settings_cache()
     return response
 
+
 @app.after_request
 def _inject_csrf_meta(response):
     """Inject CSRF meta tag and auto-inject script into every HTML page.
@@ -582,12 +596,12 @@ def _inject_csrf_meta(response):
         data = response.get_data()
         if response.status_code < 300:
             token = _csrf_token()
-            meta  = f'<meta name="csrf-token" content="{token}" />'.encode()
-            data  = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+            meta = f'<meta name="csrf-token" content="{token}" />'.encode()
+            data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
             _body_scripts = _CSRF_SCRIPT
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT
-            data  = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
+            data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
         nonce = getattr(g, "csp_nonce", None)
         if nonce:
             nb = nonce.encode()
@@ -644,9 +658,11 @@ def _perf_record(response):
 # (shift_start/shift_half/shift_end/holiday_pay/leave_pay) that the
 # utils/helpers.py copy was missing, since added there to match.
 
+
 @app.context_processor
 def inject_company():
     return {"co": get_company_settings()}
+
 
 # Office location, shift timings, and deduction rates now live solely in
 # utils/config.py — see the `import utils.config as cfg` note above.
@@ -690,12 +706,14 @@ _UPDATED_AT_TRIGGER_FN = """
     $$ LANGUAGE plpgsql;
 """
 
+
 def _attach_updated_at_trigger(cursor, table):
     cursor.execute(f'DROP TRIGGER IF EXISTS trg_{table}_updated_at ON {table}')
     cursor.execute(f"""
         CREATE TRIGGER trg_{table}_updated_at BEFORE UPDATE ON {table}
         FOR EACH ROW EXECUTE FUNCTION _set_updated_at()
     """)
+
 
 def init_db():
     db = get_db_connection()
@@ -967,11 +985,11 @@ def init_db():
     cursor.execute("SELECT COUNT(*) FROM hike_config")
     if cursor.fetchone()[0] == 0:
         for _lbl, _mn, _mx, _hp, _ip, _clr in [
-            ("Exceptional",          4.5, 5.0, 20.00, 15.00, "#15803d"),
+            ("Exceptional", 4.5, 5.0, 20.00, 15.00, "#15803d"),
             ("Exceeds Expectations", 4.0, 4.4, 15.00, 10.00, "#2563eb"),
-            ("Meets Expectations",   3.0, 3.9, 10.00,  5.00, "#7c3aed"),
-            ("Needs Improvement",    2.0, 2.9,  5.00,  0.00, "#d97706"),
-            ("Below Expectations",   0.0, 1.9,  0.00,  0.00, "#dc2626"),
+            ("Meets Expectations", 3.0, 3.9, 10.00, 5.00, "#7c3aed"),
+            ("Needs Improvement", 2.0, 2.9, 5.00, 0.00, "#d97706"),
+            ("Below Expectations", 0.0, 1.9, 0.00, 0.00, "#dc2626"),
         ]:
             cursor.execute(
                 "INSERT INTO hike_config (label, min_rating, max_rating, hike_pct, incentive_pct, color) VALUES (%s,%s,%s,%s,%s,%s)",
@@ -1063,14 +1081,15 @@ def init_db():
     """)
     for _col, _sql in [
         ("notice_period_days", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30"),
-        ("candidate_address",  "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT"),
-        ("response_token",         "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token VARCHAR(64) DEFAULT NULL"),
-        ("candidate_response",     "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_response VARCHAR(20) DEFAULT NULL"),
-        ("responded_at",           "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP DEFAULT NULL"),
-        ("response_token_expiry",  "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token_expiry TIMESTAMP DEFAULT NULL"),
+        ("candidate_address", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT"),
+        ("response_token", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token VARCHAR(64) DEFAULT NULL"),
+        ("candidate_response", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_response VARCHAR(20) DEFAULT NULL"),
+        ("responded_at", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS responded_at TIMESTAMP DEFAULT NULL"),
+        ("response_token_expiry", "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS response_token_expiry TIMESTAMP DEFAULT NULL"),
     ]:
         try:
-            cursor.execute(_sql); db.commit()
+            cursor.execute(_sql)
+            db.commit()
         except psycopg2.Error:
             db.rollback()
     cursor.execute("""
@@ -1264,12 +1283,12 @@ def init_db():
         cursor.executemany(
             "INSERT INTO leave_types (name, annual_quota, is_paid) VALUES (%s,%s,%s)",
             [
-                ("Casual Leave",    12,  1),
-                ("Sick Leave",      12,  1),
-                ("Earned Leave",    15,  1),
-                ("Maternity Leave", 90,  1),
-                ("Paternity Leave",  5,  1),
-                ("Comp-off",         0,  1),
+                ("Casual Leave", 12, 1),
+                ("Sick Leave", 12, 1),
+                ("Earned Leave", 15, 1),
+                ("Maternity Leave", 90, 1),
+                ("Paternity Leave", 5, 1),
+                ("Comp-off", 0, 1),
             ]
         )
         db.commit()
@@ -1285,7 +1304,7 @@ def init_db():
             "INSERT INTO break_config (break_name, break_time, duration_minutes) VALUES (%s, %s, %s)",
             [
                 ("Coffee Break 1", "11:00:00", 10),
-                ("Lunch Break",    "13:00:00", 60),
+                ("Lunch Break", "13:00:00", 60),
                 ("Coffee Break 2", "16:00:00", 10),
             ]
         )
@@ -1364,7 +1383,7 @@ def init_db():
     _attach_updated_at_trigger(cursor, "company_settings")
     db.commit()
     # Add default shift columns if not present
-    for col, default in [("shift_start","09:00:00"), ("shift_half","13:00:00"), ("shift_end","18:00:00")]:
+    for col, default in [("shift_start", "09:00:00"), ("shift_half", "13:00:00"), ("shift_end", "18:00:00")]:
         try:
             cursor.execute(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col} TIME DEFAULT '{default}'")
             db.commit()
@@ -1705,7 +1724,8 @@ def init_master_db():
         cur = db.cursor()
         cur.execute('CREATE SCHEMA IF NOT EXISTS att_master')
         db.commit()
-        cur.close(); db.close()
+        cur.close()
+        db.close()
 
         from database import get_master_db
         db = get_master_db()
@@ -1761,6 +1781,7 @@ def get_employee_incentive_total(cursor, emp_id, year, month):
 
 # compute_salary_entry consolidated onto utils/salary_utils.py
 
+
 # ---------------- ERROR HANDLERS ----------------
 import traceback as _traceback
 
@@ -1776,8 +1797,9 @@ import traceback as _traceback
 # unhandled errors, deduped by error signature so one hot failing endpoint
 # can't flood inboxes or the email_queue table.
 _error_alert_cache = {}
-_error_alert_lock  = threading.Lock()
+_error_alert_lock = threading.Lock()
 _ERROR_ALERT_COOLDOWN = 900  # 15 min — same error signature won't re-alert sooner
+
 
 def _alert_on_error(tb_text, context=""):
     """Best-effort: any failure here is swallowed so alerting can never
@@ -1822,14 +1844,16 @@ def _alert_on_error(tb_text, context=""):
 @app.errorhandler(404)
 def not_found(e):
     return _error_page(404, "🔍", "Page Not Found",
-        "The page you're looking for doesn't exist or has been moved.",
-        "Check the URL or use one of the links below to get back on track.")
+                       "The page you're looking for doesn't exist or has been moved.",
+                       "Check the URL or use one of the links below to get back on track.")
+
 
 @app.errorhandler(403)
 def forbidden(e):
     return _error_page(403, "🔒", "Access Denied",
-        "You don't have permission to access this page.",
-        "Please log in with the right account or contact your administrator.")
+                       "You don't have permission to access this page.",
+                       "Please log in with the right account or contact your administrator.")
+
 
 @app.errorhandler(500)
 def internal_error(e):
@@ -1837,21 +1861,22 @@ def internal_error(e):
     app_log.error("500 error: %s", tb.replace('\n', '\\n'))
     _alert_on_error(tb, context=request.path if request else "")
     return _error_page(500, "⚙️", "Internal Server Error",
-        "Something went wrong on our end. The error has been logged.",
-        "Please try again in a moment or contact your administrator.")
+                       "Something went wrong on our end. The error has been logged.",
+                       "Please try again in a moment or contact your administrator.")
+
 
 @app.errorhandler(Exception)
 def unhandled_exception(e):
     if isinstance(e, HTTPException):
         return _error_page(e.code, "⚠️", e.name,
-            "The page you requested could not be processed.",
-            "Use the buttons below to navigate back.")
+                           "The page you requested could not be processed.",
+                           "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
     app_log.error("Unhandled exception: %s", tb.replace('\n', '\\n'))
     _alert_on_error(tb, context=request.path if request else "")
     return _error_page(500, "⚙️", "Internal Server Error",
-        "An unexpected error occurred. The team has been notified.",
-        "Please try again or contact your administrator.")
+                       "An unexpected error occurred. The team has been notified.",
+                       "Please try again or contact your administrator.")
 
 # ---------------- HOME ----------------
 # home migrated to blueprints/core.py
@@ -2000,7 +2025,6 @@ def unhandled_exception(e):
 # admin_set_recovery_email migrated to blueprints/auth.py
 
 
-
 # admin_forgot_password migrated to blueprints/auth.py
 
 
@@ -2141,8 +2165,6 @@ def unhandled_exception(e):
 # update_my_bank_details migrated to blueprints/employee_portal.py
 
 
-
-
 # add_experience migrated to blueprints/employee_portal.py
 
 
@@ -2232,10 +2254,7 @@ def unhandled_exception(e):
 # leave_holidays migrated to blueprints/leave.py
 
 
-
 # leave_action migrated to blueprints/leave.py
-
-
 
 
 # leave_calendar migrated to blueprints/leave.py
@@ -2399,7 +2418,6 @@ def unhandled_exception(e):
 # api_employee_raise_ticket migrated to blueprints/tickets.py
 
 
-
 # api_employee_salary migrated to blueprints/employee_portal.py
 
 
@@ -2474,7 +2492,6 @@ def unhandled_exception(e):
 # api_shifts_assign migrated to blueprints/attendance.py
 
 
-
 # ================================================================
 #  FEATURE 1: ANALYTICS
 # ================================================================
@@ -2498,7 +2515,6 @@ def unhandled_exception(e):
 
 
 # delete_document migrated to blueprints/documents.py
-
 
 
 # download_document migrated to blueprints/documents.py
@@ -2620,8 +2636,6 @@ def unhandled_exception(e):
 # api_org_chart_data migrated to blueprints/admin_views.py
 
 
-
-
 # ── /api/v1/ aliases ──────────────────────────────────────────────────────────
 # Register every /api/<path> route also under /api/v1/<path>.  Existing mobile
 # clients keep using /api/ with no changes; new integrations can start on v1.
@@ -2633,7 +2647,7 @@ def _register_api_v1_aliases():
         if not _rule.rule.startswith("/api/") or _rule.rule.startswith("/api/v"):
             continue
         _v1_rule = "/api/v1" + _rule.rule[4:]
-        _vf      = app.view_functions.get(_rule.endpoint)
+        _vf = app.view_functions.get(_rule.endpoint)
         if _vf is None:
             continue
         _ep_v1 = "v1_" + _rule.endpoint
@@ -2646,6 +2660,7 @@ def _register_api_v1_aliases():
             view_func=_vf,
             methods=_rule.methods,
         )
+
 
 # ── Self-register blueprints when app.py is the entrypoint ────────────────────
 # wsgi.py and tests/conftest.py both register every blueprint on the shared
@@ -2694,7 +2709,7 @@ if __name__ == "__main__":
     threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
     import os as _os
     _cert = _os.environ.get("SSL_CERT_PATH") or _os.path.join(_os.path.dirname(__file__), "cert.pem")
-    _key  = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
+    _key = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("🔒  SSL cert found — starting on https://0.0.0.0:5000")
         app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,  # nosec B104

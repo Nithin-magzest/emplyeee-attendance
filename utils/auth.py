@@ -5,7 +5,6 @@ import time
 import datetime
 import hashlib
 import urllib.request
-import urllib.error
 import bcrypt as _bcrypt
 from functools import wraps
 from contextlib import contextmanager
@@ -17,8 +16,11 @@ from utils.session_risk import is_session_compromised, evaluate_session_risk
 from utils.async_writer import enqueue_write
 
 # ── Password hashing (bcrypt with legacy pbkdf2 fallback) ────────────────────
+
+
 def generate_password_hash(pw: str, **_) -> str:
     return _bcrypt.hashpw(pw.encode(), _bcrypt.gensalt(rounds=12)).decode()
+
 
 def check_password_hash(pw_hash: str, pw: str) -> bool:
     if not pw_hash:
@@ -39,15 +41,19 @@ def _hash_token(token: str) -> str:
 # ── DB context manager ────────────────────────────────────────────────────────
 @contextmanager
 def _db():
-    conn   = get_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor(buffered=True)
     try:
         yield cursor, conn
     finally:
-        try:  cursor.close()
-        except Exception as _e: app_log.debug("cursor.close() failed: %s", _e)
-        try:  conn.close()
-        except Exception as _e: app_log.debug("conn.close() failed: %s", _e)
+        try:
+            cursor.close()
+        except Exception as _e:
+            app_log.debug("cursor.close() failed: %s", _e)
+        try:
+            conn.close()
+        except Exception as _e:
+            app_log.debug("conn.close() failed: %s", _e)
 
 
 # ── Account lockout ───────────────────────────────────────────────────────────
@@ -55,7 +61,7 @@ def _db():
 # in production — adopted as canonical here rather than the 10 this module
 # used before consolidation, to avoid silently loosening lockout as a side
 # effect of removing the duplicate.
-_LOGIN_MAX_ATTEMPTS    = 5
+_LOGIN_MAX_ATTEMPTS = 5
 _LOGIN_LOCKOUT_MINUTES = 15
 
 # ── CAPTCHA gate (Cloudflare Turnstile) ────────────────────────────────────────
@@ -65,7 +71,7 @@ _LOGIN_LOCKOUT_MINUTES = 15
 # rejected until an admin sets the key," a self-inflicted denial of service
 # on the login system itself, unlike e.g. the malware-scan fail-closed
 # default in utils/helpers.py where the blast radius is one rejected upload.
-_TURNSTILE_SITE_KEY   = os.environ.get("TURNSTILE_SITE_KEY", "")
+_TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "")
 _TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY", "")
 _TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 CAPTCHA_AFTER_ATTEMPTS = 2
@@ -149,6 +155,7 @@ def _check_login_lockout(identifier: str, attempt_type: str = "admin"):
         pass
     return False, None
 
+
 def _record_login_failure(identifier: str, attempt_type: str = "admin"):
     """Called from the request-handling thread on every failed login — must
     stay fast unconditionally, including under a brute-force flood, which is
@@ -206,6 +213,7 @@ def _record_login_failure_db(identifier: str, attempt_type: str = "admin"):
     except Exception:
         pass
 
+
 def _clear_login_failures(identifier: str, attempt_type: str = "admin"):
     """Enqueued onto the SAME writer queue as _record_login_failure_db, not
     written synchronously — critical for correctness, not just speed. If
@@ -244,8 +252,8 @@ def _reject_if_compromised(login_endpoint: str):
     sid = session.get("_sid")
     if sid and is_session_compromised(sid):
         log_security_event("session.rejected", "Rejected a request from a compromised session",
-                            level="WARNING", identifier=session.get("admin_username")
-                            or session.get("employee_id"))
+                           level="WARNING", identifier=session.get("admin_username")
+                           or session.get("employee_id"))
         session.clear()
         return redirect(url_for(login_endpoint, locked="1"))
     return None
@@ -266,7 +274,7 @@ def admin_required(f):
             # plain anonymous hit is routine enough to log at INFO only.
             _level = "WARNING" if session.get("employee_id") else "INFO"
             log_security_event("access.denied", "Unauthenticated request to admin-only route",
-                                level=_level, required="admin")
+                               level=_level, required="admin")
             is_ajax = (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
                 or request.headers.get("Accept", "").startswith("application/json")
@@ -283,6 +291,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+
 def employee_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -293,7 +302,7 @@ def employee_required(f):
             return redirect("/admin")
         if not session.get("employee_id"):
             log_security_event("access.denied", "Unauthenticated request to employee-only route",
-                                level="INFO", required="employee")
+                               level="INFO", required="employee")
             return redirect("/employee_login")
         _killed = _reject_if_compromised("auth.employee_login")
         if _killed:
@@ -304,6 +313,7 @@ def employee_required(f):
             return redirect("/force_change_pin")
         return f(*args, **kwargs)
     return wrapper
+
 
 def role_required(*allowed_roles):
     """Like admin_required, but also requires session['admin_role'] to be one
@@ -316,7 +326,7 @@ def role_required(*allowed_roles):
         def wrapper(*args, **kwargs):
             if not session.get("admin_logged_in"):
                 log_security_event("access.denied", "Unauthenticated request to role-restricted route",
-                                    level="INFO", required="|".join(allowed_roles))
+                                   level="INFO", required="|".join(allowed_roles))
                 is_ajax = (
                     request.headers.get("X-Requested-With") == "XMLHttpRequest"
                     or request.headers.get("Accept", "").startswith("application/json")
@@ -331,9 +341,9 @@ def role_required(*allowed_roles):
                 return _killed
             if session.get("admin_role", "admin") not in allowed_roles:
                 log_security_event("access.denied", "Insufficient role for restricted route",
-                                    level="ERROR", required="|".join(allowed_roles),
-                                    actual_role=session.get("admin_role"),
-                                    identifier=session.get("admin_username"))
+                                   level="ERROR", required="|".join(allowed_roles),
+                                   actual_role=session.get("admin_role"),
+                                   identifier=session.get("admin_username"))
                 sid = session.get("_sid")
                 if sid:
                     evaluate_session_risk(
@@ -352,7 +362,7 @@ def manager_or_admin_required(f):
     def wrapper(*args, **kwargs):
         if not session.get("admin_logged_in"):
             log_security_event("access.denied", "Unauthenticated request to manager/admin route",
-                                level="INFO", required="manager_or_admin")
+                               level="INFO", required="manager_or_admin")
             is_ajax = (
                 request.headers.get("X-Requested-With") == "XMLHttpRequest"
                 or request.headers.get("Accept", "").startswith("application/json")
@@ -368,9 +378,9 @@ def manager_or_admin_required(f):
             # routine traffic, so this is ERROR (alert-worthy) rather than
             # the WARNING used for a bare unauthenticated hit above.
             log_security_event("access.denied", "Insufficient role for manager/admin route",
-                                level="ERROR", required="manager_or_admin",
-                                actual_role=session.get("admin_role", "admin"),
-                                identifier=session.get("admin_username"))
+                               level="ERROR", required="manager_or_admin",
+                               actual_role=session.get("admin_role", "admin"),
+                               identifier=session.get("admin_username"))
             # Feeds the session kill switch: weight 25, not the full
             # threshold, in one shot — a single blocked attempt could be a
             # stale UI/bookmark on an honestly lower-privileged account.
@@ -395,7 +405,7 @@ def api_required(f):
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
             log_security_event("access.denied", "API request missing Bearer token",
-                                level="INFO", required="admin_api")
+                               level="INFO", required="admin_api")
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         # Never log the token or its hash — it's the literal credential /
         # DB lookup key, and logging it would hand anyone with log access
@@ -411,11 +421,12 @@ def api_required(f):
             row = cursor.fetchone()
         if not row:
             log_security_event("access.denied", "API request with invalid or expired admin token",
-                                level="WARNING", required="admin_api")
+                               level="WARNING", required="admin_api")
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
         _flask_g.api_user = row[0]
         return f(*args, **kwargs)
     return wrapper
+
 
 def employee_api_required(f):
     @wraps(f)
@@ -423,7 +434,7 @@ def employee_api_required(f):
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
             log_security_event("access.denied", "API request missing Bearer token",
-                                level="INFO", required="employee_api")
+                               level="INFO", required="employee_api")
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
@@ -436,7 +447,7 @@ def employee_api_required(f):
             row = cursor.fetchone()
         if not row:
             log_security_event("access.denied", "API request with invalid or expired employee token",
-                                level="WARNING", required="employee_api")
+                               level="WARNING", required="employee_api")
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
         _flask_g.api_emp_id = row[0]
         return f(*args, **kwargs)
@@ -452,12 +463,15 @@ def employee_api_required(f):
 # rather than a fixed 15 minutes from the moment the code was entered.
 EMAIL_2FA_WINDOW_SEC = 15 * 60
 
+
 def email_settings_step_up_valid() -> bool:
     ts = session.get("email_2fa_verified_at", 0)
     return bool(ts) and (time.time() - ts) <= EMAIL_2FA_WINDOW_SEC
 
+
 def email_settings_step_up_refresh():
     session["email_2fa_verified_at"] = time.time()
+
 
 def email_settings_step_up_clear():
     session.pop("email_2fa_verified_at", None)
@@ -480,12 +494,15 @@ def email_settings_step_up_clear():
 SOC_ANALYST_ROLE = "soc_analyst"
 SOC_2FA_WINDOW_SEC = 10 * 60
 
+
 def soc_step_up_valid() -> bool:
     ts = session.get("soc_2fa_verified_at", 0)
     return bool(ts) and (time.time() - ts) <= SOC_2FA_WINDOW_SEC
 
+
 def soc_step_up_refresh():
     session["soc_2fa_verified_at"] = time.time()
+
 
 def soc_step_up_clear():
     session.pop("soc_2fa_verified_at", None)
@@ -503,15 +520,19 @@ def soc_step_up_clear():
 # when its row is followed.
 SECURITY_SETTINGS_2FA_WINDOW_SEC = 10 * 60
 
+
 def security_settings_step_up_valid() -> bool:
     ts = session.get("security_settings_2fa_verified_at", 0)
     return bool(ts) and (time.time() - ts) <= SECURITY_SETTINGS_2FA_WINDOW_SEC
 
+
 def security_settings_step_up_refresh():
     session["security_settings_2fa_verified_at"] = time.time()
 
+
 def security_settings_step_up_clear():
     session.pop("security_settings_2fa_verified_at", None)
+
 
 def require_security_settings_2fa(f):
     @wraps(f)
@@ -525,6 +546,7 @@ def require_security_settings_2fa(f):
         security_settings_step_up_refresh()
         return f(*args, **kwargs)
     return wrapper
+
 
 def require_email_2fa(f):
     """Protects the Email Settings API routes. Must sit UNDER @admin_required

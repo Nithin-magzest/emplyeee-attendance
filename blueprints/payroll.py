@@ -36,7 +36,7 @@ payroll_bp = Blueprint("payroll", __name__)
 @payroll_bp.route("/view_salary")
 @admin_required
 def view_salary():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     active_cid = session.get("active_company_id")
     if active_cid:
@@ -66,11 +66,11 @@ def view_salary():
 @role_required("admin")
 @limiter.limit("20 per minute")
 def update_salary():
-    emp_id     = request.form["emp_id"]
-    salary     = request.form["salary"]
-    hike_date  = request.form.get("hike_date") or None
-    db         = get_db_connection()
-    cursor     = db.cursor(buffered=True)
+    emp_id = request.form["emp_id"]
+    salary = request.form["salary"]
+    hike_date = request.form.get("hike_date") or None
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
         cursor.execute(
@@ -90,13 +90,14 @@ def update_salary():
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
 
+
 @payroll_bp.route("/salary_report")
 @admin_required
 def salary_report():
-    year  = int(request.args.get("year",  datetime.date.today().year))
+    year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     active_cid = session.get("active_company_id")
@@ -149,19 +150,20 @@ def salary_report():
     cursor.close()
     db.close()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
 
     # Fetch all incentives for this month in one query
     try:
-        db2     = get_db_connection()
+        db2 = get_db_connection()
         cursor2 = db2.cursor(buffered=True)
         cursor2.execute(
             "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives WHERE year=%s AND month=%s GROUP BY employee_id",
             (year, month)
         )
         incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
-        cursor2.close(); db2.close()
+        cursor2.close()
+        db2.close()
     except Exception:
         incentive_map = {}
 
@@ -172,39 +174,38 @@ def salary_report():
                                      leave_dates=leave_map.get(emp_id, set()))
         inc = incentive_map.get(emp_id, 0.0)
         entry["incentive"] = inc
-        entry["net"]       = round(entry["net"] + inc, 2)
+        entry["net"] = round(entry["net"] + inc, 2)
         entry["email"] = email
-        entry["role"]  = role
+        entry["role"] = role
         entry["phone"] = phone
         salary_data.append(entry)
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
-    years  = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+    years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
 
     email_cfg = get_email_config()
 
     return render_template("salary_report.html",
-        salary_data=salary_data,
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
-        year=year, month=month,
-        months=months, years=years,
-        late_rate=int(cfg.LATE_DEDUCTION_RATE * 100),
-        half_rate=int(cfg.HALF_DAY_RATE * 100),
-        email_configured=email_cfg is not None,
-        is_locked=is_locked,
-        lock_info=lock_info,
-    )
-
+                           salary_data=salary_data,
+                           month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           year=year, month=month,
+                           months=months, years=years,
+                           late_rate=int(cfg.LATE_DEDUCTION_RATE * 100),
+                           half_rate=int(cfg.HALF_DAY_RATE * 100),
+                           email_configured=email_cfg is not None,
+                           is_locked=is_locked,
+                           lock_info=lock_info,
+                           )
 
 
 @payroll_bp.route("/salary_report_export")
 @admin_required
 def salary_report_export():
     from flask import send_file
-    year  = int(request.args.get("year",  datetime.date.today().year))
+    year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     active_cid = session.get("active_company_id")
     if active_cid:
@@ -249,9 +250,11 @@ def salary_report_export():
         (year, month)
     )
     incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
-    cursor.close(); cursor2.close(); db.close()
+    cursor.close()
+    cursor2.close()
+    db.close()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
 
     wb = openpyxl.Workbook()
@@ -259,11 +262,11 @@ def salary_report_export():
     month_name = datetime.date(year, month, 1).strftime("%B %Y")
     ws.title = f"Salary {month_name}"
 
-    hdr_fill   = PatternFill("solid", fgColor="1E3A8A")
-    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
-    alt_fill   = PatternFill("solid", fgColor="EFF6FF")
-    center     = Alignment(horizontal="center", vertical="center")
-    thin_side  = Side(style="thin", color="CCCCCC")
+    hdr_fill = PatternFill("solid", fgColor="1E3A8A")
+    hdr_font = Font(bold=True, color="FFFFFF", size=11)
+    alt_fill = PatternFill("solid", fgColor="EFF6FF")
+    center = Alignment(horizontal="center", vertical="center")
+    thin_side = Side(style="thin", color="CCCCCC")
     thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
 
     headers = ["#", "Employee ID", "Name", "Role", "Department",
@@ -271,8 +274,10 @@ def salary_report_export():
                "Deduction", "Incentive", "Net Salary"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
-        cell.fill = hdr_fill; cell.font = hdr_font
-        cell.alignment = center; cell.border = thin_border
+        cell.fill = hdr_fill
+        cell.font = hdr_font
+        cell.alignment = center
+        cell.border = thin_border
 
     col_widths = [5, 16, 22, 16, 16, 12, 14, 10, 10, 12, 12, 14]
     for i, w in enumerate(col_widths, 1):
@@ -321,13 +326,13 @@ def email_config():
     if request.method == "GET":
         return redirect("/settings?tab=email")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    host       = request.form["smtp_host"].strip()
-    port       = int(request.form["smtp_port"])
-    user       = request.form["smtp_user"].strip()
-    password   = request.form.get("smtp_pass", "").strip()
-    from_name  = request.form.get("from_name", "Attendance System").strip()
+    host = request.form["smtp_host"].strip()
+    port = int(request.form["smtp_port"])
+    user = request.form["smtp_user"].strip()
+    password = request.form.get("smtp_pass", "").strip()
+    from_name = request.form.get("from_name", "Attendance System").strip()
     from_email = request.form.get("from_email", "").strip() or user
 
     # A blank or masked password means "leave the stored one unchanged" —
@@ -353,18 +358,19 @@ def email_config():
 
 # ---------------- SEND SALARY EMAIL (single) ----------------
 
+
 @payroll_bp.route("/send_salary_email", methods=["POST"])
 @admin_required
 def send_salary_email():
     emp_id = request.form["emp_id"]
-    year   = int(request.form["year"])
-    month  = int(request.form["month"])
+    year = int(request.form["year"])
+    month = int(request.form["month"])
 
     config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured. Go to Email Settings first."})
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
@@ -376,12 +382,14 @@ def send_salary_email():
     """, (emp_id,))
     emp = cursor.fetchone()
     if not emp:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
 
     name, email, spd, monthly_ctc, basic_pct, designation, dept = emp
     if not email:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": f"No email address set for {name}."})
 
     _, last_day = calendar.monthrange(year, month)
@@ -410,19 +418,21 @@ def send_salary_email():
     payroll_cfg = {"pf_employee_pct": float(pc_row[0] or 12), "pf_employer_pct": float(pc_row[1] or 12),
                    "professional_tax": float(pc_row[2] or 200), "tds_annual_pct": float(pc_row[3] or 0),
                    "pf_basic_cap": float(pc_row[4] or 15000)} if pc_row else {}
-    cur2.close(); db2.close()
-    cursor.close(); db.close()
+    cur2.close()
+    db2.close()
+    cursor.close()
+    db.close()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
-    entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
-                                         holidays_set=holidays_set, leave_dates=leave_dates)
+    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                 holidays_set=holidays_set, leave_dates=leave_dates)
     entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
-    entry["basic_pct"]   = int(basic_pct)
-    month_name    = datetime.date(year, month, 1).strftime("%B %Y")
-    html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
-                                           emp_designation=designation, emp_dept=dept,
-                                           payroll_cfg=payroll_cfg)
+    entry["basic_pct"] = int(basic_pct)
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+    html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
+                                       emp_designation=designation, emp_dept=dept,
+                                       payroll_cfg=payroll_cfg)
 
     try:
         send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
@@ -433,18 +443,19 @@ def send_salary_email():
 
 # ---------------- SEND ALL SALARY EMAILS ----------------
 
+
 @payroll_bp.route("/send_all_salary_emails", methods=["POST"])
 @role_required("admin")
 @limiter.limit("5 per minute")
 def send_all_salary_emails():
-    year  = int(request.form["year"])
+    year = int(request.form["year"])
     month = int(request.form["month"])
 
     config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured. Go to Email Settings first."})
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
@@ -475,11 +486,12 @@ def send_all_salary_emails():
     for eid, ld in cursor.fetchall():
         leave_map_all.setdefault(eid, set()).add(ld)
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
-    month_name    = datetime.date(year, month, 1).strftime("%B %Y")
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
 
     sent = skipped = failed = 0
     errors = []
@@ -488,9 +500,9 @@ def send_all_salary_emails():
         if not email:
             skipped += 1
             continue
-        entry     = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
-                                         holidays_set=holidays_set,
-                                         leave_dates=leave_map_all.get(emp_id, set()))
+        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
+                                     holidays_set=holidays_set,
+                                     leave_dates=leave_map_all.get(emp_id, set()))
         html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
         try:
             send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
@@ -502,14 +514,17 @@ def send_all_salary_emails():
 
     if sent > 0:
         try:
-            db2 = get_db_connection(); cur2 = db2.cursor()
+            db2 = get_db_connection()
+            cur2 = db2.cursor()
             actor = session.get("admin_username", "admin")
             cur2.execute("""
                 INSERT INTO payroll_runs (year, month, processed_by, email_count)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (year, month) DO UPDATE SET processed_at=NOW(), processed_by=%s, email_count=%s
             """, (year, month, actor, sent, actor, sent))
-            db2.commit(); cur2.close(); db2.close()
+            db2.commit()
+            cur2.close()
+            db2.close()
             _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}",
                    f"Payroll locked for {year}-{month:02d} after sending {sent} payslips")
         except Exception as _le:
@@ -522,33 +537,39 @@ def send_all_salary_emails():
 
 # ---------------- PAYROLL LOCK / UNLOCK ----------------
 
+
 @payroll_bp.route("/lock_payroll", methods=["POST"])
 @admin_required
 def lock_payroll():
-    year  = int(request.form["year"])
+    year = int(request.form["year"])
     month = int(request.form["month"])
     actor = session.get("admin_username", "admin")
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         INSERT INTO payroll_runs (year, month, processed_by, email_count)
         VALUES (%s, %s, %s, 0)
         ON CONFLICT (year, month) DO UPDATE SET processed_at=NOW(), processed_by=%s
     """, (year, month, actor, actor))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _audit("lock_payroll", "payroll_runs", f"{year}-{month:02d}", f"Manually locked by {actor}")
     return jsonify({"ok": True, "msg": f"Payroll for {year}-{month:02d} locked."})
-
 
 
 @payroll_bp.route("/unlock_payroll", methods=["POST"])
 @admin_required
 def unlock_payroll():
-    year  = int(request.form["year"])
+    year = int(request.form["year"])
     month = int(request.form["month"])
     actor = session.get("admin_username", "admin")
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("DELETE FROM payroll_runs WHERE year=%s AND month=%s", (year, month))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _audit("unlock_payroll", "payroll_runs", f"{year}-{month:02d}", f"Unlocked by {actor}")
     return jsonify({"ok": True, "msg": f"Payroll for {year}-{month:02d} unlocked."})
 
@@ -560,7 +581,7 @@ def unlock_payroll():
 def my_payslip_summary(year, month):
     import json as _json
     emp_id = session["employee_id"]
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
@@ -600,7 +621,8 @@ def my_payslip_summary(year, month):
     except Exception:
         ot_pay = 0.0
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     att_map = {r[0]: r for r in att_rows}
     billable = get_billable_past_days(year, month)
@@ -609,9 +631,12 @@ def my_payslip_summary(year, month):
         r = att_map.get(d)
         if r:
             final = r[5] if r[5] else infer_type_legacy(r[3], r[1], r[2])
-            if final == "Full Day":          full += 1
-            elif final == "Late - Full Day": late += 1
-            elif final in ("Half Day","Present"): half += 1
+            if final == "Full Day":
+                full += 1
+            elif final == "Late - Full Day":
+                late += 1
+            elif final in ("Half Day", "Present"):
+                half += 1
 
     full_earn = round(full * spd, 2)
     late_earn = round(late * spd, 2)
@@ -629,15 +654,14 @@ def my_payslip_summary(year, month):
     }), 200, {"Content-Type": "application/json"}
 
 
-
 @payroll_bp.route("/my_attendance_pdf")
 @employee_required
 def my_attendance_pdf():
     emp_id = session["employee_id"]
-    year   = int(request.args.get("year",  datetime.date.today().year))
-    month  = int(request.args.get("month", datetime.date.today().month))
+    year = int(request.args.get("year", datetime.date.today().year))
+    month = int(request.args.get("month", datetime.date.today().month))
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, name, role, email FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
@@ -648,42 +672,54 @@ def my_attendance_pdf():
         FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s ORDER BY date
     """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
     monthly_att = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     billable_past = get_billable_past_days(year, month)
-    att_by_date   = {r[0]: r for r in monthly_att}
+    att_by_date = {r[0]: r for r in monthly_att}
     full_days = half_days = late_days = absent_days = total_sec = 0
     for d in billable_past:
         row = att_by_date.get(d)
         if row:
             _, login_t, logout_t, status, _ls, att_type = row
             final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-            if   final == "Full Day":               full_days   += 1
-            elif final == "Late - Full Day":        late_days   += 1
-            elif final in ("Half Day", "Present"):  half_days   += 1
-            else:                                   absent_days += 1
+            if final == "Full Day":
+                full_days += 1
+            elif final == "Late - Full Day":
+                late_days += 1
+            elif final in ("Half Day", "Present"):
+                half_days += 1
+            else:
+                absent_days += 1
             if login_t and logout_t:
-                li = login_t.total_seconds()  if hasattr(login_t,  "total_seconds") else login_t.hour*3600+login_t.minute*60+login_t.second
-                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else logout_t.hour*3600+logout_t.minute*60+logout_t.second
-                if lo > li: total_sec += int(lo - li)
+                li = login_t.total_seconds() if hasattr(login_t, "total_seconds") else login_t.hour * \
+                    3600 + login_t.minute * 60 + login_t.second
+                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else logout_t.hour * \
+                    3600 + logout_t.minute * 60 + logout_t.second
+                if lo > li:
+                    total_sec += int(lo - li)
         else:
             absent_days += 1
 
     def fmt(t):
-        if t is None: return "--"
-        if hasattr(t, "strftime"): return t.strftime("%H:%M")
-        s = int(t.total_seconds()); return f"{s//3600:02d}:{(s%3600)//60:02d}"
+        if t is None:
+            return "--"
+        if hasattr(t, "strftime"):
+            return t.strftime("%H:%M")
+        s = int(t.total_seconds())
+        return f"{s//3600:02d}:{(s%3600)//60:02d}"
 
     rows_html = ""
     for d in sorted(att_by_date.keys()):
         row = att_by_date[d]
         _, lt, lot, ls, _lo, at = row
         final = at if at else infer_type_legacy(ls, lt, lot)
-        color = {"Full Day":"#16a34a","Late - Full Day":"#d97706","Half Day":"#dc2626","Present":"#d97706"}.get(final,"#6b7280")
+        color = {"Full Day": "#16a34a", "Late - Full Day": "#d97706",
+                 "Half Day": "#dc2626", "Present": "#d97706"}.get(final, "#6b7280")
         rows_html += f"<tr><td>{d.strftime('%d %b %Y')}</td><td>{d.strftime('%A')}</td><td>{fmt(lt)}</td><td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{final or 'Absent'}</td></tr>"
 
     billable = len(billable_past)
-    pct = round((full_days + late_days + half_days*0.5) / billable * 100, 1) if billable else 0
+    pct = round((full_days + late_days + half_days * 0.5) / billable * 100, 1) if billable else 0
     month_name = datetime.date(year, month, 1).strftime("%B %Y")
     total_h = f"{total_sec//3600}h {(total_sec%3600)//60}m"
 
@@ -734,8 +770,8 @@ def my_attendance_pdf():
 @role_required("admin")
 @limiter.limit("10 per minute")
 def apply_hike():
-    q   = int(request.form.get("quarter", 1))
-    yr  = int(request.form.get("year", datetime.date.today().year))
+    q = int(request.form.get("quarter", 1))
+    yr = int(request.form.get("year", datetime.date.today().year))
     emp_ids = request.form.getlist("emp_ids")
     if not emp_ids:
         flash("No employees selected.", "error")
@@ -800,18 +836,18 @@ def apply_hike():
             updated += 1
 
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash(f"Hike applied to {updated} employee(s) successfully.", "success")
     return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
-
 
 
 @payroll_bp.route("/award_performance_bonus", methods=["POST"])
 @role_required("admin")
 @limiter.limit("10 per minute")
 def award_performance_bonus():
-    q   = int(request.form.get("quarter", 1))
-    yr  = int(request.form.get("year", datetime.date.today().year))
+    q = int(request.form.get("quarter", 1))
+    yr = int(request.form.get("year", datetime.date.today().year))
     emp_ids = request.form.getlist("emp_ids")
     if not emp_ids:
         flash("No employees selected.", "error")
@@ -895,23 +931,23 @@ def award_performance_bonus():
             awarded += 1
 
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash(f"Performance bonus awarded to {awarded} employee(s).", "success")
     return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
-
 
 
 @payroll_bp.route("/save_hike_config", methods=["POST"])
 @admin_required
 def save_hike_config():
-    q  = request.form.get("quarter", "1")
+    q = request.form.get("quarter", "1")
     yr = request.form.get("year", str(datetime.date.today().year))
-    ids       = request.form.getlist("band_id")
-    labels    = request.form.getlist("band_label")
-    min_rats  = request.form.getlist("band_min")
-    max_rats  = request.form.getlist("band_max")
+    ids = request.form.getlist("band_id")
+    labels = request.form.getlist("band_label")
+    min_rats = request.form.getlist("band_min")
+    max_rats = request.form.getlist("band_max")
     hike_pcts = request.form.getlist("band_hike")
-    inc_pcts  = request.form.getlist("band_inc")
+    inc_pcts = request.form.getlist("band_inc")
 
     n = min(len(ids), len(labels), len(min_rats), len(max_rats), len(hike_pcts), len(inc_pcts))
     if n == 0:
@@ -924,21 +960,22 @@ def save_hike_config():
         try:
             cursor.execute(
                 "UPDATE hike_config SET label=%s, min_rating=%s, max_rating=%s, hike_pct=%s, incentive_pct=%s WHERE id=%s",
-                (labels[i], float(min_rats[i]), float(max_rats[i]), float(hike_pcts[i]), float(inc_pcts[i]), int(ids[i]))
+                (labels[i], float(min_rats[i]), float(max_rats[i]),
+                 float(hike_pcts[i]), float(inc_pcts[i]), int(ids[i]))
             )
         except (ValueError, TypeError):
             continue
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash("Hike band configuration saved.", "success")
     return redirect(f"/performance?tab=hike&quarter={q}&year={yr}")
-
 
 
 @payroll_bp.route("/api/salary_config", methods=["GET"])
 @api_required
 def api_salary_config_get():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0)
@@ -947,22 +984,22 @@ def api_salary_config_get():
         ORDER BY e.name
     """)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "salaries": [
         {"employee_id": r[0], "name": r[1], "salary_per_day": float(r[2])} for r in rows
     ]})
 
 
-
 @payroll_bp.route("/api/salary_config", methods=["POST"])
 @api_required
 def api_salary_config_post():
-    data   = request.get_json() or {}
+    data = request.get_json() or {}
     emp_id = data.get("employee_id")
     salary = data.get("salary_per_day")
     if not emp_id or salary is None:
         return jsonify({"ok": False, "msg": "employee_id and salary_per_day required"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
@@ -970,17 +1007,17 @@ def api_salary_config_post():
     else:
         cursor.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)", (emp_id, salary))
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True})
-
 
 
 @payroll_bp.route("/api/monthly_report", methods=["GET"])
 @api_required
 def api_monthly_report():
-    year  = int(request.args.get("year",  datetime.date.today().year))
+    year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
     employees = cursor.fetchall()
@@ -992,13 +1029,14 @@ def api_monthly_report():
     att_map = {}
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
-    cursor.close(); db.close()
-    holidays     = fetch_holidays_set(year, month)
+    cursor.close()
+    db.close()
+    holidays = fetch_holidays_set(year, month)
     working_days = get_working_days(year, month)
-    today        = datetime.date.today()
+    today = datetime.date.today()
     report = []
     for emp_id, name in employees:
-        emp_att   = att_map.get(emp_id, {})
+        emp_att = att_map.get(emp_id, {})
         full_days = half_days = late_days = absent = 0
         for d in working_days:
             if d > today or d in holidays:
@@ -1007,18 +1045,22 @@ def api_monthly_report():
             if row:
                 _, _, login_t, logout_t, status, _logout_status, att_type = row
                 final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-                if final in ("Full Day", "Approved Leave"): full_days += 1
-                elif final == "Late - Full Day": late_days += 1
-                elif final in ("Half Day", "Present"): half_days += 1
-                else: absent += 1
+                if final in ("Full Day", "Approved Leave"):
+                    full_days += 1
+                elif final == "Late - Full Day":
+                    late_days += 1
+                elif final in ("Half Day", "Present"):
+                    half_days += 1
+                else:
+                    absent += 1
             else:
                 absent += 1
-        billable      = len([d for d in working_days if d <= today and d not in holidays])
+        billable = len([d for d in working_days if d <= today and d not in holidays])
         present_equiv = full_days + late_days + half_days * 0.5
-        pct           = round(present_equiv / billable * 100, 1) if billable > 0 else 0
+        pct = round(present_equiv / billable * 100, 1) if billable > 0 else 0
         report.append({"employee_id": emp_id, "name": name, "full_days": full_days,
-                        "half_days": half_days, "late_days": late_days, "absent": absent,
-                        "billable": billable, "pct": pct})
+                       "half_days": half_days, "late_days": late_days, "absent": absent,
+                       "billable": billable, "pct": pct})
     return jsonify({"ok": True, "report": report,
                     "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
                     "year": year, "month": month,
@@ -1026,13 +1068,12 @@ def api_monthly_report():
                     "total_working": len([d for d in working_days if d <= today and d not in holidays])})
 
 
-
 @payroll_bp.route("/api/salary_report", methods=["GET"])
 @api_required
 def api_salary_report():
-    year  = int(request.args.get("year",  datetime.date.today().year))
+    year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
@@ -1049,9 +1090,10 @@ def api_salary_report():
     att_map = {}
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     billable_past = get_billable_past_days(year, month)
-    salary_data   = []
+    salary_data = []
     for emp_id, name, email, spd in employees:
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
         entry["email"] = email
@@ -1059,7 +1101,6 @@ def api_salary_report():
     return jsonify({"ok": True, "salary_data": salary_data,
                     "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
                     "year": year, "month": month})
-
 
 
 @payroll_bp.route("/api/email_config", methods=["GET"])
@@ -1072,19 +1113,18 @@ def api_get_email_config():
     return jsonify({"ok": True, "config": safe_cfg})
 
 
-
 @payroll_bp.route("/api/email_config", methods=["POST"])
 @api_required
 def api_save_email_config():
-    data      = request.get_json() or {}
-    host      = data.get("smtp_host", "").strip()
-    port      = int(data.get("smtp_port", 587))
-    user      = data.get("smtp_user", "").strip()
-    password  = data.get("smtp_pass", "").strip()
+    data = request.get_json() or {}
+    host = data.get("smtp_host", "").strip()
+    port = int(data.get("smtp_port", 587))
+    user = data.get("smtp_user", "").strip()
+    password = data.get("smtp_pass", "").strip()
     from_name = data.get("from_name", "HR Department").strip()
     if not host or not user or not password:
         return jsonify({"ok": False, "msg": "host, user and password required"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM email_config")
     cursor.execute(
@@ -1092,22 +1132,22 @@ def api_save_email_config():
         (host, port, user, encrypt_pii(password), from_name)
     )
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True})
-
 
 
 @payroll_bp.route("/api/send_salary_email", methods=["POST"])
 @api_required
 def api_send_salary_email():
-    data   = request.get_json() or {}
+    data = request.get_json() or {}
     emp_id = data.get("emp_id")
-    year   = int(data.get("year",  datetime.date.today().year))
-    month  = int(data.get("month", datetime.date.today().month))
+    year = int(data.get("year", datetime.date.today().year))
+    month = int(data.get("month", datetime.date.today().month))
     config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured."})
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT name, email, COALESCE(s.salary_per_day,0) FROM employees e "
@@ -1116,11 +1156,13 @@ def api_send_salary_email():
     )
     emp = cursor.fetchone()
     if not emp:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
     name, email, spd = emp
     if not email:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": f"No email for {name}."})
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -1130,14 +1172,14 @@ def api_send_salary_email():
     att_map = {}
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     billable_past = get_billable_past_days(year, month)
-    entry         = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
-    month_name    = datetime.date(year, month, 1).strftime("%B %Y")
-    html_body     = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
+    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+    html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
     send_email_async(email, f"Salary Slip - {month_name}", html_body, config)
     return jsonify({"ok": True, "msg": f"Queued for {email}"})
-
 
 
 @payroll_bp.route("/view_payslip/<emp_id>/<int:year>/<int:month>")
@@ -1176,14 +1218,18 @@ def view_payslip(emp_id, year, month):
     """, (emp_id,))
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return "Employee not found", 404
     name, email, spd, monthly_ctc, basic_pct, designation, dept, pan, uan, bank_acct, bank_nm = row
-    pan = decrypt_pii(pan); uan = decrypt_pii(uan); bank_acct = decrypt_pii(bank_acct)
+    pan = decrypt_pii(pan)
+    uan = decrypt_pii(uan)
+    bank_acct = decrypt_pii(bank_acct)
     bank_nm = decrypt_pii(bank_nm)
 
     # Payroll config
-    cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
+    cursor.execute(
+        "SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
     pc_row = cursor.fetchone()
     payroll_cfg = {}
     if pc_row:
@@ -1215,14 +1261,15 @@ def view_payslip(emp_id, year, month):
         (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day))
     )
     leave_dates = {r[0] for r in cursor.fetchall()}
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
     entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                  holidays_set=holidays_set, leave_dates=leave_dates)
     entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
-    entry["basic_pct"]   = int(basic_pct)
+    entry["basic_pct"] = int(basic_pct)
 
     month_name = calendar.month_name[month] + f" {year}"
     return build_salary_slip_html(
@@ -1232,7 +1279,6 @@ def view_payslip(emp_id, year, month):
         pan=pan, uan=uan, bank_account=bank_acct, bank_name=bank_nm,
         payroll_cfg=payroll_cfg
     )
-
 
 
 @payroll_bp.route("/download_payslip/<emp_id>/<int:year>/<int:month>")
@@ -1247,7 +1293,6 @@ def download_payslip(emp_id, year, month):
         mimetype="text/html",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
-
 
 
 @payroll_bp.route("/admin_payslips")
@@ -1266,7 +1311,8 @@ def admin_payslips():
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     today = datetime.date.today()
     slip_months = []
@@ -1275,16 +1321,16 @@ def admin_payslips():
         slip_months.append((y, m, calendar.month_name[m]))
         m -= 1
         if m == 0:
-            m = 12; y -= 1
+            m = 12
+            y -= 1
 
     return render_template("admin_payslips.html",
-        employees=employees,
-        slip_months=slip_months,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets
-    )
-
+                           employees=employees,
+                           slip_months=slip_months,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets
+                           )
 
 
 @payroll_bp.route("/payroll_settings", methods=["GET", "POST"])
@@ -1297,40 +1343,53 @@ def payroll_settings():
     # Ensure at least one row exists
     cursor.execute("SELECT COUNT(*) FROM payroll_config")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO payroll_config (pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap) VALUES (12,12,200,0,15000)")
+        cursor.execute(
+            "INSERT INTO payroll_config (pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap) VALUES (12,12,200,0,15000)")
         db.commit()
 
     if request.method == "POST":
-        pf_emp  = float(request.form.get("pf_employee_pct", 12))
-        pf_er   = float(request.form.get("pf_employer_pct", 12))
-        pt      = float(request.form.get("professional_tax", 200))
-        tds     = float(request.form.get("tds_annual_pct", 0))
-        pf_cap  = float(request.form.get("pf_basic_cap", 15000))
+        pf_emp = float(request.form.get("pf_employee_pct", 12))
+        pf_er = float(request.form.get("pf_employer_pct", 12))
+        pt = float(request.form.get("professional_tax", 200))
+        tds = float(request.form.get("tds_annual_pct", 0))
+        pf_cap = float(request.form.get("pf_basic_cap", 15000))
         cursor.execute("""
             UPDATE payroll_config SET pf_employee_pct=%s, pf_employer_pct=%s,
             professional_tax=%s, tds_annual_pct=%s, pf_basic_cap=%s
         """, (pf_emp, pf_er, pt, tds, pf_cap))
         db.commit()
 
-        # Update per-employee monthly CTC / basic_pct if submitted
+        # Update per-employee monthly CTC / basic_pct if submitted — batched
+        # into a single multi-row upsert instead of one INSERT round trip
+        # per employee; EXCLUDED.* lets Postgres reference each row's own
+        # proposed values instead of repeating each param twice.
         emp_ids = request.form.getlist("emp_id")
+        rows = []
         for eid in emp_ids:
-            ctc  = request.form.get(f"ctc_{eid}", "")
+            ctc = request.form.get(f"ctc_{eid}", "")
             bpct = request.form.get(f"bpct_{eid}", "50")
             if ctc:
                 spd = round(float(ctc) / 26, 2)
-                cursor.execute("""
-                    INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (employee_id) DO UPDATE SET
-                        salary_per_day=%s, monthly_ctc=%s, basic_pct=%s
-                """, (eid, spd, ctc, bpct, spd, ctc, bpct))
+                rows.append((eid, spd, ctc, bpct))
+        if rows:
+            placeholders = ",".join(["(%s,%s,%s,%s)"] * len(rows))
+            params = [v for row in rows for v in row]
+            cursor.execute(
+                "INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct) "  # nosec B608
+                f"VALUES {placeholders} "
+                "ON CONFLICT (employee_id) DO UPDATE SET "
+                "salary_per_day=EXCLUDED.salary_per_day, monthly_ctc=EXCLUDED.monthly_ctc, "
+                "basic_pct=EXCLUDED.basic_pct",
+                params
+            )
         db.commit()
         flash("Payroll settings saved.", "success")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/payroll_settings")
 
-    cursor.execute("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
+    cursor.execute(
+        "SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
     cfg = cursor.fetchone() or (12, 12, 200, 0, 15000)
 
     cursor.execute("""
@@ -1350,17 +1409,16 @@ def payroll_settings():
     pending_tickets = cursor.fetchone()[0]
     cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
     co = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("payroll_settings.html",
-        cfg=cfg, employees=employees,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        co=co
-    )
+                           cfg=cfg, employees=employees,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           co=co
+                           )
 
 
 # ---------------- API: SHIFTS (JSON) ----------------
-
-

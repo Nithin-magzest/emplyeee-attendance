@@ -39,7 +39,7 @@ def ensure_session_id(session) -> str:
 
 
 def evaluate_session_risk(sid: str, identifier: str, attempt_type: str,
-                           weight: int, event_type: str, reason: str) -> None:
+                          weight: int, event_type: str, reason: str) -> None:
     """Called from the request-handling thread. Hands the actual scoring
     off to the background writer thread (utils/async_writer.py) instead of
     touching the DB here — same reasoning as _record_login_failure in
@@ -54,7 +54,7 @@ def evaluate_session_risk(sid: str, identifier: str, attempt_type: str,
 
 
 def _evaluate_session_risk_db(sid: str, identifier: str, attempt_type: str,
-                               weight: int, reason: str) -> int:
+                              weight: int, reason: str) -> int:
     """The actual DB write and threshold check — runs only on the
     background writer thread. Do not call this directly from a route.
 
@@ -65,7 +65,8 @@ def _evaluate_session_risk_db(sid: str, identifier: str, attempt_type: str,
     race each other at all, let alone lose an increment.
     """
     try:
-        db = get_db_connection(); cur = db.cursor()
+        db = get_db_connection()
+        cur = db.cursor()
         cur.execute(
             """
             INSERT INTO session_risk (sid, identifier, attempt_type, score, last_reason)
@@ -85,7 +86,9 @@ def _evaluate_session_risk_db(sid: str, identifier: str, attempt_type: str,
                 "UPDATE session_risk SET status='compromised', updated_at=NOW() WHERE sid=%s",
                 (sid,),
             )
-        db.commit(); cur.close(); db.close()
+        db.commit()
+        cur.close()
+        db.close()
     except Exception as e:
         app_log.error("evaluate_session_risk failed for sid=%s: %s", sid, e)
         return 0
@@ -112,10 +115,12 @@ def is_session_compromised(sid: str) -> bool:
     if not sid:
         return False
     try:
-        db = get_db_connection(); cur = db.cursor()
+        db = get_db_connection()
+        cur = db.cursor()
         cur.execute("SELECT status FROM session_risk WHERE sid=%s", (sid,))
         row = cur.fetchone()
-        cur.close(); db.close()
+        cur.close()
+        db.close()
         return bool(row and row[0] == "compromised")
     except Exception as e:
         app_log.error("is_session_compromised check failed for sid=%s: %s", sid, e)

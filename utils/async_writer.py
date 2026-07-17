@@ -80,7 +80,7 @@ def _worker():
             fn(*args, **kwargs)
         except Exception as e:
             app_log.error("Async security write failed (%s): %s",
-                           getattr(fn, "__name__", fn), e)
+                          getattr(fn, "__name__", fn), e)
         finally:
             _write_queue.task_done()
 

@@ -62,6 +62,7 @@ _LOGRECORD_RESERVED = frozenset({
     "processName", "process", "message", "asctime",
 })
 
+
 def log_security_event(event_type: str, message: str, level: str = "WARNING", **fields):
     """Emit a structured security-relevant log event.
 
@@ -98,7 +99,7 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
     if level.upper() == "ERROR":
         from utils.alerts import send_security_alert
         send_security_alert(event_type, message, level="ERROR",
-                             ip=ip, path=path, method=method, **fields)
+                            ip=ip, path=path, method=method, **fields)
 
     # Every event (not just ERROR) also lands in the security_events table,
     # queryable by the SOC dashboard — the log stream above is for
@@ -123,16 +124,20 @@ def _persist_security_event(event_type, level, message, identifier, ip, path, me
     import json as _json
     from database import get_db_connection
     try:
-        db = get_db_connection(); cur = db.cursor()
+        db = get_db_connection()
+        cur = db.cursor()
         cur.execute(
             "INSERT INTO security_events (event_type, level, message, identifier, ip, path, method, extra_json) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
             (event_type[:80], level[:10], message[:500], identifier, ip, path, method,
              _json.dumps(extra_fields, default=str)[:4000] if extra_fields else None),
         )
-        db.commit(); cur.close(); db.close()
+        db.commit()
+        cur.close()
+        db.close()
     except Exception as e:
         app_log.error("Failed to persist security event to DB: %s", e)
+
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -156,16 +161,18 @@ else:
             pass
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True   # blocks document.cookie read via injected/XSS'd JS
-app.config["SESSION_COOKIE_SECURE"]   = os.environ.get("APP_ENV", "production") != "development"  # never sent over plaintext HTTP
-app.config["SESSION_COOKIE_SAMESITE"] = "Strict"  # never attached to a cross-site request — closes CSRF via cookie-riding
-app.config["SESSION_COOKIE_PATH"]     = "/"    # explicit for clarity; Flask's own default, stated rather than implied
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+    "APP_ENV", "production") != "development"  # never sent over plaintext HTTP
+# never attached to a cross-site request — closes CSRF via cookie-riding
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+app.config["SESSION_COOKIE_PATH"] = "/"    # explicit for clarity; Flask's own default, stated rather than implied
 # SESSION_COOKIE_DOMAIN deliberately left unset: omitting it makes the
 # cookie host-only (RFC 6265) — it's sent ONLY to this exact hostname, not
 # to sibling subdomains. Setting an explicit Domain here would WIDEN scope
 # (e.g. exposing it to every *.example.com subdomain), the opposite of a
 # security "limit" despite Domain sounding like a restriction.
 app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours absolute ceiling — utils/session_risk.py's kill switch and
-                                                    # app.py's _enforce_idle_timeout handle inactivity separately
+# app.py's _enforce_idle_timeout handle inactivity separately
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -175,7 +182,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "").strip()
-_app_env     = os.environ.get("APP_ENV", "production")
+_app_env = os.environ.get("APP_ENV", "production")
 if not _raw_origins:
     if _app_env != "development":
         app_log.critical(

@@ -22,14 +22,17 @@ def get_or_create_admin_totp_secret(admin_username: str):
     cursor.execute("SELECT totp_secret, totp_enabled FROM admin_users WHERE username=%s", (admin_username,))
     row = cursor.fetchone()
     if row and row[0]:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return decrypt_pii(row[0]), bool(row[1])
     secret = pyotp.random_base32()
     cursor.execute(
         "UPDATE admin_users SET totp_secret=%s WHERE username=%s",
         (encrypt_pii(secret), admin_username),
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return secret, False
 
 
@@ -37,7 +40,9 @@ def mark_totp_enabled(admin_username: str):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE admin_users SET totp_enabled=1 WHERE username=%s", (admin_username,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
 
 def reset_admin_totp_secret(admin_username: str):
@@ -51,7 +56,9 @@ def reset_admin_totp_secret(admin_username: str):
         "UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
         (admin_username,),
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
 
 def verify_totp_code(admin_username: str, code: str, require_enabled: bool = True) -> bool:
@@ -65,7 +72,8 @@ def verify_totp_code(admin_username: str, code: str, require_enabled: bool = Tru
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT totp_secret, totp_enabled FROM admin_users WHERE username=%s", (admin_username,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row or not row[0]:
         return False
     if require_enabled and not row[1]:

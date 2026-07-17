@@ -62,8 +62,17 @@ class TestRegistrationOptionsAuthorization:
         with client.session_transaction() as sess:
             sess["admin_logged_in"] = True
             sess["admin_username"] = seed_admin["username"]
+            sess["admin_role"] = "admin"
         resp = client.get("/webauthn/registration-options?emp_id=ANY_EMP_ID")
         assert resp.status_code == 200
+
+    def test_manager_session_cannot_enroll_on_behalf_of_employee(self, client, seed_admin):
+        with client.session_transaction() as sess:
+            sess["admin_logged_in"] = True
+            sess["admin_username"] = seed_admin["username"]
+            sess["admin_role"] = "manager"
+        resp = client.get("/webauthn/registration-options?emp_id=ANY_EMP_ID")
+        assert resp.status_code == 403
 
     def test_employee_session_can_enroll_own_id(self, client, seed_employee):
         with client.session_transaction() as sess:

@@ -39,12 +39,15 @@ def get_email_config():
     config.
     """
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
             "SELECT smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email "
             "FROM email_config ORDER BY id DESC LIMIT 1"
         )
-        row = cursor.fetchone(); cursor.close(); db.close()
+        row = cursor.fetchone()
+        cursor.close()
+        db.close()
         if row and row[0]:
             return {
                 "host": row[0], "port": row[1], "user": row[2], "password": decrypt_pii(row[3]),
@@ -68,10 +71,12 @@ def get_email_config():
 
 
 def get_admin_emails():
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT email FROM admin_users WHERE email IS NOT NULL AND email != ''")
     emails = [row[0] for row in cursor.fetchall()]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return emails
 
 
@@ -80,8 +85,8 @@ def send_email_smtp(to_email, subject, html_body, config,
     from_addr = config.get("from_email") or config["user"]
     msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
-    msg["From"]    = f"{config['from_name']} <{from_addr}>"
-    msg["To"]      = to_email
+    msg["From"] = f"{config['from_name']} <{from_addr}>"
+    msg["To"] = to_email
     alt = MIMEMultipart("alternative")
     alt.attach(MIMEText(html_body, "html", "utf-8"))
     msg.attach(alt)
@@ -99,7 +104,9 @@ def send_email_smtp(to_email, subject, html_body, config,
             server.sendmail(from_addr, to_email, msg.as_string())
     else:
         with smtplib.SMTP(config["host"], port, timeout=20) as server:
-            server.ehlo(); server.starttls(context=context); server.ehlo()
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
             server.login(config["user"], config["password"])
             server.sendmail(from_addr, to_email, msg.as_string())
 
@@ -109,13 +116,16 @@ def send_email_async(to_email, subject, html_body, config,
     """Enqueue email for reliable delivery via the DB-backed worker."""
     att_b64 = base64.b64encode(attachment_bytes).decode() if attachment_bytes else None
     try:
-        db  = get_db_connection(); cur = db.cursor()
+        db = get_db_connection()
+        cur = db.cursor()
         cur.execute(
             "INSERT INTO email_queue (to_email, subject, html_body, attachment_b64, attachment_filename) "
             "VALUES (%s,%s,%s,%s,%s)",
             (to_email, subject, html_body, att_b64, attachment_filename)
         )
-        db.commit(); cur.close(); db.close()
+        db.commit()
+        cur.close()
+        db.close()
     except Exception as e:
         app_log.error("Failed to enqueue email to %s: %s", to_email, e)
         threading.Thread(
@@ -134,7 +144,8 @@ def _email_queue_worker():
             if not cfg:
                 _time.sleep(30)
                 continue
-            db  = get_db_connection(); cur = db.cursor(buffered=True)
+            db = get_db_connection()
+            cur = db.cursor(buffered=True)
             cur.execute(
                 "SELECT id, to_email, subject, html_body, attachment_b64, attachment_filename "
                 "FROM email_queue WHERE status='pending' AND attempts < 3 "
@@ -164,7 +175,9 @@ def _email_queue_worker():
             cur.execute(
                 "UPDATE email_queue SET status='failed' WHERE status='pending' AND attempts >= 3"
             )
-            db.commit(); cur.close(); db.close()
+            db.commit()
+            cur.close()
+            db.close()
         except Exception as _we:
             app_log.error("Email queue worker error: %s", _we)
         _time.sleep(15)
@@ -177,8 +190,8 @@ def build_new_ip_login_email(display_name, identifier, ip_address, login_time_st
     for missing escaping elsewhere in this codebase, so it's done correctly
     here from the start rather than as a later fix."""
     _name = _html.escape(str(display_name))
-    _id   = _html.escape(str(identifier))
-    _ip   = _html.escape(str(ip_address))
+    _id = _html.escape(str(identifier))
+    _ip = _html.escape(str(ip_address))
     _time_s = _html.escape(str(login_time_str))
     return f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:540px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #fde68a;">
@@ -224,7 +237,8 @@ def notify_if_new_login_ip(identifier, attempt_type, ip_address, display_name, t
     if not ip_address or not to_email:
         return
     try:
-        db = get_db_connection(); cur = db.cursor()
+        db = get_db_connection()
+        cur = db.cursor()
         cur.execute(
             "SELECT COUNT(*) FROM known_login_ips WHERE identifier=%s AND attempt_type=%s",
             (identifier, attempt_type)
@@ -242,7 +256,8 @@ def notify_if_new_login_ip(identifier, attempt_type, ip_address, display_name, t
                 (identifier, attempt_type, ip_address)
             )
             db.commit()
-        cur.close(); db.close()
+        cur.close()
+        db.close()
     except Exception as e:
         app_log.error("notify_if_new_login_ip: known_login_ips check failed for %s: %s", identifier, e)
         return
@@ -268,7 +283,7 @@ def build_attendance_email(employee_name, emp_id, action, status, time_str, toda
     have actually been seeing, not the other way around, to avoid a
     visible regression in email appearance once this becomes the single
     source both entrypoints use."""
-    color        = "#16a34a" if action == "login" else "#2563eb"
+    color = "#16a34a" if action == "login" else "#2563eb"
     action_label = "Checked In" if action == "login" else "Checked Out"
     return f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">

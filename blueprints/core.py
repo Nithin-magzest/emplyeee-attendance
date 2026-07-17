@@ -18,6 +18,7 @@ from utils.session_risk import is_session_compromised
 
 core_bp = Blueprint("core", __name__)
 
+
 @core_bp.route("/csp-report", methods=["POST"])
 def csp_report():
     """Receives Content-Security-Policy violation reports from browsers."""
@@ -37,9 +38,11 @@ def csp_report():
         pass
     return "", 204
 
+
 @core_bp.route("/")
 def home():
     return render_template("index.html", auth_cfg=get_auth_config())
+
 
 @core_bp.route("/api/session/risk-stream")
 def session_risk_stream():
@@ -90,6 +93,7 @@ def session_risk_stream():
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
+
 @core_bp.route("/security_lockout")
 def security_lockout():
     """Hard-locked landing page for a force-terminated session. Not behind
@@ -97,11 +101,12 @@ def security_lockout():
     already been session.clear()'d by _reject_if_compromised()."""
     return render_template("security_lockout.html"), 403
 
+
 @core_bp.route("/api/login", methods=["POST"])
 @limiter.limit("5 per minute")
 @limiter.limit("20 per hour")
 def api_login():
-    data     = request.get_json() or {}
+    data = request.get_json() or {}
     username = data.get("username", "")
     password = data.get("password", "")
     if "\x00" in username or "\x00" in password:
@@ -120,6 +125,7 @@ def api_login():
             return jsonify({"ok": True, "token": token, "username": username})
     return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
 
+
 @core_bp.route("/api/logout", methods=["POST"])
 def api_logout():
     auth = request.headers.get("Authorization", "")
@@ -129,12 +135,13 @@ def api_logout():
             conn.commit()
     return jsonify({"ok": True})
 
+
 @core_bp.route("/api/dashboard", methods=["GET"])
 @api_required
 def api_dashboard():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today  = datetime.date.today()
+    today = datetime.date.today()
 
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
@@ -159,7 +166,7 @@ def api_dashboard():
     today_rows = [
         {
             "employee_id": r[0], "name": r[1],
-            "login_time":  str(r[2]) if r[2] else None,
+            "login_time": str(r[2]) if r[2] else None,
             "logout_time": str(r[3]) if r[3] else None,
             "login_status": r[4], "logout_status": r[5], "attendance_type": r[6],
         }
@@ -173,7 +180,8 @@ def api_dashboard():
     pending_tickets = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM notifications WHERE recipient_type='admin' AND is_read=FALSE")
     unread_notifications = cursor.fetchone()[0]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return jsonify({
         "ok": True, "total": total, "present": present,
@@ -183,30 +191,36 @@ def api_dashboard():
         "pending_tickets": pending_tickets, "unread_notifications": unread_notifications,
     })
 
+
 @core_bp.route("/api/holidays", methods=["POST"])
 @api_required
 def api_add_holiday():
     data = request.get_json() or {}
-    date = data.get("date"); name = data.get("name")
+    date = data.get("date")
+    name = data.get("name")
     if not date or not name:
         return jsonify({"ok": False, "msg": "date and name required"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
         cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, name))
         db.commit()
     except Exception:
         app_log.error("API holiday insert failed", exc_info=True)
-        db.rollback(); cursor.close(); db.close()
+        db.rollback()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Failed to add holiday. Check for duplicate dates."}), 400
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True})
+
 
 @core_bp.route("/api/employee/login", methods=["POST"])
 @limiter.limit("5 per minute")
 @limiter.limit("20 per hour")
 def api_employee_login():
-    data   = request.get_json() or {}
+    data = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
     password = data.get("password", "").strip()
     if not emp_id:
@@ -215,11 +229,12 @@ def api_employee_login():
     locked, until = _check_login_lockout(emp_id, "employee")
     if locked:
         return jsonify({"ok": False, "msg": f"Account locked until {until}. Try again later."}), 429
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name, email, password FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row:
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
@@ -246,6 +261,7 @@ def api_employee_login():
     return jsonify({"ok": True, "token": token, "employee_id": emp_id,
                     "name": row[0], "email": row[1]})
 
+
 @core_bp.route("/api/employee/logout", methods=["POST"])
 def api_employee_logout():
     auth = request.headers.get("Authorization", "")
@@ -254,4 +270,3 @@ def api_employee_logout():
             cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(auth[7:]),))
             conn.commit()
     return jsonify({"ok": True})
-

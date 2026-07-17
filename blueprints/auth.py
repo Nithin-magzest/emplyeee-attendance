@@ -68,12 +68,12 @@ def setup_wizard():
 
     error = None
     if request.method == "POST":
-        company_name  = request.form.get("company_name", "").strip()
-        company_tag   = request.form.get("company_tagline", "").strip()
-        currency      = request.form.get("currency_symbol", "₹").strip()
-        admin_user    = request.form.get("admin_username", "").strip()
-        admin_pass    = request.form.get("admin_password", "").strip()
-        admin_pass2   = request.form.get("admin_password2", "").strip()
+        company_name = request.form.get("company_name", "").strip()
+        company_tag = request.form.get("company_tagline", "").strip()
+        currency = request.form.get("currency_symbol", "₹").strip()
+        admin_user = request.form.get("admin_username", "").strip()
+        admin_pass = request.form.get("admin_password", "").strip()
+        admin_pass2 = request.form.get("admin_password2", "").strip()
 
         if not company_name:
             error = "Company name is required."
@@ -84,13 +84,16 @@ def setup_wizard():
         elif admin_pass != admin_pass2:
             error = "Passwords do not match."
         else:
-            db = get_db_connection(); cursor = db.cursor(buffered=True)
+            db = get_db_connection()
+            cursor = db.cursor(buffered=True)
             cursor.execute("UPDATE company_settings SET company_name=%s, company_tagline=%s, currency_symbol=%s, setup_done=1",
                            (company_name, company_tag or "Employee Attendance System", currency))
             cursor.execute("DELETE FROM admin_users")
             cursor.execute("INSERT INTO admin_users (username, password) VALUES (%s, %s)",
                            (admin_user, generate_password_hash(admin_pass)))
-            db.commit(); cursor.close(); db.close()
+            db.commit()
+            cursor.close()
+            db.close()
             invalidate_settings_cache()
             return redirect("/admin_login?setup=done")
 
@@ -111,7 +114,7 @@ def admin_login():
         return redirect("/employee_portal")
     if request.method == "POST":
         identifier = request.form.get("identifier", "").strip()
-        password   = request.form.get("password", "").strip()
+        password = request.form.get("password", "").strip()
         # Password is intentionally never inspected or logged here — only
         # the identifier field is checked, and only its shape (matched
         # pattern name), never the raw value, goes into the alert.
@@ -126,7 +129,7 @@ def admin_login():
         locked, until = _check_login_lockout(identifier)
         if locked:
             return render_template("admin_login.html",
-                error=f"Account locked until {until} due to too many failed attempts.")
+                                   error=f"Account locked until {until} due to too many failed attempts.")
 
         # CAPTCHA gate: once this identifier has CAPTCHA_AFTER_ATTEMPTS (2)
         # failures already on record, every further attempt must carry a
@@ -139,8 +142,8 @@ def admin_login():
             token = request.form.get("cf-turnstile-response", "")
             if not verify_turnstile(token, request.remote_addr):
                 return render_template("admin_login.html",
-                    error="Please complete the verification challenge.",
-                    show_captcha=True, turnstile_site_key=_TURNSTILE_SITE_KEY)
+                                       error="Please complete the verification challenge.",
+                                       show_captcha=True, turnstile_site_key=_TURNSTILE_SITE_KEY)
 
         # Whether the failure paths below should show the widget on the
         # NEXT attempt — computed from current_failed_count rather than a
@@ -182,7 +185,7 @@ def admin_login():
             if not stored_pwd or not check_password_hash(stored_pwd, password):
                 _record_login_failure(identifier)
                 return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
-                    show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
+                                       show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
             _clear_login_failures(identifier)
             # Upgrade legacy hash to bcrypt on first successful login
             if stored_pwd and not stored_pwd.startswith("$2"):
@@ -191,11 +194,11 @@ def admin_login():
                                 (generate_password_hash(password), emp_row[0]))
                     _ud.commit()
             session.clear()
-            session["employee_id"]     = emp_row[0]
-            session["employee_name"]   = emp_row[1]
-            session["employee_role"]   = emp_row[2] or ""
+            session["employee_id"] = emp_row[0]
+            session["employee_name"] = emp_row[1]
+            session["employee_role"] = emp_row[2] or ""
             session["_session_created"] = time.time()
-            session["_fpc"]            = bool(emp_row[4])  # force_pin_change flag in session
+            session["_fpc"] = bool(emp_row[4])  # force_pin_change flag in session
             session.permanent = True
             ensure_session_id(session)
             if emp_row[5]:
@@ -205,7 +208,7 @@ def admin_login():
             return redirect("/employee_portal")
         _record_login_failure(identifier)
         return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
-            show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
+                               show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
     return render_template("admin_login.html")
 
 
@@ -218,40 +221,45 @@ def logout():
 @auth_bp.route("/change_admin_password", methods=["POST"])
 @admin_required
 def change_admin_password():
-    current_pw   = request.form.get("current_password", "")
-    new_pw       = request.form.get("new_password", "")
-    confirm_pw   = request.form.get("confirm_password", "")
+    current_pw = request.form.get("current_password", "")
+    new_pw = request.form.get("new_password", "")
+    confirm_pw = request.form.get("confirm_password", "")
     # Use the logged-in admin's username, not a hardcoded 'admin' string.
     # A hardcoded value lets any admin account change the 'admin' password
     # if they know its current value — a cross-account privilege escalation.
     logged_in_as = session.get("admin_username", "admin")
     if not new_pw or new_pw != confirm_pw:
         return redirect("/admin?pwd_error=mismatch")
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT password FROM admin_users WHERE username=%s", (logged_in_as,))
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/admin?pwd_error=wrong")
     cursor.execute(
         "UPDATE admin_users SET password=%s WHERE username=%s",
         (generate_password_hash(new_pw), logged_in_as)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/admin?pwd_ok=1")
 
 
 @auth_bp.route("/admin_set_recovery_email", methods=["POST"])
 @admin_required
 def admin_set_recovery_email():
-    email    = request.form.get("recovery_email", "").strip()
+    email = request.form.get("recovery_email", "").strip()
     username = session.get("admin_username", "admin")
     if email:
-        db     = get_db_connection()
+        db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE admin_users SET email=%s WHERE username=%s", (email, username))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     return redirect("/admin?email_ok=1#password-management")
 
 
@@ -262,23 +270,26 @@ def admin_forgot_password():
         return render_template("admin_forgot_password.html",
                                sent=False, error=None)
     admin_email = request.form.get("email", "").strip().lower()
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id FROM admin_users WHERE LOWER(email)=%s", (admin_email,))
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         # Return the same message whether the email exists or not (no account enumeration)
         return render_template("admin_forgot_password.html", sent=True, error=None)
-    token       = secrets.token_hex(32)
-    token_hash  = hashlib.sha256(token.encode()).hexdigest()
-    expiry      = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-    admin_id    = row[0]
+    token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    admin_id = row[0]
     cursor.execute(
         "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
         (token_hash, expiry, admin_id)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     cfg = get_email_config()
     if not cfg:
         return render_template("admin_forgot_password.html", sent=False,
@@ -311,7 +322,7 @@ def admin_forgot_password():
 @auth_bp.route("/admin_reset_password/<token>", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def admin_reset_password(token):
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
@@ -320,19 +331,23 @@ def admin_reset_password(token):
     )
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("admin_reset_password.html", valid=False, done=False, token=token)
     if request.method == "GET":
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("admin_reset_password.html", valid=True, done=False, token=token, error=None)
-    new_pw     = request.form.get("new_password", "").strip()
+    new_pw = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
     if len(new_pw) < 8:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
                                token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("admin_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
     admin_id = row[0]
@@ -340,7 +355,9 @@ def admin_reset_password(token):
         "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
         (generate_password_hash(new_pw), admin_id)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
 
 
@@ -352,21 +369,25 @@ def employee_forgot_password():
     emp_id = request.form.get("employee_id", "").strip()
     if not emp_id:
         return render_template("employee_forgot_password.html", sent=False, error="Please enter your Employee ID.")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, email, name FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     if not row or not row[1]:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         # Generic message to avoid account enumeration; also covers "no email on file"
         return render_template("employee_forgot_password.html", sent=True, error=None)
     db_email = row[1]
     emp_name = _html.escape(row[2] or emp_id)
-    token       = secrets.token_hex(32)
-    token_hash  = hashlib.sha256(token.encode()).hexdigest()
-    expiry      = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
                    (token_hash, expiry, emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     cfg = get_email_config()
     if not cfg:
         return render_template("employee_forgot_password.html", sent=False,
@@ -394,31 +415,38 @@ def employee_forgot_password():
 @auth_bp.route("/employee_reset_password/<token>", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def employee_reset_password(token):
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute("SELECT employee_id FROM employees WHERE reset_token=%s AND reset_token_expiry > %s",
                    (token_hash, datetime.datetime.utcnow()))
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("employee_reset_password.html", valid=False, done=False, token=token)
     if request.method == "GET":
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
-    new_pw     = request.form.get("new_password", "").strip()
+    new_pw = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
     if len(new_pw) < 8:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
                                token=token, error="Password must be at least 8 characters.")
     if new_pw != confirm_pw:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return render_template("employee_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
     emp_id = row[0]
     cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE employee_id=%s",
                    (generate_password_hash(new_pw), emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _audit("employee_password_reset", "employees", emp_id, "Password reset via email link")
     return render_template("employee_reset_password.html", valid=True, done=True, token=token, error=None)
 
@@ -437,28 +465,33 @@ def employee_logout():
 @auth_bp.route("/change_password", methods=["POST"])
 @employee_required
 def change_password():
-    emp_id   = session["employee_id"]
-    current  = request.form.get("current_password", "").strip()
-    new_pwd  = request.form.get("new_password", "").strip()
-    confirm  = request.form.get("confirm_password", "").strip()
-    db       = get_db_connection()
-    cursor   = db.cursor(buffered=True)
+    emp_id = session["employee_id"]
+    current = request.form.get("current_password", "").strip()
+    new_pwd = request.form.get("new_password", "").strip()
+    confirm = request.form.get("confirm_password", "").strip()
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT password FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current):
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/employee_portal?pwd_error=wrong#my-profile")
     if len(new_pwd) < 8:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/employee_portal?pwd_error=short#my-profile")
     if new_pwd != confirm:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/employee_portal?pwd_error=mismatch#my-profile")
     cursor.execute(
         "UPDATE employees SET password=%s WHERE employee_id=%s",
         (generate_password_hash(new_pwd), emp_id)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?pwd_ok=1#my-profile")
 
 
@@ -466,7 +499,7 @@ def change_password():
 @employee_required
 def force_change_pin():
     emp_id = session["employee_id"]
-    error  = None
+    error = None
     if request.method == "POST":
         new_pwd = request.form.get("new_password", "").strip()
         confirm = request.form.get("confirm_password", "").strip()
@@ -483,7 +516,9 @@ def force_change_pin():
                 "UPDATE employees SET password=%s, force_pin_change=0 WHERE employee_id=%s",
                 (generate_password_hash(new_pwd), emp_id)
             )
-            db.commit(); cursor.close(); db.close()
+            db.commit()
+            cursor.close()
+            db.close()
             session.pop("_fpc", None)  # clear forced-change flag so portal is accessible
             return redirect("/employee_portal")
     return render_template("force_change_pin.html", error=error,
@@ -495,11 +530,11 @@ def webauthn_status():
     """Diagnostic endpoint — shows WebAuthn config without exposing sensitive data."""
     return jsonify({
         "webauthn_available": _webauthn_available,
-        "rp_id":              _wa_rp_id() if _webauthn_available else None,
-        "expected_origins":   _wa_origins() if _webauthn_available else [],
+        "rp_id": _wa_rp_id() if _webauthn_available else None,
+        "expected_origins": _wa_origins() if _webauthn_available else [],
         "challenge_in_session": bool(session.get("wa_reg_challenge")),
-        "request_host":       request.host,
-        "request_scheme":     request.scheme,
+        "request_host": request.host,
+        "request_scheme": request.scheme,
     })
 
 
@@ -521,7 +556,7 @@ def _wa_authorize_enrollment(emp_id):
     if session_emp:
         return None if session_emp.strip().upper() == emp_id else "Not authorized to enroll a passkey for this employee."
     face_emp = session.get("wa_face_verified_emp_id")
-    face_at  = session.get("wa_face_verified_at", 0)
+    face_at = session.get("wa_face_verified_at", 0)
     if face_emp and face_emp.upper() == emp_id and (time.time() - face_at) < KIOSK_FACE_VERIFY_WINDOW_SEC:
         return None
     return "Identity not verified. Please verify your face or log in first."
@@ -536,26 +571,28 @@ def api_kiosk_enroll_face_verify():
     previously missing entirely — a QR scan or typed employee_id alone proves
     nothing about who is physically present."""
     employee_id = (request.form.get("employee_id") or "").strip().upper()
-    face_photo  = request.files.get("face_photo")
+    face_photo = request.files.get("face_photo")
     if not employee_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
     if not face_photo:
         return jsonify({"ok": False, "msg": "Face photo required."}), 400
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT face_image FROM employees WHERE employee_id=%s", (employee_id,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
 
-    face_dir  = os.path.join(UPLOAD_FOLDER, "face_logs")
-    ok, msg   = verify_uploaded_face(employee_id, row[0], face_photo, face_dir)
+    face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+    ok, msg = verify_uploaded_face(employee_id, row[0], face_photo, face_dir)
     if not ok:
         return jsonify({"ok": False, "msg": msg}), 401
 
     session["wa_face_verified_emp_id"] = employee_id
-    session["wa_face_verified_at"]     = time.time()
+    session["wa_face_verified_at"] = time.time()
     return jsonify({"ok": True})
 
 
@@ -565,7 +602,7 @@ def webauthn_registration_options():
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint enrollment is not available on this server."}), 503
     try:
-        emp_id   = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
+        emp_id = (request.args.get("emp_id") or session.get("employee_id") or "employee").strip().upper()
         emp_name = (request.args.get("name") or emp_id).strip()
 
         auth_err = _wa_authorize_enrollment(emp_id)
@@ -576,8 +613,8 @@ def webauthn_registration_options():
         session.pop("wa_face_verified_emp_id", None)
         session.pop("wa_face_verified_at", None)
 
-        rp_id    = _wa_rp_id()
-        rp_err   = _wa_check_rp_id(rp_id)
+        rp_id = _wa_rp_id()
+        rp_err = _wa_check_rp_id(rp_id)
         if rp_err:
             return jsonify({"ok": False, "error": rp_err}), 422
         _reg_algs = [COSEAlgorithmIdentifier.ECDSA_SHA_256, COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256]
@@ -595,9 +632,9 @@ def webauthn_registration_options():
             supported_pub_key_algs=_reg_algs,
             attestation=AttestationConveyancePreference.NONE,
         )
-        session["wa_reg_challenge"]  = _wa_b64url_encode(options.challenge)
-        session["wa_reg_emp_id"]     = emp_id
-        session["wa_reg_alg_ids"]    = [a.value for a in _reg_algs]
+        session["wa_reg_challenge"] = _wa_b64url_encode(options.challenge)
+        session["wa_reg_emp_id"] = emp_id
+        session["wa_reg_alg_ids"] = [a.value for a in _reg_algs]
         return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
     except Exception as exc:
         app_log.error("WebAuthn registration-options failed: %s", exc, exc_info=True)
@@ -611,7 +648,7 @@ def webauthn_authentication_options():
         return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
     try:
         emp_id = (request.args.get("emp_id") or "").strip().upper()
-        rp_id  = _wa_rp_id()
+        rp_id = _wa_rp_id()
         rp_err = _wa_check_rp_id(rp_id)
         if rp_err:
             return jsonify({"ok": False, "error": rp_err}), 422
@@ -619,9 +656,12 @@ def webauthn_authentication_options():
         allow_creds = []
         if emp_id:
             try:
-                db = get_db_connection(); cur = db.cursor(buffered=True)
+                db = get_db_connection()
+                cur = db.cursor(buffered=True)
                 cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
-                row = cur.fetchone(); cur.close(); db.close()
+                row = cur.fetchone()
+                cur.close()
+                db.close()
                 if row and row[0]:
                     allow_creds = [PublicKeyCredentialDescriptor(
                         id=_wa_b64url_decode(row[0]), transports=[AuthenticatorTransport.INTERNAL]
@@ -633,7 +673,7 @@ def webauthn_authentication_options():
             rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,
         )
         session["wa_auth_challenge"] = _wa_b64url_encode(options.challenge)
-        session["wa_auth_emp_id"]    = emp_id
+        session["wa_auth_emp_id"] = emp_id
         return webauthn.options_to_json(options), 200, {"Content-Type": "application/json"}
     except Exception as exc:
         app_log.error("WebAuthn authentication-options failed: %s", exc, exc_info=True)
@@ -653,16 +693,17 @@ def webauthn_verify_challenge():
     """
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint verification is not available on this server."}), 503
-    data          = request.get_json(force=True, silent=True) or {}
-    emp_id        = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
-    credential    = data.get("credential")
+    data = request.get_json(force=True, silent=True) or {}
+    emp_id = (data.get("emp_id") or session.get("wa_auth_emp_id") or "").strip().upper()
+    credential = data.get("credential")
     challenge_b64 = session.get("wa_auth_challenge")
 
     if not credential or not challenge_b64:
         return jsonify({"ok": False, "msg": "Missing credential or challenge"}), 400
 
     try:
-        db = get_db_connection(); cur = db.cursor(buffered=True)
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
 
         if emp_id:
             # QR + Fingerprint mode: employee already identified by QR scan
@@ -675,7 +716,8 @@ def webauthn_verify_challenge():
             # credential["id"] is the base64url credential ID the browser signed with.
             cred_id = (credential.get("id") or "") if isinstance(credential, dict) else ""
             if not cred_id:
-                cur.close(); db.close()
+                cur.close()
+                db.close()
                 return jsonify({"ok": False, "msg": "Missing credential ID"}), 400
             cur.execute(
                 "SELECT employee_id, name, fingerprint_public_key, fingerprint_sign_count FROM employees WHERE fingerprint_credential_id=%s",
@@ -684,13 +726,14 @@ def webauthn_verify_challenge():
 
         row = cur.fetchone()
         if not row or not row[2]:
-            cur.close(); db.close()
+            cur.close()
+            db.close()
             return jsonify({"ok": False, "msg": "No passkey enrolled. Please enrol from the employee portal."}), 401
 
-        emp_id             = row[0]
-        emp_name           = row[1] or emp_id
-        stored_pubkey      = base64.b64decode(row[2])
-        stored_sign_count  = int(row[3] or 0)
+        emp_id = row[0]
+        emp_name = row[1] or emp_id
+        stored_pubkey = base64.b64decode(row[2])
+        stored_sign_count = int(row[3] or 0)
 
         verified = webauthn.verify_authentication_response(
             credential=credential,
@@ -705,9 +748,13 @@ def webauthn_verify_challenge():
             credential_current_sign_count=stored_sign_count,
         )
     except Exception as e:
-        try: cur.close(); db.close()
-        except Exception: pass
-        app_log.warning("WebAuthn authentication verification failed for emp_id=%s: %s", emp_id or "(passkey mode)", e, exc_info=True)
+        try:
+            cur.close()
+            db.close()
+        except Exception:
+            pass
+        app_log.warning("WebAuthn authentication verification failed for emp_id=%s: %s",
+                        emp_id or "(passkey mode)", e, exc_info=True)
         return jsonify({"ok": False, "msg": f"Verification failed: {e}"}), 401
 
     session.pop("wa_auth_challenge", None)
@@ -727,10 +774,11 @@ def webauthn_verify_challenge():
     except Exception:
         pass
     finally:
-        cur.close(); db.close()
+        cur.close()
+        db.close()
 
     session["wa_fp_verified_emp_id"] = emp_id
-    session["wa_fp_verified_at"]     = time.time()
+    session["wa_fp_verified_at"] = time.time()
     return jsonify({"ok": True, "emp_id": emp_id, "name": emp_name})
 
 
@@ -743,16 +791,17 @@ def webauthn_register():
     emp_id = session.get("employee_id") or session.get("wa_reg_emp_id")
     if not emp_id:
         return jsonify({"ok": False, "msg": "Session expired — please log in again"}), 401
-    data       = request.get_json(force=True, silent=True) or {}
+    data = request.get_json(force=True, silent=True) or {}
     credential = data.get("credential")
     challenge_b64 = session.get("wa_reg_challenge")
     if not challenge_b64:
         return jsonify({"ok": False, "msg": "Enrollment session expired — please start again"}), 401
     try:
-        db     = get_db_connection()
+        db = get_db_connection()
         cursor = db.cursor(buffered=True)
         ok, err = _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db)
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
     except Exception:
         app_log.error("WebAuthn registration endpoint failed", exc_info=True)
         return jsonify({"ok": False, "msg": "WebAuthn registration failed. Please try again."}), 500
@@ -772,7 +821,7 @@ def webauthn_unenroll():
     if not emp_id:
         return jsonify({"ok": False, "msg": "Not logged in"}), 401
     try:
-        db     = get_db_connection()
+        db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute(
             "UPDATE employees SET fingerprint_credential_id=NULL, fingerprint_public_key=NULL, "
@@ -780,7 +829,8 @@ def webauthn_unenroll():
             (emp_id,)
         )
         db.commit()
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True})
     except Exception:
         app_log.error("WebAuthn unenroll failed", exc_info=True)
@@ -791,7 +841,7 @@ def webauthn_unenroll():
 @limiter.limit("30 per minute")
 def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id — requires an active admin or employee session."""
-    is_admin   = session.get("admin_logged_in")
+    is_admin = session.get("admin_logged_in")
     session_emp = session.get("employee_id")
     if not (is_admin or session_emp):
         # Also accept a valid Bearer token (kiosk uses admin token)
@@ -811,12 +861,15 @@ def get_employee_webauthn_credential(emp_id):
     if session_emp and not is_admin and session_emp.upper() != emp_id:
         return jsonify({"ok": False, "msg": "Unauthorized"}), 403
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
             "SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s LIMIT 1",
             (emp_id,)
         )
-        row = cursor.fetchone(); cursor.close(); db.close()
+        row = cursor.fetchone()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "credential_id": row[0] if row else None})
     except Exception:
         return jsonify({"ok": True, "credential_id": None})
@@ -828,9 +881,9 @@ def webauthn_register_kiosk():
     """Enrol a passkey from the attendance kiosk. No employee session required."""
     if not _webauthn_available:
         return jsonify({"ok": False, "msg": "Fingerprint enrollment is not available on this server."}), 503
-    data          = request.get_json(force=True, silent=True) or {}
-    emp_id        = (data.get("emp_id") or "").strip().upper()
-    credential    = data.get("credential")
+    data = request.get_json(force=True, silent=True) or {}
+    emp_id = (data.get("emp_id") or "").strip().upper()
+    credential = data.get("credential")
     challenge_b64 = session.get("wa_reg_challenge")
     if not emp_id:
         return jsonify({"ok": False, "msg": "Employee ID required"}), 400
@@ -842,14 +895,16 @@ def webauthn_register_kiosk():
                         session.get("wa_reg_emp_id"), emp_id)
         return jsonify({"ok": False, "msg": "Employee ID mismatch. Please restart enrollment."}), 403
     try:
-        db     = get_db_connection()
+        db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
         if not cursor.fetchone():
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "Employee ID not found"}), 404
         ok, err = _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor, db)
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
     except Exception as exc:
         app_log.error("WebAuthn kiosk registration unexpected error: %s", exc, exc_info=True)
         return jsonify({"ok": False, "msg": f"Registration error: {exc}"}), 500
@@ -867,7 +922,8 @@ def admin_reset_employee_fingerprint(emp_id):
     """Admin: clear a specific employee's WebAuthn credential so they can re-enroll on a new device."""
     emp_id = emp_id.strip().upper()
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
             "UPDATE employees SET fingerprint_credential_id=NULL, fingerprint_public_key=NULL, "
             "fingerprint_sign_count=0 WHERE employee_id=%s",
@@ -875,7 +931,8 @@ def admin_reset_employee_fingerprint(emp_id):
         )
         db.commit()
         affected = cursor.rowcount
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         if affected == 0:
             return jsonify({"ok": False, "msg": "Employee not found"}), 404
         _audit("admin_reset_fingerprint", "employees", emp_id)
@@ -904,7 +961,7 @@ def api_mobile_biometric_attest():
     LocalAuthentication.authenticateAsync(), turning that local-only signal
     into a server-side, employee-bound, single-use, time-boxed proof that
     /api/employee/qr-face-checkin will accept for fingerprint combos."""
-    data  = request.get_json(force=True, silent=True) or {}
+    data = request.get_json(force=True, silent=True) or {}
     nonce = (data.get("nonce") or "").strip()
     ok, err = _mobile_biometric_attest(g.api_emp_id, nonce)
     if not ok:

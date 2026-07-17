@@ -23,58 +23,63 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
     pc = payroll_cfg or {}
 
     # ── Salary structure ──────────────────────────────────────────
-    monthly_ctc  = float(e.get("monthly_ctc", 0))
-    basic_pct    = int(e.get("basic_pct", 50))
+    monthly_ctc = float(e.get("monthly_ctc", 0))
+    basic_pct = int(e.get("basic_pct", 50))
     if monthly_ctc <= 0 and float(e.get("spd", 0)) > 0:
         monthly_ctc = round(float(e["spd"]) * 26, 2)
 
-    basic        = round(monthly_ctc * basic_pct / 100, 2)
-    hra          = round(monthly_ctc * 0.20, 2)
+    basic = round(monthly_ctc * basic_pct / 100, 2)
+    hra = round(monthly_ctc * 0.20, 2)
     # Cap conveyance so gross never exceeds CTC
-    conveyance   = round(min(1600.0, max(0, monthly_ctc - basic - hra)), 2)
-    special_all  = round(max(0, monthly_ctc - basic - hra - conveyance), 2)
+    conveyance = round(min(1600.0, max(0, monthly_ctc - basic - hra)), 2)
+    special_all = round(max(0, monthly_ctc - basic - hra - conveyance), 2)
     gross_salary = round(basic + hra + conveyance + special_all, 2)
 
     # ── LOP: standard 26-day denominator (Indian payroll norm) ───
-    full_d  = int(e.get("full_days", 0))
-    late_d  = int(e.get("late_days", 0))
-    half_d  = int(e.get("half_days", 0))
-    lop_days     = float(e.get("absent", 0))
+    full_d = int(e.get("full_days", 0))
+    late_d = int(e.get("late_days", 0))
+    half_d = int(e.get("half_days", 0))
+    lop_days = float(e.get("absent", 0))
     paid_days_display = full_d + late_d + half_d   # integer count for display
-    lop_ded      = round(gross_salary / 26 * lop_days, 2)
+    lop_ded = round(gross_salary / 26 * lop_days, 2)
     gross_earned = round(gross_salary - lop_ded, 2)
 
     # ── Statutory deductions ─────────────────────────────────────
-    pf_pct        = float(pc.get("pf_employee_pct", 12))
-    pf_er_pct     = float(pc.get("pf_employer_pct", 12))
-    pf_cap_basic  = float(pc.get("pf_basic_cap", 15000))
-    pt_monthly    = float(pc.get("professional_tax", 200))
-    tds_ann_pct   = float(pc.get("tds_annual_pct", 0))
+    pf_pct = float(pc.get("pf_employee_pct", 12))
+    pf_er_pct = float(pc.get("pf_employer_pct", 12))
+    pf_cap_basic = float(pc.get("pf_basic_cap", 15000))
+    pt_monthly = float(pc.get("professional_tax", 200))
+    tds_ann_pct = float(pc.get("tds_annual_pct", 0))
 
     # PF on capped basic; TDS = annual taxable (CTC×12) × rate ÷ 12
-    pf_ded        = round(min(basic, pf_cap_basic) * pf_pct / 100, 2)
-    pf_er_ded     = round(min(basic, pf_cap_basic) * pf_er_pct / 100, 2)
-    annual_ctc    = monthly_ctc * 12
-    tds_ded       = round(annual_ctc * tds_ann_pct / 100 / 12, 2)
+    pf_ded = round(min(basic, pf_cap_basic) * pf_pct / 100, 2)
+    pf_er_ded = round(min(basic, pf_cap_basic) * pf_er_pct / 100, 2)
+    annual_ctc = monthly_ctc * 12
+    tds_ded = round(annual_ctc * tds_ann_pct / 100 / 12, 2)
     # Cap statutory deductions to gross earned (net cannot go below 0)
-    stat_ded      = pf_ded + pt_monthly + tds_ded
+    stat_ded = pf_ded + pt_monthly + tds_ded
     if stat_ded > gross_earned:
-        ratio     = gross_earned / stat_ded if stat_ded > 0 else 0
-        pf_ded    = round(pf_ded * ratio, 2)
+        ratio = gross_earned / stat_ded if stat_ded > 0 else 0
+        pf_ded = round(pf_ded * ratio, 2)
         pt_monthly = round(pt_monthly * ratio, 2)
-        tds_ded   = round(tds_ded * ratio, 2)
-    total_ded     = round(lop_ded + pf_ded + pt_monthly + tds_ded, 2)
-    net_pay       = max(0, round(gross_earned - pf_ded - pt_monthly - tds_ded, 2))
+        tds_ded = round(tds_ded * ratio, 2)
+    total_ded = round(lop_ded + pf_ded + pt_monthly + tds_ded, 2)
+    net_pay = max(0, round(gross_earned - pf_ded - pt_monthly - tds_ded, 2))
 
     emp_row_extra = ""
-    if emp_designation: emp_row_extra += f"<tr><td>Designation</td><td>{_html.escape(str(emp_designation))}</td></tr>"
-    if emp_dept:        emp_row_extra += f"<tr><td>Department</td><td>{_html.escape(str(emp_dept))}</td></tr>"
-    if pan:             emp_row_extra += f"<tr><td>PAN</td><td>{_html.escape(str(pan))}</td></tr>"
-    if uan:             emp_row_extra += f"<tr><td>UAN</td><td>{_html.escape(str(uan))}</td></tr>"
+    if emp_designation:
+        emp_row_extra += f"<tr><td>Designation</td><td>{_html.escape(str(emp_designation))}</td></tr>"
+    if emp_dept:
+        emp_row_extra += f"<tr><td>Department</td><td>{_html.escape(str(emp_dept))}</td></tr>"
+    if pan:
+        emp_row_extra += f"<tr><td>PAN</td><td>{_html.escape(str(pan))}</td></tr>"
+    if uan:
+        emp_row_extra += f"<tr><td>UAN</td><td>{_html.escape(str(uan))}</td></tr>"
     if bank_account:
-        masked = '*'*len(bank_account[:-4]) + bank_account[-4:]
+        masked = '*' * len(bank_account[:-4]) + bank_account[-4:]
         emp_row_extra += f"<tr><td>Bank A/C</td><td>{_html.escape(masked)}</td></tr>"
-    if bank_name:       emp_row_extra += f"<tr><td>Bank</td><td>{_html.escape(str(bank_name))}</td></tr>"
+    if bank_name:
+        emp_row_extra += f"<tr><td>Bank</td><td>{_html.escape(str(bank_name))}</td></tr>"
 
     incentive_row = ""
     if e.get("incentive", 0) > 0:
@@ -263,32 +268,32 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
 
     effective_billable = len(billable_past) - leave_days_count
 
-    spd_f      = float(spd)
-    full_earn  = round(full_days  * spd_f, 2)
-    late_earn  = round(late_days  * spd_f * (1 - cfg.LATE_DEDUCTION_RATE), 2)
-    half_earn  = round(half_days  * spd_f * (1 - cfg.HALF_DAY_RATE), 2)
-    net        = round(full_earn + late_earn + half_earn, 2)
-    gross      = round(spd_f * effective_billable, 2)
-    deduction  = round(gross - net, 2)
+    spd_f = float(spd)
+    full_earn = round(full_days * spd_f, 2)
+    late_earn = round(late_days * spd_f * (1 - cfg.LATE_DEDUCTION_RATE), 2)
+    half_earn = round(half_days * spd_f * (1 - cfg.HALF_DAY_RATE), 2)
+    net = round(full_earn + late_earn + half_earn, 2)
+    gross = round(spd_f * effective_billable, 2)
+    deduction = round(gross - net, 2)
 
     return {
-        "emp_id":        emp_id,
-        "name":          name,
-        "spd":           round(spd_f, 2),
-        "billable":      effective_billable,
-        "holiday_days":  holiday_days,
-        "leave_days":    leave_days_count,
-        "full_days":     full_days,
-        "half_days":     half_days,
-        "late_days":     late_days,
-        "absent":        absent_days,
-        "full_earn":     full_earn,
-        "late_earn":     late_earn,
-        "half_earn":     half_earn,
-        "gross":         gross,
-        "absent_ded":    round(absent_days * spd_f, 2),
-        "half_ded":      round(half_days   * spd_f * cfg.HALF_DAY_RATE, 2),
-        "late_ded":      round(late_days   * spd_f * cfg.LATE_DEDUCTION_RATE, 2),
-        "deduction":     deduction,
-        "net":           net,
+        "emp_id": emp_id,
+        "name": name,
+        "spd": round(spd_f, 2),
+        "billable": effective_billable,
+        "holiday_days": holiday_days,
+        "leave_days": leave_days_count,
+        "full_days": full_days,
+        "half_days": half_days,
+        "late_days": late_days,
+        "absent": absent_days,
+        "full_earn": full_earn,
+        "late_earn": late_earn,
+        "half_earn": half_earn,
+        "gross": gross,
+        "absent_ded": round(absent_days * spd_f, 2),
+        "half_ded": round(half_days * spd_f * cfg.HALF_DAY_RATE, 2),
+        "late_ded": round(late_days * spd_f * cfg.LATE_DEDUCTION_RATE, 2),
+        "deduction": deduction,
+        "net": net,
     }

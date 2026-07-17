@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 120
+# wsgi.py's import order is deliberate, not an oversight — extensions.py
+# must be imported before blueprints/*, which must be imported before
+# app.py (see the comments in wsgi.py explaining why). E402 exists to catch
+# accidental mid-file imports, not to force this file into a shape that
+# would break its actual startup sequencing.
+per-file-ignores =
+    wsgi.py:E402

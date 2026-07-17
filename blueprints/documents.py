@@ -13,6 +13,7 @@ documents_bp = Blueprint("documents", __name__)
 
 _DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
 
+
 def _doc_admin_ctx(cursor):
     cursor.execute("SELECT company_name FROM company_settings LIMIT 1")
     row = cursor.fetchone()
@@ -24,6 +25,7 @@ def _doc_admin_ctx(cursor):
     cursor.execute("SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress')")
     pending_tickets = cursor.fetchone()[0]
     return co, pending_leaves, pending_resignations, pending_tickets
+
 
 @documents_bp.route("/documents")
 @admin_required
@@ -56,24 +58,26 @@ def documents():
             ORDER BY d.uploaded_at DESC
         """)
     docs = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("documents.html",
-        co=co,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        employees=employees, docs=docs,
-        sel_emp=sel_emp, sel_emp_name=sel_emp_name,
-        today=datetime.date.today(),
-    )
+                           co=co,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           employees=employees, docs=docs,
+                           sel_emp=sel_emp, sel_emp_name=sel_emp_name,
+                           today=datetime.date.today(),
+                           )
+
 
 @documents_bp.route("/upload_document", methods=["POST"])
 @admin_required
 def upload_document():
-    emp_id   = request.form.get('employee_id', '').strip()
+    emp_id = request.form.get('employee_id', '').strip()
     doc_type = request.form.get('doc_type', '').strip()
-    f        = request.files.get('document')
+    f = request.files.get('document')
     if not emp_id or not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/documents')
@@ -83,19 +87,21 @@ def upload_document():
         return redirect(f'/documents?emp_id={emp_id}')
     folder = os.path.join(app.root_path, 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
-    orig_name   = f.filename
+    orig_name = f.filename
     stored_name = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
     f.save(os.path.join(folder, stored_name))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    expiry_raw  = request.form.get("expiry_date", "").strip()
+    expiry_raw = request.form.get("expiry_date", "").strip()
     expiry_date = expiry_raw if expiry_raw else None
     cursor.execute(
         "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
         "VALUES (%s,%s,%s,%s,'admin',%s)",
         (emp_id, doc_type, orig_name, stored_name, expiry_date)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _audit("upload_document", "employee_documents", emp_id,
            f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'}")
     flash("Document uploaded successfully.", "success")
@@ -106,6 +112,7 @@ def upload_document():
     _p = _urlparse(raw_redirect)
     safe_redirect = raw_redirect if (not _p.scheme and not _p.netloc) else f'/documents?emp_id={emp_id}'
     return redirect(safe_redirect)
+
 
 @documents_bp.route("/delete_document/<int:did>", methods=["POST"])
 @admin_required
@@ -123,9 +130,11 @@ def delete_document(did):
             pass
         cursor.execute("DELETE FROM employee_documents WHERE id=%s", (did,))
         db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash("Document deleted.", "success")
     return redirect(_safe_referrer_redirect(request.referrer or "", "/documents"))
+
 
 @documents_bp.route("/download_document/<int:did>")
 def download_document(did):
@@ -137,7 +146,8 @@ def download_document(did):
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, original_name, stored_name FROM employee_documents WHERE id=%s", (did,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row:
         flash("Document not found.", "danger")
         return redirect('/documents')
@@ -152,13 +162,14 @@ def download_document(did):
     folder = os.path.join(app.root_path, 'static', 'employee_docs', doc_emp_id)
     return send_from_directory(folder, stored_name, as_attachment=True, download_name=original_name)
 
+
 @documents_bp.route("/upload_my_document", methods=["POST"])
 def upload_my_document():
     emp_id = session.get("employee_id")
     if not emp_id:
         return redirect("/employee_login")
     doc_type = request.form.get('doc_type', '').strip()
-    f        = request.files.get('document')
+    f = request.files.get('document')
     if not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect('/employee_portal')
@@ -168,7 +179,7 @@ def upload_my_document():
         return redirect('/employee_portal')
     folder = os.path.join(app.root_path, 'static', 'employee_docs', emp_id)
     os.makedirs(folder, exist_ok=True)
-    orig_name   = f.filename
+    orig_name = f.filename
     stored_name = str(uuid.uuid4()) + '_' + secure_filename(orig_name)
     f.save(os.path.join(folder, stored_name))
     db = get_db_connection()
@@ -177,9 +188,12 @@ def upload_my_document():
         "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) VALUES (%s,%s,%s,%s,'employee')",
         (emp_id, doc_type, orig_name, stored_name)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Document uploaded successfully.", "success")
     return redirect('/employee_portal#documents')
+
 
 @documents_bp.route("/delete_my_document/<int:did>", methods=["POST"])
 def delete_my_document(did):
@@ -198,7 +212,7 @@ def delete_my_document(did):
             pass
         cursor.execute("DELETE FROM employee_documents WHERE id=%s AND employee_id=%s", (did, emp_id))
         db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash("Document deleted.", "success")
     return redirect('/employee_portal#documents')
-

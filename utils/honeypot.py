@@ -38,9 +38,9 @@ SERVICE_NAME = "system32_crypto_admin"
 # for accurate logging/alerting of what the attacker actually targeted.
 # MSSQL/MySQL/RDP are all >1024 already and need no redirect.
 DECOY_PORTS = {
-    8021: (21,   "ftp"),
-    8023: (23,   "telnet"),
-    8025: (25,   "smtp"),
+    8021: (21, "ftp"),
+    8023: (23, "telnet"),
+    8025: (25, "smtp"),
     1433: (1433, "mssql"),
     3306: (3306, "mysql"),
     3389: (3389, "rdp"),

@@ -29,28 +29,31 @@ UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
 
 
 def _fmt_t(t):
-    if t is None: return None
-    if hasattr(t, 'strftime'): return t.strftime("%H:%M:%S")
+    if t is None:
+        return None
+    if hasattr(t, 'strftime'):
+        return t.strftime("%H:%M:%S")
     total = int(t.total_seconds())
     return "{:02d}:{:02d}:{:02d}".format(total // 3600, (total % 3600) // 60, total % 60)
+
 
 @employee_portal_bp.route("/update_my_profile", methods=["POST"])
 @employee_required
 def update_my_profile():
     emp_id = session["employee_id"]
     fields = {
-        "phone":                      request.form.get("phone", "").strip() or None,
-        "gender":                     encrypt_pii(request.form.get("gender", "").strip() or None),
-        "dob":                        encrypt_pii(request.form.get("dob", "").strip() or None),
-        "blood_group":                encrypt_pii(request.form.get("blood_group", "").strip() or None),
-        "address":                    encrypt_pii(request.form.get("address", "").strip() or None),
-        "city":                       encrypt_pii(request.form.get("city", "").strip() or None),
-        "state":                      encrypt_pii(request.form.get("state", "").strip() or None),
-        "pincode":                    encrypt_pii(request.form.get("pincode", "").strip() or None),
-        "emergency_contact_name":     encrypt_pii(request.form.get("emergency_contact_name", "").strip() or None),
-        "emergency_contact_phone":    encrypt_pii(request.form.get("emergency_contact_phone", "").strip() or None),
+        "phone": request.form.get("phone", "").strip() or None,
+        "gender": encrypt_pii(request.form.get("gender", "").strip() or None),
+        "dob": encrypt_pii(request.form.get("dob", "").strip() or None),
+        "blood_group": encrypt_pii(request.form.get("blood_group", "").strip() or None),
+        "address": encrypt_pii(request.form.get("address", "").strip() or None),
+        "city": encrypt_pii(request.form.get("city", "").strip() or None),
+        "state": encrypt_pii(request.form.get("state", "").strip() or None),
+        "pincode": encrypt_pii(request.form.get("pincode", "").strip() or None),
+        "emergency_contact_name": encrypt_pii(request.form.get("emergency_contact_name", "").strip() or None),
+        "emergency_contact_phone": encrypt_pii(request.form.get("emergency_contact_phone", "").strip() or None),
         "emergency_contact_relation": encrypt_pii(request.form.get("emergency_contact_relation", "").strip() or None),
-        "about_me":                   request.form.get("about_me", "").strip() or None,
+        "about_me": request.form.get("about_me", "").strip() or None,
     }
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -62,8 +65,11 @@ def update_my_profile():
             about_me=%s
         WHERE employee_id=%s
     """, (*fields.values(), emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?profile_saved=1#my-profile")
+
 
 @employee_portal_bp.route("/update_my_bank_details", methods=["POST"])
 @employee_required
@@ -71,11 +77,11 @@ def update_my_bank_details():
     emp_id = session["employee_id"]
     fields = {
         "aadhar_number": encrypt_pii(request.form.get("aadhar_number", "").strip() or None),
-        "pan_number":    encrypt_pii(request.form.get("pan_number", "").upper().strip() or None),
-        "bank_name":     encrypt_pii(request.form.get("bank_name", "").strip() or None),
-        "bank_account":  encrypt_pii(request.form.get("bank_account", "").strip() or None),
-        "bank_ifsc":     encrypt_pii(request.form.get("bank_ifsc", "").upper().strip() or None),
-        "uan_number":    encrypt_pii(request.form.get("uan_number", "").strip() or None),
+        "pan_number": encrypt_pii(request.form.get("pan_number", "").upper().strip() or None),
+        "bank_name": encrypt_pii(request.form.get("bank_name", "").strip() or None),
+        "bank_account": encrypt_pii(request.form.get("bank_account", "").strip() or None),
+        "bank_ifsc": encrypt_pii(request.form.get("bank_ifsc", "").upper().strip() or None),
+        "uan_number": encrypt_pii(request.form.get("uan_number", "").strip() or None),
     }
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -85,18 +91,21 @@ def update_my_bank_details():
             bank_account=%s, bank_ifsc=%s, uan_number=%s
         WHERE employee_id=%s
     """, (*fields.values(), emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?bank_saved=1#my-profile")
+
 
 @employee_portal_bp.route("/add_experience", methods=["POST"])
 @employee_required
 def add_experience():
     emp_id = session["employee_id"]
-    company     = request.form.get("company", "").strip()
+    company = request.form.get("company", "").strip()
     designation = request.form.get("designation", "").strip()
-    from_year   = request.form.get("from_year", "").strip()
-    to_year     = request.form.get("to_year", "").strip() or None
-    is_current  = 1 if request.form.get("is_current") else 0
+    from_year = request.form.get("from_year", "").strip()
+    to_year = request.form.get("to_year", "").strip() or None
+    is_current = 1 if request.form.get("is_current") else 0
     description = request.form.get("description", "").strip() or None
     if not company or not designation or not from_year:
         return redirect("/employee_portal?exp_error=1#my-profile")
@@ -107,8 +116,11 @@ def add_experience():
         "VALUES (%s,%s,%s,%s,%s,%s,%s)",
         (emp_id, company, designation, from_year, to_year, is_current, description)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?exp_saved=1#my-profile")
+
 
 @employee_portal_bp.route("/delete_experience/<int:entry_id>", methods=["POST"])
 @employee_required
@@ -117,17 +129,20 @@ def delete_experience(entry_id):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM employee_experience WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal#my-profile")
+
 
 @employee_portal_bp.route("/add_education_entry", methods=["POST"])
 @employee_required
 def add_education_entry():
     emp_id = session["employee_id"]
-    degree          = request.form.get("degree", "").strip()
-    institution     = request.form.get("institution", "").strip()
+    degree = request.form.get("degree", "").strip()
+    institution = request.form.get("institution", "").strip()
     year_of_passing = request.form.get("year_of_passing", "").strip() or None
-    percentage      = request.form.get("percentage", "").strip() or None
+    percentage = request.form.get("percentage", "").strip() or None
     if not degree or not institution:
         return redirect("/employee_portal?edu_error=1#my-profile")
     db = get_db_connection()
@@ -137,8 +152,11 @@ def add_education_entry():
         "VALUES (%s,%s,%s,%s,%s)",
         (emp_id, degree, institution, year_of_passing, percentage)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal?edu_saved=1#my-profile")
+
 
 @employee_portal_bp.route("/delete_education_entry/<int:entry_id>", methods=["POST"])
 @employee_required
@@ -147,8 +165,11 @@ def delete_education_entry(entry_id):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM employee_education WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/employee_portal#my-profile")
+
 
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
 @employee_required
@@ -172,10 +193,13 @@ def update_my_photo():
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (emp_id + ".jpg", emp_id))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         return redirect("/employee_portal?photo_saved=1#my-profile")
     except Exception:
         return redirect("/employee_portal?photo_error=failed#my-profile")
+
 
 @employee_portal_bp.route("/my_qr")
 @employee_required
@@ -189,10 +213,13 @@ def my_qr():
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (generated, emp_id))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         qr_path = generated
     return send_file(os.path.abspath(qr_path), as_attachment=True,
                      download_name=f"QR_{emp_id}.png", mimetype="image/png")
+
 
 @employee_portal_bp.route("/my_id_card")
 @employee_required
@@ -219,21 +246,22 @@ def my_id_card():
             FROM employees WHERE employee_id=%s
         """, (emp_id,))
         row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if row:
         row = row[:7] + (decrypt_pii(row[7]),) + row[8:]  # [7]=blood_group
 
     # ── Colours ──────────────────────────────────────────
-    DARK   = (15,  40, 100)
-    BLUE   = (30,  58, 138)
-    MID    = (37,  99, 235)
-    PALE   = (219, 234, 254)
-    WHITE  = (255, 255, 255)
-    LGRAY  = (241, 245, 249)
-    MGRAY  = (100, 116, 139)
-    DGRAY  = (15,  23,  42)
-    GOLD   = (251, 191,  36)
-    RED    = (220,  38,  38)
+    DARK = (15, 40, 100)
+    BLUE = (30, 58, 138)
+    MID = (37, 99, 235)
+    PALE = (219, 234, 254)
+    WHITE = (255, 255, 255)
+    LGRAY = (241, 245, 249)
+    MGRAY = (100, 116, 139)
+    DGRAY = (15, 23, 42)
+    GOLD = (251, 191, 36)
+    RED = (220, 38, 38)
 
     # ── Font loader ──────────────────────────────────────
     def fnt(size, bold=False):
@@ -253,8 +281,10 @@ def my_id_card():
              "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
         )
         for p in candidates:
-            try: return ImageFont.truetype(p, size)
-            except: pass
+            try:
+                return ImageFont.truetype(p, size)
+            except OSError:
+                pass
         return ImageFont.load_default()
 
     def _safe_text(text):
@@ -265,12 +295,12 @@ def my_id_card():
             return text.encode('ascii', 'replace').decode('ascii')
 
     def tw(draw, text, font):
-        bb = draw.textbbox((0,0), _safe_text(text), font=font)
-        return bb[2]-bb[0]
+        bb = draw.textbbox((0, 0), _safe_text(text), font=font)
+        return bb[2] - bb[0]
 
     def cx(draw, text, font, card_w, y, color):
         t = _safe_text(text)
-        draw.text(((card_w - tw(draw, t, font))//2, y), t, font=font, fill=color)
+        draw.text(((card_w - tw(draw, t, font)) // 2, y), t, font=font, fill=color)
 
     # ── Vertical card size (portrait) ────────────────────
     CW, CH = 500, 820
@@ -279,12 +309,12 @@ def my_id_card():
     #  FRONT
     # ════════════════════════════════════════════════════
     front = Image.new("RGB", (CW, CH), WHITE)
-    fd    = ImageDraw.Draw(front)
+    fd = ImageDraw.Draw(front)
 
     # -- Top header --
     fd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
     # Decorative circle top-right
-    fd.ellipse([(CW-100, -60), (CW+60, 100)], fill=MID)
+    fd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=MID)
     cx(fd, "EMPLOYEE ID CARD", fnt(18, bold=True), CW, 18, WHITE)
     cx(fd, "Attendance Management System", fnt(11), CW, 52, PALE)
     # Thin gold accent line
@@ -292,16 +322,16 @@ def my_id_card():
 
     # -- Photo section --
     fd.rectangle([(0, 113), (CW, 370)], fill=LGRAY)
-    PH_W  = 160
-    PH_H  = 190
+    PH_W = 160
+    PH_H = 190
     PH_CX = CW // 2
-    PH_X  = PH_CX - PH_W // 2
-    PH_Y  = 128
+    PH_X = PH_CX - PH_W // 2
+    PH_Y = 128
     # Gold border box
-    fd.rounded_rectangle([(PH_X-5, PH_Y-5), (PH_X+PH_W+5, PH_Y+PH_H+5)],
+    fd.rounded_rectangle([(PH_X - 5, PH_Y - 5), (PH_X + PH_W + 5, PH_Y + PH_H + 5)],
                          radius=8, fill=GOLD)
     # White inner border
-    fd.rounded_rectangle([(PH_X-2, PH_Y-2), (PH_X+PH_W+2, PH_Y+PH_H+2)],
+    fd.rounded_rectangle([(PH_X - 2, PH_Y - 2), (PH_X + PH_W + 2, PH_Y + PH_H + 2)],
                          radius=6, fill=WHITE)
     # Photo
     photo_path = os.path.join("dataset", emp_id + ".jpg")
@@ -309,32 +339,32 @@ def my_id_card():
         ph = Image.open(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
         front.paste(ph, (PH_X, PH_Y))
     except Exception:
-        fd.rounded_rectangle([(PH_X, PH_Y), (PH_X+PH_W, PH_Y+PH_H)], radius=4, fill=MID)
+        fd.rounded_rectangle([(PH_X, PH_Y), (PH_X + PH_W, PH_Y + PH_H)], radius=4, fill=MID)
         ini = row[1][0].upper() if row and row[1] else "?"
-        cx(fd, ini, fnt(56, bold=True), CW, PH_Y + PH_H//2 - 38, WHITE)
+        cx(fd, ini, fnt(56, bold=True), CW, PH_Y + PH_H // 2 - 38, WHITE)
 
     # Name & role
     name_str = (row[1] or "Unknown")[:24]
-    role_str  = (row[2] or "Employee")[:28]
-    cx(fd, name_str,  fnt(18, bold=True), CW, 328, DGRAY)
-    cx(fd, role_str,  fnt(12),            CW, 352, MGRAY)
+    role_str = (row[2] or "Employee")[:28]
+    cx(fd, name_str, fnt(18, bold=True), CW, 328, DGRAY)
+    cx(fd, role_str, fnt(12), CW, 352, MGRAY)
 
     # Blue separator
-    fd.rectangle([(40, 372), (CW-40, 374)], fill=PALE)
+    fd.rectangle([(40, 372), (CW - 40, 374)], fill=PALE)
 
     # -- Info rows (centered) --
     info_rows = [
-        ("Employee ID", row[0]  if row            else "-"),
-        ("Email",       row[3]  if row and row[3] else "-"),
-        ("Phone",       row[8]  if row and row[8] else "-"),
-        ("Blood Group", row[7]  if row and row[7] else "-"),
+        ("Employee ID", row[0] if row else "-"),
+        ("Email", row[3] if row and row[3] else "-"),
+        ("Phone", row[8] if row and row[8] else "-"),
+        ("Blood Group", row[7] if row and row[7] else "-"),
     ]
     y = 390
     for i, (lbl, val) in enumerate(info_rows):
         if i % 2 == 0:
-            fd.rectangle([(0, y-4), (CW, y+38)], fill=LGRAY)
-        cx(fd, lbl,            fnt(10),            CW, y+2,  MGRAY)
-        cx(fd, str(val)[:34],  fnt(13, bold=True), CW, y+17, DGRAY)
+            fd.rectangle([(0, y - 4), (CW, y + 38)], fill=LGRAY)
+        cx(fd, lbl, fnt(10), CW, y + 2, MGRAY)
+        cx(fd, str(val)[:34], fnt(13, bold=True), CW, y + 17, DGRAY)
         y += 44
 
     # Blood group badge (prominent red pill)
@@ -343,24 +373,24 @@ def my_id_card():
         bw = tw(fd, bg_val, fnt(13, bold=True)) + 28
         bx = (CW - bw) // 2
         by = y + 8
-        fd.rounded_rectangle([(bx, by), (bx+bw, by+32)], radius=16, fill=RED)
-        cx(fd, bg_val, fnt(13, bold=True), CW, by+8, WHITE)
+        fd.rounded_rectangle([(bx, by), (bx + bw, by + 32)], radius=16, fill=RED)
+        cx(fd, bg_val, fnt(13, bold=True), CW, by + 8, WHITE)
 
     # -- Footer --
-    fd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
-    fd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
-    cx(fd, "Confidential  |  Not Transferable", fnt(10), CW, CH-44, PALE)
-    cx(fd, "Property of the Organization",       fnt(10), CW, CH-26, (160,185,240))
+    fd.rectangle([(0, CH - 60), (CW, CH)], fill=BLUE)
+    fd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=GOLD)
+    cx(fd, "Confidential  |  Not Transferable", fnt(10), CW, CH - 44, PALE)
+    cx(fd, "Property of the Organization", fnt(10), CW, CH - 26, (160, 185, 240))
 
     # ════════════════════════════════════════════════════
     #  BACK
     # ════════════════════════════════════════════════════
     back = Image.new("RGB", (CW, CH), LGRAY)
-    bd   = ImageDraw.Draw(back)
+    bd = ImageDraw.Draw(back)
 
     # Top header (same style)
     bd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
-    bd.ellipse([(CW-100, -60), (CW+60, 100)], fill=MID)
+    bd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=MID)
     cx(bd, "ATTENDANCE MANAGEMENT SYSTEM", fnt(14, bold=True), CW, 22, WHITE)
     cx(bd, "Employee Attendance Card", fnt(11), CW, 52, PALE)
     bd.rectangle([(0, 108), (CW, 113)], fill=GOLD)
@@ -370,67 +400,67 @@ def my_id_card():
     if not os.path.exists(qr_path):
         qr_path = generate_qr(emp_id)
 
-    QS   = 240
+    QS = 240
     qr_x = (CW - QS) // 2
     qr_y = 148
     # White card behind QR
-    bd.rounded_rectangle([(qr_x-16, qr_y-16), (qr_x+QS+16, qr_y+QS+16)],
+    bd.rounded_rectangle([(qr_x - 16, qr_y - 16), (qr_x + QS + 16, qr_y + QS + 16)],
                          radius=14, fill=WHITE)
     try:
         qr_img = Image.open(qr_path).convert("RGB").resize((QS, QS), Image.LANCZOS)
         back.paste(qr_img, (qr_x, qr_y))
     except Exception:
-        cx(bd, "QR NOT AVAILABLE", fnt(13), CW, qr_y+QS//2, MGRAY)
+        cx(bd, "QR NOT AVAILABLE", fnt(13), CW, qr_y + QS // 2, MGRAY)
 
-    cx(bd, "Scan to Mark Attendance",      fnt(14, bold=True), CW, qr_y+QS+28, BLUE)
-    cx(bd, row[0] if row else "",          fnt(12),            CW, qr_y+QS+52, MGRAY)
+    cx(bd, "Scan to Mark Attendance", fnt(14, bold=True), CW, qr_y + QS + 28, BLUE)
+    cx(bd, row[0] if row else "", fnt(12), CW, qr_y + QS + 52, MGRAY)
 
     # Divider
-    bd.rectangle([(40, qr_y+QS+78), (CW-40, qr_y+QS+80)], fill=(203,213,225))
+    bd.rectangle([(40, qr_y + QS + 78), (CW - 40, qr_y + QS + 80)], fill=(203, 213, 225))
 
     # Info below QR
     sub_info = [
-        ("Name",         (row[1] or "-")[:26] if row else "-"),
-        ("Designation",  (row[2] or "-")[:26] if row else "-"),
-        ("Blood Group",  (row[7] or "-")      if row else "-"),
+        ("Name", (row[1] or "-")[:26] if row else "-"),
+        ("Designation", (row[2] or "-")[:26] if row else "-"),
+        ("Blood Group", (row[7] or "-") if row else "-"),
     ]
     BP = 36
     sy = qr_y + QS + 94
     for lbl2, val2 in sub_info:
-        cx(bd, lbl2, fnt(10),            CW, sy,    MGRAY)
-        cx(bd, val2, fnt(12, bold=True), CW, sy+14, DGRAY)
+        cx(bd, lbl2, fnt(10), CW, sy, MGRAY)
+        cx(bd, val2, fnt(12, bold=True), CW, sy + 14, DGRAY)
         sy += 42
 
     # "If found" note
-    bd.rectangle([(BP, sy+8), (CW-BP, sy+10)], fill=(203,213,225))
-    cx(bd, "If found, please return to:", fnt(10),            CW, sy+18, MGRAY)
-    cx(bd, "HR Department",               fnt(12, bold=True), CW, sy+34, BLUE)
+    bd.rectangle([(BP, sy + 8), (CW - BP, sy + 10)], fill=(203, 213, 225))
+    cx(bd, "If found, please return to:", fnt(10), CW, sy + 18, MGRAY)
+    cx(bd, "HR Department", fnt(12, bold=True), CW, sy + 34, BLUE)
     if row and row[3]:
-        cx(bd, row[3][:34], fnt(10), CW, sy+54, MGRAY)
+        cx(bd, row[3][:34], fnt(10), CW, sy + 54, MGRAY)
 
     # Magnetic stripe
-    bd.rectangle([(0, CH-100), (CW, CH-68)], fill=DARK)
+    bd.rectangle([(0, CH - 100), (CW, CH - 68)], fill=DARK)
 
     # Footer
-    bd.rectangle([(0, CH-60), (CW, CH)], fill=BLUE)
-    bd.rectangle([(0, CH-62), (CW, CH-60)], fill=GOLD)
-    cx(bd, "Authorized Personnel Only  |  Not Transferable", fnt(10), CW, CH-44, PALE)
-    cx(bd, "Misuse is subject to disciplinary action",        fnt(10), CW, CH-26, (160,185,240))
+    bd.rectangle([(0, CH - 60), (CW, CH)], fill=BLUE)
+    bd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=GOLD)
+    cx(bd, "Authorized Personnel Only  |  Not Transferable", fnt(10), CW, CH - 44, PALE)
+    cx(bd, "Misuse is subject to disciplinary action", fnt(10), CW, CH - 26, (160, 185, 240))
 
     # ════════════════════════════════════════════════════
     #  COMBINE side by side  (front | gap | back)
     # ════════════════════════════════════════════════════
-    GAP   = 40
+    GAP = 40
     LBL_H = 24
     BGCOL = (215, 225, 240)
-    total = Image.new("RGB", (CW*2 + GAP, CH + LBL_H), BGCOL)
-    td    = ImageDraw.Draw(total)
+    total = Image.new("RGB", (CW * 2 + GAP, CH + LBL_H), BGCOL)
+    td = ImageDraw.Draw(total)
 
-    td.text((10,  4), "FRONT", font=fnt(13, bold=True), fill=BLUE)
+    td.text((10, 4), "FRONT", font=fnt(13, bold=True), fill=BLUE)
     td.text((CW + GAP + 10, 4), "BACK", font=fnt(13, bold=True), fill=BLUE)
 
-    total.paste(front, (0,       LBL_H))
-    total.paste(back,  (CW+GAP,  LBL_H))
+    total.paste(front, (0, LBL_H))
+    total.paste(back, (CW + GAP, LBL_H))
 
     buf = _io2.BytesIO()
     total.save(buf, format="PNG", dpi=(200, 200))
@@ -438,11 +468,12 @@ def my_id_card():
     return send_file(buf, as_attachment=True,
                      download_name=f"IDCard_{emp_id}.png", mimetype="image/png")
 
+
 @employee_portal_bp.route("/employee_portal")
 @employee_required
 def employee_portal():
     emp_id = session["employee_id"]
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
@@ -490,7 +521,7 @@ def employee_portal():
     )
     today_att = cursor.fetchone()
 
-    year  = int(request.args.get("year",  today.year))
+    year = int(request.args.get("year", today.year))
     month = int(request.args.get("month", today.month))
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -501,7 +532,7 @@ def employee_portal():
     """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
     monthly_att = cursor.fetchall()
 
-    holidays_set  = fetch_holidays_set(year, month)
+    holidays_set = fetch_holidays_set(year, month)
     # Fetch holiday names for attendance calendar tooltips
     cursor.execute(
         "SELECT date, name FROM holidays WHERE date BETWEEN %s AND %s",
@@ -509,7 +540,7 @@ def employee_portal():
     )
     att_hol_name_map = {row[0]: row[1] for row in cursor.fetchall()}
     billable_past = get_billable_past_days(year, month)
-    att_by_date   = {r[0]: r for r in monthly_att}
+    att_by_date = {r[0]: r for r in monthly_att}
     full_days = half_days = late_days = absent_days = 0
     total_seconds = 0
     for d in billable_past:
@@ -517,22 +548,28 @@ def employee_portal():
         if row:
             _, login_t, logout_t, status, _ls, att_type = row
             final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-            if   final in ("Full Day", "Approved Leave"): full_days   += 1
-            elif final == "Late - Full Day":             late_days   += 1
-            elif final in ("Half Day", "Present"):       half_days   += 1
-            else:                                        absent_days += 1
+            if final in ("Full Day", "Approved Leave"):
+                full_days += 1
+            elif final == "Late - Full Day":
+                late_days += 1
+            elif final in ("Half Day", "Present"):
+                half_days += 1
+            else:
+                absent_days += 1
             if login_t and logout_t:
-                li = login_t.total_seconds()  if hasattr(login_t,  "total_seconds") else (login_t.hour*3600  + login_t.minute*60  + login_t.second)
-                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else (logout_t.hour*3600 + logout_t.minute*60 + logout_t.second)
+                li = login_t.total_seconds() if hasattr(login_t, "total_seconds") else (
+                    login_t.hour * 3600 + login_t.minute * 60 + login_t.second)
+                lo = logout_t.total_seconds() if hasattr(logout_t, "total_seconds") else (
+                    logout_t.hour * 3600 + logout_t.minute * 60 + logout_t.second)
                 if lo > li:
                     total_seconds += int(lo - li)
         else:
             absent_days += 1
 
     total_hours_str = f"{total_seconds // 3600}h {(total_seconds % 3600) // 60}m"
-    billable_count  = len(billable_past)
-    present_equiv   = full_days + late_days + half_days * 0.5
-    att_pct         = round(present_equiv / billable_count * 100, 1) if billable_count else 0
+    billable_count = len(billable_past)
+    present_equiv = full_days + late_days + half_days * 0.5
+    att_pct = round(present_equiv / billable_count * 100, 1) if billable_count else 0
 
     # Calendar data for JS rendering
     cal_data = {}
@@ -550,15 +587,19 @@ def employee_portal():
             if row:
                 _, login_t, logout_t, status, _ls, att_type = row
                 final = att_type if att_type else infer_type_legacy(status, login_t, logout_t)
-                if   final == "Full Day":               cal_data[day] = "full"
-                elif final == "Late - Full Day":        cal_data[day] = "late"
-                elif final in ("Half Day", "Present"):  cal_data[day] = "half"
-                else:                                   cal_data[day] = "absent"
+                if final == "Full Day":
+                    cal_data[day] = "full"
+                elif final == "Late - Full Day":
+                    cal_data[day] = "late"
+                elif final in ("Half Day", "Present"):
+                    cal_data[day] = "half"
+                else:
+                    cal_data[day] = "absent"
             else:
                 cal_data[day] = "absent"
     cal_hol_names = {d.day: n for d, n in att_hol_name_map.items()}
-    cal_year      = year
-    cal_month     = month
+    cal_year = year
+    cal_month = month
     cal_first_dow = datetime.date(year, month, 1).weekday()  # 0=Mon
 
     cursor.execute("""
@@ -619,12 +660,12 @@ def employee_portal():
         leave_balance = max(0, annual_leave_quota - leaves_used)
     except Exception:
         leave_type_balances = []
-        annual_leave_quota  = 12
+        annual_leave_quota = 12
         cursor.execute("""
             SELECT COUNT(*) FROM leave_requests
             WHERE employee_id=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status IN ('Approved','Pending')
         """, (emp_id, today.year))
-        leaves_used   = cursor.fetchone()[0] or 0
+        leaves_used = cursor.fetchone()[0] or 0
         leave_balance = max(0, annual_leave_quota - leaves_used)
 
     # Announcements for dashboard (public + private addressed to this employee)
@@ -686,10 +727,10 @@ def employee_portal():
             if _d.month == _m:
                 m_hols[_d.day] = (_hid, _hname)
         emp_hol_cal.append({
-            'month_num':  _m,
+            'month_num': _m,
             'month_name': calendar.month_name[_m],
-            'weeks':      sun_cal_obj.monthdayscalendar(hol_year, _m),
-            'holidays':   m_hols,
+            'weeks': sun_cal_obj.monthdayscalendar(hol_year, _m),
+            'holidays': m_hols,
         })
 
     # Employee's own incentive history
@@ -784,13 +825,14 @@ def employee_portal():
         cursor.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
         mpd_row = cursor.fetchone()
         compoff_mpd = int(mpd_row[0]) if mpd_row else 480
-        cursor.execute("SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
+        cursor.execute(
+            "SELECT COALESCE(earned_minutes,0), COALESCE(used_minutes,0) FROM compoff_balance WHERE employee_id=%s", (emp_id,))
         co_row = cursor.fetchone() or (0, 0)
         compoff_earned_days = round(co_row[0] / compoff_mpd, 1) if compoff_mpd else 0
-        compoff_avail_days  = round(max(0, co_row[0] - co_row[1]) / compoff_mpd, 1) if compoff_mpd else 0
+        compoff_avail_days = round(max(0, co_row[0] - co_row[1]) / compoff_mpd, 1) if compoff_mpd else 0
     except Exception:
         compoff_earned_days = 0
-        compoff_avail_days  = 0
+        compoff_avail_days = 0
 
     # Last 3 months payslip summaries
     recent_payslips = []
@@ -798,7 +840,8 @@ def employee_portal():
     for _ in range(3):
         pm2 -= 1
         if pm2 == 0:
-            pm2 = 12; py2 -= 1
+            pm2 = 12
+            py2 -= 1
         _, ld = calendar.monthrange(py2, pm2)
         cursor.execute("""
             SELECT date, login_time, logout_time, status, logout_status, attendance_type
@@ -806,22 +849,27 @@ def employee_portal():
         """, (emp_id, datetime.date(py2, pm2, 1), datetime.date(py2, pm2, ld)))
         p_att = cursor.fetchall()
         p_billable = get_billable_past_days(py2, pm2)
-        p_att_map  = {r[0]: r for r in p_att}
+        p_att_map = {r[0]: r for r in p_att}
         p_full = p_late = p_half = p_absent = 0
         for d in p_billable:
             row = p_att_map.get(d)
             if row:
                 _, lt, lot, st, _ls, at = row
                 final = at if at else infer_type_legacy(st, lt, lot)
-                if   final in ("Full Day", "Approved Leave"): p_full   += 1
-                elif final == "Late - Full Day":              p_late   += 1
-                elif final in ("Half Day", "Present"):        p_half   += 1
-                else:                                         p_absent += 1
+                if final in ("Full Day", "Approved Leave"):
+                    p_full += 1
+                elif final == "Late - Full Day":
+                    p_late += 1
+                elif final in ("Half Day", "Present"):
+                    p_half += 1
+                else:
+                    p_absent += 1
             else:
                 p_absent += 1
         p_gross = (p_full + p_late) * salary_per_day + p_half * salary_per_day * 0.5
         try:
-            cursor.execute("SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
+            cursor.execute(
+                "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
             p_inc = float(cursor.fetchone()[0])
         except Exception:
             p_inc = 0.0
@@ -873,7 +921,8 @@ def employee_portal():
         incoming_swap_requests = []
         swap_eligible_employees = []
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     # Build last 12 months list for pay slips section
     payslip_months = []
@@ -882,83 +931,86 @@ def employee_portal():
         payslip_months.append((py, pm, calendar.month_name[pm]))
         pm -= 1
         if pm == 0:
-            pm = 12; py -= 1
+            pm = 12
+            py -= 1
 
     return render_template("employee_portal.html",
-        emp=emp,
-        today_date=today,
-        today=today.strftime("%d %b %Y"),
-        today_long=today.strftime("%A, %d %B %Y"),
-        today_att=today_att,
-        monthly_att=monthly_att,
-        full_days=full_days, late_days=late_days,
-        half_days=half_days, absent_days=absent_days,
-        billable=billable_count,
-        my_leaves=my_leaves,
-        my_resignation=my_resignation,
-        my_tickets=my_tickets,
-        leave_sent=request.args.get("leave_sent") == "1",
-        resigned=request.args.get("resigned") == "1",
-        ticket_sent=request.args.get("ticket_sent") == "1",
-        month_name=datetime.date(year, month, 1).strftime("%B %Y"),
-        selected_month=f"{year}-{month:02d}",
-        att_pct=att_pct,
-        total_hours=total_hours_str,
-        cal_data=cal_data,
-        cal_hol_names=cal_hol_names,
-        cal_year=cal_year,
-        cal_month=cal_month,
-        cal_first_dow=cal_first_dow,
-        sel_year=year,
-        sel_month=month,
-        years=list(range(today.year - 2, today.year + 1)),
-        months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
-        payslip_months=payslip_months,
-        leave_balance=leave_balance,
-        leaves_used=leaves_used,
-        annual_leave_quota=annual_leave_quota,
-        leave_type_balances=leave_type_balances,
-        leave_types_for_form=[{"id": lt[0], "name": lt[1]} for lt in (leave_types_list if leave_types_list else [])],
-        announcements=announcements,
-        pending_leaves_count=pending_leaves_count,
-        open_tickets_count=open_tickets_count,
-        unread_notifications_web=unread_notifications_web,
-        upcoming_holidays=upcoming_holidays,
-        leave_holidays=leave_holidays,
-        hol_year=hol_year,
-        emp_hol_cal=emp_hol_cal,
-        all_holidays_list=hol_rows,
-        my_incentives=my_incentives,
-        total_incentive_year=total_incentive_year,
-        my_experience=my_experience,
-        my_education=my_education,
-        my_docs=my_docs,
-        my_overtime=my_overtime,
-        compoff_avail_days=compoff_avail_days,
-        compoff_earned_days=compoff_earned_days,
-        salary_per_day=salary_per_day,
-        gross_this_month=gross_this_month,
-        deduction_this_month=deduction_this_month,
-        incentives_this_month=incentives_this_month,
-        ot_pay_this_month=ot_pay_this_month,
-        net_this_month=net_this_month,
-        recent_payslips=recent_payslips,
-        my_swap_requests=my_swap_requests,
-        incoming_swap_requests=incoming_swap_requests,
-        swap_eligible_employees=swap_eligible_employees,
-        swap_sent=request.args.get("swap_sent") == "1",
-        swap_responded=request.args.get("swap_responded") == "1",
-        swap_error=request.args.get("swap_error", ""),
-        fp_enrolled=fp_enrolled,
-        fp_enabled=get_auth_config().get("fingerprint_enabled", False),
-    )
+                           emp=emp,
+                           today_date=today,
+                           today=today.strftime("%d %b %Y"),
+                           today_long=today.strftime("%A, %d %B %Y"),
+                           today_att=today_att,
+                           monthly_att=monthly_att,
+                           full_days=full_days, late_days=late_days,
+                           half_days=half_days, absent_days=absent_days,
+                           billable=billable_count,
+                           my_leaves=my_leaves,
+                           my_resignation=my_resignation,
+                           my_tickets=my_tickets,
+                           leave_sent=request.args.get("leave_sent") == "1",
+                           resigned=request.args.get("resigned") == "1",
+                           ticket_sent=request.args.get("ticket_sent") == "1",
+                           month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           selected_month=f"{year}-{month:02d}",
+                           att_pct=att_pct,
+                           total_hours=total_hours_str,
+                           cal_data=cal_data,
+                           cal_hol_names=cal_hol_names,
+                           cal_year=cal_year,
+                           cal_month=cal_month,
+                           cal_first_dow=cal_first_dow,
+                           sel_year=year,
+                           sel_month=month,
+                           years=list(range(today.year - 2, today.year + 1)),
+                           months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
+                           payslip_months=payslip_months,
+                           leave_balance=leave_balance,
+                           leaves_used=leaves_used,
+                           annual_leave_quota=annual_leave_quota,
+                           leave_type_balances=leave_type_balances,
+                           leave_types_for_form=[{"id": lt[0], "name": lt[1]}
+                                                 for lt in (leave_types_list if leave_types_list else [])],
+                           announcements=announcements,
+                           pending_leaves_count=pending_leaves_count,
+                           open_tickets_count=open_tickets_count,
+                           unread_notifications_web=unread_notifications_web,
+                           upcoming_holidays=upcoming_holidays,
+                           leave_holidays=leave_holidays,
+                           hol_year=hol_year,
+                           emp_hol_cal=emp_hol_cal,
+                           all_holidays_list=hol_rows,
+                           my_incentives=my_incentives,
+                           total_incentive_year=total_incentive_year,
+                           my_experience=my_experience,
+                           my_education=my_education,
+                           my_docs=my_docs,
+                           my_overtime=my_overtime,
+                           compoff_avail_days=compoff_avail_days,
+                           compoff_earned_days=compoff_earned_days,
+                           salary_per_day=salary_per_day,
+                           gross_this_month=gross_this_month,
+                           deduction_this_month=deduction_this_month,
+                           incentives_this_month=incentives_this_month,
+                           ot_pay_this_month=ot_pay_this_month,
+                           net_this_month=net_this_month,
+                           recent_payslips=recent_payslips,
+                           my_swap_requests=my_swap_requests,
+                           incoming_swap_requests=incoming_swap_requests,
+                           swap_eligible_employees=swap_eligible_employees,
+                           swap_sent=request.args.get("swap_sent") == "1",
+                           swap_responded=request.args.get("swap_responded") == "1",
+                           swap_error=request.args.get("swap_error", ""),
+                           fp_enrolled=fp_enrolled,
+                           fp_enabled=get_auth_config().get("fingerprint_enabled", False),
+                           )
+
 
 @employee_portal_bp.route("/api/employee/change-password", methods=["POST"])
 @employee_api_required
 def api_employee_change_password():
     data = request.get_json() or {}
     current_password = data.get("current_password", "").strip()
-    new_password     = data.get("new_password", "").strip()
+    new_password = data.get("new_password", "").strip()
     if not current_password or not new_password:
         return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
     if len(new_password) < 8:
@@ -979,14 +1031,15 @@ def api_employee_change_password():
         conn.commit()
     return jsonify({"ok": True, "msg": "Password changed successfully"})
 
+
 @employee_portal_bp.route("/api/employee/portal", methods=["GET"])
 @employee_api_required
 def api_employee_portal():
     from flask import g as _g
     emp_id = _g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today  = datetime.date.today()
+    today = datetime.date.today()
 
     cursor.execute("""
         SELECT e.name, e.email, COALESCE(c.name, '') AS company_name
@@ -1034,7 +1087,8 @@ def api_employee_portal():
     ann_rows = cursor.fetchall()
     cursor.execute("SELECT role, department FROM employees WHERE employee_id=%s", (emp_id,))
     emp_extra = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return jsonify({
         "ok": True,
@@ -1075,21 +1129,23 @@ def api_employee_portal():
         ],
     })
 
+
 @employee_portal_bp.route("/api/employee/checkin", methods=["POST"])
 @employee_api_required
 def api_employee_checkin():
     from flask import g as _g
     emp_id = _g.api_emp_id
-    data   = request.get_json() or {}
-    lat    = data.get("lat")
-    lon    = data.get("lon")
+    data = request.get_json() or {}
+    lat = data.get("lat")
+    lon = data.get("lon")
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
     if not result:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon = result
 
@@ -1098,16 +1154,19 @@ def api_employee_checkin():
             lat_f = float(lat)
             lon_f = float(lon)
         except (ValueError, TypeError):
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "Invalid lat/lon values."}), 400
         if work_mode == 'wfh':
             if work_lat and work_lon:
                 if not is_within_range(lat_f, lon_f, float(work_lat), float(work_lon)):
-                    cursor.close(); db.close()
+                    cursor.close()
+                    db.close()
                     return jsonify({"ok": False, "msg": "You are outside your registered home location."})
         else:
             if not is_within_range(lat_f, lon_f, cfg.OFFICE_LAT, cfg.OFFICE_LON):
-                cursor.close(); db.close()
+                cursor.close()
+                db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
     punched_at_str = data.get("punched_at")
@@ -1119,12 +1178,13 @@ def api_employee_checkin():
             if (now - _pt).total_seconds() <= 86400:
                 now = _pt
             else:
-                cursor.close(); db.close()
+                cursor.close()
+                db.close()
                 return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
         except (ValueError, TypeError):
             pass
 
-    today        = now.date()
+    today = now.date()
     current_time = now.time()
 
     cursor.execute(
@@ -1132,15 +1192,16 @@ def api_employee_checkin():
         "FROM attendance WHERE employee_id=%s AND date=%s",
         (emp_id, today)
     )
-    record              = cursor.fetchone()
-    login_time          = record[0] if record else None
-    logout_time         = record[1] if record else None
-    login_status        = record[2] if record else None
-    worked_mins_stored  = (record[3] or 0) if record else 0
+    record = cursor.fetchone()
+    login_time = record[0] if record else None
+    logout_time = record[1] if record else None
+    login_status = record[2] if record else None
+    worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) + datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
+                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= cfg.SHIFT_HALF:
@@ -1151,17 +1212,19 @@ def api_employee_checkin():
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, status)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "action": "login", "name": employee_name,
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         session_start = last_relogin_stored if last_relogin_stored else login_time
         if not isinstance(session_start, datetime.time):
             session_start = _td_to_time(session_start)
-        cur_dt    = datetime.datetime.combine(today, current_time)
-        start_dt  = datetime.datetime.combine(today, session_start)
+        cur_dt = datetime.datetime.combine(today, current_time)
+        start_dt = datetime.datetime.combine(today, session_start)
         session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
-        total_m   = worked_mins_stored + session_m
+        total_m = worked_mins_stored + session_m
         if current_time < cfg.SHIFT_HALF:
             out_status = "Half Day Logout"
         elif current_time < cfg.SHIFT_END:
@@ -1174,7 +1237,9 @@ def api_employee_checkin():
             "WHERE employee_id=%s AND date=%s",
             (current_time, out_status, att_type, total_m, emp_id, today)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         detect_overtime(emp_id, today, current_time)
         return jsonify({"ok": True, "action": "logout", "name": employee_name,
                         "status": out_status, "att_type": att_type,
@@ -1185,27 +1250,31 @@ def api_employee_checkin():
             "WHERE employee_id=%s AND date=%s",
             (current_time, emp_id, today)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "action": "relogin", "name": employee_name,
                         "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
+
 
 @employee_portal_bp.route("/api/employee/sync_punches", methods=["POST"])
 @employee_api_required
 def api_employee_sync_punches():
     """Batch-submit offline punches queued on the device when there was no connectivity."""
     from flask import g as _g
-    emp_id  = _g.api_emp_id
+    emp_id = _g.api_emp_id
     payload = request.get_json() or {}
     punches = payload.get("punches", [])
     if not punches:
         return jsonify({"ok": True, "results": []})
 
-    db2  = get_db_connection()
+    db2 = get_db_connection()
     cur2 = db2.cursor(buffered=True)
     cur2.execute("SELECT name, work_mode, work_lat, work_lon FROM employees WHERE employee_id=%s", (emp_id,))
     _emp_row = cur2.fetchone()
     if not _emp_row:
-        cur2.close(); db2.close()
+        cur2.close()
+        db2.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
 
@@ -1264,7 +1333,8 @@ def api_employee_sync_punches():
         last_relogin = rec[4] if rec else None
 
         if not login_time:
-            grace_time = (datetime.datetime.combine(punch_date, cfg.SHIFT_START) + datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+            grace_time = (datetime.datetime.combine(punch_date, cfg.SHIFT_START) +
+                          datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
             if punch_time <= grace_time:
                 status = "Full Day Login"
             elif punch_time <= cfg.SHIFT_HALF:
@@ -1281,10 +1351,10 @@ def api_employee_sync_punches():
             session_start = last_relogin if last_relogin else login_time
             if not isinstance(session_start, datetime.time):
                 session_start = _td_to_time(session_start)
-            cur_dt    = datetime.datetime.combine(punch_date, punch_time)
-            start_dt  = datetime.datetime.combine(punch_date, session_start)
+            cur_dt = datetime.datetime.combine(punch_date, punch_time)
+            start_dt = datetime.datetime.combine(punch_date, session_start)
             session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
-            total_m   = worked_mins + session_m
+            total_m = worked_mins + session_m
             if punch_time < cfg.SHIFT_HALF:
                 out_status = "Half Day Logout"
             elif punch_time < cfg.SHIFT_END:
@@ -1302,24 +1372,27 @@ def api_employee_sync_punches():
         else:
             results.append({"id": punch.get("id"), "ok": False, "msg": "Duplicate — day already complete"})
 
-    cur2.close(); db2.close()
+    cur2.close()
+    db2.close()
     _audit("sync_punches", "attendance", emp_id, f"Synced {len([r for r in results if r['ok']])} offline punches")
     return jsonify({"ok": True, "results": results})
+
 
 @employee_portal_bp.route("/api/employee/auth-config", methods=["GET"])
 def api_employee_auth_config():
     """Return all authentication method flags (public, no token required)."""
     return jsonify({"ok": True, **get_auth_config()})
 
+
 @employee_portal_bp.route("/api/employee/qr-face-checkin", methods=["POST"])
 @limiter.limit("20 per minute")
 def api_employee_qr_face_checkin():
     """Public kiosk endpoint — supports auth_combo: qr_face | qr_fingerprint | face_fingerprint."""
-    employee_id        = request.form.get("employee_id", "").strip().upper()
-    lat                = request.form.get("lat")
-    lon                = request.form.get("lon")
-    face_photo         = request.files.get("face_photo")
-    auth_combo         = request.form.get("auth_combo", "qr_face")
+    employee_id = request.form.get("employee_id", "").strip().upper()
+    lat = request.form.get("lat")
+    lon = request.form.get("lon")
+    face_photo = request.files.get("face_photo")
+    auth_combo = request.form.get("auth_combo", "qr_face")
 
     if auth_combo not in ("qr_face", "qr_fingerprint", "face_fingerprint"):
         return jsonify({"ok": False, "msg": "Invalid auth_combo"}), 400
@@ -1344,7 +1417,7 @@ def api_employee_qr_face_checkin():
                 or _mobile_biometric_recently_verified(employee_id)):
             return jsonify({"ok": False, "msg": "Fingerprint verification failed. Please try again."}), 401
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT name, work_mode, work_lat, work_lon, face_image FROM employees WHERE employee_id=%s",
@@ -1352,7 +1425,8 @@ def api_employee_qr_face_checkin():
     )
     result = cursor.fetchone()
     if not result:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon, registered_face = result
 
@@ -1361,11 +1435,13 @@ def api_employee_qr_face_checkin():
             if work_mode == 'wfh':
                 if work_lat and work_lon:
                     if not is_within_range(float(lat), float(lon), float(work_lat), float(work_lon)):
-                        cursor.close(); db.close()
+                        cursor.close()
+                        db.close()
                         return jsonify({"ok": False, "msg": "You are outside your registered home location."})
             else:
                 if not is_within_range(float(lat), float(lon), cfg.OFFICE_LAT, cfg.OFFICE_LON):
-                    cursor.close(); db.close()
+                    cursor.close()
+                    db.close()
                     return jsonify({"ok": False, "msg": "You are outside the office premises."})
         except (ValueError, TypeError):
             pass
@@ -1373,50 +1449,56 @@ def api_employee_qr_face_checkin():
     needs_face = auth_combo in ("qr_face", "face_fingerprint")
     if needs_face:
         if not face_photo:
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "Face photo required for this authentication method."}), 400
         if not _face_recognition_available:
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "Face recognition is currently unavailable on this server. Contact your admin."}), 503
         if not registered_face or not os.path.exists(registered_face):
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
         try:
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
 
-            known_enc      = _get_known_face_encoding(employee_id, registered_face)
-            test_img_data  = face_recognition.load_image_file(face_path)
-            test_encs      = face_recognition.face_encodings(test_img_data)
+            known_enc = _get_known_face_encoding(employee_id, registered_face)
+            test_img_data = face_recognition.load_image_file(face_path)
+            test_encs = face_recognition.face_encodings(test_img_data)
             if known_enc is None or not test_encs:
-                cursor.close(); db.close()
+                cursor.close()
+                db.close()
                 return jsonify({"ok": False, "msg": "Face not detected clearly. Please retake the photo."}), 400
             if not face_recognition.compare_faces([known_enc], test_encs[0], tolerance=0.5)[0]:
-                cursor.close(); db.close()
+                cursor.close()
+                db.close()
                 return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
         except Exception:
             app_log.error("Face verification error", exc_info=True)
-            cursor.close(); db.close()
+            cursor.close()
+            db.close()
             return jsonify({"ok": False, "msg": "Face verification failed. Please retake the photo."}), 500
     elif face_photo:
         try:
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts        = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
         except Exception:
             pass
 
-    now          = datetime.datetime.now()
-    today        = now.date()
+    now = datetime.datetime.now()
+    today = now.date()
     current_time = now.time()
 
     cursor.execute(
@@ -1424,15 +1506,16 @@ def api_employee_qr_face_checkin():
         "FROM attendance WHERE employee_id=%s AND date=%s",
         (employee_id, today)
     )
-    record             = cursor.fetchone()
-    login_time         = record[0] if record else None
-    logout_time        = record[1] if record else None
-    login_status       = record[2] if record else None
+    record = cursor.fetchone()
+    login_time = record[0] if record else None
+    logout_time = record[1] if record else None
+    login_status = record[2] if record else None
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) + datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
+                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
         elif current_time <= cfg.SHIFT_HALF:
@@ -1443,17 +1526,19 @@ def api_employee_qr_face_checkin():
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (employee_id, today, current_time, status)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "action": "login", "name": employee_name,
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         session_start = last_relogin_stored if last_relogin_stored else login_time
         if not isinstance(session_start, datetime.time):
             session_start = _td_to_time(session_start)
-        cur_dt    = datetime.datetime.combine(today, current_time)
-        start_dt  = datetime.datetime.combine(today, session_start)
+        cur_dt = datetime.datetime.combine(today, current_time)
+        start_dt = datetime.datetime.combine(today, session_start)
         session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
-        total_m   = worked_mins_stored + session_m
+        total_m = worked_mins_stored + session_m
         if current_time < cfg.SHIFT_HALF:
             out_status = "Half Day Logout"
         elif current_time < cfg.SHIFT_END:
@@ -1466,7 +1551,9 @@ def api_employee_qr_face_checkin():
             "WHERE employee_id=%s AND date=%s",
             (current_time, out_status, att_type, total_m, employee_id, today)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         detect_overtime(employee_id, today, current_time)
         return jsonify({"ok": True, "action": "logout", "name": employee_name,
                         "status": out_status, "att_type": att_type,
@@ -1477,9 +1564,12 @@ def api_employee_qr_face_checkin():
             "WHERE employee_id=%s AND date=%s",
             (current_time, employee_id, today)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "action": "relogin", "name": employee_name,
                         "status": "Re-Login", "time": current_time.strftime("%H:%M:%S")})
+
 
 @employee_portal_bp.route("/api/employee/salary", methods=["GET"])
 @employee_api_required
@@ -1488,20 +1578,21 @@ def api_employee_salary():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year  = int(request.args.get("year",  datetime.date.today().year))
+        year = int(request.args.get("year", datetime.date.today().year))
         month = int(request.args.get("month", datetime.date.today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
     emp_row = cursor.fetchone()
     if not emp_row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
-    spd_row  = cursor.fetchone()
-    spd      = float(spd_row[0]) if spd_row else 0.0
+    spd_row = cursor.fetchone()
+    spd = float(spd_row[0]) if spd_row else 0.0
     cursor.execute("SELECT date FROM holidays WHERE EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s", (month, year))
     holiday_set = {r[0] for r in cursor.fetchall()}
     _, days_in_month = cal.monthrange(year, month)
@@ -1522,16 +1613,21 @@ def api_employee_salary():
         WHERE employee_id=%s AND EXTRACT(MONTH FROM leave_date)=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status='Approved'
     """, (emp_id, month, year))
     leave_days = cursor.fetchone()[0]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     full_days = half_days = late_days = 0
     for (att_type,) in att_rows:
-        if att_type == 'Full Day':          full_days += 1
-        elif att_type == 'Late - Full Day': full_days += 1; late_days += 1
-        elif att_type in ('Half Day', 'Late - Half Day'): half_days += 1
-    absent    = max(0, billable - full_days - half_days - leave_days)
-    gross     = spd * billable
+        if att_type == 'Full Day':
+            full_days += 1
+        elif att_type == 'Late - Full Day':
+            full_days += 1
+            late_days += 1
+        elif att_type in ('Half Day', 'Late - Half Day'):
+            half_days += 1
+    absent = max(0, billable - full_days - half_days - leave_days)
+    gross = spd * billable
     deduction = spd * (absent + half_days * 0.5)
-    net       = gross - deduction
+    net = gross - deduction
     return jsonify({
         "ok": True,
         "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
@@ -1545,17 +1641,18 @@ def api_employee_salary():
         }
     })
 
+
 @employee_portal_bp.route("/api/employee/attendance", methods=["GET"])
 @employee_api_required
 def api_employee_attendance():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year  = int(request.args.get("year",  datetime.date.today().year))
+        year = int(request.args.get("year", datetime.date.today().year))
         month = int(request.args.get("month", datetime.date.today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type, worked_minutes
@@ -1570,7 +1667,8 @@ def api_employee_attendance():
         GROUP BY attendance_type
     """, (emp_id, month, year))
     type_counts = {r[1]: r[0] for r in cursor.fetchall()}
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     full = type_counts.get("Full Day", 0) + type_counts.get("Late - Full Day", 0)
     half = type_counts.get("Half Day", 0) + type_counts.get("Late - Half Day", 0)
     late = type_counts.get("Late - Full Day", 0) + type_counts.get("Late - Half Day", 0)
@@ -1593,12 +1691,13 @@ def api_employee_attendance():
         ],
     })
 
+
 @employee_portal_bp.route("/api/employee/profile", methods=["GET"])
 @employee_api_required
 def api_employee_profile():
     from flask import g as _g
     emp_id = _g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, e.role, e.department,
@@ -1613,7 +1712,8 @@ def api_employee_profile():
         WHERE e.employee_id = %s
     """, (emp_id,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     return jsonify({
@@ -1637,6 +1737,7 @@ def api_employee_profile():
         },
     })
 
+
 @employee_portal_bp.route("/api/employee/photo", methods=["POST"])
 @employee_api_required
 def api_employee_upload_photo():
@@ -1655,6 +1756,7 @@ def api_employee_upload_photo():
     except Exception:
         return jsonify({"ok": False, "msg": "Failed to process image"}), 500
 
+
 @employee_portal_bp.route("/api/employee/chat", methods=["POST"])
 @employee_required
 @limiter.limit("6 per minute")
@@ -1665,7 +1767,7 @@ def api_employee_chat():
     ever sends free text; the employee's own data is always re-fetched
     server-side from the authenticated session's employee_id, never
     accepted from the request body."""
-    emp_id  = session["employee_id"]
+    emp_id = session["employee_id"]
     payload = request.get_json(silent=True) or {}
     message = payload.get("message", "")
     history = payload.get("history", [])
@@ -1675,7 +1777,8 @@ def api_employee_chat():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     context = build_employee_context(cursor, emp_id)
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     ok, reply = ask_assistant(context, message, history if isinstance(history, list) else [])
     return jsonify({"ok": ok, "reply": reply})
@@ -1688,8 +1791,8 @@ def api_employee_chat():
 # browser over the user's own authenticated session — it never computes a
 # risk score itself, and there is no code path in this app for one.
 _DEVICE_RISK_KILL_WEIGHT = 100  # comfortably exceeds SESSION_RISK_THRESHOLD (default 50)
-                                # regardless of how that env var is configured, so one
-                                # qualifying report always crosses the kill threshold.
+# regardless of how that env var is configured, so one
+# qualifying report always crosses the kill threshold.
 
 
 @employee_portal_bp.route("/api/employee/device_risk", methods=["POST"])
@@ -1719,7 +1822,7 @@ def api_employee_device_risk():
     threat_vectors = [str(v)[:60] for v in threat_vectors][:10]
 
     emp_id = session["employee_id"]
-    sid    = ensure_session_id(session)
+    sid = ensure_session_id(session)
     over_threshold = risk_score > 60
 
     log_security_event(
@@ -1738,7 +1841,6 @@ def api_employee_device_risk():
             f"Wi-Fi risk score {risk_score} exceeded 60 ({', '.join(threat_vectors) or 'unspecified threat'})",
         )
         return jsonify({"ok": True, "blocked": True,
-                         "msg": "Device risk too high — this session is being terminated."})
+                        "msg": "Device risk too high — this session is being terminated."})
 
     return jsonify({"ok": True, "blocked": False})
-

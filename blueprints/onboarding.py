@@ -13,6 +13,7 @@ from utils.email_utils import get_email_config, send_email_smtp, send_email_asyn
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
+
 @onboarding_bp.route("/onboarding")
 @admin_required
 def onboarding():
@@ -60,69 +61,79 @@ def onboarding():
     employee_roles = [r[0] for r in cursor.fetchall()]
 
     today = datetime.date.today()
-    total_active    = sum(1 for o in active_onboardings if o[8] != 'Completed')
+    total_active = sum(1 for o in active_onboardings if o[8] != 'Completed')
     total_completed = sum(1 for o in active_onboardings if o[8] == 'Completed')
-    total_overdue   = sum(1 for o in active_onboardings if o[7] and o[7] < today and o[8] != 'Completed')
+    total_overdue = sum(1 for o in active_onboardings if o[7] and o[7] < today and o[8] != 'Completed')
 
     cursor.execute("SELECT COALESCE(default_onboarding_template_id, 0) FROM company_settings LIMIT 1")
     _dtpl = cursor.fetchone()
     default_onboarding_tpl = int(_dtpl[0]) if _dtpl and _dtpl[0] else 0
 
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("onboarding.html",
-        active_onboardings=active_onboardings,
-        templates=templates,
-        emp_list=emp_list,
-        active_templates=active_templates,
-        employee_roles=employee_roles,
-        active_tab=active_tab,
-        co=co,
-        today=today,
-        total_active=total_active,
-        total_completed=total_completed,
-        total_overdue=total_overdue,
-        default_onboarding_tpl=default_onboarding_tpl,
-        pending_leaves=0, pending_resignations=0, pending_tickets=0
-    )
+                           active_onboardings=active_onboardings,
+                           templates=templates,
+                           emp_list=emp_list,
+                           active_templates=active_templates,
+                           employee_roles=employee_roles,
+                           active_tab=active_tab,
+                           co=co,
+                           today=today,
+                           total_active=total_active,
+                           total_completed=total_completed,
+                           total_overdue=total_overdue,
+                           default_onboarding_tpl=default_onboarding_tpl,
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           )
+
 
 @onboarding_bp.route("/onboarding_template_save", methods=["POST"])
 @admin_required
 def onboarding_template_save():
-    db = get_db_connection(); cursor = db.cursor()
-    tid    = request.form.get("template_id")
-    name   = request.form.get("name", "").strip()
-    desc   = request.form.get("description", "").strip()
-    role   = request.form.get("role", "").strip() or None
+    db = get_db_connection()
+    cursor = db.cursor()
+    tid = request.form.get("template_id")
+    name = request.form.get("name", "").strip()
+    desc = request.form.get("description", "").strip()
+    role = request.form.get("role", "").strip() or None
     if not name:
         flash("Template name is required.", "error")
         return redirect("/onboarding?tab=templates")
     if tid:
-        cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s, role=%s WHERE id=%s", (name, desc, role, tid))
+        cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s, role=%s WHERE id=%s",
+                       (name, desc, role, tid))
         flash("Template updated.", "success")
     else:
         cursor.execute("INSERT INTO onboarding_templates (name, description, role) VALUES (%s,%s,%s)", (name, desc, role))
         flash("Template created.", "success")
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect("/onboarding?tab=templates")
+
 
 @onboarding_bp.route("/bulk_assign_onboarding", methods=["POST"])
 @admin_required
 def bulk_assign_onboarding():
-    db = get_db_connection(); cursor = db.cursor()
-    tid      = request.form.get("template_id")
-    emp_ids  = request.form.getlist("employee_ids")
-    today    = datetime.date.today()
+    db = get_db_connection()
+    cursor = db.cursor()
+    tid = request.form.get("template_id")
+    emp_ids = request.form.getlist("employee_ids")
+    today = datetime.date.today()
     due_date = (today + datetime.timedelta(days=30)).isoformat()
     assigned = 0
     for emp_id in emp_ids:
-        cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'", (emp_id, tid))
+        cursor.execute(
+            "SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'", (emp_id, tid))
         if cursor.fetchone():
             continue
         cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status) VALUES (%s,%s,%s,%s,'In Progress') RETURNING id",
                        (emp_id, tid, today, due_date))
         ob_id = cursor.fetchone()[0]
-        cursor.execute("SELECT id, task_title, task_description, requires_document, due_days FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,))
+        cursor.execute(
+            "SELECT id, task_title, task_description, requires_document, due_days FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id", (tid,))
         for tt in cursor.fetchall():
             cursor.execute("INSERT INTO employee_onboarding_tasks (onboarding_id, template_task_id, employee_id, task_title, task_description, requires_document, due_days, status) VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')",
                            (ob_id, tt[0], emp_id, tt[1], tt[2], tt[3], tt[4]))
@@ -141,15 +152,20 @@ def bulk_assign_onboarding():
                     send_email_async(_er[1], f"New Onboarding Checklist — {_tr[0]}", _html, _ecfg)
         except Exception:
             pass
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash(f"Onboarding assigned to {assigned} employee(s).", "success")
     return redirect("/employees")
+
 
 @onboarding_bp.route("/export_onboarding_csv")
 @admin_required
 def export_onboarding_csv():
-    import csv, io
-    db = get_db_connection(); cursor = db.cursor()
+    import csv
+    import io
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT e.employee_id, e.name, e.department, ot.name,
                eo.assigned_date, eo.due_date, eo.status,
@@ -164,10 +180,12 @@ def export_onboarding_csv():
         ORDER BY eo.assigned_date DESC
     """)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Employee ID","Name","Department","Template","Assigned Date","Due Date","Status","Total Tasks","Done Tasks","Progress %"])
+    writer.writerow(["Employee ID", "Name", "Department", "Template", "Assigned Date",
+                    "Due Date", "Status", "Total Tasks", "Done Tasks", "Progress %"])
     for r in rows:
         pct = round(int(r[8] or 0) / int(r[7] or 1) * 100) if r[7] else 0
         writer.writerow([r[0], r[1], r[2] or "", r[3], r[4], r[5], r[6], r[7], r[8] or 0, f"{pct}%"])
@@ -176,16 +194,19 @@ def export_onboarding_csv():
     return Response(output.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment;filename=onboarding_export_{datetime.date.today()}.csv"})
 
+
 @onboarding_bp.route("/onboarding_template_duplicate", methods=["POST"])
 @admin_required
 def onboarding_template_duplicate():
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     tid = request.form.get("template_id")
     cursor.execute("SELECT name, description FROM onboarding_templates WHERE id=%s", (tid,))
     tpl = cursor.fetchone()
     if not tpl:
         flash("Template not found.", "error")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/onboarding?tab=templates")
     cursor.execute(
         "INSERT INTO onboarding_templates (name, description, is_active) VALUES (%s, %s, 1) RETURNING id",
@@ -203,32 +224,40 @@ def onboarding_template_duplicate():
             "VALUES (%s,%s,%s,%s,%s,%s)",
             (new_id, task[0], task[1], task[2], task[3], task[4])
         )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash(f"Template duplicated as 'Copy of {tpl[0]}'.", "success")
     return redirect(f"/onboarding_template_detail/{new_id}")
+
 
 @onboarding_bp.route("/onboarding_template_delete", methods=["POST"])
 @admin_required
 def onboarding_template_delete():
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     tid = request.form.get("template_id")
     cursor.execute("DELETE FROM onboarding_template_tasks WHERE template_id=%s", (tid,))
     cursor.execute("DELETE FROM onboarding_templates WHERE id=%s", (tid,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Template deleted.", "success")
     return redirect("/onboarding?tab=templates")
+
 
 @onboarding_bp.route("/onboarding_task_save", methods=["POST"])
 @admin_required
 def onboarding_task_save():
-    db = get_db_connection(); cursor = db.cursor()
-    task_id   = request.form.get("task_id")
-    tid       = request.form.get("template_id")
-    title     = request.form.get("task_title", "").strip()
-    desc      = request.form.get("task_description", "").strip()
-    req_doc   = 1 if request.form.get("requires_document") else 0
-    due_days  = int(request.form.get("due_days", 7))
-    sort_order= int(request.form.get("sort_order", 0))
+    db = get_db_connection()
+    cursor = db.cursor()
+    task_id = request.form.get("task_id")
+    tid = request.form.get("template_id")
+    title = request.form.get("task_title", "").strip()
+    desc = request.form.get("task_description", "").strip()
+    req_doc = 1 if request.form.get("requires_document") else 0
+    due_days = int(request.form.get("due_days", 7))
+    sort_order = int(request.form.get("sort_order", 0))
     if not title:
         flash("Task title is required.", "error")
         return redirect(f"/onboarding_template_detail/{tid}")
@@ -243,53 +272,65 @@ def onboarding_task_save():
                           (template_id, task_title, task_description, requires_document, due_days, sort_order)
                           VALUES (%s,%s,%s,%s,%s,%s)""", (tid, title, desc, req_doc, due_days, sort_order))
         flash("Task added.", "success")
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect(f"/onboarding_template_detail/{tid}")
+
 
 @onboarding_bp.route("/onboarding_task_delete", methods=["POST"])
 @admin_required
 def onboarding_task_delete():
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     task_id = request.form.get("task_id")
     cursor.execute("SELECT template_id FROM onboarding_template_tasks WHERE id=%s", (task_id,))
     row = cursor.fetchone()
     tid = row[0] if row else None
     cursor.execute("DELETE FROM onboarding_template_tasks WHERE id=%s", (task_id,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Task deleted.", "success")
     return redirect(f"/onboarding_template_detail/{tid}")
+
 
 @onboarding_bp.route("/onboarding_template_detail/<int:tid>")
 @admin_required
 def onboarding_template_detail(tid):
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("SELECT id, name, description, is_active FROM onboarding_templates WHERE id=%s", (tid,))
     template = cursor.fetchone()
     cursor.execute("""SELECT id, task_title, task_description, requires_document, due_days, sort_order
                       FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id""", (tid,))
     tasks = cursor.fetchall()
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("onboarding_template_detail.html",
-        template=template, tasks=tasks, co=co,
-        pending_leaves=0, pending_resignations=0, pending_tickets=0
-    )
+                           template=template, tasks=tasks, co=co,
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           )
+
 
 @onboarding_bp.route("/onboarding_assign", methods=["POST"])
 @admin_required
 def onboarding_assign():
-    db = get_db_connection(); cursor = db.cursor()
-    emp_id   = request.form.get("employee_id")
-    tid      = request.form.get("template_id")
+    db = get_db_connection()
+    cursor = db.cursor()
+    emp_id = request.form.get("employee_id")
+    tid = request.form.get("template_id")
     due_date = request.form.get("due_date") or None
-    today    = datetime.date.today()
+    today = datetime.date.today()
 
     # Check not already assigned same template
     cursor.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'",
                    (emp_id, tid))
     if cursor.fetchone():
         flash("This employee already has this onboarding in progress.", "error")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/onboarding?tab=active")
 
     cursor.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date) VALUES (%s,%s,%s,%s) RETURNING id",
@@ -318,7 +359,9 @@ def onboarding_assign():
         pass
 
     cursor.execute("SELECT name, email FROM employees WHERE employee_id=%s", (emp_id,))
-    _er = cursor.fetchone(); emp_name = _er[0]; emp_email = _er[1] if _er else None
+    _er = cursor.fetchone()
+    emp_name = _er[0]
+    emp_email = _er[1] if _er else None
     # Email employee about new onboarding assignment
     if emp_email:
         _ecfg = get_email_config()
@@ -333,14 +376,17 @@ def onboarding_assign():
                 send_email_async(emp_email, f"New Onboarding Checklist Assigned — {tname}", _ob_html, _ecfg)
             except Exception:
                 pass
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash(f"Onboarding assigned to {emp_name}.", "success")
     return redirect("/onboarding?tab=active")
+
 
 @onboarding_bp.route("/onboarding_detail/<int:ob_id>")
 @admin_required
 def onboarding_detail(ob_id):
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT eo.id, e.employee_id, e.name, e.role, e.department,
                ot.name AS tname, eo.assigned_date, eo.due_date, eo.status
@@ -357,22 +403,25 @@ def onboarding_detail(ob_id):
     """, (ob_id,))
     tasks = cursor.fetchall()
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("onboarding_detail.html",
-        ob=ob, tasks=tasks, co=co,
-        today=datetime.date.today(),
-        pending_leaves=0, pending_resignations=0, pending_tickets=0
-    )
+                           ob=ob, tasks=tasks, co=co,
+                           today=datetime.date.today(),
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           )
+
 
 @onboarding_bp.route("/onboarding_admin_task_update", methods=["POST"])
 @admin_required
 def onboarding_admin_task_update():
-    db = get_db_connection(); cursor = db.cursor()
-    task_id    = request.form.get("task_id")
+    db = get_db_connection()
+    cursor = db.cursor()
+    task_id = request.form.get("task_id")
     new_status = request.form.get("status")
-    notes      = request.form.get("admin_notes", "")
-    ob_id      = request.form.get("ob_id")
-    completed  = datetime.datetime.now() if new_status == "Done" else None
+    notes = request.form.get("admin_notes", "")
+    ob_id = request.form.get("ob_id")
+    completed = datetime.datetime.now() if new_status == "Done" else None
     cursor.execute("""UPDATE employee_onboarding_tasks
                       SET status=%s, completed_at=%s, admin_notes=%s WHERE id=%s""",
                    (new_status, completed, notes, task_id))
@@ -381,24 +430,32 @@ def onboarding_admin_task_update():
     remaining = cursor.fetchone()[0]
     if remaining == 0:
         cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Task updated.", "success")
     return redirect(f"/onboarding_detail/{ob_id}")
+
 
 @onboarding_bp.route("/onboarding_close", methods=["POST"])
 @admin_required
 def onboarding_close():
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     ob_id = request.form.get("ob_id")
     cursor.execute("UPDATE employee_onboarding SET status='Completed' WHERE id=%s", (ob_id,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Onboarding marked as completed.", "success")
     return redirect("/onboarding?tab=active")
+
 
 @onboarding_bp.route("/offer_letter/<int:ob_id>")
 @admin_required
 def offer_letter(ob_id):
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT eo.id, e.employee_id, e.name, e.role, e.department, e.email,
                eo.assigned_date, e.date_of_joining
@@ -407,34 +464,38 @@ def offer_letter(ob_id):
         WHERE eo.id = %s
     """, (ob_id,))
     ob = cursor.fetchone()
-    cursor.execute("SELECT COALESCE(monthly_ctc,0), COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (ob[1],))
+    cursor.execute(
+        "SELECT COALESCE(monthly_ctc,0), COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (ob[1],))
     sal = cursor.fetchone() or (0, 0)
     monthly_ctc = float(sal[0]) or round(float(sal[1]) * 26, 2)
     cursor.execute("SELECT * FROM offer_letters WHERE onboarding_id=%s ORDER BY id DESC LIMIT 1", (ob_id,))
     existing = cursor.fetchone()
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("offer_letter.html", ob=ob, monthly_ctc=monthly_ctc,
                            existing=existing, co=co,
                            pending_leaves=0, pending_resignations=0, pending_tickets=0)
 
+
 @onboarding_bp.route("/offer_letter_save", methods=["POST"])
 @admin_required
 def offer_letter_save():
-    ob_id         = request.form.get("ob_id")
-    employee_id   = request.form.get("employee_id")
-    designation   = request.form.get("designation","")
-    department    = request.form.get("department","")
-    work_location = request.form.get("work_location","")
-    monthly_ctc   = request.form.get("monthly_ctc", 0) or 0
-    joining_date  = request.form.get("joining_date") or None
-    valid_until   = request.form.get("offer_valid_until") or None
-    probation     = int(request.form.get("probation_months", 6))
-    reporting_to  = request.form.get("reporting_to","")
-    notes         = request.form.get("additional_notes","")
-    notice_days   = int(request.form.get("notice_period_days", 30))
-    candidate_addr= request.form.get("candidate_address","")
-    db = get_db_connection(); cursor = db.cursor()
+    ob_id = request.form.get("ob_id")
+    employee_id = request.form.get("employee_id")
+    designation = request.form.get("designation", "")
+    department = request.form.get("department", "")
+    work_location = request.form.get("work_location", "")
+    monthly_ctc = request.form.get("monthly_ctc", 0) or 0
+    joining_date = request.form.get("joining_date") or None
+    valid_until = request.form.get("offer_valid_until") or None
+    probation = int(request.form.get("probation_months", 6))
+    reporting_to = request.form.get("reporting_to", "")
+    notes = request.form.get("additional_notes", "")
+    notice_days = int(request.form.get("notice_period_days", 30))
+    candidate_addr = request.form.get("candidate_address", "")
+    db = get_db_connection()
+    cursor = db.cursor()
     # add new columns if they don't exist yet (migration)
     try:
         cursor.execute("ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30")
@@ -454,24 +515,28 @@ def offer_letter_save():
             reporting_to=%s,additional_notes=%s,notice_period_days=%s,candidate_address=%s,
             generated_at=NOW(),status='draft',sent_at=NULL
             WHERE id=%s""",
-            (designation,department,work_location,monthly_ctc,joining_date,valid_until,
-             probation,reporting_to,notes,notice_days,candidate_addr,existing[0]))
+                       (designation, department, work_location, monthly_ctc, joining_date, valid_until,
+                        probation, reporting_to, notes, notice_days, candidate_addr, existing[0]))
         letter_id = existing[0]
     else:
         cursor.execute("""INSERT INTO offer_letters (onboarding_id,employee_id,designation,department,
             work_location,monthly_ctc,joining_date,offer_valid_until,probation_months,
             reporting_to,additional_notes,notice_period_days,candidate_address)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (ob_id,employee_id,designation,department,work_location,monthly_ctc,
-             joining_date,valid_until,probation,reporting_to,notes,notice_days,candidate_addr))
+                       (ob_id, employee_id, designation, department, work_location, monthly_ctc,
+                        joining_date, valid_until, probation, reporting_to, notes, notice_days, candidate_addr))
         letter_id = cursor.fetchone()[0]
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     return redirect(f"/offer_letter_view/{letter_id}")
+
 
 @onboarding_bp.route("/offer_letter_view/<int:letter_id>")
 @admin_required
 def offer_letter_view(letter_id):
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
                ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
@@ -485,11 +550,13 @@ def offer_letter_view(letter_id):
     """, (letter_id,))
     letter = cursor.fetchone()
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not letter:
         flash("Offer letter not found.", "error")
         return redirect("/onboarding")
     return render_template("offer_letter_view.html", letter=letter, co=co)
+
 
 def _generate_offer_letter_pdf(letter, co):
     """Build offer letter PDF with ReportLab and return bytes."""
@@ -502,43 +569,43 @@ def _generate_offer_letter_pdf(letter, co):
                                     TableStyle, Spacer, HRFlowable)
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
-    BLUE  = rl_colors.HexColor("#1d4ed8")
-    DARK  = rl_colors.HexColor("#111827")
-    GRAY  = rl_colors.HexColor("#6b7280")
+    BLUE = rl_colors.HexColor("#1d4ed8")
+    DARK = rl_colors.HexColor("#111827")
+    GRAY = rl_colors.HexColor("#6b7280")
     LIGHT = rl_colors.HexColor("#f3f4f6")
 
-    emp_name      = letter[17]
-    designation   = letter[3] or "the offered position"
-    department    = letter[4] or ""
+    emp_name = letter[17]
+    designation = letter[3] or "the offered position"
+    department = letter[4] or ""
     work_location = letter[5] or ""
-    monthly_ctc   = float(letter[6]) if letter[6] else 0
-    joining_date  = letter[7].strftime("%d %B %Y") if letter[7] else "—"
-    valid_until   = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
-    probation     = letter[9] or 6
-    reporting_to  = letter[10] or "the Department Head"
-    notes         = letter[11] or ""
-    gen_date      = letter[12].strftime("%d %B %Y") if letter[12] else ""
-    notice_days   = letter[15] or 30
-    ref_num       = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
-    company       = co.get("company_name", "Company")
-    co_address    = co.get("address", "")
-    co_email_val  = co.get("email", "")
+    monthly_ctc = float(letter[6]) if letter[6] else 0
+    joining_date = letter[7].strftime("%d %B %Y") if letter[7] else "—"
+    valid_until = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
+    probation = letter[9] or 6
+    reporting_to = letter[10] or "the Department Head"
+    notes = letter[11] or ""
+    gen_date = letter[12].strftime("%d %B %Y") if letter[12] else ""
+    notice_days = letter[15] or 30
+    ref_num = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
+    company = co.get("company_name", "Company")
+    co_address = co.get("address", "")
+    co_email_val = co.get("email", "")
 
     def ps(name, **kw):
         base = dict(fontName="Helvetica", fontSize=10, leading=14, textColor=DARK)
         base.update(kw)
         return ParagraphStyle(name, **base)
 
-    sNormal  = ps("normal")
-    sSmall   = ps("small",  fontSize=8,  textColor=GRAY)
-    sLabel   = ps("label",  fontSize=8,  fontName="Helvetica-Bold", textColor=BLUE, spaceAfter=4)
-    sCenter  = ps("center", alignment=TA_CENTER)
-    sRight   = ps("right",  alignment=TA_RIGHT)
+    sNormal = ps("normal")
+    sSmall = ps("small", fontSize=8, textColor=GRAY)
+    sLabel = ps("label", fontSize=8, fontName="Helvetica-Bold", textColor=BLUE, spaceAfter=4)
+    sCenter = ps("center", alignment=TA_CENTER)
+    sRight = ps("right", alignment=TA_RIGHT)
 
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=20*mm, rightMargin=20*mm,
-                            topMargin=14*mm, bottomMargin=16*mm)
+                            leftMargin=20 * mm, rightMargin=20 * mm,
+                            topMargin=14 * mm, bottomMargin=16 * mm)
     story = []
 
     # ── Blue top rule ──────────────────────────────────────────────────────
@@ -556,9 +623,9 @@ def _generate_offer_letter_pdf(letter, co):
     ]]
     lh_tbl = Table(lh_data, colWidths=["55%", "45%"])
     lh_tbl.setStyle(TableStyle([
-        ("VALIGN",  (0,0), (-1,-1), "TOP"),
-        ("ALIGN",   (1,0), (1,-1),  "RIGHT"),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     story.append(lh_tbl)
     story.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#e5e7eb"), spaceAfter=10))
@@ -578,8 +645,8 @@ def _generate_offer_letter_pdf(letter, co):
     story.append(Spacer(1, 8))
 
     # ── Opening paragraphs ─────────────────────────────────────────────────
-    dept_txt  = f" in the <b>{department}</b> department" if department else ""
-    loc_txt   = f", located at <b>{work_location}</b>" if work_location else ""
+    dept_txt = f" in the <b>{department}</b> department" if department else ""
+    loc_txt = f", located at <b>{work_location}</b>" if work_location else ""
     story.append(Paragraph(
         f"We are pleased to offer you the position of <b>{designation}</b>{dept_txt} "
         f"at <b>{company}</b>{loc_txt}. You will be reporting to <b>{reporting_to}</b>.",
@@ -602,36 +669,36 @@ def _generate_offer_letter_pdf(letter, co):
     if monthly_ctc > 0:
         story.append(Paragraph("COMPENSATION DETAILS", sLabel))
         basic = round(monthly_ctc * 0.40, 2)
-        hra   = round(monthly_ctc * 0.20, 2)
-        sa    = round(monthly_ctc * 0.33, 2)
-        pf    = round(monthly_ctc * 0.04, 2)
-        gr    = round(monthly_ctc * 0.03, 2)
+        hra = round(monthly_ctc * 0.20, 2)
+        sa = round(monthly_ctc * 0.33, 2)
+        pf = round(monthly_ctc * 0.04, 2)
+        gr = round(monthly_ctc * 0.03, 2)
         def fmt(n): return f"₹{n:,.2f}"
         ctc_data = [
             ["Salary Component", "Monthly", "Annual"],
-            ["Basic Salary",            fmt(basic),       fmt(basic*12)],
-            ["House Rent Allowance",     fmt(hra),         fmt(hra*12)],
-            ["Special Allowance",        fmt(sa),          fmt(sa*12)],
-            ["PF — Employer (12%)",      fmt(pf),          fmt(pf*12)],
-            ["Gratuity (4.81%)",         fmt(gr),          fmt(gr*12)],
-            ["GROSS CTC",                fmt(monthly_ctc), fmt(monthly_ctc*12)],
+            ["Basic Salary", fmt(basic), fmt(basic * 12)],
+            ["House Rent Allowance", fmt(hra), fmt(hra * 12)],
+            ["Special Allowance", fmt(sa), fmt(sa * 12)],
+            ["PF — Employer (12%)", fmt(pf), fmt(pf * 12)],
+            ["Gratuity (4.81%)", fmt(gr), fmt(gr * 12)],
+            ["GROSS CTC", fmt(monthly_ctc), fmt(monthly_ctc * 12)],
         ]
         ctc_tbl = Table(ctc_data, colWidths=["50%", "25%", "25%"])
         ctc_tbl.setStyle(TableStyle([
-            ("BACKGROUND",   (0, 0), (-1, 0),  LIGHT),
-            ("BACKGROUND",   (0, -1), (-1, -1), DARK),
-            ("TEXTCOLOR",    (0, 0), (-1, 0),  GRAY),
-            ("TEXTCOLOR",    (0, -1), (-1, -1), rl_colors.white),
-            ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
-            ("FONTNAME",     (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("FONTSIZE",     (0, 0), (-1, -1), 9),
-            ("ALIGN",        (1, 0), (-1, -1),  "RIGHT"),
-            ("ROWBACKGROUNDS",(0,1), (-1,-2),  [rl_colors.white, rl_colors.HexColor("#f9fafb")]),
-            ("GRID",         (0, 0), (-1, -2),  0.3, rl_colors.HexColor("#e5e7eb")),
-            ("TOPPADDING",   (0, 0), (-1, -1),  6),
-            ("BOTTOMPADDING",(0, 0), (-1, -1),  6),
-            ("LEFTPADDING",  (0, 0), (-1, -1),  8),
-            ("RIGHTPADDING", (0, 0), (-1, -1),  8),
+            ("BACKGROUND", (0, 0), (-1, 0), LIGHT),
+            ("BACKGROUND", (0, -1), (-1, -1), DARK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), GRAY),
+            ("TEXTCOLOR", (0, -1), (-1, -1), rl_colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [rl_colors.white, rl_colors.HexColor("#f9fafb")]),
+            ("GRID", (0, 0), (-1, -2), 0.3, rl_colors.HexColor("#e5e7eb")),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ]))
         story.append(ctc_tbl)
         story.append(Spacer(1, 10))
@@ -641,10 +708,10 @@ def _generate_offer_letter_pdf(letter, co):
         note_tbl = Table([[Paragraph(f"<b>Note:</b> {notes}", ps("note", fontSize=9, textColor=rl_colors.HexColor("#1e40af")))]],
                          colWidths=["100%"])
         note_tbl.setStyle(TableStyle([
-            ("BACKGROUND",  (0,0), (-1,-1), rl_colors.HexColor("#eff6ff")),
-            ("LEFTPADDING", (0,0), (-1,-1), 10),
-            ("TOPPADDING",  (0,0), (-1,-1), 8),
-            ("BOTTOMPADDING",(0,0),(-1,-1), 8),
+            ("BACKGROUND", (0, 0), (-1, -1), rl_colors.HexColor("#eff6ff")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ]))
         story.append(note_tbl)
         story.append(Spacer(1, 10))
@@ -662,13 +729,14 @@ def _generate_offer_letter_pdf(letter, co):
         "A formal Appointment Letter will be issued upon joining. This offer letter does not constitute a contract of employment.",
     ]
     tc_data = [
-        [Paragraph(f"{i+1}.&nbsp;&nbsp;{item}", ps(f"tc{i}", fontSize=9, leading=13, textColor=rl_colors.HexColor("#4b5563")))]
+        [Paragraph(f"{i+1}.&nbsp;&nbsp;{item}", ps(f"tc{i}", fontSize=9,
+                   leading=13, textColor=rl_colors.HexColor("#4b5563")))]
         for i, item in enumerate(tc_items)
     ]
     tc_tbl = Table(tc_data, colWidths=["100%"])
     tc_tbl.setStyle(TableStyle([
-        ("TOPPADDING",    (0,0), (-1,-1), 3),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
     story.append(tc_tbl)
     story.append(Spacer(1, 12))
@@ -694,7 +762,7 @@ def _generate_offer_letter_pdf(letter, co):
          Paragraph("Date: _______________", ps("cdate", fontSize=8, textColor=GRAY))],
     ]]
     sig_tbl = Table(sig_data, colWidths=["48%", "52%"])
-    sig_tbl.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("TOPPADDING", (0,0), (-1,-1), 0)]))
+    sig_tbl.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 0)]))
     story.append(sig_tbl)
 
     # ── Footer rule ────────────────────────────────────────────────────────
@@ -703,16 +771,19 @@ def _generate_offer_letter_pdf(letter, co):
     foot_txt = company
     if co_address:
         foot_txt += f"  ·  {co_address}"
-    story.append(Paragraph(f'<font size="8" color="#9ca3af">{foot_txt}&nbsp;&nbsp;&nbsp;Confidential — For addressee only</font>', sCenter))
+    story.append(Paragraph(
+        f'<font size="8" color="#9ca3af">{foot_txt}&nbsp;&nbsp;&nbsp;Confidential — For addressee only</font>', sCenter))
     story.append(HRFlowable(width="100%", thickness=4, color=DARK, spaceBefore=6))
 
     doc.build(story)
     return buf.getvalue()
 
+
 @onboarding_bp.route("/offer_letter_send/<int:letter_id>", methods=["POST"])
 @admin_required
 def offer_letter_send(letter_id):
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
                ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
@@ -728,50 +799,52 @@ def offer_letter_send(letter_id):
     co = get_company_settings()
     if not letter or not letter[18]:
         flash("Employee email not found.", "error")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect(f"/offer_letter_view/{letter_id}")
     cfg = get_email_config()
     if not cfg:
         flash("Email not configured. Go to Settings → Email.", "error")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect(f"/offer_letter_view/{letter_id}")
     try:
-        emp_name      = letter[17]
-        emp_email     = letter[18]
-        designation   = letter[3] or "the offered position"
-        department    = letter[4] or ""
+        emp_name = letter[17]
+        emp_email = letter[18]
+        designation = letter[3] or "the offered position"
+        department = letter[4] or ""
         work_location = letter[5] or ""
-        monthly_ctc   = float(letter[6]) if letter[6] else 0
-        joining_date  = letter[7].strftime("%d %B %Y") if letter[7] else "—"
-        valid_until   = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
-        probation     = letter[9] or 6
-        reporting_to  = letter[10] or "the Department Head"
-        notes         = letter[11] or ""
-        gen_date      = letter[12].strftime("%d %B %Y") if letter[12] else ""
-        notice_days   = letter[15] or 30
-        ref_num       = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
-        company       = co.get("company_name", "Company")
-        co_address    = co.get("address", "")
-        co_email      = co.get("email", "")
+        monthly_ctc = float(letter[6]) if letter[6] else 0
+        joining_date = letter[7].strftime("%d %B %Y") if letter[7] else "—"
+        valid_until = letter[8].strftime("%d %B %Y") if letter[8] else "7 days from date of issue"
+        probation = letter[9] or 6
+        reporting_to = letter[10] or "the Department Head"
+        notes = letter[11] or ""
+        gen_date = letter[12].strftime("%d %B %Y") if letter[12] else ""
+        notice_days = letter[15] or 30
+        ref_num = f"OL/{letter[2].upper()}/{letter[12].strftime('%Y') if letter[12] else ''}/{letter[0]:04d}"
+        company = co.get("company_name", "Company")
+        co_address = co.get("address", "")
+        co_email = co.get("email", "")
 
         # Secure one-time token (shared by accept/reject AND pdf view)
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        base_url    = _safe_app_url()
-        accept_url  = f"{base_url}/offer_letter_respond/{token}/accept"
-        reject_url  = f"{base_url}/offer_letter_respond/{token}/reject"
+        base_url = _safe_app_url()
+        accept_url = f"{base_url}/offer_letter_respond/{token}/accept"
+        reject_url = f"{base_url}/offer_letter_respond/{token}/reject"
         pdf_view_url = f"{base_url}/offer_letter_pdf/{token}"
-        pdf_dl_url   = f"{base_url}/offer_letter_pdf/{token}?dl=1"
+        pdf_dl_url = f"{base_url}/offer_letter_pdf/{token}?dl=1"
 
         # ── Salary breakdown helper ────────────────────────────────────────
         def fmt(n): return f"{n:,.2f}"
         ctc_section = ""
         if monthly_ctc > 0:
             basic = round(monthly_ctc * 0.40, 2)
-            hra   = round(monthly_ctc * 0.20, 2)
-            sa    = round(monthly_ctc * 0.33, 2)
-            pf    = round(monthly_ctc * 0.04, 2)
-            gr    = round(monthly_ctc * 0.03, 2)
+            hra = round(monthly_ctc * 0.20, 2)
+            sa = round(monthly_ctc * 0.33, 2)
+            pf = round(monthly_ctc * 0.04, 2)
+            gr = round(monthly_ctc * 0.03, 2)
             ctc_section = f"""
             <p style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#1d4ed8;margin:20px 0 8px;">Compensation Details</p>
             <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px;">
@@ -800,7 +873,7 @@ def offer_letter_send(letter_id):
               <strong>Note:</strong> {notes}</div>"""
 
         dept_html = f' in the <strong>{department}</strong> department' if department else ''
-        loc_html  = f', located at <strong>{work_location}</strong>' if work_location else ''
+        loc_html = f', located at <strong>{work_location}</strong>' if work_location else ''
 
         html_body = f"""<!DOCTYPE html>
 <html lang="en">
@@ -1011,13 +1084,16 @@ def offer_letter_send(letter_id):
         flash(f"Offer letter emailed to {emp_email}.", "success")
     except Exception as ex:
         flash(f"Email failed: {ex}", "error")
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return redirect(f"/offer_letter_view/{letter_id}")
+
 
 @onboarding_bp.route("/offer_letter_pdf/<token>")
 def offer_letter_pdf(token):
     """Serve the offer letter PDF to the candidate (view or download) using their email token."""
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT ol.id,ol.onboarding_id,ol.employee_id,ol.designation,ol.department,
                ol.work_location,ol.monthly_ctc,ol.joining_date,ol.offer_valid_until,
@@ -1031,14 +1107,15 @@ def offer_letter_pdf(token):
           AND (ol.response_token_expiry IS NULL OR ol.response_token_expiry > NOW())
     """, (hashlib.sha256(token.encode()).hexdigest(),))
     letter = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not letter:
         return "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>" \
                "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>" \
                "<p>Please contact HR for a copy of your offer letter.</p></body></html>", 404
     co = get_company_settings()
     pdf_bytes = _generate_offer_letter_pdf(letter, co)
-    emp_name  = letter[17]
+    emp_name = letter[17]
     safe_name = secure_filename(emp_name.replace(" ", "_")) or "Employee"
     dl = request.args.get("dl", "0")
     disposition = "attachment" if dl == "1" else "inline"
@@ -1047,11 +1124,13 @@ def offer_letter_pdf(token):
     resp.headers["Content-Disposition"] = f'{disposition}; filename="Offer_Letter_{safe_name}.pdf"'
     return resp
 
+
 @onboarding_bp.route("/offer_letter_respond/<token>/<action>")
 def offer_letter_respond(token, action):
     if action not in ("accept", "reject"):
         return "Invalid action.", 400
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT id, employee_id, candidate_response, status FROM offer_letters "
         "WHERE response_token=%s AND (response_token_expiry IS NULL OR response_token_expiry > NOW())",
@@ -1059,7 +1138,8 @@ def offer_letter_respond(token, action):
     )
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:#dc2626;">Invalid or expired link.</h2>
           <p>This offer letter link is not valid. Please contact HR.</p></body></html>""", 404
@@ -1067,7 +1147,8 @@ def offer_letter_respond(token, action):
     if existing_response:
         label = "accepted" if existing_response == "accept" else "declined"
         color = "#16a34a" if existing_response == "accept" else "#dc2626"
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:{color};">You have already {label} this offer.</h2>
           <p>Please contact HR if you wish to change your response.</p></body></html>"""
@@ -1076,7 +1157,8 @@ def offer_letter_respond(token, action):
         (action, "accepted" if action == "accept" else "rejected", letter_id)
     )
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if action == "accept":
         return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <div style="font-size:56px;">&#127881;</div>
@@ -1090,11 +1172,13 @@ def offer_letter_respond(token, action):
           <p style="font-size:15px;margin-top:8px;">We have noted your decision. Thank you for considering us. We wish you the best.</p>
           <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
 
+
 @onboarding_bp.route("/my_onboarding")
 @employee_required
 def my_onboarding():
     emp_id = session.get("employee_id")
-    db = get_db_connection(); cursor = db.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
     cursor.execute("""
         SELECT eo.id, ot.name, eo.assigned_date, eo.due_date, eo.status,
                COUNT(eot.id) AS total, SUM(CASE WHEN eot.status='Done' THEN 1 ELSE 0 END) AS done
@@ -1125,7 +1209,8 @@ def my_onboarding():
 
     cursor.execute("SELECT employee_id, name, role, department, face_image FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not emp:
         # Session outlived the employee row (e.g. deleted by an admin while
         # still logged in elsewhere) — the template assumes emp is never
@@ -1133,25 +1218,28 @@ def my_onboarding():
         session.clear()
         return redirect("/employee_login")
     return render_template("my_onboarding.html",
-        emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
-        selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None,
-        today=datetime.date.today(),
-    )
+                           emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
+                           selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None,
+                           today=datetime.date.today(),
+                           )
+
 
 @onboarding_bp.route("/my_onboarding_task_done", methods=["POST"])
 @employee_required
 def my_onboarding_task_done():
     emp_id = session.get("employee_id")
-    db = get_db_connection(); cursor = db.cursor()
-    task_id      = request.form.get("task_id")
-    ob_id        = request.form.get("ob_id")
+    db = get_db_connection()
+    cursor = db.cursor()
+    task_id = request.form.get("task_id")
+    ob_id = request.form.get("ob_id")
     employee_note = request.form.get("employee_note", "").strip()[:500]
 
     cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
     row = cursor.fetchone()
     if not row or row[0] != emp_id:
         flash("Not authorised.", "error")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/my_onboarding")
 
     doc_path = None
@@ -1185,7 +1273,8 @@ def my_onboarding_task_done():
         _tt = cursor.fetchone()
         task_title = _tt[0] if _tt else "Task"
         cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
-        _en = cursor.fetchone(); emp_name_ob = _en[0] if _en else emp_id
+        _en = cursor.fetchone()
+        emp_name_ob = _en[0] if _en else emp_id
         _ecfg = get_email_config()
         admin_email = _ecfg.get("from_email") if _ecfg else None
         if admin_email and _ecfg:
@@ -1199,7 +1288,7 @@ def my_onboarding_task_done():
     except Exception:
         pass
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     flash("Task marked as done!", "success")
     return redirect(f"/my_onboarding?ob_id={ob_id}")
-

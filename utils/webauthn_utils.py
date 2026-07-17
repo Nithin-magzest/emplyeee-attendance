@@ -79,10 +79,10 @@ def _wa_origins():
     """Return the set of acceptable WebAuthn origins for this host.
     Always accepts both 127.0.0.1 and localhost as equivalent loopback origins.
     For LAN IPs the only valid origin is the exact IP+port the browser used."""
-    host   = request.host  # includes port if non-standard
+    host = request.host  # includes port if non-standard
     scheme = request.scheme
     origins = {f"{scheme}://{host}"}
-    bare   = host.split(":")[0]
+    bare = host.split(":")[0]
     if bare == "127.0.0.1":
         origins.add(f"{scheme}://{host.replace('127.0.0.1', 'localhost')}")
     elif bare == "localhost":
@@ -111,7 +111,7 @@ def _wa_fingerprint_recently_verified(emp_id):
     WebAuthn signature verification in this session? Consumes the proof."""
     emp_id = (emp_id or "").strip().upper()
     verified_emp = session.pop("wa_fp_verified_emp_id", None)
-    verified_at  = session.pop("wa_fp_verified_at", 0)
+    verified_at = session.pop("wa_fp_verified_at", 0)
     return bool(emp_id) and verified_emp == emp_id and (time.time() - verified_at) <= _WA_FP_VERIFY_WINDOW_SEC
 
 
@@ -125,7 +125,7 @@ def _wa_fingerprint_recently_verified(emp_id):
 # check succeeds. This is NOT a cryptographic signature — it cannot detect a
 # cloned/replayed device biometric — but unlike the old flow it cannot be
 # satisfied without first proving possession of that exact employee's token.
-_MOBILE_BIO_NONCE_TTL_SEC    = 60
+_MOBILE_BIO_NONCE_TTL_SEC = 60
 _MOBILE_BIO_VERIFY_WINDOW_SEC = 120
 
 
@@ -202,7 +202,7 @@ def _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor,
     # same two algorithms we offer in generate_registration_options.
     _alg_ids = session.get("wa_reg_alg_ids") or [-7, -257]
     _supported_algs = [COSEAlgorithmIdentifier(v) for v in _alg_ids]
-    _rp_id   = _wa_rp_id()
+    _rp_id = _wa_rp_id()
     _origins = _wa_origins()
     app_log.info("WebAuthn verify: emp=%s rp_id=%s origins=%s", emp_id, _rp_id, _origins)
     try:
@@ -220,7 +220,7 @@ def _wa_verify_and_store_registration(emp_id, credential, challenge_b64, cursor,
                         emp_id, _rp_id, _origins, exc, exc_info=True)
         return False, f"Enrollment failed: {exc}"
     cred_id_b64 = _wa_b64url_encode(verified.credential_id)
-    pubkey_b64  = base64.b64encode(verified.credential_public_key).decode()
+    pubkey_b64 = base64.b64encode(verified.credential_public_key).decode()
     cursor.execute(
         "UPDATE employees SET fingerprint_credential_id=%s, fingerprint_public_key=%s, "
         "fingerprint_sign_count=%s WHERE employee_id=%s",

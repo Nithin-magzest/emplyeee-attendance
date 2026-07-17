@@ -14,8 +14,11 @@ _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
 # path-traversal characters the way it does for update-in-place routes.
 _EMP_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,32}$')
 
+
 def validate_emp_id(emp_id: str) -> bool:
     return bool(emp_id) and bool(_EMP_ID_RE.match(emp_id))
+
+
 from flask import session, request
 from database import get_db_connection
 from extensions import app_log, log_security_event
@@ -51,6 +54,7 @@ def _safe_referrer_redirect(referrer: str, fallback: str) -> str:
         path = p.path or "/"
         return _safe_redirect(path + (("?" + p.query) if p.query else ""), fallback)
     return fallback
+
 
 # ── PII encryption (Fernet) — fail-secure bootstrap ────────────────────────────
 # Canonical location for this check. app.py used to carry a second,
@@ -98,6 +102,7 @@ def encrypt_pii(value: str) -> str:
         return value
     return _fernet.encrypt(value.encode()).decode()
 
+
 def decrypt_pii(value: str) -> str:
     if not value:
         return value
@@ -134,30 +139,37 @@ def _hash_token(token: str) -> str:
 # ── DB context manager ────────────────────────────────────────────────────────
 @contextmanager
 def _db():
-    conn   = get_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor(buffered=True)
     try:
         yield cursor, conn
     finally:
-        try:  cursor.close()
-        except Exception as _e: app_log.debug("cursor.close() failed: %s", _e)
-        try:  conn.close()
-        except Exception as _e: app_log.debug("conn.close() failed: %s", _e)
+        try:
+            cursor.close()
+        except Exception as _e:
+            app_log.debug("cursor.close() failed: %s", _e)
+        try:
+            conn.close()
+        except Exception as _e:
+            app_log.debug("conn.close() failed: %s", _e)
 
 
 # ── Audit logging ──────────────────────────────────────────────────────────────
 def _audit(action, table=None, record_id=None, detail=None):
     try:
-        actor      = session.get("admin_username") or session.get("employee_id") or "system"
+        actor = session.get("admin_username") or session.get("employee_id") or "system"
         actor_type = "admin" if session.get("admin_logged_in") else "employee"
-        ip         = request.remote_addr or ""
-        db = get_db_connection(); cursor = db.cursor()
+        ip = request.remote_addr or ""
+        db = get_db_connection()
+        cursor = db.cursor()
         cursor.execute(
             "INSERT INTO audit_logs (actor, actor_type, action, target_table, target_id, detail, ip_address) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (actor, actor_type, action, table, str(record_id) if record_id is not None else None, detail, ip)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     except Exception:
         pass
 
@@ -165,12 +177,15 @@ def _audit(action, table=None, record_id=None, detail=None):
 # ── Notification helper ───────────────────────────────────────────────────────
 def _create_notification(recipient_type, title, message, employee_id=None):
     try:
-        db = get_db_connection(); cursor = db.cursor()
+        db = get_db_connection()
+        cursor = db.cursor()
         cursor.execute(
             "INSERT INTO notifications (recipient_type, employee_id, title, message) VALUES (%s,%s,%s,%s)",
             (recipient_type, employee_id, title, message)
         )
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     except Exception:
         pass
 
@@ -186,6 +201,7 @@ except ImportError:
 _CLAMAV_HOST = os.environ.get("CLAMAV_HOST", "clamav")
 _CLAMAV_PORT = int(os.environ.get("CLAMAV_PORT", "3310"))
 _MALWARE_SCAN_ENABLED = os.environ.get("MALWARE_SCAN_ENABLED", "true").strip().lower() not in ("false", "0", "no")
+
 
 def _scan_for_malware(file_storage):
     """Scan an uploaded file with ClamAV before it's saved. Returns (is_clean, error_msg).
@@ -212,7 +228,7 @@ def _scan_for_malware(file_storage):
         status, signature = result.get("stream", (None, None))
         if status == "FOUND":
             log_security_event("validation.failure", "Malware detected in upload", level="ERROR",
-                                upload_filename=file_storage.filename, signature=signature)
+                               upload_filename=file_storage.filename, signature=signature)
             return False, "This file was flagged by malware scanning and cannot be uploaded."
         return True, None
     except Exception as _e:
@@ -222,16 +238,17 @@ def _scan_for_malware(file_storage):
 
 # ── File upload validation ─────────────────────────────────────────────────────
 _ALLOWED_MIME_MAP = {
-    "pdf":  {"application/pdf"},
-    "jpg":  {"image/jpeg"},
+    "pdf": {"application/pdf"},
+    "jpg": {"image/jpeg"},
     "jpeg": {"image/jpeg"},
-    "png":  {"image/png"},
-    "doc":  {"application/msword"},
+    "png": {"image/png"},
+    "doc": {"application/msword"},
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-    "xls":  {"application/vnd.ms-excel"},
+    "xls": {"application/vnd.ms-excel"},
     "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 }
 _MAX_DOC_SIZE_MB = 10
+
 
 def _validate_upload(file_storage, allowed_exts=None):
     if not file_storage or not file_storage.filename:
@@ -239,33 +256,33 @@ def _validate_upload(file_storage, allowed_exts=None):
     ext = file_storage.filename.rsplit(".", 1)[-1].lower() if "." in file_storage.filename else ""
     if allowed_exts and ext not in allowed_exts:
         log_security_event("validation.failure", "Upload rejected: disallowed extension",
-                            level="INFO", upload_filename=file_storage.filename, ext=ext)
+                           level="INFO", upload_filename=file_storage.filename, ext=ext)
         return False, f"File type .{ext} not allowed. Allowed: {', '.join(sorted(allowed_exts))}"
     ct = (file_storage.content_type or "").split(";")[0].strip().lower()
     if ct and ext in _ALLOWED_MIME_MAP and ct not in _ALLOWED_MIME_MAP[ext]:
         log_security_event("validation.failure", "Upload rejected: content-type/extension mismatch",
-                            level="WARNING", upload_filename=file_storage.filename, ext=ext, content_type=ct)
+                           level="WARNING", upload_filename=file_storage.filename, ext=ext, content_type=ct)
         return False, "File content does not match its extension."
     header = file_storage.stream.read(8)
     file_storage.stream.seek(0)
     if ext == "pdf" and not header.startswith(b"%PDF"):
         log_security_event("validation.failure", "Upload rejected: magic bytes don't match .pdf",
-                            level="WARNING", upload_filename=file_storage.filename)
+                           level="WARNING", upload_filename=file_storage.filename)
         return False, "Invalid PDF file."
     if ext == "png" and not header.startswith(b"\x89PNG"):
         log_security_event("validation.failure", "Upload rejected: magic bytes don't match .png",
-                            level="WARNING", upload_filename=file_storage.filename)
+                           level="WARNING", upload_filename=file_storage.filename)
         return False, "Invalid PNG file."
     if ext in ("jpg", "jpeg") and not header.startswith(b"\xff\xd8"):
         log_security_event("validation.failure", "Upload rejected: magic bytes don't match .jpg",
-                            level="WARNING", upload_filename=file_storage.filename)
+                           level="WARNING", upload_filename=file_storage.filename)
         return False, "Invalid JPEG file."
     file_storage.stream.seek(0, 2)
     size_mb = file_storage.stream.tell() / (1024 * 1024)
     file_storage.stream.seek(0)
     if size_mb > _MAX_DOC_SIZE_MB:
         log_security_event("validation.failure", "Upload rejected: exceeds size limit",
-                            level="INFO", upload_filename=file_storage.filename, size_mb=round(size_mb, 1))
+                           level="INFO", upload_filename=file_storage.filename, size_mb=round(size_mb, 1))
         return False, f"File too large ({size_mb:.1f} MB). Maximum: {_MAX_DOC_SIZE_MB} MB."
     clean, scan_err = _scan_for_malware(file_storage)
     if not clean:
@@ -273,16 +290,17 @@ def _validate_upload(file_storage, allowed_exts=None):
     return True, None
 
 
-_ALLOWED_IMG_EXT  = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+_ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 _ALLOWED_IMG_MIME = {"image/jpeg", "image/png", "image/webp", "image/bmp", "image/gif"}
 _MAX_PHOTO_SIZE_MB = 5
 _IMG_MAGIC = {
-    ".jpg":  (b"\xff\xd8",),
+    ".jpg": (b"\xff\xd8",),
     ".jpeg": (b"\xff\xd8",),
-    ".png":  (b"\x89PNG",),
+    ".png": (b"\x89PNG",),
     ".webp": (b"RIFF",),
-    ".bmp":  (b"BM",),
+    ".bmp": (b"BM",),
 }
+
 
 def _validate_image_file(file):
     if not file or not file.filename:
@@ -290,19 +308,19 @@ def _validate_image_file(file):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in _ALLOWED_IMG_EXT:
         log_security_event("validation.failure", "Photo upload rejected: disallowed extension",
-                            level="INFO", upload_filename=file.filename, ext=ext)
+                           level="INFO", upload_filename=file.filename, ext=ext)
         return False, f"Invalid file type '{ext}'. Only JPG, PNG, WEBP or BMP allowed."
     ct = (file.content_type or "").lower().split(";")[0].strip()
     if ct and ct not in _ALLOWED_IMG_MIME:
         log_security_event("validation.failure", "Photo upload rejected: disallowed content-type",
-                            level="WARNING", upload_filename=file.filename, content_type=ct)
+                           level="WARNING", upload_filename=file.filename, content_type=ct)
         return False, f"Invalid content type '{ct}'. Only image files accepted."
     header = file.stream.read(8)
     file.stream.seek(0)
     for magic in _IMG_MAGIC.get(ext, ()):
         if not header.startswith(magic):
             log_security_event("validation.failure", "Photo upload rejected: magic bytes mismatch",
-                                level="WARNING", upload_filename=file.filename, ext=ext)
+                               level="WARNING", upload_filename=file.filename, ext=ext)
             return False, "File content does not match its extension."
     file.stream.seek(0, 2)
     size_mb = file.stream.tell() / (1024 * 1024)
@@ -316,30 +334,36 @@ def _validate_image_file(file):
 
 
 # ── Company settings cache (60-second TTL) ────────────────────────────────────
-_co_cache      = {"data": None, "expires": None}
-_auth_cache    = {"data": None, "expires": None}
+_co_cache = {"data": None, "expires": None}
+_auth_cache = {"data": None, "expires": None}
 _settings_lock = threading.Lock()
-_CO_CACHE_TTL  = 60
+_CO_CACHE_TTL = 60
+
 
 def _co_expired(cache):
     return cache["data"] is None or datetime.datetime.now() >= cache["expires"]
 
+
 def invalidate_settings_cache():
     with _settings_lock:
-        _co_cache["data"]   = None
+        _co_cache["data"] = None
         _auth_cache["data"] = None
+
 
 def get_company_settings():
     with _settings_lock:
         if not _co_expired(_co_cache):
             return dict(_co_cache["data"])
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
             "SELECT company_name, company_tagline, company_logo, currency_symbol, timezone, "
             "setup_done, COALESCE(company_code,''), COALESCE(session_timeout,30) FROM company_settings LIMIT 1"
         )
-        row = cursor.fetchone(); cursor.close(); db.close()
+        row = cursor.fetchone()
+        cursor.close()
+        db.close()
         if row:
             result = {
                 "company_name": row[0], "company_tagline": row[1],
@@ -348,7 +372,7 @@ def get_company_settings():
                 "session_timeout": row[7],
             }
             with _settings_lock:
-                _co_cache["data"]    = result
+                _co_cache["data"] = result
                 _co_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
             return dict(result)
     except Exception:
@@ -357,24 +381,97 @@ def get_company_settings():
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30}
 
+
+# ── Companies list + overdue-onboarding count caches (short TTL) ─────────────
+# Both back per-request context processors (app.py's inject_companies_context
+# / inject_overdue_onboardings) that previously ran on every single
+# admin-rendered page with no cache at all, stacking on top of the
+# always-fresh security checks (_enforce_ip_ban, _enforce_admin_mfa_enrollment)
+# that must stay uncached. These two are pure reference/reporting data — a
+# few seconds of staleness (a brand-new company not yet in the switcher, an
+# onboarding-overdue badge lagging slightly) is an acceptable trade for
+# cutting 2 of the ~4 DB round trips every admin page load previously paid.
+_companies_cache = {"data": None, "expires": None}
+_onboarding_cache = {"data": None, "expires": None}
+_COMPANIES_CACHE_TTL = 30
+_ONBOARDING_CACHE_TTL = 20
+
+
+def invalidate_companies_cache():
+    with _settings_lock:
+        _companies_cache["data"] = None
+
+
+def get_companies_list():
+    """Cached list of (id, name, code, has_pin) tuples from the companies
+    table. Call invalidate_companies_cache() after any write to companies
+    (add/edit/delete/set-pin/rename-code)."""
+    with _settings_lock:
+        if not _co_expired(_companies_cache):
+            return list(_companies_cache["data"])
+    try:
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
+        cur.execute("""
+            SELECT id, name, COALESCE(code,''), COALESCE(pin,'')
+            FROM companies ORDER BY name
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+        with _settings_lock:
+            _companies_cache["data"] = rows
+            _companies_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_COMPANIES_CACHE_TTL)
+        return list(rows)
+    except Exception:
+        return []
+
+
+def get_overdue_onboarding_count():
+    """Cached count of non-completed onboarding tasks past their due date."""
+    with _settings_lock:
+        if not _co_expired(_onboarding_cache):
+            return _onboarding_cache["data"]
+    try:
+        db = get_db_connection()
+        cur = db.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM employee_onboarding
+            WHERE status != 'Completed' AND due_date < %s
+        """, (datetime.date.today(),))
+        count = cur.fetchone()[0]
+        cur.close()
+        db.close()
+        with _settings_lock:
+            _onboarding_cache["data"] = count
+            _onboarding_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_ONBOARDING_CACHE_TTL)
+        return count
+    except Exception:
+        return 0
+
+
 _AUTH_CONFIG_DEFAULTS = {
     "fingerprint_enabled": False, "qr_enabled": True, "face_enabled": True,
     "location_enabled": True, "employee_password_auth": True,
 }
+
 
 def get_auth_config():
     with _settings_lock:
         if not _co_expired(_auth_cache):
             return dict(_auth_cache["data"])
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute("""
             SELECT COALESCE(fingerprint_enabled,0), COALESCE(qr_enabled,1),
                    COALESCE(face_enabled,1), COALESCE(location_enabled,1),
                    COALESCE(employee_password_auth,1)
             FROM company_settings LIMIT 1
         """)
-        row = cursor.fetchone(); cursor.close(); db.close()
+        row = cursor.fetchone()
+        cursor.close()
+        db.close()
         if row:
             result = {
                 "fingerprint_enabled": bool(row[0]), "qr_enabled": bool(row[1]),
@@ -382,19 +479,22 @@ def get_auth_config():
                 "employee_password_auth": bool(row[4]),
             }
             with _settings_lock:
-                _auth_cache["data"]    = result
+                _auth_cache["data"] = result
                 _auth_cache["expires"] = datetime.datetime.now() + datetime.timedelta(seconds=_CO_CACHE_TTL)
             return dict(result)
     except Exception:
         pass
     return dict(_AUTH_CONFIG_DEFAULTS)
 
+
 def get_fingerprint_enabled():
     return get_auth_config()["fingerprint_enabled"]
 
+
 def _read_global_features():
     try:
-        db = get_db_connection(); cur = db.cursor(buffered=True)
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
         cur.execute("""
             SELECT face_auth_enabled, geo_enabled, COALESCE(geo_radius,300), qr_enabled,
                    pin_enabled, COALESCE(fingerprint_enabled,0), COALESCE(biometric_enabled,0),
@@ -408,7 +508,9 @@ def _read_global_features():
                    COALESCE(shift_end,'18:00:00')
             FROM company_settings LIMIT 1
         """)
-        r = cur.fetchone(); cur.close(); db.close()
+        r = cur.fetchone()
+        cur.close()
+        db.close()
         if r:
             return {
                 "face_auth_enabled": bool(r[0]), "geo_enabled": bool(r[1]),
@@ -433,11 +535,13 @@ def _read_global_features():
         "shift_start": "09:00:00", "shift_half": "13:00:00", "shift_end": "18:00:00",
     }
 
+
 def get_co_features(company_id=None):
     if not company_id:
         return _read_global_features()
     try:
-        db = get_db_connection(); cur = db.cursor(buffered=True)
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
         cur.execute("""
             SELECT face_auth_enabled, geo_enabled, geo_radius, qr_enabled,
                    pin_enabled, fingerprint_enabled, biometric_enabled,
@@ -446,7 +550,9 @@ def get_co_features(company_id=None):
                    grace_minutes, holiday_pay, leave_pay, shift_start, shift_half, shift_end
             FROM company_feature_settings WHERE company_id=%s
         """, (company_id,))
-        r = cur.fetchone(); cur.close(); db.close()
+        r = cur.fetchone()
+        cur.close()
+        db.close()
         if r:
             return {
                 "face_auth_enabled": bool(r[0]), "geo_enabled": bool(r[1]),
@@ -463,6 +569,7 @@ def get_co_features(company_id=None):
         pass
     return _read_global_features()
 
+
 # shift_start/shift_half/shift_end/holiday_pay/leave_pay were missing from
 # this allowlist versus app.py's copy — not a security gap on their own
 # (both copies fail closed on anything not listed), but a functional one:
@@ -477,6 +584,7 @@ _VALID_CFS_COLS = frozenset({
     "shift_start", "shift_half", "shift_end", "holiday_pay", "leave_pay",
 })
 
+
 def _upsert_co_feature(company_id, field, value):
     if not company_id:
         return
@@ -485,15 +593,19 @@ def _upsert_co_feature(company_id, field, value):
         app_log.error("_upsert_co_feature: rejected column %r", field)
         return
     try:
-        db = get_db_connection(); cur = db.cursor(buffered=True)
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {field})
             VALUES (%s, %s)
             ON CONFLICT (company_id) DO UPDATE SET {field}=EXCLUDED.{field}
         """, (company_id, value))  # nosec B608
-        db.commit(); cur.close(); db.close()
+        db.commit()
+        cur.close()
+        db.close()
     except Exception:
         pass
+
 
 def _upsert_co_features(company_id, fields_dict):
     if not company_id or not fields_dict:
@@ -504,18 +616,21 @@ def _upsert_co_features(company_id, fields_dict):
         app_log.error("_upsert_co_features: rejected columns %s", bad)
         return
     try:
-        safe_fields  = {k: v for k, v in fields_dict.items() if k in _VALID_CFS_COLS}
-        cols         = ", ".join(safe_fields.keys())
-        vals         = list(safe_fields.values())
+        safe_fields = {k: v for k, v in fields_dict.items() if k in _VALID_CFS_COLS}
+        cols = ", ".join(safe_fields.keys())
+        vals = list(safe_fields.values())
         placeholders = ", ".join(["%s"] * len(vals))
-        updates      = ", ".join(f"{k}=EXCLUDED.{k}" for k in safe_fields.keys())
-        db = get_db_connection(); cur = db.cursor(buffered=True)
+        updates = ", ".join(f"{k}=EXCLUDED.{k}" for k in safe_fields.keys())
+        db = get_db_connection()
+        cur = db.cursor(buffered=True)
         cur.execute(f"""
             INSERT INTO company_feature_settings (company_id, {cols})
             VALUES (%s, {placeholders})
             ON CONFLICT (company_id) DO UPDATE SET {updates}
         """, [company_id] + vals)  # nosec B608
-        db.commit(); cur.close(); db.close()
+        db.commit()
+        cur.close()
+        db.close()
     except Exception:
         pass
 
@@ -558,8 +673,8 @@ def co_scope_column(active_cid, alias=""):
 # like in production.
 def _error_page(code, icon, title, subtitle, hint):
     back_admin = session.get("admin_logged_in")
-    back_emp   = session.get("employee_id")
-    back_link  = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")
+    back_emp = session.get("employee_id")
+    back_link = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")
     back_label = "Go to Admin Dashboard" if back_admin else ("Go to My Portal" if back_emp else "Go to Home")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">

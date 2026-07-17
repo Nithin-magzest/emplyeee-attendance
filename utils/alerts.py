@@ -24,10 +24,10 @@ import urllib.error
 
 from extensions import app_log
 
-_WEBHOOK_URL      = os.environ.get("SECURITY_ALERT_WEBHOOK_URL", "").strip()
-_PLATFORM         = os.environ.get("SECURITY_ALERT_PLATFORM", "discord").strip().lower()  # "discord" | "slack"
-_SIGNING_SECRET   = os.environ.get("SECURITY_ALERT_SIGNING_SECRET", "").strip()
-_TIMEOUT_SECONDS  = 5
+_WEBHOOK_URL = os.environ.get("SECURITY_ALERT_WEBHOOK_URL", "").strip()
+_PLATFORM = os.environ.get("SECURITY_ALERT_PLATFORM", "discord").strip().lower()  # "discord" | "slack"
+_SIGNING_SECRET = os.environ.get("SECURITY_ALERT_SIGNING_SECRET", "").strip()
+_TIMEOUT_SECONDS = 5
 
 # ── Payload sanitization ───────────────────────────────────────────────────
 # Allowlist, not a blocklist: only these field names are ever forwarded into
@@ -50,7 +50,7 @@ _SECRET_LOOKING_RE = re.compile(
     re.IGNORECASE,
 )
 _MAX_FIELD_LEN = 200
-_MAX_DESC_LEN  = 1000
+_MAX_DESC_LEN = 1000
 
 
 def _sanitize_fields(fields: dict) -> dict:
@@ -150,6 +150,7 @@ def mask_raw_payload(raw, _depth=0):
 _SEVERITY_COLOR = {
     "INFO": 0x3B82F6, "WARNING": 0xF59E0B, "ERROR": 0xDC2626, "CRITICAL": 0x7F1D1D,
 }
+
 
 def _build_payload(event_type, description, severity, timestamp, fields):
     if _PLATFORM == "slack":

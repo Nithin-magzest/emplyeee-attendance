@@ -9,32 +9,36 @@ import utils.config as cfg
 
 tickets_bp = Blueprint("tickets", __name__)
 
+
 @tickets_bp.route("/raise_ticket", methods=["POST"])
 @employee_required
 def raise_ticket():
-    emp_id      = session["employee_id"]
-    category    = request.form.get("category", "").strip()
-    subject     = request.form.get("subject", "").strip()
+    emp_id = session["employee_id"]
+    category = request.form.get("category", "").strip()
+    subject = request.form.get("subject", "").strip()
     description = request.form.get("description", "").strip()
-    priority    = request.form.get("priority", "Medium").strip()
+    priority = request.form.get("priority", "Medium").strip()
     if not category or not subject or not description:
         return redirect("/employee_portal#tickets")
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "INSERT INTO tickets (employee_id, category, subject, description, priority) "
         "VALUES (%s,%s,%s,%s,%s)",
         (emp_id, category, subject, description, priority)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _create_notification('admin', "🎫 New Support Ticket",
-                          f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
+                         f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
     return redirect("/employee_portal?ticket_sent=1#tickets")
+
 
 @tickets_bp.route("/tickets")
 @admin_required
 def tickets_view():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
@@ -51,27 +55,29 @@ def tickets_view():
     pending_leaves = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE status='Pending'")
     pending_resignations = cursor.fetchone()[0]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("tickets.html",
-        all_tickets=all_tickets,
-        pending_tickets=pending_tickets,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        today=datetime.date.today().strftime("%d %b %Y"),
-        shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-        shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
-    )
+                           all_tickets=all_tickets,
+                           pending_tickets=pending_tickets,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           today=datetime.date.today().strftime("%d %b %Y"),
+                           shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
+                           shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+                           )
+
 
 @tickets_bp.route("/ticket_action/<int:tid>", methods=["POST"])
 @admin_required
 def ticket_action(tid):
-    new_status     = request.form.get("status", "").strip()
+    new_status = request.form.get("status", "").strip()
     admin_response = request.form.get("admin_response", "").strip()
     allowed = ("Open", "In Progress", "Resolved", "Closed")
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if new_status not in allowed:
         return (jsonify({"ok": False, "msg": "Invalid status."}), 400) if is_ajax else redirect("/tickets")
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
@@ -87,7 +93,9 @@ def ticket_action(tid):
         "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
         (new_status, admin_response or None, tid)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
     if row:
         _create_notification(
@@ -145,19 +153,21 @@ def ticket_action(tid):
     flash(msg, msg_type)
     return redirect("/tickets")
 
+
 @tickets_bp.route("/api/employee/tickets", methods=["GET"])
 @employee_api_required
 def api_employee_tickets():
     from flask import g as _g
     emp_id = _g.api_emp_id
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT id, category, subject, description, priority, status, admin_response, created_at
         FROM tickets WHERE employee_id=%s ORDER BY created_at DESC LIMIT 30
     """, (emp_id,))
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "tickets": [
         {"id": r[0], "category": r[1], "subject": r[2], "description": r[3],
          "priority": r[4], "status": r[5], "admin_response": r[6],
@@ -165,33 +175,37 @@ def api_employee_tickets():
         for r in rows
     ]})
 
+
 @tickets_bp.route("/api/employee/raise_ticket", methods=["POST"])
 @employee_api_required
 def api_employee_raise_ticket():
     from flask import g as _g
-    emp_id      = _g.api_emp_id
-    data        = request.get_json() or {}
-    category    = data.get("category", "").strip()
-    subject     = data.get("subject", "").strip()
+    emp_id = _g.api_emp_id
+    data = request.get_json() or {}
+    category = data.get("category", "").strip()
+    subject = data.get("subject", "").strip()
     description = data.get("description", "").strip()
-    priority    = data.get("priority", "Medium").strip()
+    priority = data.get("priority", "Medium").strip()
     if not category or not subject or not description:
         return jsonify({"ok": False, "msg": "category, subject and description required"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
         "INSERT INTO tickets (employee_id, category, subject, description, priority) VALUES (%s,%s,%s,%s,%s)",
         (emp_id, category, subject, description, priority)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     _create_notification('admin', "🎫 New Support Ticket",
-                          f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
+                         f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
     return jsonify({"ok": True, "msg": "Ticket raised successfully."})
+
 
 @tickets_bp.route("/api/tickets", methods=["GET"])
 @api_required
 def api_tickets():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
@@ -202,7 +216,8 @@ def api_tickets():
                  CASE WHEN t.priority='High' THEN 0 WHEN t.priority='Medium' THEN 1 WHEN t.priority='Low' THEN 2 ELSE 3 END, t.created_at DESC
     """)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "tickets": [
         {"id": r[0], "employee_id": r[1], "name": r[2], "category": r[3],
          "subject": r[4], "description": r[5], "priority": r[6],
@@ -211,16 +226,17 @@ def api_tickets():
         for r in rows
     ]})
 
+
 @tickets_bp.route("/api/tickets/<int:tid>/action", methods=["POST"])
 @api_required
 def api_ticket_action(tid):
-    data           = request.get_json(silent=True) or {}
-    new_status     = data.get("status", "").strip()
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status", "").strip()
     admin_response = data.get("admin_response", "").strip()
     allowed = ("Open", "In Progress", "Resolved", "Closed")
     if new_status not in allowed:
         return jsonify({"ok": False, "msg": f"status must be one of {allowed}"}), 400
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT subject, employee_id FROM tickets WHERE id=%s", (tid,))
     row = cursor.fetchone()
@@ -228,7 +244,9 @@ def api_ticket_action(tid):
         "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
         (new_status, admin_response or None, tid)
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     if row:
         _create_notification(
             'employee', f"🎫 Ticket Update: {row[0]}",
@@ -236,4 +254,3 @@ def api_ticket_action(tid):
             row[1]
         )
     return jsonify({"ok": True, "status": new_status})
-

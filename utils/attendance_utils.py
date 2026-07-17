@@ -7,10 +7,10 @@ import utils.config as cfg
 
 
 def is_within_range(user_lat, user_lon, office_lat, office_lon):
-    R       = 6371000
-    phi1    = math.radians(user_lat)
-    phi2    = math.radians(office_lat)
-    dphi    = math.radians(office_lat - user_lat)
+    R = 6371000
+    phi1 = math.radians(user_lat)
+    phi2 = math.radians(office_lat)
+    dphi = math.radians(office_lat - user_lat)
     dlambda = math.radians(office_lon - user_lon)
     a = (
         math.sin(dphi / 2) ** 2
@@ -27,7 +27,7 @@ def _td_to_time(val):
         return val
     total = int(val.total_seconds())
     h, rem = divmod(total, 3600)
-    m, s   = divmod(rem, 60)
+    m, s = divmod(rem, 60)
     return datetime.time(h % 24, m, s)
 
 
@@ -59,7 +59,7 @@ def get_attendance_type(login_status, logout_status):
 
 
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
-    today_d    = datetime.date.today()
+    today_d = datetime.date.today()
     shift_mins = max(1, int((
         datetime.datetime.combine(today_d, s_end) -
         datetime.datetime.combine(today_d, s_start)
@@ -98,27 +98,32 @@ def infer_type_legacy(status, login_time, logout_time):
 
 def detect_overtime(employee_id, date, logout_time):
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(
             "SELECT s.end_time FROM employees e JOIN shifts s ON e.shift_id=s.id "
             "WHERE e.employee_id=%s",
             (employee_id,)
         )
-        row      = cursor.fetchone()
+        row = cursor.fetchone()
         shift_end = _td_to_time(row[0]) if row else cfg.SHIFT_END
-        logout_t  = _td_to_time(logout_time) if not isinstance(logout_time, datetime.time) else logout_time
+        logout_t = _td_to_time(logout_time) if not isinstance(logout_time, datetime.time) else logout_time
         if logout_t is None or shift_end is None:
-            cursor.close(); db.close(); return
+            cursor.close()
+            db.close()
+            return
         end_mins = shift_end.hour * 60 + shift_end.minute
         out_mins = logout_t.hour * 60 + logout_t.minute
-        ot_mins  = out_mins - end_mins
+        ot_mins = out_mins - end_mins
         if ot_mins < 30:
-            cursor.close(); db.close(); return
+            cursor.close()
+            db.close()
+            return
         cursor.execute(
             "SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s",
             (employee_id,)
         )
-        sc  = cursor.fetchone()
+        sc = cursor.fetchone()
         spd = float(sc[0]) if sc else 0.0
         ot_pay = round((spd / 8 / 60) * ot_mins, 2)
         cursor.execute("""
@@ -130,7 +135,9 @@ def detect_overtime(employee_id, date, logout_time):
                 ot_minutes=EXCLUDED.ot_minutes,
                 ot_pay=EXCLUDED.ot_pay
         """, (employee_id, date, shift_end, logout_t, ot_mins, ot_pay))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     except Exception:
         pass
 
@@ -146,13 +153,15 @@ def get_working_days(year, month):
 
 def fetch_holidays_set(year, month):
     _, last_day = calendar.monthrange(year, month)
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT date FROM holidays WHERE date BETWEEN %s AND %s",
         (datetime.date(year, month, 1), datetime.date(year, month, last_day))
     )
     holidays = {row[0] for row in cursor.fetchall()}
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return holidays
 
 
@@ -163,7 +172,8 @@ def get_billable_past_days(year, month):
 
 def fetch_leave_map(year, month):
     _, last_day = calendar.monthrange(year, month)
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT employee_id, leave_date FROM leave_requests "
         "WHERE status='Approved' AND leave_date BETWEEN %s AND %s",
@@ -172,5 +182,6 @@ def fetch_leave_map(year, month):
     result = {}
     for emp_id, leave_date in cursor.fetchall():
         result.setdefault(emp_id, set()).add(leave_date)
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return result

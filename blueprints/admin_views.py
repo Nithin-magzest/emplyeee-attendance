@@ -24,7 +24,7 @@ from extensions import app, app_log, log_security_event, limiter
 from utils.auth import (
     admin_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC,
     email_settings_step_up_refresh, email_settings_step_up_clear,
-    SOC_ANALYST_ROLE, SOC_2FA_WINDOW_SEC,
+    SOC_ANALYST_ROLE,
     soc_step_up_valid, soc_step_up_refresh, soc_step_up_clear,
     SECURITY_SETTINGS_2FA_WINDOW_SEC, require_security_settings_2fa,
     security_settings_step_up_refresh, security_settings_step_up_clear,
@@ -33,7 +33,7 @@ from utils.auth import (
 from utils.helpers import (
     get_company_settings, get_co_features, _upsert_co_feature,
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
-    _create_notification, encrypt_pii, decrypt_pii,
+    _create_notification, encrypt_pii, decrypt_pii, invalidate_companies_cache,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.totp import (
@@ -48,29 +48,29 @@ admin_views_bp = Blueprint("admin_views", __name__)
 
 _TOGGLE_COLUMN_MAP = {
     "fingerprint": "fingerprint_enabled",
-    "qr":          "qr_enabled",
-    "face":        "face_enabled",
-    "location":    "location_enabled",
-    "password":    "employee_password_auth",
+    "qr": "qr_enabled",
+    "face": "face_enabled",
+    "location": "location_enabled",
+    "password": "employee_password_auth",
 }
 _TOGGLE_LABEL_MAP = {
     "fingerprint": "Fingerprint / Biometric",
-    "qr":          "QR Code",
-    "face":        "Face Recognition",
-    "location":    "Location Verification",
-    "password":    "Password Login",
+    "qr": "QR Code",
+    "face": "Face Recognition",
+    "location": "Location Verification",
+    "password": "Password Login",
 }
 
 
 @admin_views_bp.route("/admin")
 @admin_required
 def admin():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today  = datetime.date.today()
+    today = datetime.date.today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
-    _co_sub, _            = co_scope_subquery(active_cid)
+    _co_sub, _ = co_scope_subquery(active_cid)
 
     if active_cid:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
@@ -143,9 +143,9 @@ def admin():
             FROM employee_onboarding
         """, (today,))
         _ob = cursor.fetchone()
-        ob_active    = int(_ob[0] or 0)
+        ob_active = int(_ob[0] or 0)
         ob_completed = int(_ob[1] or 0)
-        ob_overdue   = int(_ob[2] or 0)
+        ob_overdue = int(_ob[2] or 0)
         cursor.execute("""
             SELECT eo.id, e.name, ot.name, eo.due_date
             FROM employee_onboarding eo
@@ -180,28 +180,28 @@ def admin():
     db.close()
 
     return render_template("admin.html",
-        total=total,
-        present=present,
-        absent=total - present,
-        late=late,
-        today=today.strftime("%d %b %Y"),
-        today_rows=today_rows,
-        all_employees=all_employees,
-        shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-        shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_ot=pending_ot,
-        pending_tickets=pending_tickets,
-        now_month=today.month,
-        now_year=today.year,
-        breaks_display=breaks_display,
-        companies_list=companies_list,
-        ob_active=ob_active,
-        ob_completed=ob_completed,
-        ob_overdue=ob_overdue,
-        ob_overdue_list=ob_overdue_list,
-    )
+                           total=total,
+                           present=present,
+                           absent=total - present,
+                           late=late,
+                           today=today.strftime("%d %b %Y"),
+                           today_rows=today_rows,
+                           all_employees=all_employees,
+                           shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
+                           shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_ot=pending_ot,
+                           pending_tickets=pending_tickets,
+                           now_month=today.month,
+                           now_year=today.year,
+                           breaks_display=breaks_display,
+                           companies_list=companies_list,
+                           ob_active=ob_active,
+                           ob_completed=ob_completed,
+                           ob_overdue=ob_overdue,
+                           ob_overdue_list=ob_overdue_list,
+                           )
 
 
 @admin_views_bp.route("/api/admin/search")
@@ -215,7 +215,7 @@ def api_admin_search():
         return jsonify({"ok": True, "results": []})
     like = f"%{q}%"
     active_cid = session.get("active_company_id")
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     results = []
 
@@ -263,7 +263,8 @@ def api_admin_search():
             "url": "/leave_holidays",
         })
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "results": results})
 
 
@@ -277,15 +278,15 @@ def dashboard_live():
             return t.strftime("%H:%M:%S")
         total = int(t.total_seconds())
         h, rem = divmod(total, 3600)
-        m, s   = divmod(rem, 60)
+        m, s = divmod(rem, 60)
         return f"{h:02d}:{m:02d}:{s:02d}"
 
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today  = datetime.date.today()
+    today = datetime.date.today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
-    _co_sub, _            = co_scope_subquery(active_cid)
+    _co_sub, _ = co_scope_subquery(active_cid)
 
     if active_cid:
         cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", _co_args)
@@ -316,12 +317,12 @@ def dashboard_live():
     rows = []
     for emp_id, name, login_t, logout_t, status, logout_s, att_type, role in cursor.fetchall():
         rows.append({
-            "emp_id":   emp_id,
-            "name":     name,
-            "role":     role or "",
-            "login_t":  fmt(login_t),
+            "emp_id": emp_id,
+            "name": name,
+            "role": role or "",
+            "login_t": fmt(login_t),
             "logout_t": fmt(logout_t),
-            "status":   status or "",
+            "status": status or "",
             "logout_s": logout_s or "",
             "att_type": att_type or "",
         })
@@ -335,30 +336,31 @@ def dashboard_live():
     cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return jsonify({
-        "total":   total,
+        "total": total,
         "present": present,
-        "absent":  total - present,
-        "late":    late,
-        "rows":    rows,
-        "pending_leaves":       pending_leaves,
+        "absent": total - present,
+        "late": late,
+        "rows": rows,
+        "pending_leaves": pending_leaves,
         "pending_resignations": pending_resignations,
-        "pending_tickets":      pending_tickets,
+        "pending_tickets": pending_tickets,
     })
 
 
 @admin_views_bp.route("/api/attendance_chart_data")
 @admin_required
 def attendance_chart_data():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today  = datetime.date.today()
+    today = datetime.date.today()
 
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
-    _co_sub, _            = co_scope_subquery(active_cid, alias="a")
+    _co_sub, _ = co_scope_subquery(active_cid, alias="a")
 
     # Last 30 days: present count per day
     cursor.execute(f"""
@@ -377,9 +379,9 @@ def attendance_chart_data():
 
     trend_labels, trend_present, trend_absent = [], [], []
     for i in range(29, -1, -1):
-        d   = today - datetime.timedelta(days=i)
+        d = today - datetime.timedelta(days=i)
         key = str(d)
-        p   = present_by_day.get(key, 0)
+        p = present_by_day.get(key, 0)
         trend_labels.append(d.strftime("%d %b"))
         trend_present.append(p)
         trend_absent.append(max(total - p, 0))
@@ -401,10 +403,11 @@ def attendance_chart_data():
         dept_present.append(p or 0)
         dept_absent.append(max((tot or 0) - (p or 0), 0))
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({
-        "trend":  {"labels": trend_labels, "present": trend_present, "absent": trend_absent},
-        "dept":   {"labels": dept_labels,  "present": dept_present,  "absent": dept_absent},
+        "trend": {"labels": trend_labels, "present": trend_present, "absent": trend_absent},
+        "dept": {"labels": dept_labels, "present": dept_present, "absent": dept_absent},
     })
 
 
@@ -437,8 +440,8 @@ def security_hub_page():
 @admin_views_bp.route("/settings")
 @admin_required
 def settings_page():
-    tab    = request.args.get("tab", "company")
-    db     = get_db_connection()
+    tab = request.args.get("tab", "company")
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     # Email config: intentionally NOT fetched here. The Email Settings tab
@@ -461,37 +464,49 @@ def settings_page():
         shift_rows.append({
             "id": sid, "name": sname,
             "start": _td_to_time(st).strftime("%H:%M") if st else "--",
-            "half":  _td_to_time(ht).strftime("%H:%M") if ht else "--",
-            "end":   _td_to_time(et).strftime("%H:%M") if et else "--",
+            "half": _td_to_time(ht).strftime("%H:%M") if ht else "--",
+            "end": _td_to_time(et).strftime("%H:%M") if et else "--",
             "company_id": scid, "company_name": scname,
         })
-    cursor.execute("SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
-    emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"} for r in cursor.fetchall()]
+    cursor.execute(
+        "SELECT e.employee_id, e.name, e.role, s.name FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.name")
+    emp_list = [{"emp_id": r[0], "name": r[1], "role": r[2] or "", "shift": r[3] or "Default"}
+                for r in cursor.fetchall()]
 
     # Company-specific shifts (company_id IS NOT NULL)
-    cursor.execute("SELECT id, name, start_time, half_time, end_time, company_id FROM shifts WHERE company_id IS NOT NULL ORDER BY company_id, start_time")
+    cursor.execute(
+        "SELECT id, name, start_time, half_time, end_time, company_id FROM shifts WHERE company_id IS NOT NULL ORDER BY company_id, start_time")
     _co_shifts_raw = cursor.fetchall()
     company_shifts = {}
     for _csid, _csname, _csstart, _cshalf, _csend, _cscid in _co_shifts_raw:
         def _tdfmt(v):
-            if v is None: return "--"
+            if v is None:
+                return "--"
             if isinstance(v, datetime.timedelta):
-                _s = int(v.total_seconds()); return "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
-            if isinstance(v, datetime.time): return v.strftime("%H:%M")
+                _s = int(v.total_seconds())
+                return "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+            if isinstance(v, datetime.time):
+                return v.strftime("%H:%M")
             return str(v)[:5]
-        company_shifts.setdefault(_cscid, []).append((_csid, _csname, _tdfmt(_csstart), _tdfmt(_cshalf), _tdfmt(_csend)))
+        company_shifts.setdefault(_cscid, []).append(
+            (_csid, _csname, _tdfmt(_csstart), _tdfmt(_cshalf), _tdfmt(_csend)))
 
     # Company-specific breaks (company_id IS NOT NULL), nested per shift
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, company_id, COALESCE(shift_id,0) FROM break_config WHERE company_id IS NOT NULL ORDER BY company_id, shift_id, break_time")
     _co_breaks_raw = cursor.fetchall()
     company_breaks = {}
     for _cbid, _cbname, _cbt, _cbdur, _cbactive, _cbcid, _cbsid in _co_breaks_raw:
-        if _cbt is None: _cbt_str = "--"
+        if _cbt is None:
+            _cbt_str = "--"
         elif isinstance(_cbt, datetime.timedelta):
-            _s = int(_cbt.total_seconds()); _cbt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
-        elif isinstance(_cbt, datetime.time): _cbt_str = _cbt.strftime("%H:%M")
-        else: _cbt_str = str(_cbt)[:5]
-        company_breaks.setdefault(_cbcid, {}).setdefault(_cbsid, []).append((_cbid, _cbname, _cbt_str, _cbdur, _cbactive))
+            _s = int(_cbt.total_seconds())
+            _cbt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+        elif isinstance(_cbt, datetime.time):
+            _cbt_str = _cbt.strftime("%H:%M")
+        else:
+            _cbt_str = str(_cbt)[:5]
+        company_breaks.setdefault(_cbcid, {}).setdefault(_cbsid, []).append(
+            (_cbid, _cbname, _cbt_str, _cbdur, _cbactive))
 
     # Breaks (with shift_id) — pre-format break_time as HH:MM
     cursor.execute("SELECT id, break_name, break_time, duration_minutes, is_active, COALESCE(shift_id,0) FROM break_config WHERE company_id IS NULL ORDER BY shift_id, break_time")
@@ -500,7 +515,8 @@ def settings_page():
         if _bt is None:
             _bt_str = "--"
         elif isinstance(_bt, datetime.timedelta):
-            _s = int(_bt.total_seconds()); _bt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
+            _s = int(_bt.total_seconds())
+            _bt_str = "%02d:%02d" % (_s // 3600, (_s % 3600) // 60)
         elif isinstance(_bt, datetime.time):
             _bt_str = _bt.strftime("%H:%M")
         else:
@@ -573,24 +589,25 @@ def settings_page():
     # Feature flags — per-company when active, global otherwise
     _active_cid_settings = session.get("active_company_id")
     fr = get_co_features(_active_cid_settings)
-    cursor.execute("SELECT COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'), COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata') FROM company_settings LIMIT 1")
+    cursor.execute(
+        "SELECT COALESCE(working_days,'Mon,Tue,Wed,Thu,Fri'), COALESCE(company_name,''), COALESCE(timezone,'Asia/Kolkata') FROM company_settings LIMIT 1")
     _gset = cursor.fetchone()
     features = {
-        "face_auth":    fr["face_auth_enabled"],
-        "geo":          fr["geo_enabled"],
-        "geo_radius":   fr["geo_radius"],
-        "qr":           fr["qr_enabled"],
-        "pin":          fr["pin_enabled"],
-        "fingerprint":  fr["fingerprint_enabled"],
-        "biometric":    fr["biometric_enabled"],
+        "face_auth": fr["face_auth_enabled"],
+        "geo": fr["geo_enabled"],
+        "geo_radius": fr["geo_radius"],
+        "qr": fr["qr_enabled"],
+        "pin": fr["pin_enabled"],
+        "fingerprint": fr["fingerprint_enabled"],
+        "biometric": fr["biometric_enabled"],
         "notify_leave": fr["notify_leave"],
         "notify_payslip": fr["notify_payslip"],
         "notify_resignation": fr["notify_resignation"],
-        "notify_doc_expiry":  fr["notify_doc_expiry"],
+        "notify_doc_expiry": fr["notify_doc_expiry"],
         "session_timeout": fr["session_timeout"],
         "working_days": (_gset[0] if _gset else "Mon,Tue,Wed,Thu,Fri").split(","),
         "company_name": _gset[1] if _gset else "",
-        "timezone":     _gset[2] if _gset else "Asia/Kolkata",
+        "timezone": _gset[2] if _gset else "Asia/Kolkata",
         # salary rules from company features
         "late_deduction_pct": fr["late_deduction_pct"],
         "half_day_deduction_pct": fr["half_day_deduction_pct"],
@@ -604,59 +621,63 @@ def settings_page():
 
     # Resolve salary/shift display values: company-specific overrides global
     def _td_str(v):
-        if v is None: return None
-        if isinstance(v, str): return v[:5]
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return v[:5]
         if isinstance(v, datetime.timedelta):
-            t = int(v.total_seconds()); return "%02d:%02d" % (t//3600, (t%3600)//60)
-        if isinstance(v, datetime.time): return v.strftime("%H:%M")
+            t = int(v.total_seconds())
+            return "%02d:%02d" % (t // 3600, (t % 3600) // 60)
+        if isinstance(v, datetime.time):
+            return v.strftime("%H:%M")
         return str(v)[:5]
 
     _co_shift_start = _td_str(fr.get("shift_start")) or cfg.SHIFT_START.strftime("%H:%M")
-    _co_shift_half  = _td_str(fr.get("shift_half"))  or cfg.SHIFT_HALF.strftime("%H:%M")
-    _co_shift_end   = _td_str(fr.get("shift_end"))   or cfg.SHIFT_END.strftime("%H:%M")
+    _co_shift_half = _td_str(fr.get("shift_half")) or cfg.SHIFT_HALF.strftime("%H:%M")
+    _co_shift_end = _td_str(fr.get("shift_end")) or cfg.SHIFT_END.strftime("%H:%M")
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("settings.html",
-        tab=tab,
-        company_code=company_code,
-        total_employees=total_employees,
-        active_employees=active_employees,
-        total_departments=total_departments,
-        total_shifts=total_shifts,
-        companies=companies,
-        company_shifts=company_shifts,
-        company_breaks=company_breaks,
-        shifts=shift_rows,
-        emp_list=emp_list,
-        breaks=breaks,
-        salaries=salaries,
-        ann_list=ann_list,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        saved=request.args.get("saved") == "1",
-        default_start=_co_shift_start,
-        default_half=_co_shift_half,
-        default_end=_co_shift_end,
-        now_month=datetime.date.today().month,
-        now_year=datetime.date.today().year,
-        default_onboarding_tpl=default_onboarding_tpl,
-        onboarding_templates=onboarding_templates,
-        late_deduction_pct=round(fr["late_deduction_pct"], 1),
-        half_day_deduction_pct=round(fr["half_day_deduction_pct"], 1),
-        grace_minutes=fr["grace_minutes"],
-        holiday_pay=fr["holiday_pay"],
-        leave_pay=fr["leave_pay"],
-        auth_config={
-            "face_enabled":            fr["face_auth_enabled"],
-            "qr_enabled":              fr["qr_enabled"],
-            "fingerprint_enabled":     fr["fingerprint_enabled"],
-            "location_enabled":        fr["geo_enabled"],
-            "employee_password_auth":  True,
-        },
-        features=features,
-    )
-
+                           tab=tab,
+                           company_code=company_code,
+                           total_employees=total_employees,
+                           active_employees=active_employees,
+                           total_departments=total_departments,
+                           total_shifts=total_shifts,
+                           companies=companies,
+                           company_shifts=company_shifts,
+                           company_breaks=company_breaks,
+                           shifts=shift_rows,
+                           emp_list=emp_list,
+                           breaks=breaks,
+                           salaries=salaries,
+                           ann_list=ann_list,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           saved=request.args.get("saved") == "1",
+                           default_start=_co_shift_start,
+                           default_half=_co_shift_half,
+                           default_end=_co_shift_end,
+                           now_month=datetime.date.today().month,
+                           now_year=datetime.date.today().year,
+                           default_onboarding_tpl=default_onboarding_tpl,
+                           onboarding_templates=onboarding_templates,
+                           late_deduction_pct=round(fr["late_deduction_pct"], 1),
+                           half_day_deduction_pct=round(fr["half_day_deduction_pct"], 1),
+                           grace_minutes=fr["grace_minutes"],
+                           holiday_pay=fr["holiday_pay"],
+                           leave_pay=fr["leave_pay"],
+                           auth_config={
+                               "face_enabled": fr["face_auth_enabled"],
+                               "qr_enabled": fr["qr_enabled"],
+                               "fingerprint_enabled": fr["fingerprint_enabled"],
+                               "location_enabled": fr["geo_enabled"],
+                               "employee_password_auth": True,
+                           },
+                           features=features,
+                           )
 
 
 # ── Email Settings 2FA gate ────────────────────────────────────────────────────
@@ -692,7 +713,7 @@ def api_email_2fa_enable():
     code = (request.get_json(silent=True) or {}).get("code", "")
     if not verify_totp_code(username, code, require_enabled=False):
         log_security_event("auth.2fa_enroll_failed", "TOTP enrollment confirmation failed",
-                            level="WARNING", identifier=username)
+                           level="WARNING", identifier=username)
         return jsonify({"ok": False, "msg": "Invalid code"}), 400
     mark_totp_enabled(username)
     # Confirming enrollment with a live code IS proof of possession — as good
@@ -703,7 +724,7 @@ def api_email_2fa_enable():
     # even though every code was valid the whole time.
     email_settings_step_up_refresh()
     log_security_event("auth.2fa_enrolled", "Admin enabled TOTP 2FA for Email Settings",
-                        level="INFO", identifier=username)
+                       level="INFO", identifier=username)
     return jsonify({"ok": True})
 
 
@@ -726,20 +747,22 @@ def api_email_2fa_reset():
     did this, not them."""
     username = session.get("admin_username")
     password = (request.get_json(silent=True) or {}).get("password", "")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT password, email FROM admin_users WHERE username=%s", (username,))
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row or not check_password_hash(row[0], password):
         log_security_event("auth.2fa_reset_denied", "TOTP reset attempt failed password check",
-                            level="WARNING", identifier=username)
+                           level="WARNING", identifier=username)
         return jsonify({"ok": False, "msg": "Incorrect password"}), 401
     admin_email = row[1]
     reset_admin_totp_secret(username)
     email_settings_step_up_clear()
     security_settings_step_up_clear()
     log_security_event("auth.2fa_reset", "Admin reset their TOTP secret for re-enrollment",
-                        level="ERROR", identifier=username)
+                       level="ERROR", identifier=username)
     if admin_email:
         config = get_email_config()
         if config:
@@ -771,11 +794,11 @@ def api_settings_verify_2fa():
     code = (request.get_json(silent=True) or {}).get("code", "")
     if not verify_totp_code(username, code, require_enabled=True):
         log_security_event("access.denied", "Invalid 2FA code for Email Settings step-up",
-                            level="WARNING", identifier=username)
+                           level="WARNING", identifier=username)
         return jsonify({"ok": False, "msg": "Invalid verification code"}), 401
     email_settings_step_up_refresh()
     log_security_event("auth.step_up_verified", "Admin completed 2FA step-up for Email Settings",
-                        level="INFO", identifier=username)
+                       level="INFO", identifier=username)
     return jsonify({"ok": True, "expires_in": EMAIL_2FA_WINDOW_SEC})
 
 
@@ -792,7 +815,8 @@ def api_settings_lock():
 @admin_required
 @require_email_2fa
 def api_get_email_settings():
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     # smtp_pass is deliberately never selected here — the password can only
     # reach the client via the separate, individually-logged reveal endpoint.
     cursor.execute(
@@ -801,7 +825,8 @@ def api_get_email_settings():
         "FROM email_config ORDER BY id DESC LIMIT 1"
     )
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row:
         return jsonify({"ok": True, "config": None, "expires_in": EMAIL_2FA_WINDOW_SEC})
     return jsonify({
@@ -820,12 +845,12 @@ def api_get_email_settings():
 @require_email_2fa
 def api_save_email_settings():
     data = request.get_json(silent=True) or {}
-    host       = (data.get("host") or "").strip()
-    port       = data.get("port")
-    user       = (data.get("user") or "").strip()
-    from_name  = (data.get("from_name") or "Attendance System").strip()
+    host = (data.get("host") or "").strip()
+    port = data.get("port")
+    user = (data.get("user") or "").strip()
+    from_name = (data.get("from_name") or "Attendance System").strip()
     from_email = (data.get("from_email") or "").strip() or user
-    password   = (data.get("password") or "").strip()
+    password = (data.get("password") or "").strip()
     if not host or not port or not user:
         return jsonify({"ok": False, "msg": "Host, port, and username are required"}), 400
     try:
@@ -833,7 +858,8 @@ def api_save_email_settings():
     except (TypeError, ValueError):
         return jsonify({"ok": False, "msg": "Port must be a number"}), 400
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     # A masked or blank password means "leave it unchanged" — only a genuine
     # new value gets (re-)encrypted. This is the fix for the bug where the
     # server-rendered form used to re-save its own displayed ciphertext as
@@ -850,9 +876,11 @@ def api_save_email_settings():
         "VALUES (%s,%s,%s,%s,%s,%s)",
         (host, port, user, encrypted_password, from_name, from_email),
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     log_security_event("data.update", "Admin updated SMTP configuration",
-                        level="INFO", identifier=session.get("admin_username"))
+                       level="INFO", identifier=session.get("admin_username"))
     return jsonify({"ok": True})
 
 
@@ -864,14 +892,16 @@ def api_reveal_email_password():
     and revealing the real password are different sensitivity levels, so
     each admin action to actually see the plaintext gets its own audit-log
     line rather than being indistinguishable from a routine page load."""
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     if not row or not row[0]:
         return jsonify({"ok": False, "msg": "No SMTP password set"}), 404
     log_security_event("data.reveal", "Admin revealed SMTP password in Email Settings",
-                        level="WARNING", identifier=session.get("admin_username"))
+                       level="WARNING", identifier=session.get("admin_username"))
     return jsonify({"ok": True, "password": decrypt_pii(row[0])})
 
 
@@ -898,14 +928,14 @@ def _soc_session_or_404():
     authenticated soc_analyst session. Returns (username, role) on success;
     aborts 404 (never 401/403 — no acknowledgment this route exists to a
     session that isn't entitled to it) otherwise."""
-    username  = session.get("admin_username")
-    role      = session.get("admin_role")
+    username = session.get("admin_username")
+    role = session.get("admin_role")
     logged_in = bool(session.get("admin_logged_in") and username)
     if not logged_in or role != SOC_ANALYST_ROLE:
         log_security_event(
             "access.escalation_attempt" if logged_in else "access.denied",
             "Unauthorized Escalation Attempt: SOC Analyst gate probed by a non-SOC session"
-                if logged_in else "Unauthenticated request to SOC Analyst gate",
+            if logged_in else "Unauthenticated request to SOC Analyst gate",
             level="ERROR" if logged_in else "INFO",
             identifier=username or "anonymous", attempted_role=role or "none",
         )
@@ -921,7 +951,7 @@ def api_soc_verify_2fa():
     dashboard or its events API will respond with anything but a 404."""
     username, _role = _soc_session_or_404()
 
-    body      = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True) or {}
     totp_code = body.get("code", "")
 
     if not verify_totp_code(username, totp_code, require_enabled=True):
@@ -935,7 +965,7 @@ def api_soc_verify_2fa():
 
     soc_step_up_refresh()
     log_security_event("auth.step_up_verified", "SOC Analyst completed MFA step-up",
-                        level="INFO", identifier=username)
+                       level="INFO", identifier=username)
     return jsonify({"ok": True, "redirect": "/admin/security-dashboard"})
 
 
@@ -1033,7 +1063,8 @@ def soc_security_dashboard():
     _soc_session_and_stepup_or_404()
     soc_step_up_refresh()  # rolling window here too, same reasoning as Email Settings
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT sid, identifier, attempt_type, score, last_reason, updated_at
         FROM session_risk WHERE status='compromised'
@@ -1049,15 +1080,16 @@ def soc_security_dashboard():
     cursor.execute("SELECT username, role, COALESCE(totp_enabled, 0) FROM admin_users ORDER BY username")
     admin_mfa_status = cursor.fetchall()
     events_summary = _security_events_summary(cursor)
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("soc_security_dashboard.html",
-        compromised_sessions=compromised_sessions,
-        active_lockouts=active_lockouts,
-        admin_mfa_status=admin_mfa_status,
-        events_summary=events_summary,
-        security_posture=_compute_security_posture(),
-    )
+                           compromised_sessions=compromised_sessions,
+                           active_lockouts=active_lockouts,
+                           admin_mfa_status=admin_mfa_status,
+                           events_summary=events_summary,
+                           security_posture=_compute_security_posture(),
+                           )
 
 
 _EVENT_LEVELS = {"ERROR", "WARNING", "INFO"}
@@ -1111,16 +1143,18 @@ def api_soc_events():
 
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(f"SELECT COUNT(*) FROM security_events {where_sql}", params)  # nosec B608 — where_sql built from a fixed allowlist of hardcoded conditions above, all values passed as %s params
     total = cursor.fetchone()[0]
     cursor.execute(
-        f"SELECT event_type, level, message, identifier, ip, path, method, created_at "
-        f"FROM security_events {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",  # nosec B608 — same as above
+        f"SELECT event_type, level, message, identifier, ip, path, method, created_at "  # nosec B608 — same as above
+        f"FROM security_events {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
         params + [per_page, (page - 1) * per_page],
     )
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return jsonify({
         "ok": True,
@@ -1151,13 +1185,15 @@ def api_soc_events():
 @admin_views_bp.route("/api/security/soc/banned-ips")
 def api_soc_banned_ips():
     _soc_session_and_stepup_or_404()
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "SELECT ip, reason, banned_by, banned_at, expires_at FROM banned_ips "
         "WHERE expires_at IS NULL OR expires_at > NOW() ORDER BY banned_at DESC"
     )
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({"ok": True, "banned_ips": [
         {
             "ip": r[0], "reason": r[1], "banned_by": r[2],
@@ -1192,17 +1228,20 @@ def api_soc_ban_ip():
         if minutes > 0:
             expires_at = datetime.datetime.now() + datetime.timedelta(minutes=minutes)
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "INSERT INTO banned_ips (ip, reason, banned_by, expires_at) VALUES (%s,%s,%s,%s) "
         "ON CONFLICT (ip) DO UPDATE SET reason=EXCLUDED.reason, banned_by=EXCLUDED.banned_by, "
         "banned_at=CURRENT_TIMESTAMP, expires_at=EXCLUDED.expires_at",
         (ip, reason, username, expires_at),
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
     log_security_event("soc.ip_banned", f"SOC analyst banned IP {ip}",
-                        level="ERROR", identifier=username, target_ip=ip, reason=reason or "(none given)")
+                       level="ERROR", identifier=username, target_ip=ip, reason=reason or "(none given)")
     return jsonify({"ok": True})
 
 
@@ -1215,15 +1254,16 @@ def api_soc_unban_ip():
     if not ip:
         return jsonify({"ok": False, "msg": "IP required"}), 400
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
     log_security_event("soc.ip_unbanned", f"SOC analyst unbanned IP {ip}",
-                        level="WARNING", identifier=username, target_ip=ip)
+                       level="WARNING", identifier=username, target_ip=ip)
     return jsonify({"ok": True})
-
-
 
 
 # ── Security Settings hub (Settings → System → Security) ─────────────────────
@@ -1243,11 +1283,11 @@ def api_security_settings_verify_2fa():
     code = (request.get_json(silent=True) or {}).get("code", "")
     if not verify_totp_code(username, code, require_enabled=True):
         log_security_event("access.denied", "Invalid 2FA code for Security Settings hub step-up",
-                            level="WARNING", identifier=username)
+                           level="WARNING", identifier=username)
         return jsonify({"ok": False, "msg": "Invalid verification code"}), 401
     security_settings_step_up_refresh()
     log_security_event("auth.step_up_verified", "Admin completed 2FA step-up for Security Settings hub",
-                        level="INFO", identifier=username)
+                       level="INFO", identifier=username)
     return jsonify({"ok": True, "expires_in": SECURITY_SETTINGS_2FA_WINDOW_SEC})
 
 
@@ -1256,7 +1296,8 @@ def api_security_settings_verify_2fa():
 @require_security_settings_2fa
 def api_security_settings_overview():
     username = session.get("admin_username")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COALESCE(totp_enabled, 0) FROM admin_users WHERE username=%s", (username,))
     row = cursor.fetchone()
     own_totp_enrolled = bool(row and row[0])
@@ -1286,7 +1327,8 @@ def api_security_settings_overview():
             {"username": u, "role": r, "totp_enabled": bool(t)}
             for u, r, t in cursor.fetchall()
         ]
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return jsonify({
         "ok": True,
@@ -1300,6 +1342,7 @@ def api_security_settings_overview():
 
 
 _ASSIGNABLE_ROLES = ("admin", "manager", "soc_analyst")
+
 
 @admin_views_bp.route("/api/settings/security/roles", methods=["POST"])
 @admin_required
@@ -1322,15 +1365,19 @@ def api_security_settings_roles():
     if not target_username:
         return jsonify({"ok": False, "msg": "Username required."}), 400
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT role FROM admin_users WHERE username=%s", (target_username,))
     row = cursor.fetchone()
     if not row:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return jsonify({"ok": False, "msg": "Admin account not found."}), 404
     old_role = row[0]
     cursor.execute("UPDATE admin_users SET role=%s WHERE username=%s", (new_role, target_username))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
 
     # A role change is a privilege-boundary event regardless of direction —
     # ERROR severity (not INFO) so it always feeds the alert webhook; a
@@ -1359,9 +1406,12 @@ def api_security_settings_session_timeout():
     if active_cid:
         _upsert_co_feature(active_cid, "session_timeout", timeout)
     else:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE company_settings SET session_timeout=%s", (timeout,))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     return jsonify({"ok": True})
 
 
@@ -1389,10 +1439,12 @@ def api_security_settings_performance():
     fabricated 'quality score'. Gated behind the same Security hub step-up
     as the rest of this file; nothing here is public."""
     try:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute("SELECT 1")
         cursor.fetchone()
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         db_healthy = True
     except Exception:
         db_healthy = False
@@ -1412,9 +1464,12 @@ def save_default_onboarding_template():
     tpl_id = request.form.get("default_onboarding_template_id") or None
     if tpl_id == "0" or tpl_id == "":
         tpl_id = None
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE company_settings SET default_onboarding_template_id=%s", (tpl_id,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Default onboarding template saved.", "success")
     return redirect("/onboarding?tab=templates")
 
@@ -1423,21 +1478,21 @@ def save_default_onboarding_template():
 @admin_required
 def save_salary_rules():
     try:
-        late_pct  = max(0.0, min(100.0, float(request.form.get("late_deduction_pct",  10))))
-        half_pct  = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
-        grace_min = max(0,   min(120,   int(request.form.get("grace_minutes", 15))))
+        late_pct = max(0.0, min(100.0, float(request.form.get("late_deduction_pct", 10))))
+        half_pct = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
+        grace_min = max(0, min(120, int(request.form.get("grace_minutes", 15))))
     except (ValueError, TypeError):
         flash("Invalid values.", "error")
         return redirect("/settings?tab=salary")
     holiday_pay = request.form.get("holiday_pay", "paid")
-    leave_pay   = request.form.get("leave_pay",   "exclude")
+    leave_pay = request.form.get("leave_pay", "exclude")
     if holiday_pay not in ("paid", "unpaid"):
         holiday_pay = "paid"
     if leave_pay not in ("exclude", "absent"):
         leave_pay = "exclude"
     shift_start_raw = request.form.get("shift_start", "").strip()
-    shift_half_raw  = request.form.get("shift_half",  "").strip()
-    shift_end_raw   = request.form.get("shift_end",   "").strip()
+    shift_half_raw = request.form.get("shift_half", "").strip()
+    shift_end_raw = request.form.get("shift_end", "").strip()
     active_cid = session.get("active_company_id")
     if active_cid:
         _fields = {
@@ -1449,7 +1504,7 @@ def save_salary_rules():
                             "shift_end": shift_end_raw})
         _upsert_co_features(active_cid, _fields)
     else:
-        db     = get_db_connection()
+        db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute(
             "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
@@ -1462,7 +1517,8 @@ def save_salary_rules():
                 (shift_start_raw, shift_half_raw, shift_end_raw)
             )
         db.commit()
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         cfg.load_salary_rules()
         cfg.load_default_shift()
     flash("Salary rules saved.", "success")
@@ -1472,13 +1528,13 @@ def save_salary_rules():
 @admin_views_bp.route("/toggle_auth_method", methods=["POST"])
 @admin_required
 def toggle_auth_method():
-    method  = request.form.get("method", "")
+    method = request.form.get("method", "")
     enabled = request.form.get("enabled", "0") == "1"
     if method not in _TOGGLE_COLUMN_MAP:
         flash("Invalid authentication method.", "danger")
         return redirect("/settings?tab=attendance")
     column = _TOGGLE_COLUMN_MAP[method]
-    label  = _TOGGLE_LABEL_MAP[method]
+    label = _TOGGLE_LABEL_MAP[method]
     active_cid = session.get("active_company_id")
     # Map old column names to company_feature_settings column names
     _cfs_map = {"face_enabled": "face_auth_enabled", "location_enabled": "geo_enabled",
@@ -1491,9 +1547,12 @@ def toggle_auth_method():
         if column not in _VALID_CS_TOGGLE:
             flash("Invalid setting.", "danger")
             return redirect("/settings?tab=attendance")
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))  # nosec B608
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"{label} {state}.", "success")
     return redirect("/settings?tab=attendance")
@@ -1507,9 +1566,12 @@ def toggle_fingerprint():
     if active_cid:
         _upsert_co_feature(active_cid, "fingerprint_enabled", 1 if enabled else 0)
     else:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE company_settings SET fingerprint_enabled=%s", (1 if enabled else 0,))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     state = "enabled" if enabled else "disabled"
     flash(f"Fingerprint authentication {state}.", "success")
     return redirect("/settings?tab=attendance")
@@ -1519,9 +1581,12 @@ def toggle_fingerprint():
 @admin_required
 def save_company_code():
     code = request.form.get("company_code", "").strip().upper()[:10]
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE company_settings SET company_code=%s", (code,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash(f"Company code set to '{code}'.", "success")
     return redirect("/settings?tab=company")
 
@@ -1531,8 +1596,8 @@ def save_company_code():
 def save_company_info():
     import pytz as _pytz
     _VALID_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
-    name     = request.form.get("company_name", "").strip()[:200]
-    code     = request.form.get("company_code", "").strip().upper()[:10]
+    name = request.form.get("company_name", "").strip()[:200]
+    code = request.form.get("company_code", "").strip().upper()[:10]
     timezone = request.form.get("timezone", "Asia/Kolkata").strip()
     w_days_raw = request.form.getlist("working_days")
     # Validate timezone against pytz database
@@ -1545,12 +1610,15 @@ def save_company_info():
         flash("Invalid working days selected.", "danger")
         return redirect("/settings?tab=company")
     w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS)
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute(
         "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
         (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
     )
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
     flash("Company info saved.", "success")
     return redirect("/settings?tab=company")
 
@@ -1559,28 +1627,28 @@ def save_company_info():
 @admin_required
 def toggle_feature():
     allowed = {
-        "face_auth_enabled","geo_enabled","qr_enabled","pin_enabled",
-        "fingerprint_enabled","biometric_enabled",
-        "notify_leave","notify_payslip","notify_resignation","notify_doc_expiry",
+        "face_auth_enabled", "geo_enabled", "qr_enabled", "pin_enabled",
+        "fingerprint_enabled", "biometric_enabled",
+        "notify_leave", "notify_payslip", "notify_resignation", "notify_doc_expiry",
     }
-    data    = request.get_json(force=True) or {}
+    data = request.get_json(force=True) or {}
     feature = data.get("feature", "")
-    value   = 1 if data.get("value") else 0
+    value = 1 if data.get("value") else 0
     if feature not in allowed:
         return jsonify({"ok": False, "error": "unknown feature"}), 400
     active_cid = session.get("active_company_id")
     # Explicit allowlist maps feature name → exact DB column (no dynamic interpolation)
     _CS_COL_MAP = {
-        "face_auth_enabled":  "face_auth_enabled",
-        "geo_enabled":        "geo_enabled",
-        "qr_enabled":         "qr_enabled",
-        "pin_enabled":        "pin_enabled",
-        "fingerprint_enabled":"fingerprint_enabled",
-        "biometric_enabled":  "biometric_enabled",
-        "notify_leave":       "notify_leave",
-        "notify_payslip":     "notify_payslip",
+        "face_auth_enabled": "face_auth_enabled",
+        "geo_enabled": "geo_enabled",
+        "qr_enabled": "qr_enabled",
+        "pin_enabled": "pin_enabled",
+        "fingerprint_enabled": "fingerprint_enabled",
+        "biometric_enabled": "biometric_enabled",
+        "notify_leave": "notify_leave",
+        "notify_payslip": "notify_payslip",
         "notify_resignation": "notify_resignation",
-        "notify_doc_expiry":  "notify_doc_expiry",
+        "notify_doc_expiry": "notify_doc_expiry",
     }
     cs_col = _CS_COL_MAP.get(feature)
     if not cs_col:
@@ -1588,9 +1656,12 @@ def toggle_feature():
     if active_cid:
         _upsert_co_feature(active_cid, cs_col, value)
     else:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))  # nosec B608
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     return jsonify({"ok": True})
 
 
@@ -1608,9 +1679,12 @@ def save_geo_radius():
     if active_cid:
         _upsert_co_feature(active_cid, "geo_radius", radius)
     else:
-        db = get_db_connection(); cursor = db.cursor(buffered=True)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE company_settings SET geo_radius=%s", (radius,))
-        db.commit(); cursor.close(); db.close()
+        db.commit()
+        cursor.close()
+        db.close()
     flash("Attendance settings saved.", "success")
     return redirect("/settings?tab=attendance")
 
@@ -1623,8 +1697,8 @@ def save_geo_radius():
 @admin_views_bp.route("/switch_company", methods=["POST"])
 @admin_required
 def switch_company():
-    cid  = request.form.get("company_id", "").strip()
-    pin  = request.form.get("pin", "").strip()
+    cid = request.form.get("company_id", "").strip()
+    pin = request.form.get("pin", "").strip()
     dest = _safe_redirect(request.form.get("next", ""), "/admin")
     if not cid:
         session.pop("active_company_id", None)
@@ -1634,10 +1708,12 @@ def switch_company():
         cid = int(cid)
     except ValueError:
         return redirect(dest)
-    db = get_db_connection(); cur = db.cursor(buffered=True)
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
     cur.execute("SELECT name, COALESCE(pin,'') FROM companies WHERE id=%s", (cid,))
     row = cur.fetchone()
-    cur.close(); db.close()
+    cur.close()
+    db.close()
     if not row:
         flash("Company not found.", "error")
         return redirect(dest)
@@ -1666,9 +1742,13 @@ def set_company_pin():
     if not cid:
         flash("Invalid request.", "error")
         return redirect("/settings?tab=company")
-    db = get_db_connection(); cur = db.cursor(buffered=True)
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
     cur.execute("UPDATE companies SET pin=%s WHERE id=%s", (pin or None, int(cid)))
-    db.commit(); cur.close(); db.close()
+    db.commit()
+    cur.close()
+    db.close()
+    invalidate_companies_cache()
     flash("PIN " + ("set." if pin else "removed."), "success")
     return redirect("/settings?tab=company")
 
@@ -1682,48 +1762,56 @@ def view_companies():
 @admin_views_bp.route("/companies/add", methods=["POST"])
 @admin_required
 def add_company():
-    name        = request.form.get("name", "").strip()
-    code        = request.form.get("code", "").strip().upper()[:20] or None
+    name = request.form.get("name", "").strip()
+    code = request.form.get("code", "").strip().upper()[:20] or None
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
+    dest = "/settings?tab=company" if redirect_to == "settings" else "/companies"
     if not name:
         flash("Company name is required.", "error")
         return redirect(dest)
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s) RETURNING id", (name, code, w_days))
     new_cid = cursor.fetchone()[0]
     db.commit()
 
-    shift_names  = request.form.getlist("shift_name[]")
+    shift_names = request.form.getlist("shift_name[]")
     shift_starts = request.form.getlist("shift_start[]")
-    shift_halfs  = request.form.getlist("shift_half[]")
-    shift_ends   = request.form.getlist("shift_end[]")
+    shift_halfs = request.form.getlist("shift_half[]")
+    shift_ends = request.form.getlist("shift_end[]")
     for sname, sstart, shalf, send in zip(shift_names, shift_starts, shift_halfs, shift_ends):
-        sname = sname.strip(); sstart = sstart.strip(); shalf = shalf.strip(); send = send.strip()
+        sname = sname.strip()
+        sstart = sstart.strip()
+        shalf = shalf.strip()
+        send = send.strip()
         if sname and sstart and shalf and send:
             cursor.execute(
                 "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
                 (sname,
                  sstart + ":00" if len(sstart) == 5 else sstart,
-                 shalf  + ":00" if len(shalf)  == 5 else shalf,
-                 send   + ":00" if len(send)   == 5 else send,
+                 shalf + ":00" if len(shalf) == 5 else shalf,
+                 send + ":00" if len(send) == 5 else send,
                  new_cid)
             )
     db.commit()
 
     break_names = request.form.getlist("break_name[]")
     break_times = request.form.getlist("break_time[]")
-    break_durs  = request.form.getlist("break_duration[]")
+    break_durs = request.form.getlist("break_duration[]")
     for bname, btime, bdur in zip(break_names, break_times, break_durs):
-        bname = bname.strip(); btime = btime.strip(); bdur = bdur.strip()
+        bname = bname.strip()
+        btime = btime.strip()
+        bdur = bdur.strip()
         if bname and btime and bdur.isdigit():
             cursor.execute(
                 "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
                 (bname, btime + ":00" if len(btime) == 5 else btime, int(bdur), new_cid)
             )
     db.commit()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
+    invalidate_companies_cache()
     flash(f"Company '{name}' added.", "success")
     return redirect(dest)
 
@@ -1731,21 +1819,22 @@ def add_company():
 @admin_views_bp.route("/companies/<int:cid>/edit", methods=["POST"])
 @admin_required
 def edit_company(cid):
-    name        = request.form.get("name", "").strip()
-    new_code    = (request.form.get("code", "").strip().upper()[:20]) or None
+    name = request.form.get("name", "").strip()
+    new_code = (request.form.get("code", "").strip().upper()[:20]) or None
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
+    dest = "/settings?tab=company" if redirect_to == "settings" else "/companies"
 
     if not name:
         flash("Company name is required.", "error")
         return redirect(dest)
 
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
 
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
 
     cursor.execute("SELECT COALESCE(code,'') FROM companies WHERE id=%s", (cid,))
-    row      = cursor.fetchone()
+    row = cursor.fetchone()
     old_code = (row[0] or "").strip().upper() if row else ""
 
     cursor.execute("UPDATE companies SET name=%s, code=%s, working_days=%s WHERE id=%s", (name, new_code, w_days, cid))
@@ -1770,20 +1859,28 @@ def edit_company(cid):
             "regularization_requests", "compoff_balance", "employee_onboarding",
         ]
 
-        for old_eid, new_eid in to_rename:
-            for tbl in related_tables:
-                try:
-                    cursor.execute(
-                        f"UPDATE {tbl} SET employee_id=%s WHERE employee_id=%s",  # nosec B608
-                        (new_eid, old_eid)
-                    )
-                except Exception:
-                    pass
+        # One UPDATE per related table for the whole renamed batch (via a
+        # Postgres UNNEST mapping table), instead of one UPDATE per table
+        # PER renamed employee — a rename of N employees previously issued
+        # N*16 round trips here; this issues a flat 16 regardless of N.
+        old_ids = [p[0] for p in to_rename]
+        new_ids = [p[1] for p in to_rename]
+        for tbl in related_tables:
+            try:
+                cursor.execute(
+                    f"UPDATE {tbl} AS t SET employee_id = m.new_eid "  # nosec B608
+                    f"FROM (SELECT * FROM UNNEST(%s::text[], %s::text[]) AS m(old_eid, new_eid)) AS m "
+                    f"WHERE t.employee_id = m.old_eid",
+                    (old_ids, new_ids)
+                )
+            except Exception:
+                pass
 
+        for old_eid, new_eid in to_rename:
             old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
             new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-            old_qr  = os.path.join("static", "qrcodes", old_eid + ".png")
-            new_qr  = os.path.join("static", "qrcodes", new_eid + ".png")
+            old_qr = os.path.join("static", "qrcodes", old_eid + ".png")
+            new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
 
             cursor.execute(
                 "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
@@ -1792,11 +1889,15 @@ def edit_company(cid):
             )
 
             if os.path.exists(old_img):
-                try: os.rename(old_img, new_img)
-                except Exception: pass
+                try:
+                    os.rename(old_img, new_img)
+                except Exception:
+                    pass
             if os.path.exists(old_qr):
-                try: os.rename(old_qr, new_qr)
-                except Exception: pass
+                try:
+                    os.rename(old_qr, new_qr)
+                except Exception:
+                    pass
 
             renamed_count += 1
 
@@ -1809,7 +1910,9 @@ def edit_company(cid):
     else:
         flash("Company updated.", "success")
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
+    invalidate_companies_cache()
     return redirect(dest)
 
 
@@ -1817,16 +1920,21 @@ def edit_company(cid):
 @admin_required
 def delete_company(cid):
     redirect_to = request.form.get("redirect_to", "companies")
-    dest        = "/settings?tab=company" if redirect_to == "settings" else "/companies"
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    dest = "/settings?tab=company" if redirect_to == "settings" else "/companies"
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COUNT(*) FROM employees WHERE company_id=%s", (cid,))
     count = cursor.fetchone()[0]
     if count > 0:
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         flash(f"Cannot delete: {count} employee(s) are assigned to this company.", "error")
         return redirect(dest)
     cursor.execute("DELETE FROM companies WHERE id=%s", (cid,))
-    db.commit(); cursor.close(); db.close()
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_companies_cache()
     flash("Company deleted.", "success")
     return redirect(dest)
 
@@ -1834,7 +1942,7 @@ def delete_company(cid):
 @admin_views_bp.route("/announcements", methods=["GET", "POST"])
 @admin_required
 def announcements_admin():
-    db     = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     if request.method == "POST":
         action = request.form.get("action")
@@ -1843,32 +1951,45 @@ def announcements_admin():
             target_emp = request.form.get("target_employee_id", "").strip() or None
             if visibility == "private" and not target_emp:
                 flash("Please select an employee for a private announcement.", "error")
-                cursor.close(); db.close()
+                cursor.close()
+                db.close()
                 return redirect("/performance?tab=announcements")
             if visibility == "public":
                 target_emp = None
-            title   = request.form["title"]
+            title = request.form["title"]
             content = request.form.get("content", "")
             cursor.execute(
                 "INSERT INTO announcements (title, content, priority, visibility, target_employee_id) VALUES (%s,%s,%s,%s,%s)",
-                (title, content, request.form.get("priority","Normal"), visibility, target_emp)
+                (title, content, request.form.get("priority", "Normal"), visibility, target_emp)
             )
             db.commit()
             snippet = (content[:117] + "...") if len(content) > 120 else content
             if visibility == "private":
                 _create_notification('employee', f"📢 {title}", snippet, target_emp)
             else:
+                # Batched on the connection already open in this handler,
+                # rather than _create_notification's one-connection-per-call
+                # pattern, which previously opened/committed/closed a
+                # separate pooled connection per active employee.
                 cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
-                for (eid,) in cursor.fetchall():
-                    _create_notification('employee', f"📢 {title}", snippet, eid)
+                emp_ids = [eid for (eid,) in cursor.fetchall()]
+                if emp_ids:
+                    cursor.executemany(
+                        "INSERT INTO notifications (recipient_type, employee_id, title, message) "
+                        "VALUES ('employee', %s, %s, %s)",
+                        [(eid, f"📢 {title}", snippet) for eid in emp_ids]
+                    )
+                    db.commit()
             flash("Announcement posted.", "success")
         elif action == "delete":
             cursor.execute("DELETE FROM announcements WHERE id=%s", (request.form["ann_id"],))
             db.commit()
             flash("Announcement deleted.", "success")
-        cursor.close(); db.close()
+        cursor.close()
+        db.close()
         return redirect("/performance?tab=announcements")
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return redirect("/performance?tab=announcements")
 
 
@@ -1876,7 +1997,7 @@ def announcements_admin():
 @admin_required
 def test_email():
     to_email = request.form.get("test_to", "").strip()
-    config   = get_email_config()
+    config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured yet."})
     if not to_email:
@@ -1898,7 +2019,7 @@ def test_email():
 @admin_required
 def api_expiring_documents():
     days = int(request.args.get("days", 30))
-    db   = get_db_connection()
+    db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.expiry_date,
@@ -1911,7 +2032,8 @@ def api_expiring_documents():
         ORDER BY d.expiry_date ASC
     """, (days,))
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return jsonify({
         "ok": True,
         "documents": [
@@ -1946,7 +2068,7 @@ def analytics():
     total_employees = cursor.fetchone()[0]
 
     _doj_start = today.replace(day=1)
-    _doj_end   = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
+    _doj_end = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
     cursor.execute(
         "SELECT COUNT(*) FROM employees WHERE date_of_joining >= %s AND date_of_joining < %s",
         (_doj_start, _doj_end)
@@ -2118,15 +2240,20 @@ def analytics():
     retention = {'0-6m': 0, '6-12m': 0, '1-3y': 0, '3y+': 0}
     for (doj,) in cursor.fetchall():
         if isinstance(doj, str):
-            try: doj = datetime.date.fromisoformat(doj)
+            try:
+                doj = datetime.date.fromisoformat(doj)
             except Exception as _e:
                 app_log.debug("Skipping bad date_of_joining value %r: %s", doj, _e)
                 continue
         months = (today.year - doj.year) * 12 + (today.month - doj.month)
-        if months < 6:       retention['0-6m'] += 1
-        elif months < 12:    retention['6-12m'] += 1
-        elif months < 36:    retention['1-3y'] += 1
-        else:                retention['3y+'] += 1
+        if months < 6:
+            retention['0-6m'] += 1
+        elif months < 12:
+            retention['6-12m'] += 1
+        elif months < 36:
+            retention['1-3y'] += 1
+        else:
+            retention['3y+'] += 1
 
     # Smart Alerts Panel
     smart_alerts = []
@@ -2168,7 +2295,8 @@ def analytics():
     last_week_start = week_start - datetime.timedelta(days=7)
     cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s", (week_start,))
     leaves_this_week = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s AND leave_date < %s", (last_week_start, week_start))
+    cursor.execute("SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s AND leave_date < %s",
+                   (last_week_start, week_start))
     leaves_last_week = cursor.fetchone()[0]
     if leaves_last_week > 0 and leaves_this_week > leaves_last_week * 1.4:
         pct_jump = round((leaves_this_week - leaves_last_week) / leaves_last_week * 100)
@@ -2270,35 +2398,37 @@ def analytics():
             'link': ''
         })
 
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     return render_template("analytics.html",
-        co=co,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-        total_employees=total_employees,
-        new_this_month=new_this_month,
-        today_present=today_present,
-        today_absent=today_absent,
-        avg_attendance_pct=avg_attendance_pct,
-        monthly_series=monthly_series,
-        dept_data=dept_data,
-        leave_by_type=leave_by_type,
-        top_present=top_present,
-        gender_data=gender_data,
-        heatmap_data=heatmap_data,
-        dept_attendance=dept_attendance,
-        late_trend=late_trend,
-        retention=retention,
-        smart_alerts=smart_alerts,
-    )
+                           co=co,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           total_employees=total_employees,
+                           new_this_month=new_this_month,
+                           today_present=today_present,
+                           today_absent=today_absent,
+                           avg_attendance_pct=avg_attendance_pct,
+                           monthly_series=monthly_series,
+                           dept_data=dept_data,
+                           leave_by_type=leave_by_type,
+                           top_present=top_present,
+                           gender_data=gender_data,
+                           heatmap_data=heatmap_data,
+                           dept_attendance=dept_attendance,
+                           late_trend=late_trend,
+                           retention=retention,
+                           smart_alerts=smart_alerts,
+                           )
 
 
 @admin_views_bp.route("/org_chart")
 @admin_required
 def org_chart_page():
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
     active_cid = session.get("active_company_id")
     _co_sub, _co_args = co_scope_subquery(active_cid)
     cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}", _co_args)  # nosec B608
@@ -2308,18 +2438,21 @@ def org_chart_page():
     cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub}", _co_args)  # nosec B608
     pending_tickets = cursor.fetchone()[0]
     if active_cid:
-        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
+        cursor.execute(
+            "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
     else:
-        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
+        cursor.execute(
+            "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
     departments = [r[0] for r in cursor.fetchall()]
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("org_chart.html",
-        co=co, departments=departments,
-        pending_leaves=pending_leaves,
-        pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-    )
+                           co=co, departments=departments,
+                           pending_leaves=pending_leaves,
+                           pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           )
 
 
 @admin_views_bp.route("/audit_logs")
@@ -2331,7 +2464,8 @@ def audit_logs_redirect():
 @admin_required
 def admin_tools():
     tab = request.args.get("tab", "org_chart")
-    db = get_db_connection(); cursor = db.cursor(buffered=True)
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
 
     active_cid = session.get("active_company_id")
     _co_sub, _co_args = co_scope_subquery(active_cid)
@@ -2344,21 +2478,29 @@ def admin_tools():
     pending_tickets = cursor.fetchone()[0]
 
     if active_cid:
-        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
+        cursor.execute(
+            "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND company_id=%s ORDER BY department", (active_cid,))
     else:
-        cursor.execute("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
+        cursor.execute(
+            "SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' ORDER BY department")
     departments = [r[0] for r in cursor.fetchall()]
 
     # Audit logs — filter by employees of the active company when set
-    actor_f  = request.args.get("actor", "").strip()
+    actor_f = request.args.get("actor", "").strip()
     action_f = request.args.get("action", "").strip()
-    date_f   = request.args.get("date", "").strip()
-    page     = max(1, int(request.args.get("page", 1)))
+    date_f = request.args.get("date", "").strip()
+    page = max(1, int(request.args.get("page", 1)))
     per_page = 50
     conditions, params = [], []
-    if actor_f:  conditions.append("actor LIKE %s"); params.append(f"%{actor_f}%")
-    if action_f: conditions.append("action LIKE %s"); params.append(f"%{action_f}%")
-    if date_f:   conditions.append("DATE(created_at) = %s"); params.append(date_f)
+    if actor_f:
+        conditions.append("actor LIKE %s")
+        params.append(f"%{actor_f}%")
+    if action_f:
+        conditions.append("action LIKE %s")
+        params.append(f"%{action_f}%")
+    if date_f:
+        conditions.append("DATE(created_at) = %s")
+        params.append(date_f)
     if active_cid:
         # Show logs where the target_id is an employee of the active company,
         # OR the actor is an employee of the active company, OR it's an admin action
@@ -2391,22 +2533,24 @@ def admin_tools():
     actors = [r[0] for r in cursor.fetchall()]
 
     co = get_company_settings()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
     return render_template("admin_tools.html",
-        co=co, tab=tab, departments=departments,
-        logs=logs, total=total, page=page, total_pages=total_pages,
-        actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
-        pending_leaves=pending_leaves, pending_resignations=pending_resignations,
-        pending_tickets=pending_tickets,
-    )
+                           co=co, tab=tab, departments=departments,
+                           logs=logs, total=total, page=page, total_pages=total_pages,
+                           actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
+                           pending_leaves=pending_leaves, pending_resignations=pending_resignations,
+                           pending_tickets=pending_tickets,
+                           )
 
 
 @admin_views_bp.route("/api/org_chart_data")
 @admin_required
 def api_org_chart_data():
     dept_filter = request.args.get("dept", "")
-    active_cid  = session.get("active_company_id")
-    db = get_db_connection(); cursor = db.cursor()
+    active_cid = session.get("active_company_id")
+    db = get_db_connection()
+    cursor = db.cursor()
     query = """
         SELECT e.employee_id, e.name, e.role, e.department,
                e.manager_id, e.face_image,
@@ -2424,18 +2568,19 @@ def api_org_chart_data():
     query += " ORDER BY e.name"
     cursor.execute(query, params)
     rows = cursor.fetchall()
-    cursor.close(); db.close()
+    cursor.close()
+    db.close()
 
     emp_map = {}
     for r in rows:
         emp_map[r[0]] = {
-            "id":         r[0],
-            "name":       r[1],
-            "role":       r[2] or "Employee",
+            "id": r[0],
+            "name": r[1],
+            "role": r[2] or "Employee",
             "department": r[3] or "",
             "manager_id": r[4],
-            "has_photo":  bool(r[5] and os.path.exists(r[5])),
-            "children":   []
+            "has_photo": bool(r[5] and os.path.exists(r[5])),
+            "children": []
         }
 
     roots = []
