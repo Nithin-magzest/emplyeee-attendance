@@ -12,6 +12,7 @@ Run with:
 """
 import asyncio
 import json
+import logging
 
 import pytest
 
@@ -172,3 +173,136 @@ class TestHandleConnectionEndToEnd:
 
         assert len(alerts_sent) == 1
         assert alerts_sent[0]["ip"] == "127.0.0.1"
+
+
+class TestRecordHitWriteFailure:
+    def test_write_failure_is_logged_not_raised(self, tmp_path, monkeypatch):
+        # HONEYPOT_LOG_PATH's parent segment is a regular file, not a
+        # directory — os.makedirs(..., exist_ok=True) still raises OSError
+        # in that case, exercising _record_hit's own except branch.
+        blocking_file = tmp_path / "blocked"
+        blocking_file.write_text("x")
+        bad_log_path = blocking_file / "hits.jsonl"
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(bad_log_path))
+
+        hp._record_hit(21, "ftp", "203.0.113.9", b"data")  # must not raise
+
+
+class _FakeReader:
+    def __init__(self, data=b"", exc=None):
+        self._data = data
+        self._exc = exc
+
+    async def read(self, n):
+        if self._exc:
+            raise self._exc
+        return self._data
+
+
+class _SlowReader:
+    async def read(self, n):
+        await asyncio.sleep(10)
+        return b"too-late"
+
+
+class _FakeWriter:
+    def __init__(self, peer=("203.0.113.9", 12345), close_exc=None):
+        self._peer = peer
+        self.closed = False
+        self._close_exc = close_exc
+
+    def get_extra_info(self, name):
+        return self._peer if name == "peername" else None
+
+    def close(self):
+        self.closed = True
+        if self._close_exc:
+            raise self._close_exc
+
+
+class TestHandleConnectionWithFakeStreams:
+    """Drives _handle_connection with duck-typed fake reader/writer objects
+    instead of real sockets, to reach branches (slow read, dropped
+    connection, writer.close() failure, alert-dispatch failure) that would
+    otherwise need fragile real-network timing."""
+
+    def test_read_timeout_is_swallowed(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+        monkeypatch.setattr(hp, "_READ_TIMEOUT_SECONDS", 0.05)
+        monkeypatch.setattr("utils.alerts.send_security_alert", lambda *a, **k: None)
+
+        asyncio.run(hp._handle_connection(_SlowReader(), _FakeWriter(), 8021))
+
+        entry = json.loads((tmp_path / "hits.jsonl").read_text(encoding="utf-8").strip())
+        assert entry["captured_bytes"] == 0
+
+    def test_connection_error_while_reading_is_swallowed(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+        monkeypatch.setattr("utils.alerts.send_security_alert", lambda *a, **k: None)
+
+        asyncio.run(hp._handle_connection(_FakeReader(exc=ConnectionError("reset")), _FakeWriter(), 8023))
+
+        entry = json.loads((tmp_path / "hits.jsonl").read_text(encoding="utf-8").strip())
+        assert entry["protocol"] == "telnet"
+
+    def test_writer_close_failure_does_not_propagate(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+        monkeypatch.setattr("utils.alerts.send_security_alert", lambda *a, **k: None)
+        writer = _FakeWriter(close_exc=RuntimeError("already closed"))
+
+        asyncio.run(hp._handle_connection(_FakeReader(data=b"hi"), writer, 3306))
+
+        assert writer.closed
+
+    def test_alert_dispatch_failure_does_not_propagate(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+
+        def _boom(*a, **k):
+            raise RuntimeError("webhook down")
+
+        monkeypatch.setattr("utils.alerts.send_security_alert", _boom)
+
+        # Must not raise despite the webhook failure.
+        asyncio.run(hp._handle_connection(_FakeReader(data=b"hi"), _FakeWriter(), 3389))
+
+
+class TestServePort:
+    def test_binds_logs_and_accepts_a_connection(self, tmp_path, monkeypatch, caplog):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+        monkeypatch.setattr("utils.alerts.send_security_alert", lambda *a, **k: None)
+
+        async def _client():
+            await asyncio.sleep(0.3)
+            reader, writer = await asyncio.open_connection("127.0.0.1", 8021)
+            writer.write(b"probe")
+            await writer.drain()
+            writer.close()
+
+        async def _run():
+            try:
+                await asyncio.wait_for(asyncio.gather(hp._serve_port(8021), _client()), timeout=1.5)
+            except asyncio.TimeoutError:
+                pass
+
+        with caplog.at_level(logging.INFO, logger="honeypot"):
+            asyncio.run(_run())
+
+        assert any("bound 8021" in r.message for r in caplog.records)
+
+
+class TestRun:
+    def test_run_starts_a_listener_for_every_configured_port(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HONEYPOT_LOG_PATH", str(tmp_path / "hits.jsonl"))
+        monkeypatch.setattr("utils.alerts.send_security_alert", lambda *a, **k: None)
+        # Swap in a single throwaway port so this doesn't try to bind all
+        # six real decoy ports (some of which map to privileged public
+        # ports via host-level DNAT that doesn't exist in a test process).
+        monkeypatch.setattr(hp, "DECOY_PORTS", {18099: (18099, "test-proto")})
+
+        async def _run_with_timeout():
+            try:
+                await asyncio.wait_for(hp.run(), timeout=0.5)
+            except asyncio.TimeoutError:
+                pass
+
+        asyncio.run(_run_with_timeout())
