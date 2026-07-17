@@ -259,6 +259,15 @@ limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
 limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 
+# Same gzip block as nginx/nginx.conf.template — kept in sync so payloads are
+# compressed for mobile connections even before a domain/HTTPS is set up.
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 256;
+gzip_types text/plain text/css application/json application/javascript text/javascript text/xml application/xml image/svg+xml;
+
 server {
     # See the ufw before.rules NAT block above — public 80 is redirected to
     # this host port before it reaches nginx, which runs unprivileged.

@@ -16,7 +16,7 @@ from database import get_db_connection
 from utils.auth import (
     generate_password_hash, check_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
-    admin_required, employee_required, employee_api_required,
+    admin_required, role_required, employee_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY,
 )
@@ -515,7 +515,7 @@ def _wa_authorize_enrollment(emp_id):
     Without this, /webauthn/registration-options + webauthn-register(-kiosk)
     would let anyone enroll their own device's biometric against ANY
     employee_id and then check in as that employee indefinitely."""
-    if session.get("admin_logged_in"):
+    if session.get("admin_logged_in") and session.get("admin_role") == "admin":
         return None
     session_emp = session.get("employee_id")
     if session_emp:
@@ -862,7 +862,7 @@ def webauthn_register_kiosk():
 
 
 @auth_bp.route("/api/admin/employee/<emp_id>/reset-fingerprint", methods=["POST"])
-@admin_required
+@role_required("admin")
 def admin_reset_employee_fingerprint(emp_id):
     """Admin: clear a specific employee's WebAuthn credential so they can re-enroll on a new device."""
     emp_id = emp_id.strip().upper()

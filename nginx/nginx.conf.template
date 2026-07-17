@@ -24,6 +24,18 @@ limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
 limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 
+# gzip must also live in the http{} context (same reasoning as the zones
+# above). This is what actually shrinks bytes over the wire for mobile
+# connections — minify_static.py already strips whitespace, but chart.umd.min.js
+# and tabler-icons.min.css are still 200KB+ each uncompressed, and every
+# proxied Flask HTML/JSON response goes out uncompressed without this.
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 256;
+gzip_types text/plain text/css application/json application/javascript text/javascript text/xml application/xml image/svg+xml;
+
 server {
     # nginx runs unprivileged (nginxinc/nginx-unprivileged, cap_drop: ALL —
     # see compose.yaml) and can't bind ports <1024. The host redirects
