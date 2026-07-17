@@ -171,7 +171,7 @@ run_as_app() {
 run_as_app systemctl --user enable podman-restart.service 2>/dev/null || true
 
 # podman-auto-update.timer checks daily for new upstream digests on every
-# container labeled io.containers.autoupdate=registry (db/redis/clamav/
+# container labeled io.containers.autoupdate=registry (db/clamav/
 # nginx in compose.yaml — not app, which is built locally) and rolls back
 # automatically if the new image fails its healthcheck. Keeps base-image
 # CVE patches flowing in without anyone having to notice and manually pull.
@@ -205,7 +205,6 @@ ADMIN_PASSWORD=REPLACE_WITH_ADMIN_PASSWORD
 APP_URL=REPLACE_WITH_URL
 # CORS: set to your domain when live, e.g. https://yourdomain.com
 ALLOWED_ORIGINS=*
-REDIS_URL=redis://redis:6379/0
 EOF
     echo "    .env created — fill in the REPLACE_WITH_* values at $APP_DIR/.env, then re-run this script"
 fi

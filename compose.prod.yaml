@@ -1,5 +1,5 @@
 # Production override — use together with compose.yaml:
-#   podman-compose -f compose.yaml -f compose.prod.yaml up -d --no-deps app nginx certbot redis
+#   podman-compose -f compose.yaml -f compose.prod.yaml up -d --no-deps app nginx certbot
 #
 # --no-deps + the explicit service list keeps the local `db` container from
 # the base file out of the prod stack entirely (Compose's depends_on merge

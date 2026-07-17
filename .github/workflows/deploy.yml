@@ -260,7 +260,7 @@ jobs:
         # The fs scan in the security job checks Python/npm dependency
         # manifests; it can't see CVEs in the base image's own OS packages
         # (the app image's own base, plus whatever's baked into
-        # postgres:16 / redis:7-alpine / nginx-unprivileged at deploy time).
+        # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
         uses: aquasecurity/trivy-action@0.28.0
@@ -310,6 +310,6 @@ jobs:
             git pull origin master
             COMPOSE="podman-compose -f compose.yaml -f compose.prod.yaml"
             $COMPOSE build app
-            $COMPOSE up -d --no-deps app nginx certbot redis
+            $COMPOSE up -d --no-deps app nginx certbot
             podman image prune -f
             echo "Deploy complete at $(date)"

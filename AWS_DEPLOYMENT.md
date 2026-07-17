@@ -111,7 +111,7 @@ Re-run the bootstrap to pick up the filled-in `.env` and start the stack:
 sudo bash deploy.sh
 ```
 
-This builds and starts `app` and `redis` against RDS (the local `db`
+This builds and starts `app` against RDS (the local `db`
 container from `compose.yaml` is intentionally skipped via
 `--no-deps`). `nginx` and `certbot` aren't started yet — `nginx.conf` only
 exists as a template (`nginx/nginx.conf.template`, since the real one is

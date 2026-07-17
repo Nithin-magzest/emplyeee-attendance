@@ -20,8 +20,7 @@ services:
     # survive a host reboot under rootless Podman.
     restart: always
     # UID 999 is the postgres image's own postgres user, same convention
-    # the prior mysql:8.0 image used — not independently re-verified against
-    # this specific tag the way the redis service's UID was, see deploy notes.
+    # the prior mysql:8.0 image used.
     user: "999:999"
     # Lets `podman auto-update` (via the podman-auto-update.timer systemd
     # unit deploy.sh enables) pull a new image if the postgres:16 tag's
@@ -97,7 +96,7 @@ services:
       # the full DB, several hundred MB, if this is wiped every time).
       - clamav_data:/var/lib/clamav:Z
     # Not verified against this specific image's write footprint the way
-    # the other services were (mysql/redis/nginx are well-documented; this
+    # the other services were (mysql/nginx are well-documented; this
     # one I haven't tested) — /tmp, /run, /var/log cover the ones freshclam
     # and clamd are generally known to need. Watch the container's logs on
     # first boot for permission-denied errors and add paths here if needed.
@@ -121,41 +120,6 @@ services:
       retries: 5
       start_period: 300s
 
-  redis:
-    image: redis:7-alpine
-    restart: always
-    user: "100:101" # Run as redis system user
-    labels:
-      io.containers.autoupdate: registry
-    networks:
-      - backend
-    command: redis-server --save 60 1 --loglevel warning
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512mb
-    logging:
-      driver: k8s-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    volumes:
-      - redis_data:/data:Z
-    read_only: true
-    tmpfs:
-      - /tmp
-    pids_limit: 50
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build: .
     restart: always
@@ -168,7 +132,6 @@ services:
     env_file: .env
     environment:
       DB_HOST: db
-      REDIS_URL: redis://redis:6379/0
       # CLAMAV_HOST/CLAMAV_PORT default to "clamav"/3310 in app.py and
       # utils/helpers.py, matching this service's name and clamd's
       # standard port — set explicitly here for clarity, not necessity.
@@ -181,8 +144,6 @@ services:
           memory: 2gb
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       # Not health-gated on purpose: first boot can take several minutes
       # to download the full signature DB, and none of app's other
@@ -249,7 +210,7 @@ services:
     networks:
       - frontend
       # Deliberately NOT on backend — this must never be able to reach
-      # db/redis/clamav even if a crafted payload somehow compromised it.
+      # db/clamav even if a crafted payload somehow compromised it.
       # Only outbound HTTPS to the alert webhook is needed.
     ports:
       - "8021:8021" # decoys public 21 (FTP) via deploy.sh's ufw DNAT, same pattern as nginx's 80->8080
@@ -329,7 +290,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   qrcodes:
   dataset:
   documents:

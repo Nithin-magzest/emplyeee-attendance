@@ -983,16 +983,15 @@ def api_soc_lock():
 def _compute_security_posture():
     """Real, config-derived facts — not a fabricated 'security score'. Each
     one reads the same source of truth its own feature already uses
-    (utils/auth.py's turnstile_enabled(), the same REDIS_URL/
-    MALWARE_SCAN_ENABLED env vars database.py and utils/helpers.py read), so
-    this can't silently drift out of sync with what's actually enforced
-    elsewhere in the app. Shared by both the SOC dashboard and the Security
-    Settings hub below rather than computed twice."""
+    (utils/auth.py's turnstile_enabled(), the same MALWARE_SCAN_ENABLED env
+    var utils/helpers.py reads), so this can't silently drift out of sync
+    with what's actually enforced elsewhere in the app. Shared by both the
+    SOC dashboard and the Security Settings hub below rather than computed
+    twice."""
     return {
         "hsts_enabled": True,  # app.py's _security_headers sets this unconditionally on every response
         "csp_enabled": True,   # same — dynamic per-request nonce CSP, always on
-        "rate_limit_backend": "Redis (shared across workers)" if os.environ.get("REDIS_URL")
-                               else "In-memory (per-worker only — set REDIS_URL in production)",
+        "rate_limit_backend": "In-memory (per-worker — no Redis in this deployment)",
         "malware_scan_enabled": os.environ.get("MALWARE_SCAN_ENABLED", "true").strip().lower() not in ("false", "0", "no"),
         "login_captcha_configured": turnstile_enabled(),
         "email_alert_webhook_configured": bool(os.environ.get("SECURITY_ALERT_WEBHOOK_URL")),

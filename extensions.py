@@ -207,9 +207,15 @@ else:
 CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
+# In-memory storage — PostgreSQL is the only datastore this app runs (no
+# Redis). Counters are per-worker rather than shared across all gunicorn
+# workers, which is a real limitation under multiple workers (each worker
+# enforces the limit independently, so the effective ceiling is
+# limit * worker_count) but is otherwise a complete, working rate limiter —
+# not a stub.
 limiter = Limiter(
     get_remote_address,
     app=app,
-    storage_uri=os.environ.get("REDIS_URL", "memory://"),
+    storage_uri="memory://",
     default_limits=["300 per minute"],
 )

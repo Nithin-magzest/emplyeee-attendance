@@ -27,7 +27,6 @@ A full-featured, self-hosted employee management and attendance platform built w
 
 - Python 3.11+
 - PostgreSQL 16+
-- Redis (optional — required for distributed rate limiting in production)
 - `cmake`, `dlib` build tools (for face recognition — see Containerfile for the full list)
 - Node.js 18+ (for mobile app only)
 
@@ -107,7 +106,7 @@ The CI pipeline runs tests against a real PostgreSQL 16 container — not mocks.
 
 ## Podman quick start
 
-Runs the full stack (app + PostgreSQL + Redis + nginx) locally:
+Runs the full stack (app + PostgreSQL + nginx) locally:
 
 ```bash
 cp .env.example .env   # fill in your values first
@@ -125,7 +124,6 @@ See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full AWS EC2 + RDS + Terrafor
 **Quick checklist:**
 
 - [ ] Set all `.env` variables — especially `SECRET_KEY`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `APP_URL`, `ALLOWED_ORIGINS`
-- [ ] Set `REDIS_URL=redis://127.0.0.1:6379/0` for distributed rate limiting
 - [ ] Point your domain DNS to the server IP
 - [ ] Run `./init-letsencrypt.sh` to provision a Let's Encrypt TLS certificate
 - [ ] Run `./deploy.sh` to pull, build, and start the containers
@@ -133,7 +131,7 @@ See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full AWS EC2 + RDS + Terrafor
 
 **Container hardening (compose.yaml):** every service runs as non-root with
 a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, and a
-pids/memory/CPU limit. Pulled images (postgres, redis, clamav, nginx,
+pids/memory/CPU limit. Pulled images (postgres, clamav, nginx,
 certbot — not the locally-built `app` image) are labeled for
 `podman auto-update`, which `deploy.sh` enables as a daily systemd timer —
 it pulls a new image if the upstream tag's digest changes and rolls back
@@ -157,7 +155,6 @@ All variables are documented with examples in [.env.example](.env.example).
 | `OFFICE_LAT` / `OFFICE_LON` | No | — | GPS geo-fence centre |
 | `APP_URL` | No | *(request host)* | Trusted base URL for email links |
 | `ALLOWED_ORIGINS` | No | `*` | CORS whitelist — set your domain in production |
-| `REDIS_URL` | No | `memory://` | Rate-limiter backend — use Redis in production |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | — | Brevo (or any) SMTP for email delivery |
 | `ANTHROPIC_API_KEY` | No | *(disabled)* | Enables the employee portal's AI chat widget |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | No | *(disabled)* | CAPTCHA challenge on `/admin_login` after 2 failed attempts |
@@ -201,7 +198,7 @@ employee-attendance-system/
 - **Blueprint migration in progress** — all routes currently live in `app.py` and are being incrementally moved to `blueprints/`. `health.py` and `notifications.py` are the first completed migrations. See `wsgi.py` for the migration status of each module.
 - **CSP** — Content-Security-Policy is generated dynamically per-response. Inline event handlers are sha256-hashed at render time; no `'unsafe-inline'` is used.
 - **Multi-tenancy** — subdomain-based tenant routing via `_resolve_tenant()` in `app.py`. Each organisation gets its own PostgreSQL schema within the shared database. Enable with `SIGNUP_SECRET`.
-- **Rate limiting** — `flask-limiter` with Redis backend in production. Falls back to in-memory (per-worker, not shared) without `REDIS_URL`.
+- **Rate limiting** — `flask-limiter` with an in-memory backend (no Redis in this deployment — counters are per-worker, not shared across `GUNICORN_WORKERS`).
 
 ---
 

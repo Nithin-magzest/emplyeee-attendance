@@ -2,20 +2,16 @@
 # compose.yaml (and optionally compose.prod.yaml for RDS + a real domain):
 #   podman-compose -f compose.yaml -f compose.lowmem.yaml up -d --no-deps app nginx
 #
-# --no-deps + omitting db/clamav/redis from the service list keeps all
-# three out of this stack entirely (same technique compose.prod.yaml uses
-# for db). None of them fit this budget:
+# --no-deps + omitting db/clamav from the service list keeps both
+# out of this stack entirely (same technique compose.prod.yaml uses
+# for db). Neither fits this budget:
 #   - ClamAV needs 1.5-3GB just for its signature DB — MALWARE_SCAN_ENABLED
 #     is set to false below instead of running it locally.
 #   - PostgreSQL — point DB_HOST in .env at an external/managed instance
 #     instead (see AWS_DEPLOYMENT.md's RDS setup, or any other reachable
 #     PostgreSQL 16+).
-#   - Redis — with GUNICORN_WORKERS=1 below there's only one worker process
-#     to share rate-limit state across anyway, so Redis's whole benefit
-#     (shared state across *multiple* workers) doesn't apply here. Dropping
-#     it is a free win, not a tradeoff, in this specific configuration.
 #
-# Even with all three removed, this is a tight fit, not a comfortable one:
+# Even with both removed, this is a tight fit, not a comfortable one:
 # app + nginx below total ~565MB, leaving ~235MB for the host OS and
 # Podman itself on an 800MB box. That margin hasn't been tested against
 # real traffic — expect to tune further (or accept occasional OOM kills).
@@ -24,7 +20,6 @@ services:
   app:
     environment:
       DB_HOST: ${DB_HOST}
-      REDIS_URL: "memory://"           # no redis container in this profile — see header
       MALWARE_SCAN_ENABLED: "false"    # no clamav container in this profile — see header
       GUNICORN_WORKERS: "1"            # each worker duplicates face_recognition/OpenCV/dlib in RAM
       GUNICORN_THREADS: "2"
