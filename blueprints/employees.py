@@ -33,7 +33,7 @@ def admin_action():
 
     if action == "register":
         try:
-            name = request.form["name"]
+            name = request.form["name"].strip()
             emp_id = request.form["emp_id"].strip()
             email = request.form.get("email", "").strip() or None
             role = request.form.get("role", "").strip() or None
@@ -80,6 +80,28 @@ def admin_action():
             db.close()
             flash(f"Missing or invalid field in registration form: {_e}", "error")
             return redirect("/admin")
+        if not name:
+            cursor.close()
+            db.close()
+            flash("Full name is required.", "error")
+            return redirect("/admin")
+        # Plaintext fields still bounded by a VARCHAR column width (the PII
+        # fields below this point are Fernet-encrypted into TEXT columns, so
+        # they can't overflow) — checked here with a clear message instead of
+        # letting an oversized value hit psycopg2.errors.StringDataRightTruncation,
+        # an unhandled DataError that would otherwise fall through to the
+        # generic 500 page without cleaning up the already-uploaded photo.
+        _length_limits = (
+            (name, "Full name", 100), (email, "Email", 150), (role, "Role", 100),
+            (phone, "Phone", 20), (department, "Department", 100),
+            (manager_id, "Manager ID", 20), (manager_name, "Manager name", 150),
+        )
+        for _value, _label, _max_len in _length_limits:
+            if _value and len(_value) > _max_len:
+                cursor.close()
+                db.close()
+                flash(f"{_label} is too long (max {_max_len} characters).", "error")
+                return redirect("/admin")
         if not validate_emp_id(emp_id):
             cursor.close()
             db.close()
@@ -90,6 +112,12 @@ def admin_action():
         if cursor.fetchone():
             prefix = ''.join(c for c in emp_id if not c.isdigit())
             if prefix:
+                original_suffix = emp_id[len(prefix):]
+                # Preserve the width the admin actually typed (e.g. "TST001"
+                # -> "TST002") instead of always forcing 3 digits, which
+                # previously turned a collision on a 1-digit suffix like
+                # "EMP9" into the inconsistent "EMP010".
+                pad_width = len(original_suffix) if original_suffix.isdigit() else 3
                 cursor.execute(
                     "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
                     (prefix + "%",)
@@ -99,7 +127,7 @@ def admin_action():
                     sfx = eid[len(prefix):]
                     if sfx.isdigit():
                         max_seq = max(max_seq, int(sfx))
-                emp_id = f"{prefix}{max_seq + 1:03d}"
+                emp_id = f"{prefix}{max_seq + 1:0{pad_width}d}"
         _img_ok, _img_err = _validate_image_file(file)
         if not _img_ok:
             flash(_img_err, "error")

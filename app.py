@@ -1676,6 +1676,35 @@ def init_db():
     except Exception:
         pass
 
+    # v1 above widened 10 of the 15 Fernet-encrypted employee columns to TEXT.
+    # These 5 were missed — encrypt_pii() output runs 100+ chars for any
+    # input, but aadhar_number/bank_ifsc stayed VARCHAR(20) and
+    # bank_account/uan_number VARCHAR(30), so registering an employee with
+    # any of these fields filled in raised psycopg2.StringDataRightTruncation
+    # ("value too long for type character varying(20)") — a real 500 on a
+    # standard field for an Indian payroll system, found while verifying the
+    # registration flow end-to-end rather than just reading the code.
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='employee_pii_columns_to_text_v2'")
+        if not cursor.fetchone():
+            _pii_widen_stmts_v2 = [
+                "ALTER TABLE employees ALTER COLUMN aadhar_number TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN pan_number TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN bank_account TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN bank_ifsc TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN uan_number TYPE TEXT",
+            ]
+            for stmt in _pii_widen_stmts_v2:
+                try:
+                    cursor.execute(stmt)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('employee_pii_columns_to_text_v2')")
+            db.commit()
+    except Exception:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")

@@ -128,6 +128,36 @@ class TestEmployeeRegistrationSuccess:
             _cleanup_employee(db_engine, emp_id)
 
 
+class TestEmployeeRegistrationPiiFields:
+    def test_registration_with_aadhar_number_succeeds_and_roundtrips(self, client, seed_admin, db_engine, monkeypatch):
+        """aadhar_number/pan_number/bank_account/bank_ifsc/uan_number are
+        Fernet-encrypted before insert (encrypt_pii ~100+ chars for any
+        input), but their columns are still VARCHAR(20-30) — narrower than
+        every other PII field on this table, which was already widened to
+        TEXT for exactly this reason. Confirms whether filling one in
+        actually works end-to-end."""
+        from utils.helpers import decrypt_pii
+        _mock_face_detected(monkeypatch, detected=True)
+        emp_id = "REGTST010"
+        try:
+            _admin_session(client, seed_admin)
+            resp = client.post("/admin_action", data=_registration_payload(
+                emp_id, aadhar_number="123456789012"), follow_redirects=True)
+            assert resp.status_code == 200
+
+            cur = db_engine.cursor()
+            cur.execute("SELECT aadhar_number FROM employees WHERE employee_id=%s", (emp_id,))
+            row = cur.fetchone()
+            cur.close()
+            assert row is not None, (
+                "Employee row was not created when aadhar_number was supplied — "
+                "encrypt_pii() output (100+ chars) does not fit VARCHAR(20)"
+            )
+            assert decrypt_pii(row[0]) == "123456789012"
+        finally:
+            _cleanup_employee(db_engine, emp_id)
+
+
 class TestEmployeeRegistrationValidation:
     def test_alpha_prefixed_duplicate_silently_reassigns_new_id(self, client, seed_admin, seed_employee, db_engine, monkeypatch):
         """Registering with an already-taken ID that has a letter prefix
@@ -258,3 +288,66 @@ class TestEmployeeRegistrationValidation:
         finally:
             _cleanup_employee(db_engine, base_id)
             _cleanup_employee(db_engine, next_id)
+
+    def test_auto_increment_preserves_original_suffix_width(self, client, seed_admin, db_engine, monkeypatch):
+        """A collision on a 1-digit suffix (e.g. PADW9) must reassign to
+        PADW10, not the old hardcoded-3-digit PADW010 — the padding width
+        should follow what the admin actually typed."""
+        _mock_face_detected(monkeypatch, detected=True)
+        base_id = "PADW9"
+        next_id = "PADW10"
+        wrong_id = "PADW010"
+        try:
+            _admin_session(client, seed_admin)
+            client.post("/admin_action", data=_registration_payload(base_id), follow_redirects=True)
+            resp = client.post("/admin_action", data=_registration_payload(base_id), follow_redirects=True)
+            assert next_id in resp.get_data(as_text=True)
+
+            cur = db_engine.cursor()
+            cur.execute("SELECT COUNT(*) FROM employees WHERE employee_id=%s", (next_id,))
+            assert cur.fetchone()[0] == 1
+            cur.execute("SELECT COUNT(*) FROM employees WHERE employee_id=%s", (wrong_id,))
+            assert cur.fetchone()[0] == 0
+            cur.close()
+        finally:
+            _cleanup_employee(db_engine, base_id)
+            _cleanup_employee(db_engine, next_id)
+            _cleanup_employee(db_engine, wrong_id)
+
+
+class TestEmployeeRegistrationLengthLimits:
+    def test_overlong_name_rejected_cleanly(self, client, seed_admin, db_engine, monkeypatch):
+        """A name over the VARCHAR(100) column width must be rejected with
+        a clear flash message, not an unhandled psycopg2.DataError."""
+        _mock_face_detected(monkeypatch, detected=True)
+        emp_id = "REGTST020"
+        try:
+            _admin_session(client, seed_admin)
+            resp = client.post("/admin_action", data=_registration_payload(
+                emp_id, name="X" * 150), follow_redirects=True)
+            assert resp.status_code == 200
+            assert "too long" in resp.get_data(as_text=True).lower()
+
+            cur = db_engine.cursor()
+            cur.execute("SELECT COUNT(*) FROM employees WHERE employee_id=%s", (emp_id,))
+            assert cur.fetchone()[0] == 0
+            cur.close()
+        finally:
+            _cleanup_employee(db_engine, emp_id)
+
+    def test_blank_name_rejected(self, client, seed_admin, db_engine, monkeypatch):
+        _mock_face_detected(monkeypatch, detected=True)
+        emp_id = "REGTST021"
+        try:
+            _admin_session(client, seed_admin)
+            resp = client.post("/admin_action", data=_registration_payload(
+                emp_id, name="   "), follow_redirects=True)
+            assert resp.status_code == 200
+            assert "full name is required" in resp.get_data(as_text=True).lower()
+
+            cur = db_engine.cursor()
+            cur.execute("SELECT COUNT(*) FROM employees WHERE employee_id=%s", (emp_id,))
+            assert cur.fetchone()[0] == 0
+            cur.close()
+        finally:
+            _cleanup_employee(db_engine, emp_id)
