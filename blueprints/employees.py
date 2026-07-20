@@ -6,7 +6,7 @@ import datetime
 
 from flask import (Blueprint, session, request, redirect, render_template,
                    flash, url_for, jsonify, send_file, send_from_directory,
-                   abort, Response)
+                   abort, Response, current_app)
 
 from extensions import app_log
 from database import get_db_connection
@@ -784,7 +784,7 @@ def add_employee_page():
         cursor.close(); db.close()
         return redirect("/employees")
 
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
 
     if _face_recognition_available:
@@ -806,7 +806,7 @@ def add_employee_page():
     registered = False
     for _attempt in range(5):
         # Keep photo file in sync with the current emp_id on each retry attempt
-        new_filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        new_filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
         if new_filepath != original_filepath and os.path.exists(original_filepath):
             try:
                 os.rename(original_filepath, new_filepath)
@@ -925,7 +925,7 @@ def update_employee_photo(emp_id):
         cursor.close(); db.close()
         return redirect("/employees")
 
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
 
     if _face_recognition_available:
@@ -1009,7 +1009,7 @@ def update_photo(emp_id):
     ok, err = _validate_image_file(file)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
-    save_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(save_path)
     db = get_db_connection()
     cursor = db.cursor()
@@ -1128,7 +1128,7 @@ def api_register_employee():
     ok, err = _validate_image_file(file)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
     file.save(filepath)
     if _face_recognition_available:
         test_img = face_recognition.load_image_file(filepath)
