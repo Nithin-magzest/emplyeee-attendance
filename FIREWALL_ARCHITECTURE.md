@@ -13,7 +13,7 @@ there.
 | 2 | Stateful inspection | Implemented | `terraform/main.tf` |
 | 3 | Proxy firewall | Implemented (reverse proxy only) | `nginx/nginx.conf.template` |
 | 4 | Next-generation firewall (NGFW) | Resource-complete, not yet in the traffic path (no subnet association or route-table wiring) | `terraform/network_firewall.tf` |
-| 5 | Web Application Firewall | Provisioned, not yet in the traffic path | `terraform/security_hardening.tf` |
+| 5 | Web Application Firewall | AWS layer provisioned, not yet in the traffic path — but a **native, always-active** signature-based WAF is implemented and enforcing today, independent of AWS | `terraform/security_hardening.tf` (AWS layer); `utils/waf.py` (native layer) |
 
 ---
 
@@ -132,6 +132,25 @@ signatures, rate limiting per client.
   XSS-safe escaping via `_html.escape()`, CSRF tokens, security headers)
   functions as an application-level WAF and protects every request today,
   independent of the AWS-layer WAF above it.
+- **Native, signature-based WAF (`utils/waf.py`)**: a genuine interception
+  layer, not just structural mitigation — a `before_request` hook
+  (`app.py`'s `_waf_inspect_request`, registered right after the IP-ban
+  check) scans every request's query string, form fields, JSON body,
+  uploaded filenames, and path segments for SQLi/XSS/path-traversal
+  signatures and rejects a match with 403 before any route runs. This is
+  in the traffic path unconditionally — no CloudFront cutover, no Terraform
+  apply, works identically on the direct `python app.py` kiosk deployment
+  and the containerized/nginx one. Every block is logged via
+  `log_security_event` (queryable on the SOC dashboard) and feeds a
+  progressive auto-ban: 5 blocks (or rate-limit breaches — same counter,
+  see `app.py`'s `@app.errorhandler(429)`) from one IP within 10 minutes
+  inserts a 15-minute row into the existing `banned_ips` table, which the
+  existing `_enforce_ip_ban` hook then enforces on the IP's very next
+  request. That breach counter — and Flask-Limiter's own rate-limit
+  counters — default to in-memory storage, which is per-worker under
+  multiple gunicorn workers; setting `REDIS_HOST` (`compose.yaml`'s
+  `redis` service, opt-in — see `extensions.py`'s `_init_redis_backend()`)
+  makes both shared across workers instead.
 
 ---
 
@@ -144,9 +163,12 @@ signatures, rate limiting per client.
    path** — set `var.firewall_subnet_ids` to provision it (real ongoing
    cost starts immediately), then separately edit the VPC's route tables
    to actually send traffic through it; neither step happens automatically.
-3. **WAF is provisioned but inactive** — requires the CloudFront +
+3. **AWS-layer WAF is provisioned but inactive** — requires the CloudFront +
    DNS cutover described in `terraform/security_hardening.tf` and
-   `AWS_DEPLOYMENT.md` before it protects live traffic.
+   `AWS_DEPLOYMENT.md` before it protects live traffic. The native
+   `utils/waf.py` layer is not affected by this gap — it runs inside the
+   Flask app itself and is already enforcing regardless of AWS/CloudFront
+   status.
 
 None of these are silently claimed as "done" elsewhere in the project's
 docs — this file exists so the five-category checklist has one place with

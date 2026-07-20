@@ -898,6 +898,7 @@ def bulk_mark_attendance():
 
 @attendance_bp.route("/monthly_report_export")
 @admin_required
+@limiter.limit("10 per minute")
 def monthly_report_export():
     from flask import send_file
     year = int(request.args.get("year", datetime.date.today().year))

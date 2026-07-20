@@ -401,6 +401,8 @@
           <div class="sal-label">per day</div>
           <div class="sal-monthly">≈ ₹{{ "%.0f"|format(salary_per_day * 26) }} / month (26 working days)</div>
         </div>
+      {% elif salary_hidden %}
+        <p class="u-c-94a3b8 u-fs-13 u-fst-italic"><i class="ti ti-lock"></i> Restricted — requires finance/HR clearance</p>
       {% else %}
         <p class="u-c-94a3b8 u-fs-13 u-fst-italic">Salary not configured</p>
       {% endif %}

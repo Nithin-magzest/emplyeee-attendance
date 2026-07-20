@@ -494,6 +494,8 @@
         <div class="u-fs-13 u-c-64748b u-mt-4">
           Annual (~312 days): <strong class="u-c-1e293b">₹{{ "%.0f"|format(salary_pd * 312) }}</strong>
         </div>
+      {% elif salary_hidden %}
+        <div class="u-c-94a3b8 u-fs-13 u-p-8-0 u-fst-italic"><i class="ti ti-lock"></i> Restricted — requires finance/HR clearance.</div>
       {% else %}
         <div class="u-c-94a3b8 u-fs-13 u-p-8-0 u-fst-italic">Salary not configured.</div>
       {% endif %}

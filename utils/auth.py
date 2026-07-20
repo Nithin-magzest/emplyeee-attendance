@@ -357,47 +357,6 @@ def role_required(*allowed_roles):
     return decorator
 
 
-def manager_or_admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not session.get("admin_logged_in"):
-            log_security_event("access.denied", "Unauthenticated request to manager/admin route",
-                               level="INFO", required="manager_or_admin")
-            is_ajax = (
-                request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                or request.headers.get("Accept", "").startswith("application/json")
-                or request.is_json
-            )
-            if is_ajax:
-                return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
-                                "redirect": url_for("auth.admin_login")}), 401
-            return redirect(url_for("auth.admin_login"))
-        if session.get("admin_role", "admin") not in ("admin", "manager"):
-            # A real, logged-in account reaching for a resource its own role
-            # doesn't grant — a BOLA/privilege-escalation signal, not
-            # routine traffic, so this is ERROR (alert-worthy) rather than
-            # the WARNING used for a bare unauthenticated hit above.
-            log_security_event("access.denied", "Insufficient role for manager/admin route",
-                               level="ERROR", required="manager_or_admin",
-                               actual_role=session.get("admin_role", "admin"),
-                               identifier=session.get("admin_username"))
-            # Feeds the session kill switch: weight 25, not the full
-            # threshold, in one shot — a single blocked attempt could be a
-            # stale UI/bookmark on an honestly lower-privileged account.
-            # Repeated attempts against the same session is the real signal,
-            # and that's what accumulates toward the kill threshold.
-            sid = session.get("_sid")
-            if sid:
-                evaluate_session_risk(
-                    sid, session.get("admin_username") or "unknown", "admin",
-                    weight=25, event_type="access.denied",
-                    reason="Repeated insufficient-role access attempts",
-                )
-            return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
-        return f(*args, **kwargs)
-    return wrapper
-
-
 # ── API Bearer token guards ───────────────────────────────────────────────────
 def api_required(f):
     @wraps(f)
@@ -426,6 +385,36 @@ def api_required(f):
         _flask_g.api_user = row[0]
         return f(*args, **kwargs)
     return wrapper
+
+
+def api_role_required(*allowed_roles):
+    """Session-based role_required's counterpart for Bearer-token API routes.
+
+    api_required alone only proves the token is valid — every admin API
+    token is treated as equally privileged regardless of the issuing
+    admin's actual role, so a manager's or soc_analyst's token gets the
+    same bulk salary/PII data an admin's token would. Must sit UNDER
+    @api_required (i.e. @api_required above, this decorator below) so
+    _flask_g.api_user is already set by the time this runs.
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            username = getattr(_flask_g, "api_user", None)
+            with _db() as (cursor, _conn):
+                cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (username,))
+                row = cursor.fetchone()
+            actual_role = row[0] if row else None
+            if actual_role not in allowed_roles:
+                log_security_event(
+                    "access.denied", "API token's role insufficient for restricted endpoint",
+                    level="ERROR", required="|".join(allowed_roles),
+                    actual_role=actual_role, identifier=username,
+                )
+                return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def employee_api_required(f):

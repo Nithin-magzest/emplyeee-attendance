@@ -120,6 +120,43 @@ services:
       retries: 5
       start_period: 300s
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    labels:
+      io.containers.autoupdate: registry
+    networks:
+      - backend
+    # Pure cache, not a system of record (see extensions.py) — rate-limit
+    # and WAF auto-ban counters, nothing that needs to survive a restart.
+    # Disabling RDB snapshots and the AOF log means no writable /data is
+    # needed at all, so the whole filesystem can stay read-only below.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128mb
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /data
+    pids_limit: 50
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     restart: always
@@ -137,6 +174,10 @@ services:
       # standard port — set explicitly here for clarity, not necessity.
       CLAMAV_HOST: clamav
       CLAMAV_PORT: "3310"
+      # Opt-in — see extensions.py's _init_redis_backend(). Overridden to
+      # empty in compose.lowmem.yaml, which excludes this service entirely.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     deploy:
       resources:
         limits:
@@ -151,6 +192,11 @@ services:
       # only upload endpoints do, and _scan_for_malware() already fails
       # closed/open correctly if clamd isn't reachable yet.
       clamav:
+        condition: service_started
+      # Same reasoning as clamav above: extensions.py's Redis wiring
+      # already fails open to in-memory storage if unreachable, so
+      # nothing in the app needs to block startup on Redis being ready.
+      redis:
         condition: service_started
     logging:
       driver: k8s-file

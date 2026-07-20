@@ -21,7 +21,7 @@ from flask import (
 
 from database import get_db_connection
 from extensions import app_log, limiter, log_security_event
-from utils.auth import admin_required, employee_required, api_required, enforce_ownership, role_required
+from utils.auth import admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required
 from utils.helpers import _audit, decrypt_pii, encrypt_pii
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp
 from utils.attendance_utils import (
@@ -34,7 +34,8 @@ payroll_bp = Blueprint("payroll", __name__)
 
 
 @payroll_bp.route("/view_salary")
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def view_salary():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -92,7 +93,8 @@ def update_salary():
 
 
 @payroll_bp.route("/salary_report")
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def salary_report():
     year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
@@ -199,7 +201,8 @@ def salary_report():
 
 
 @payroll_bp.route("/salary_report_export")
-@admin_required
+@role_required("admin")
+@limiter.limit("10 per minute")
 def salary_report_export():
     from flask import send_file
     year = int(request.args.get("year", datetime.date.today().year))
@@ -974,6 +977,8 @@ def save_hike_config():
 
 @payroll_bp.route("/api/salary_config", methods=["GET"])
 @api_required
+@api_role_required("admin")
+@limiter.limit("10 per minute")
 def api_salary_config_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1070,6 +1075,8 @@ def api_monthly_report():
 
 @payroll_bp.route("/api/salary_report", methods=["GET"])
 @api_required
+@api_role_required("admin")
+@limiter.limit("10 per minute")
 def api_salary_report():
     year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
@@ -1297,6 +1304,7 @@ def download_payslip(emp_id, year, month):
 
 @payroll_bp.route("/admin_payslips")
 @admin_required
+@limiter.limit("10 per minute")
 def admin_payslips():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

@@ -206,16 +206,58 @@ else:
     _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 
+# ── Redis (optional shared cache — rate limiter + WAF auto-ban counters) ──────
+# PostgreSQL remains the only durable datastore this app runs; Redis here is
+# a pure cache with no persistence configured (compose.yaml disables RDB/AOF
+# for it) — losing its contents on restart just resets counters, not data.
+#
+# Opt-in via REDIS_HOST. Unset (the default for local dev, tests, and the
+# low-memory compose profile) keeps the previous behavior exactly: the rate
+# limiter falls back to Flask-Limiter's in-memory storage and utils/waf.py's
+# auto-ban counter falls back to its own in-memory dict — both per-worker,
+# not shared across gunicorn workers, which is a real limitation under
+# multiple workers (each worker enforces independently, so the effective
+# ceiling is limit * worker_count) but a complete, working fallback, not a
+# stub. Set REDIS_HOST (docker-compose's `redis` service, or any reachable
+# Redis) to make both shared and persistent-across-restarts-of-a-single-
+# worker instead. A short ping at startup decides which mode wins — a
+# misconfigured/unreachable REDIS_HOST degrades to the in-memory fallback
+# with a logged warning rather than failing app startup.
+import redis as _redis_lib
+
+
+def _init_redis_backend():
+    """Returns (redis_client_or_None, limiter_storage_uri). Split out from
+    module scope so tests can exercise the fallback logic directly instead
+    of needing to reload this whole module with different env vars."""
+    host = os.environ.get("REDIS_HOST", "").strip()
+    if not host:
+        return None, "memory://"
+    port = int(os.environ.get("REDIS_PORT", "6379"))
+    password = os.environ.get("REDIS_PASSWORD", "").strip() or None
+    try:
+        client = _redis_lib.Redis(
+            host=host, port=port, password=password,
+            socket_connect_timeout=2, socket_timeout=2,
+        )
+        client.ping()
+    except Exception as e:
+        app_log.warning(
+            "REDIS_HOST=%s set but unreachable (%s) — rate limiter and WAF "
+            "auto-ban counter falling back to per-worker in-memory storage.",
+            host, e,
+        )
+        return None, "memory://"
+    auth = f":{password}@" if password else ""
+    return client, f"redis://{auth}{host}:{port}/0"
+
+
+redis_client, _limiter_storage_uri = _init_redis_backend()
+
 # ── Rate limiter ──────────────────────────────────────────────────────────────
-# In-memory storage — PostgreSQL is the only datastore this app runs (no
-# Redis). Counters are per-worker rather than shared across all gunicorn
-# workers, which is a real limitation under multiple workers (each worker
-# enforces the limit independently, so the effective ceiling is
-# limit * worker_count) but is otherwise a complete, working rate limiter —
-# not a stub.
 limiter = Limiter(
     get_remote_address,
     app=app,
-    storage_uri="memory://",
+    storage_uri=_limiter_storage_uri,
     default_limits=["300 per minute"],
 )

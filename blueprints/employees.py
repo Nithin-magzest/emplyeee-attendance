@@ -7,11 +7,12 @@ from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash,
 )
 
-from extensions import app, app_log, limiter
+from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
-from utils.auth import admin_required, generate_password_hash, api_required, role_required
+from utils.auth import admin_required, generate_password_hash, api_required, role_required, api_role_required
 from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id
+from utils.dlp import has_pii_clearance, mask_tail
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import _td_to_time
 from utils.leave_utils import assign_leave_balances_for_employee
@@ -384,6 +385,20 @@ def employee_profile(emp_id):
                 emp[_pii_idx] = decrypt_pii(emp[_pii_idx])
         emp[6] = decrypt_pii_date(emp[6])
 
+        # DLP: aadhar/pan/bank_account/uan are only shown unmasked to the
+        # finance/HR-clearance tier (admin_role=="admin") — mirrors the
+        # restriction payroll.py's view_payslip already enforces for
+        # payslips. manager/soc_analyst still get the rest of the profile.
+        if not has_pii_clearance():
+            emp[19] = mask_tail(emp[19])  # aadhar_number
+            emp[20] = mask_tail(emp[20])  # pan_number
+            emp[22] = mask_tail(emp[22])  # bank_account
+            emp[24] = mask_tail(emp[24])  # uan_number
+        else:
+            log_security_event("data.reveal", "Admin viewed unmasked PII on employee profile",
+                               level="WARNING", identifier=session.get("admin_username"),
+                               resource_type="employee_profile", resource_id=emp_id)
+
         # Attendance this month
         cursor.execute("""
             SELECT
@@ -427,6 +442,9 @@ def employee_profile(emp_id):
         cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
         sal_row = cursor.fetchone()
         salary_per_day = sal_row[0] if sal_row else None
+        salary_hidden = bool(salary_per_day) and not has_pii_clearance()
+        if salary_hidden:
+            salary_per_day = None
 
         # Open tickets
         cursor.execute("""
@@ -449,6 +467,7 @@ def employee_profile(emp_id):
                            leave_used=leave_used,
                            pending_leaves=pending_leaves,
                            salary_per_day=salary_per_day,
+                           salary_hidden=salary_hidden,
                            open_tickets=open_tickets,
                            shift_name=shift_name,
                            today=today,
@@ -753,6 +772,25 @@ def employee_detail(emp_id):
             row[_pii_idx] = decrypt_pii(row[_pii_idx])
     row[13] = decrypt_pii_date(row[13])
 
+    # DLP: aadhar/pan/bank_account/uan (indices 24,25,27,29) and salary
+    # (index 36) are only shown unmasked to the finance/HR-clearance tier
+    # (admin_role=="admin") — mirrors the restriction payroll.py's
+    # view_payslip already enforces for payslips. manager/soc_analyst still
+    # get the rest of the record.
+    salary_hidden = False
+    if not has_pii_clearance():
+        row[24] = mask_tail(row[24])
+        row[25] = mask_tail(row[25])
+        row[27] = mask_tail(row[27])
+        row[29] = mask_tail(row[29])
+        if row[36]:
+            salary_hidden = True
+            row[36] = None
+    else:
+        log_security_event("data.reveal", "Admin viewed unmasked PII on employee detail",
+                           level="WARNING", identifier=session.get("admin_username"),
+                           resource_type="employee_detail", resource_id=emp_id)
+
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
     is_resigned = cursor.fetchone()[0] > 0
     cursor.execute(
@@ -833,6 +871,7 @@ def employee_detail(emp_id):
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
                            emp_docs=emp_docs,
+                           salary_hidden=salary_hidden,
                            )
 
 
@@ -1401,6 +1440,8 @@ def admin_view_id_card(emp_id):
 
 @employees_bp.route("/api/employees", methods=["GET"])
 @api_required
+@api_role_required("admin")
+@limiter.limit("10 per minute")
 def api_employees():
     page = max(1, int(request.args.get("page", 1)))
     per_page = min(100, max(1, int(request.args.get("per_page", 50))))
@@ -1473,6 +1514,8 @@ def api_register_employee():
 
 @employees_bp.route("/api/employees/<emp_id>", methods=["GET"])
 @api_required
+@api_role_required("admin")
+@limiter.limit("30 per minute")
 def api_employee_detail(emp_id):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required
 from utils.helpers import get_company_settings, _safe_app_url
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
+from extensions import limiter
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
@@ -161,6 +162,7 @@ def bulk_assign_onboarding():
 
 @onboarding_bp.route("/export_onboarding_csv")
 @admin_required
+@limiter.limit("10 per minute")
 def export_onboarding_csv():
     import csv
     import io

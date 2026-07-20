@@ -10,6 +10,7 @@ from flask import Blueprint, request, session, redirect, render_template, flash
 from database import get_db_connection
 from utils.auth import admin_required, employee_required
 from utils.helpers import co_scope_column
+from extensions import limiter
 
 performance_bp = Blueprint("performance", __name__)
 
@@ -392,6 +393,7 @@ def performance_employee_comment():
 
 @performance_bp.route("/performance_export")
 @admin_required
+@limiter.limit("10 per minute")
 def performance_export():
     import io
     import openpyxl
@@ -441,16 +443,6 @@ def performance_export():
     alt_fill = PatternFill("solid", fgColor="EFF6FF")
     thin = Side(style="thin", color="BFDBFE")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    def style_header(ws, cols):
-        for col_idx, (title, width) in enumerate(cols, 1):
-            cell = ws.cell(row=1, column=col_idx, value=title)
-            cell.font = hdr_font
-            cell.fill = hdr_fill
-            cell.alignment = hdr_align
-            cell.border = border
-            ws.column_dimensions[get_column_letter(col_idx)].width = width
-        ws.row_dimensions[1].height = 30
 
     def style_data_cell(cell, row_idx):
         cell.border = border

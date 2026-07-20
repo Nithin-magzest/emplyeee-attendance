@@ -32,7 +32,7 @@ if _missing_env:
         stacklevel=2
     )
 
-from extensions import app, app_log, limiter  # noqa: F401 — re-exported: tests/conftest.py does app.limiter.enabled = False
+from extensions import app, app_log, limiter, log_security_event  # noqa: F401 — app/limiter re-exported: tests/conftest.py does app.limiter.enabled = False
 # Single source of truth for email — app.py used to carry its own complete
 # duplicate of every one of these, including _email_queue_worker. wsgi.py
 # (the production entrypoint) already starts utils.email_utils's worker
@@ -66,6 +66,7 @@ from utils.helpers import (
 # app.py just never migrated. Now the single source both use, referenced
 # throughout this file as cfg.SHIFT_START etc.
 import utils.config as cfg
+import utils.waf as waf
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -273,6 +274,45 @@ def _enforce_ip_ban():
     db.close()
     if row:
         return jsonify({"ok": False, "msg": "Access denied."}), 403
+
+
+# Credential-check endpoints are deliberately exempt from the blanket WAF
+# block below. blueprints/auth.py's admin_login already detects
+# injection-shaped identifiers itself (_INJECTION_PATTERN_RE) and responds
+# with the same generic "Invalid credentials" any wrong password gets — a
+# real, tested design choice (tests/test_auth_routes.py,
+# tests/test_comprehensive.py's TestInputValidation) so a probing attacker
+# can't use a distinguishing WAF-block response to tell "malicious-shaped
+# input" apart from "wrong password" on the one surface where that
+# distinction would be most valuable to them. A hard 403 here would both
+# leak that signal and short-circuit the existing detection before it runs.
+# Not a real exposure either way — every one of these routes only ever
+# uses the identifier in a parameterized query, never executes or reflects
+# it — so exempting them costs no actual protection.
+_WAF_EXEMPT_PATHS = {"/admin_login", "/employee_login", "/api/login", "/api/employee/login"}
+
+
+@app.before_request
+def _waf_inspect_request():
+    """Native signature-based WAF: rejects requests whose query string,
+    form fields, JSON body, uploaded filenames, or path segments match a
+    known SQLi/XSS/path-traversal shape. Runs immediately after the IP ban
+    check (before session/CSRF/route logic) so a malicious payload is
+    rejected before it can reach anything else. See utils/waf.py."""
+    if request.path.startswith("/static/") or request.path == "/healthz":
+        return
+    if request.path in _WAF_EXEMPT_PATHS:
+        return
+    hit = waf.inspect_request(request)
+    if hit:
+        event_type, field, matched = hit
+        ip = request.remote_addr
+        log_security_event(
+            event_type, f"WAF blocked request: signature matched in {field}",
+            level="ERROR", field=field, matched=matched[:100],
+        )
+        waf.record_breach_and_maybe_ban(ip, f"Repeated WAF blocks ({event_type})")
+        return jsonify({"ok": False, "msg": "Request blocked by security policy."}), 403
 
 
 @app.before_request
@@ -1849,13 +1889,6 @@ def init_tenant_db(schema_name: str):
 # (Consolidated onto utils/email_utils.py — see the import block above.)
 
 # build_salary_slip_html consolidated onto utils/salary_utils.py
-def get_employee_incentive_total(cursor, emp_id, year, month):
-    cursor.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s AND month=%s",
-        (emp_id, year, month)
-    )
-    return float(cursor.fetchone()[0])
-
 # compute_salary_entry consolidated onto utils/salary_utils.py
 
 
@@ -1916,6 +1949,29 @@ def _alert_on_error(tb_text, context=""):
             send_email_async(admin_email, subject, body, cfg)
     except Exception as _alert_err:
         app_log.error("Failed to send error alert email: %s", _alert_err)
+
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    """Flask-Limiter raises this (a werkzeug HTTPException) whenever any
+    @limiter.limit(...) threshold is crossed. Distinct from _check_login_lockout's
+    DB-backed account lockout (utils/auth.py) — this is the generic per-route
+    rate ceiling. Logs every breach (feeds the same auto-ban counter WAF
+    blocks use — see utils/waf.py) instead of letting it pass through as a
+    silent, unlogged 429."""
+    waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
+    log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
+                       level="WARNING")
+    is_ajax = (
+        request.path.startswith("/api/")
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if is_ajax:
+        return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
+    return _error_page(429, "⏳", "Too Many Requests",
+                       "You've made too many requests in a short period.",
+                       "Please wait a moment before trying again.")
 
 
 @app.errorhandler(404)

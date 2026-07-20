@@ -72,7 +72,3 @@ def load_salary_rules():
             LEAVE_PAY = str(row[4])
     except Exception:
         pass
-
-
-def load_deduction_rates():
-    load_salary_rules()
