@@ -4,6 +4,7 @@ import time
 import logging
 import psycopg2
 import psycopg2.pool
+from contextlib import contextmanager
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -242,3 +243,28 @@ def create_tenant_database(db_name: str):
         "create_tenant_database() was replaced by create_tenant_schema() — "
         "tenants are Postgres schemas now, not separate databases."
     )
+
+
+@contextmanager
+def transaction(conn):
+    """Wrap a block of multi-statement writes in one explicit transaction
+    instead of _borrow_connection()'s default per-statement autocommit.
+
+    Needed wherever several related INSERT/UPDATE/DELETE statements must
+    all succeed or all fail together (e.g. deleting an employee's rows
+    across several tables) — under autocommit, a failure partway through
+    leaves the earlier statements permanently committed instead of rolled
+    back. Accepts either a _PooledConnection wrapper or a raw psycopg2
+    connection; always restores autocommit=True afterwards so the
+    connection behaves as every other borrower of this pool expects.
+    """
+    raw = getattr(conn, "_conn", conn)
+    raw.autocommit = False
+    try:
+        yield conn
+        raw.commit()
+    except Exception:
+        raw.rollback()
+        raise
+    finally:
+        raw.autocommit = True

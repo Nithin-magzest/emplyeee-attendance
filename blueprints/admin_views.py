@@ -19,7 +19,7 @@ from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, abort,
 )
 
-from database import get_db_connection, pool_stats
+from database import get_db_connection, pool_stats, transaction
 from extensions import app, app_log, log_security_event, limiter
 from utils.auth import (
     admin_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC,
@@ -1771,43 +1771,51 @@ def add_company():
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s) RETURNING id", (name, code, w_days))
-    new_cid = cursor.fetchone()[0]
-    db.commit()
 
     shift_names = request.form.getlist("shift_name[]")
     shift_starts = request.form.getlist("shift_start[]")
     shift_halfs = request.form.getlist("shift_half[]")
     shift_ends = request.form.getlist("shift_end[]")
-    for sname, sstart, shalf, send in zip(shift_names, shift_starts, shift_halfs, shift_ends):
-        sname = sname.strip()
-        sstart = sstart.strip()
-        shalf = shalf.strip()
-        send = send.strip()
-        if sname and sstart and shalf and send:
-            cursor.execute(
-                "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
-                (sname,
-                 sstart + ":00" if len(sstart) == 5 else sstart,
-                 shalf + ":00" if len(shalf) == 5 else shalf,
-                 send + ":00" if len(send) == 5 else send,
-                 new_cid)
-            )
-    db.commit()
-
     break_names = request.form.getlist("break_name[]")
     break_times = request.form.getlist("break_time[]")
     break_durs = request.form.getlist("break_duration[]")
-    for bname, btime, bdur in zip(break_names, break_times, break_durs):
-        bname = bname.strip()
-        btime = btime.strip()
-        bdur = bdur.strip()
-        if bname and btime and bdur.isdigit():
-            cursor.execute(
-                "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
-                (bname, btime + ":00" if len(btime) == 5 else btime, int(bdur), new_cid)
-            )
-    db.commit()
+
+    try:
+        with transaction(db):
+            cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s) RETURNING id", (name, code, w_days))
+            new_cid = cursor.fetchone()[0]
+
+            for sname, sstart, shalf, send in zip(shift_names, shift_starts, shift_halfs, shift_ends):
+                sname = sname.strip()
+                sstart = sstart.strip()
+                shalf = shalf.strip()
+                send = send.strip()
+                if sname and sstart and shalf and send:
+                    cursor.execute(
+                        "INSERT INTO shifts (name, start_time, half_time, end_time, company_id) VALUES (%s,%s,%s,%s,%s)",
+                        (sname,
+                         sstart + ":00" if len(sstart) == 5 else sstart,
+                         shalf + ":00" if len(shalf) == 5 else shalf,
+                         send + ":00" if len(send) == 5 else send,
+                         new_cid)
+                    )
+
+            for bname, btime, bdur in zip(break_names, break_times, break_durs):
+                bname = bname.strip()
+                btime = btime.strip()
+                bdur = bdur.strip()
+                if bname and btime and bdur.isdigit():
+                    cursor.execute(
+                        "INSERT INTO break_config (break_name, break_time, duration_minutes, company_id) VALUES (%s,%s,%s,%s)",
+                        (bname, btime + ":00" if len(btime) == 5 else btime, int(bdur), new_cid)
+                    )
+    except Exception:
+        cursor.close()
+        db.close()
+        app_log.warning("add_company failed mid-transaction for %r, rolled back", name)
+        flash("Failed to add company; no changes were made.", "error")
+        return redirect(dest)
+
     cursor.close()
     db.close()
     invalidate_companies_cache()
@@ -1836,71 +1844,83 @@ def edit_company(cid):
     row = cursor.fetchone()
     old_code = (row[0] or "").strip().upper() if row else ""
 
-    cursor.execute("UPDATE companies SET name=%s, code=%s, working_days=%s WHERE id=%s", (name, new_code, w_days, cid))
-    db.commit()
-
     renamed_count = 0
-    if old_code and new_code and old_code != new_code:
-        cursor.execute(
-            "SELECT employee_id FROM employees WHERE company_id=%s AND employee_id LIKE %s",
-            (cid, old_code + "%")
-        )
-        to_rename = [
-            (r[0], new_code + r[0][len(old_code):])
-            for r in cursor.fetchall() if r[0].startswith(old_code)
-        ]
+    to_rename = []
+    try:
+        with transaction(db):
+            cursor.execute("UPDATE companies SET name=%s, code=%s, working_days=%s WHERE id=%s", (name, new_code, w_days, cid))
 
-        related_tables = [
-            "attendance", "salary_config", "leave_requests", "notifications",
-            "resignation_requests", "tickets", "employee_incentives",
-            "employee_experience", "employee_education", "leave_balances",
-            "employee_documents", "performance_reviews", "overtime_records",
-            "regularization_requests", "compoff_balance", "employee_onboarding",
-        ]
-
-        # One UPDATE per related table for the whole renamed batch (via a
-        # Postgres UNNEST mapping table), instead of one UPDATE per table
-        # PER renamed employee — a rename of N employees previously issued
-        # N*16 round trips here; this issues a flat 16 regardless of N.
-        old_ids = [p[0] for p in to_rename]
-        new_ids = [p[1] for p in to_rename]
-        for tbl in related_tables:
-            try:
+            if old_code and new_code and old_code != new_code:
                 cursor.execute(
-                    f"UPDATE {tbl} AS t SET employee_id = m.new_eid "  # nosec B608
-                    f"FROM (SELECT * FROM UNNEST(%s::text[], %s::text[]) AS m(old_eid, new_eid)) AS m "
-                    f"WHERE t.employee_id = m.old_eid",
-                    (old_ids, new_ids)
+                    "SELECT employee_id FROM employees WHERE company_id=%s AND employee_id LIKE %s",
+                    (cid, old_code + "%")
                 )
+                to_rename = [
+                    (r[0], new_code + r[0][len(old_code):])
+                    for r in cursor.fetchall() if r[0].startswith(old_code)
+                ]
+
+                related_tables = [
+                    "attendance", "salary_config", "leave_requests", "notifications",
+                    "resignation_requests", "tickets", "employee_incentives",
+                    "employee_experience", "employee_education", "leave_balances",
+                    "employee_documents", "performance_reviews", "overtime_records",
+                    "regularization_requests", "compoff_balance", "employee_onboarding",
+                ]
+
+                # One UPDATE per related table for the whole renamed batch (via a
+                # Postgres UNNEST mapping table), instead of one UPDATE per table
+                # PER renamed employee — a rename of N employees previously issued
+                # N*16 round trips here; this issues a flat 16 regardless of N.
+                old_ids = [p[0] for p in to_rename]
+                new_ids = [p[1] for p in to_rename]
+                for tbl in related_tables:
+                    try:
+                        cursor.execute(
+                            f"UPDATE {tbl} AS t SET employee_id = m.new_eid "  # nosec B608
+                            f"FROM (SELECT * FROM UNNEST(%s::text[], %s::text[]) AS m(old_eid, new_eid)) AS m "
+                            f"WHERE t.employee_id = m.old_eid",
+                            (old_ids, new_ids)
+                        )
+                    except Exception:
+                        pass
+
+                for old_eid, new_eid in to_rename:
+                    new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
+                    new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
+                    cursor.execute(
+                        "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
+                        "WHERE employee_id=%s AND company_id=%s",
+                        (new_eid, new_img, new_qr, old_eid, cid)
+                    )
+                    renamed_count += 1
+    except Exception:
+        cursor.close()
+        db.close()
+        app_log.warning("edit_company failed mid-transaction for company %s, rolled back", cid)
+        flash("Failed to update company; no changes were made.", "error")
+        return redirect(dest)
+
+    # File renames happen only after the DB transaction has committed, so a
+    # rollback above never leaves files renamed out from under DB rows that
+    # still point at the old employee_id.
+    for old_eid, new_eid in to_rename:
+        old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
+        new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
+        old_qr = os.path.join("static", "qrcodes", old_eid + ".png")
+        new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
+        if os.path.exists(old_img):
+            try:
+                os.rename(old_img, new_img)
+            except Exception:
+                pass
+        if os.path.exists(old_qr):
+            try:
+                os.rename(old_qr, new_qr)
             except Exception:
                 pass
 
-        for old_eid, new_eid in to_rename:
-            old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
-            new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-            old_qr = os.path.join("static", "qrcodes", old_eid + ".png")
-            new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
-
-            cursor.execute(
-                "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
-                "WHERE employee_id=%s AND company_id=%s",
-                (new_eid, new_img, new_qr, old_eid, cid)
-            )
-
-            if os.path.exists(old_img):
-                try:
-                    os.rename(old_img, new_img)
-                except Exception:
-                    pass
-            if os.path.exists(old_qr):
-                try:
-                    os.rename(old_qr, new_qr)
-                except Exception:
-                    pass
-
-            renamed_count += 1
-
-        db.commit()
+    if to_rename:
         flash(
             f"Company updated. {renamed_count} employee ID(s) renamed: "
             f"{old_code}xxx → {new_code}xxx.",

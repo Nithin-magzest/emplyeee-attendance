@@ -90,6 +90,10 @@ class TestWebNotificationsEndpoints:
     def test_only_sees_own_notifications(self, client, seed_employee, db_engine):
         cur = db_engine.cursor()
         cur.execute(
+            "INSERT INTO employees (employee_id, name, password) VALUES ('OTHER_EMP', 'Other Employee', 'x') "
+            "ON CONFLICT (employee_id) DO NOTHING"
+        )
+        cur.execute(
             "INSERT INTO notifications (recipient_type, employee_id, title, message) VALUES ('employee','OTHER_EMP',%s,%s)",
             ("Not for you", "..."),
         )
@@ -100,6 +104,11 @@ class TestWebNotificationsEndpoints:
             sess["employee_id"] = seed_employee["employee_id"]
         resp = client.get("/web/notifications/list")
         assert resp.get_json()["notifications"] == []
+
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM employees WHERE employee_id='OTHER_EMP'")
+        db_engine.commit()
+        cur.close()
 
 
 class TestTicketNotifications:

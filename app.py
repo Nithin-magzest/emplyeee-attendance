@@ -1705,6 +1705,54 @@ def init_db():
     except Exception:
         pass
 
+    # Referential-integrity backstop. Every employee_id/company_id column
+    # below was previously enforced only by application code (each delete
+    # path manually cleaning up related tables) with no FK constraint
+    # backing it, so a bug or a crash mid-delete could silently orphan rows
+    # instead of being caught or cascaded. Added NOT VALID so existing
+    # orphans (if any) from before this migration don't block it — only
+    # rows inserted/updated from now on are checked, closing the gap going
+    # forward without a risky retroactive cleanup of historical data.
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='fk_constraints_v1'")
+        if not cursor.fetchone():
+            _fk_stmts = [
+                ("attendance", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("salary_config", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("leave_requests", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("resignation_requests", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("notifications", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("tickets", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employee_incentives", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employee_experience", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employee_education", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("leave_balances", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employee_documents", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("performance_reviews", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("overtime_records", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("regularization_requests", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("compoff_balance", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employee_onboarding", "employee_id", "employees", "employee_id", "CASCADE"),
+                ("employees", "company_id", "companies", "id", "SET NULL"),
+                ("shifts", "company_id", "companies", "id", "SET NULL"),
+                ("break_config", "company_id", "companies", "id", "SET NULL"),
+            ]
+            for _tbl, _col, _ref_tbl, _ref_col, _on_delete in _fk_stmts:
+                _fk_name = f"fk_{_tbl}_{_col}"
+                try:
+                    cursor.execute(
+                        f'ALTER TABLE {_tbl} ADD CONSTRAINT {_fk_name} '
+                        f'FOREIGN KEY ({_col}) REFERENCES {_ref_tbl}({_ref_col}) '
+                        f'ON DELETE {_on_delete} NOT VALID'
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('fk_constraints_v1')")
+            db.commit()
+    except Exception:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")

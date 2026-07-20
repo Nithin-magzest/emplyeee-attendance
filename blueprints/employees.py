@@ -8,7 +8,7 @@ from flask import (
 )
 
 from extensions import app, app_log, limiter
-from database import get_db_connection
+from database import get_db_connection, transaction
 from qr_generator import generate_qr
 from utils.auth import admin_required, generate_password_hash, api_required, role_required
 from utils.helpers import _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id
@@ -315,15 +315,22 @@ def delete_employee(emp_id):
     cursor.execute("SELECT face_image, qr_code FROM employees WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     if row:
+        try:
+            with transaction(db):
+                cursor.execute("DELETE FROM attendance WHERE employee_id=%s", (emp_id,))
+                cursor.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
+                cursor.execute("DELETE FROM leave_requests WHERE employee_id=%s", (emp_id,))
+                cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
+                cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
+        except Exception:
+            cursor.close()
+            db.close()
+            app_log.warning("delete_employee failed mid-transaction for %s, rolled back", emp_id)
+            flash(f"Failed to delete employee '{emp_id}'; no changes were made.", "error")
+            return redirect("/employees")
         for path in row:
             if path and os.path.exists(path):
                 os.remove(path)
-        cursor.execute("DELETE FROM attendance WHERE employee_id=%s", (emp_id,))
-        cursor.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
-        cursor.execute("DELETE FROM leave_requests WHERE employee_id=%s", (emp_id,))
-        cursor.execute("DELETE FROM resignation_requests WHERE employee_id=%s", (emp_id,))
-        cursor.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
-        db.commit()
         _audit("delete_employee", "employees", emp_id, f"Employee {emp_id} permanently deleted")
         flash(f"Employee '{emp_id}' deleted successfully.", "success")
     else:
