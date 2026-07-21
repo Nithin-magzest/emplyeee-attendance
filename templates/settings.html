@@ -1610,12 +1610,22 @@
       history.replaceState(null, '', '?tab=' + sec);
     }
 
-    /* Init from URL */
+    /* Init from URL — use requestAnimationFrame to ensure DOM is painted first */
     (function() {
-      var tab = new URLSearchParams(window.location.search).get('tab') || 'company';
+      var tab = (new URLSearchParams(window.location.search).get('tab'))
+             || (sessionStorage.getItem('settings_tab'))
+             || 'company';
+      sessionStorage.removeItem('settings_tab');
       var grp = groupMap[tab] || 'org';
-      switchGroup(grp);
-      if (document.getElementById('ss-' + tab)) switchSub(grp, tab);
+      function applyTab() {
+        switchGroup(grp);
+        if (document.getElementById('ss-' + tab)) switchSub(grp, tab);
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyTab);
+      } else {
+        requestAnimationFrame(function(){ requestAnimationFrame(applyTab); });
+      }
     })();
 
     /* ── FEATURE TOGGLE (AJAX) ── */

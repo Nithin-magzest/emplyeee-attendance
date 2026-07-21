@@ -1557,9 +1557,8 @@ def email_config():
 
     return render_template("email_config.html",
         config=config,
-        saved=request.args.get("saved",
+        saved=request.args.get("saved") == "1",
         active_nav="salary",
-    ) == "1",
     )
 
 

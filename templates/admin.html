@@ -334,6 +334,137 @@
         </div>
       </div>
 
+      <!-- QUICK ACCESS SEARCH -->
+      <div style="position:relative;margin-bottom:20px" id="searchWrap">
+        <div style="position:relative">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+          <input id="quickSearch" type="text" placeholder="Quick access — search modules, reports, settings…"
+            autocomplete="off"
+            style="width:100%;padding:12px 16px 12px 42px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;color:#0f172a;background:#fff;outline:none;transition:0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.05)"
+            onfocus="this.style.borderColor='#93c5fd';this.style.boxShadow='0 0 0 3px rgba(147,197,253,0.25)';showSearchResults(this.value)"
+            onblur="setTimeout(()=>{document.getElementById('searchDrop').style.display='none'},180)"
+            oninput="showSearchResults(this.value)"
+            onkeydown="searchNav(event)" />
+        </div>
+        <div id="searchDrop" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:999;overflow:hidden;max-height:320px;overflow-y:auto"></div>
+      </div>
+
+      <script>
+      const SEARCH_ITEMS = [
+        /* ── Employees ── */
+        {icon:'👥', label:'Employee List',              cat:'Employees',   sub:'View all employees',                        url:'/employees'},
+        {icon:'➕', label:'Add New Employee',           cat:'Employees',   sub:'Register a new employee with photo & QR',   url:'/employees?open=add'},
+        {icon:'🪪', label:'Employee ID Cards',          cat:'Employees',   sub:'View & print employee ID cards',            url:'/employees'},
+        {icon:'📷', label:'Employee Photos',            cat:'Employees',   sub:'View all employee face photos',             url:'/view_photos'},
+        {icon:'🔲', label:'QR Codes',                  cat:'Employees',   sub:'View employee QR codes',                    url:'/view_qrcodes'},
+        {icon:'🏢', label:'Org Chart',                 cat:'Employees',   sub:'Organisation hierarchy chart',              url:'/org_chart'},
+        {icon:'📁', label:'Documents',                 cat:'Employees',   sub:'Employee documents management',             url:'/documents'},
+        {icon:'🏢', label:'Companies',                 cat:'Employees',   sub:'Manage companies & branches',               url:'/companies'},
+        /* ── Attendance ── */
+        {icon:'📊', label:'Monthly Attendance Report', cat:'Attendance',  sub:'Full monthly attendance view',              url:'/monthly_report'},
+        {icon:'⬇️', label:'Export Attendance Excel',   cat:'Attendance',  sub:'Download monthly report as Excel file',     url:'/monthly_report_export?month={{ now_month }}&year={{ now_year }}'},
+        {icon:'✅', label:'Present Today',             cat:'Attendance',  sub:'Employees who checked in today',            url:'/today_present'},
+        {icon:'❌', label:'Absent Today',              cat:'Attendance',  sub:'Employees who are absent today',            url:'/today_absent'},
+        {icon:'⚠️', label:'Late Logins',               cat:'Attendance',  sub:'Employees who checked in late today',       url:'/today_late'},
+        {icon:'⏰', label:'Overtime Requests',         cat:'Attendance',  sub:'Pending & approved overtime requests',      url:'/overtime'},
+        {icon:'✏️', label:'Correct Attendance',        cat:'Attendance',  sub:'Manually correct an attendance record',     url:'/monthly_report'},
+        {icon:'📋', label:'Bulk Mark Attendance',      cat:'Attendance',  sub:'Mark attendance for multiple employees',    url:'/bulk_mark_attendance'},
+        {icon:'📍', label:'Location Settings',         cat:'Attendance',  sub:'Set GPS office location & radius',          url:'/settings?tab=attendance'},
+        /* ── Shifts ── */
+        {icon:'⏱️', label:'Shifts List',               cat:'Shifts',      sub:'View all shifts',                           url:'/shifts'},
+        {icon:'➕', label:'Add Shift',                 cat:'Shifts',      sub:'Create a new work shift',                   url:'/shifts'},
+        {icon:'👤', label:'Assign Shift to Employee',  cat:'Shifts',      sub:'Assign a shift to one employee',            url:'/shifts'},
+        {icon:'👥', label:'Bulk Assign Shifts',        cat:'Shifts',      sub:'Assign shift to multiple employees',        url:'/shifts'},
+        {icon:'☕', label:'Break Configuration',       cat:'Shifts',      sub:'Configure break types and durations',       url:'/break_config'},
+        {icon:'🔄', label:'Shift Swap Requests',       cat:'Shifts',      sub:'Review employee shift swap requests',       url:'/admin_shift_swaps'},
+        {icon:'🔁', label:'Default Shift',             cat:'Shifts',      sub:'Set the default shift for new employees',   url:'/shifts'},
+        /* ── Salary ── */
+        {icon:'💰', label:'Salary Report',             cat:'Salary',      sub:'Monthly salary breakdown by employee',      url:'/salary_report'},
+        {icon:'⬇️', label:'Export Salary Report',      cat:'Salary',      sub:'Download salary report as Excel',           url:'/salary_report_export'},
+        {icon:'🧾', label:'Payslips',                  cat:'Salary',      sub:'View & send employee payslips',             url:'/admin_payslips'},
+        {icon:'📧', label:'Send Salary Emails',        cat:'Salary',      sub:'Email payslips to all employees',           url:'/salary_report'},
+        {icon:'💹', label:'Apply Salary Hike',         cat:'Salary',      sub:'Apply hike/increment for employees',        url:'/salary_report'},
+        {icon:'🔒', label:'Lock Payroll',              cat:'Salary',      sub:'Lock payroll for the current month',        url:'/salary_report'},
+        {icon:'🔓', label:'Unlock Payroll',            cat:'Salary',      sub:'Unlock payroll to allow changes',           url:'/salary_report'},
+        {icon:'⚙️', label:'Payroll Settings',          cat:'Salary',      sub:'Configure payroll rules & deductions',      url:'/payroll_settings'},
+        {icon:'💼', label:'Salary Config',             cat:'Salary',      sub:'Set employee salary components',            url:'/view_salary'},
+        /* ── Leaves & Tickets ── */
+        {icon:'📋', label:'Leave Requests',            cat:'Leaves',      sub:'Approve or reject employee leave requests', url:'/leave_requests'},
+        {icon:'🎫', label:'Tickets',                   cat:'Leaves',      sub:'View & respond to employee tickets',        url:'/tickets'},
+        {icon:'📝', label:'Resignation Requests',      cat:'Leaves',      sub:'Review employee resignation requests',      url:'/resignation_requests'},
+        {icon:'📅', label:'Leave Calendar',            cat:'Leaves',      sub:'View monthly leave calendar',               url:'/leave_calendar'},
+        {icon:'⚖️', label:'Leave Balance',             cat:'Leaves',      sub:'Set & view employee leave balances',        url:'/leave_balance'},
+        {icon:'🗂️', label:'Leave Types',               cat:'Leaves',      sub:'Configure leave type categories',           url:'/admin_leave_types'},
+        {icon:'🔄', label:'Comp Off',                  cat:'Leaves',      sub:'Manage compensatory off requests',          url:'/compoff'},
+        /* ── Holidays ── */
+        {icon:'🗓️', label:'Holidays',                  cat:'Holidays',    sub:'View & manage public holidays',             url:'/leave_holidays'},
+        {icon:'🇮🇳', label:'Import Indian Holidays',   cat:'Holidays',    sub:'Auto-import Indian public holidays',        url:'/leave_holidays'},
+        /* ── Performance ── */
+        {icon:'📈', label:'Performance & Announcements',cat:'Performance', sub:'KPIs · Goals · Reviews · Announcements',  url:'/performance'},
+        {icon:'🏆', label:'Performance Reviews',       cat:'Performance', sub:'Review KPIs and rate employees',            url:'/performance?tab=reviews'},
+        {icon:'📢', label:'Announcements',             cat:'Performance', sub:'Post notices to all employees',             url:'/performance?tab=announcements'},
+        {icon:'📉', label:'Analytics',                 cat:'Performance', sub:'Attendance & workforce analytics',          url:'/analytics'},
+        {icon:'⬇️', label:'Export Performance Data',  cat:'Performance', sub:'Download performance report',              url:'/performance_export'},
+        /* ── Onboarding ── */
+        {icon:'🧾', label:'Onboarding',                cat:'Onboarding',  sub:'Manage new hire onboarding tasks',          url:'/onboarding'},
+        {icon:'📄', label:'Offer Letters',             cat:'Onboarding',  sub:'Create & send offer letters',              url:'/onboarding'},
+        {icon:'⬇️', label:'Export Onboarding CSV',    cat:'Onboarding',  sub:'Download onboarding data as CSV',          url:'/export_onboarding_csv'},
+        /* ── Settings ── */
+        {icon:'⚙️', label:'Settings',                  cat:'Settings',    sub:'All settings — Company · Payroll · Email · Security', url:'/settings'},
+        {icon:'🏢', label:'Company Settings',          cat:'Settings',    sub:'Organisation name, logo, timezone & schedule',        url:'/settings?tab=company'},
+        {icon:'📍', label:'Attendance Settings',       cat:'Settings',    sub:'GPS radius · Check-in method · Face · Biometric',     url:'/settings?tab=attendance'},
+        {icon:'💼', label:'Payroll Settings',          cat:'Settings',    sub:'Payroll rules, deductions & PF/ESI config',            url:'/settings?tab=payroll'},
+        {icon:'💵', label:'Salary Settings',           cat:'Settings',    sub:'Salary components, CTC structure & allowances',       url:'/settings?tab=salary'},
+        {icon:'📧', label:'Email / SMTP Settings',     cat:'Settings',    sub:'Configure outgoing mail server & sender details',     url:'/settings?tab=email'},
+        {icon:'🔐', label:'Security Settings',         cat:'Settings',    sub:'Auth method · Fingerprint · WebAuthn · PIN',          url:'/settings?tab=security'},
+        {icon:'🎨', label:'Appearance Settings',       cat:'Settings',    sub:'Dark mode & display preferences',                     url:'/settings?tab=appearance'},
+        {icon:'🔑', label:'Change Admin Password',     cat:'Settings',    sub:'Update your admin login password',                    url:'/admin'},
+        /* ── Tools ── */
+        {icon:'🛠️', label:'Admin Tools',              cat:'Tools',       sub:'Utility tools for admin management',        url:'/admin_tools'},
+        {icon:'📜', label:'Audit Logs',                cat:'Tools',       sub:'View all admin action audit trail',         url:'/audit_logs'},
+      ];
+
+      let _si = -1;
+      function showSearchResults(q) {
+        const drop = document.getElementById('searchDrop');
+        q = q.trim().toLowerCase();
+        if (!q) { drop.style.display='none'; _si=-1; return; }
+        const hits = SEARCH_ITEMS.filter(i =>
+          i.label.toLowerCase().includes(q) ||
+          i.sub.toLowerCase().includes(q) ||
+          i.cat.toLowerCase().includes(q)
+        ).slice(0, 12);
+        if (!hits.length) {
+          drop.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">No results found</div>';
+        } else {
+          drop.innerHTML = hits.map((i, idx) =>
+            `<a href="${i.url}" class="s-row" data-idx="${idx}"
+               style="display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;color:#0f172a;border-bottom:1px solid #f1f5f9;transition:0.12s"
+               onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"
+               onclick="document.getElementById('quickSearch').value='';document.getElementById('searchDrop').style.display='none';var _u=this.getAttribute('href'),_m=_u&&_u.match(/[?&]tab=([^&]+)/);if(_m)sessionStorage.setItem('settings_tab',_m[1])">
+              <span style="font-size:20px;flex-shrink:0;width:28px;text-align:center">${i.icon}</span>
+              <span style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.label}</div>
+                <div style="font-size:11px;color:#64748b">${i.sub}</div>
+              </span>
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0">${i.cat}</span>
+            </a>`
+          ).join('');
+        }
+        drop.style.display = 'block';
+        _si = -1;
+      }
+      function searchNav(e) {
+        const drop = document.getElementById('searchDrop');
+        const rows = drop.querySelectorAll('a.s-row');
+        if (!rows.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); _si = Math.min(_si+1, rows.length-1); rows.forEach((r,i)=>r.style.background=i===_si?'#eff6ff':''); rows[_si].scrollIntoView({block:'nearest'}); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); _si = Math.max(_si-1, 0); rows.forEach((r,i)=>r.style.background=i===_si?'#eff6ff':''); rows[_si].scrollIntoView({block:'nearest'}); }
+        else if (e.key === 'Enter' && _si >= 0) { rows[_si].click(); }
+        else if (e.key === 'Escape') { drop.style.display='none'; document.getElementById('quickSearch').blur(); }
+      }
+      </script>
+
       <!-- STAT CARDS -->
       <div class="stats">
         <a class="stat-card" href="/employees">
