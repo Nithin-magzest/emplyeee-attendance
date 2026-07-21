@@ -1238,7 +1238,14 @@
       }
 
       // Initialise on load
-      document.addEventListener('DOMContentLoaded', function() { applyFilters(); });
+      document.addEventListener('DOMContentLoaded', function() {
+        applyFilters();
+        // Auto-open Add Employee modal if redirected from dashboard button
+        if (new URLSearchParams(window.location.search).get('open') === 'add') {
+          openModal('addModal');
+          history.replaceState(null, '', '/employees');
+        }
+      });
 
       function clearFilters() {
         document.getElementById('searchInput').value = '';
