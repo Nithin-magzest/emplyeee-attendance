@@ -37,7 +37,10 @@ jobs:
             templates/employee_portal.html \
             templates/employees.html \
             templates/employee_detail.html \
-            templates/qrcodes.html; do
+            templates/settings.html \
+            templates/salary_report.html \
+            templates/leave_holidays.html \
+            templates/onboarding.html; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
