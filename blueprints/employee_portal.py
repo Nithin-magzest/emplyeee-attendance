@@ -24,6 +24,15 @@ from utils.attendance_utils import (
     fetch_holidays_set, get_billable_past_days,
 )
 
+from qr_generator import generate_qr
+
+try:
+    import face_recognition
+    _face_recognition_available = True
+except Exception:
+    face_recognition = None
+    _face_recognition_available = False
+
 employee_portal_bp = Blueprint("employee_portal", __name__)
 
 def assign_leave_balances_for_employee(cursor, employee_id, year=None):

@@ -4,6 +4,7 @@ import csv
 import datetime
 import html as _html
 import io
+import openpyxl
 import os
 
 from flask import (Blueprint, session, request, redirect, render_template,

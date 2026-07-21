@@ -20,7 +20,7 @@ from utils.auth import (admin_required, employee_required,
                         _clear_login_failures)
 from utils.helpers import (get_company_settings, invalidate_settings_cache,
                            get_auth_config, get_fingerprint_enabled)
-from utils.email_utils import get_email_config, send_email_async
+from utils.email_utils import get_email_config, send_email_smtp, send_email_async
 
 # WebAuthn optional dependency
 try:

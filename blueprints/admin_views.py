@@ -5,6 +5,7 @@ import datetime
 import io
 import json
 import os
+import psycopg2
 import re
 import secrets
 
@@ -20,6 +21,7 @@ from utils.helpers import (_audit, get_company_settings, get_auth_config,
                            encrypt_pii, decrypt_pii, _validate_image_file,
                            _safe_redirect, _safe_referrer_redirect, _db)
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
+from qr_generator import generate_qr
 from utils.attendance_utils import _td_to_time
 from utils.config import (SHIFT_START, SHIFT_HALF, SHIFT_END,
                           load_salary_rules, load_default_shift)

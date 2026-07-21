@@ -2,7 +2,9 @@
 import os
 import io
 import csv
+import secrets
 import datetime
+import psycopg2
 
 from flask import (Blueprint, session, request, redirect, render_template,
                    flash, url_for, jsonify, send_file, send_from_directory,
@@ -14,8 +16,18 @@ from utils.auth import (admin_required, employee_required,
                         api_required, generate_password_hash)
 from utils.helpers import (_audit, _validate_image_file, _validate_upload,
                            get_company_settings, encrypt_pii, decrypt_pii, _db)
+from utils.email_utils import get_email_config, send_email_smtp
+from qr_generator import generate_qr
+from app import assign_leave_balances_for_employee, _enroll_fingerprint_from_form
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dataset")
+
+try:
+    import face_recognition
+    _face_recognition_available = True
+except Exception:
+    face_recognition = None
+    _face_recognition_available = False
 
 employees_bp = Blueprint("employees", __name__)
 

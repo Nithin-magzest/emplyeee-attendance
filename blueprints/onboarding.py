@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import io
 import os
+import psycopg2
 import secrets
 
 from flask import (Blueprint, session, request, redirect, render_template,
@@ -12,6 +13,7 @@ from flask import (Blueprint, session, request, redirect, render_template,
 
 from extensions import app_log
 from database import get_db_connection
+from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required
 from utils.helpers import _audit, get_company_settings, _db
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
