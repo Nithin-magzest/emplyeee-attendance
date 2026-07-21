@@ -8,8 +8,7 @@
 //  For iOS Simulator you can use localhost:
 //  'http://localhost:5000'
 // ─────────────────────────────────────────────
-export const API_BASE_URL = 'http://192.168.1.37:5000';
-
+export const API_BASE_URL = 'http://10.0.2.2:5000';
 export const COLORS = {
   // Backgrounds
   adminBg:    ['#0f2027', '#203a43', '#2c5364'],

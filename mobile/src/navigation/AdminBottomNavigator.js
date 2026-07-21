@@ -1,7 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-
+import SalaryPayslipsScreen from "../screens/admin/SalaryPayslipsScreen";
 import AdminDashboard from "../screens/admin/AdminDashboard";
 import EmployeesScreen from "../screens/admin/EmployeesScreen";
 import AttendanceScreen from "../screens/admin/AttendanceScreen";
@@ -140,6 +140,14 @@ export default function AdminBottomNavigator() {
           tabBarLabel: "Settings",
         }}
       />
+
+      <Tab.Screen
+  name="Payroll"
+  component={SalaryPayslipsScreen}
+  options={{
+    tabBarButton: () => null,
+  }}
+/>
     </Tab.Navigator>
   );
 }
