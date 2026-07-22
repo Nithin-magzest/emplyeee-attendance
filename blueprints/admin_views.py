@@ -13,6 +13,8 @@ positive in every case here — the interpolated fragment is always one of:
 All actual values are always passed as %s-bound params, never interpolated.
 """
 import os
+import re
+import json
 import datetime
 import calendar
 from flask import (
@@ -34,6 +36,7 @@ from utils.helpers import (
     get_company_settings, get_co_features, _upsert_co_feature,
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     _create_notification, encrypt_pii, decrypt_pii, invalidate_companies_cache,
+    _validate_image_file,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.totp import (
@@ -578,10 +581,18 @@ def settings_page():
         SELECT c.id, c.name, COALESCE(c.code,''), c.created_at,
                COUNT(e.id) AS emp_count,
                COALESCE(c.working_days,'Mon,Tue,Wed,Thu,Fri'),
-               CASE WHEN c.pin IS NOT NULL AND c.pin != '' THEN 1 ELSE 0 END AS has_pin
+               CASE WHEN c.pin IS NOT NULL AND c.pin != '' THEN 1 ELSE 0 END AS has_pin,
+               COALESCE(c.logo_path,''),
+               CASE WHEN t.company_id IS NOT NULL THEN 1 ELSE 0 END AS has_id_template,
+               COALESCE(c.address,''),
+               COALESCE(c.website,''),
+               COALESCE(c.email,''),
+               COALESCE(c.phone,'')
         FROM companies c
         LEFT JOIN employees e ON e.company_id = c.id
-        GROUP BY c.id, c.name, c.code, c.created_at, c.working_days, c.pin
+        LEFT JOIN id_card_templates t ON t.company_id = c.id
+        GROUP BY c.id, c.name, c.code, c.created_at, c.working_days, c.pin, c.logo_path, t.company_id,
+                 c.address, c.website, c.email, c.phone
         ORDER BY c.name
     """)
     companies = cursor.fetchall()
@@ -1758,16 +1769,52 @@ def view_companies():
     return redirect("/settings?tab=company")
 
 
+def _save_company_image(file_storage, cid, kind):
+    """Save an uploaded company logo / ID-card-template image under static/,
+    deterministically named by company id so re-uploads just overwrite the
+    previous file. `kind` is 'logo', 'front' or 'back'. Returns the relative
+    path (under static/) to store in the DB."""
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    folder_name = "company_logos" if kind == "logo" else "id_card_templates"
+    folder = os.path.join(app.root_path, "static", folder_name)
+    os.makedirs(folder, exist_ok=True)
+    filename = f"co_{cid}_{kind}{ext}"
+    file_storage.save(os.path.join(folder, filename))
+    return f"{folder_name}/{filename}"
+
+
+def _delete_company_image(rel_path):
+    """Best-effort cleanup of a previously-stored company logo/template file."""
+    if not rel_path:
+        return
+    try:
+        os.remove(os.path.join(app.root_path, "static", rel_path))
+    except OSError:
+        pass
+
+
 @admin_views_bp.route("/companies/add", methods=["POST"])
 @admin_required
 def add_company():
     name = request.form.get("name", "").strip()
     code = request.form.get("code", "").strip().upper()[:20] or None
+    address = request.form.get("address", "").strip() or None
+    website = request.form.get("website", "").strip() or None
+    email = request.form.get("email", "").strip() or None
+    phone = request.form.get("phone", "").strip() or None
     redirect_to = request.form.get("redirect_to", "companies")
     dest = "/settings?tab=company" if redirect_to == "settings" else "/companies"
     if not name:
         flash("Company name is required.", "error")
         return redirect(dest)
+
+    logo_file = request.files.get("logo")
+    if logo_file and logo_file.filename:
+        logo_ok, logo_err = _validate_image_file(logo_file)
+        if not logo_ok:
+            flash(f"Company logo: {logo_err}", "error")
+            return redirect(dest)
+
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1782,7 +1829,11 @@ def add_company():
 
     try:
         with transaction(db):
-            cursor.execute("INSERT INTO companies (name, code, working_days) VALUES (%s, %s, %s) RETURNING id", (name, code, w_days))
+            cursor.execute(
+                "INSERT INTO companies (name, code, working_days, address, website, email, phone) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (name, code, w_days, address, website, email, phone)
+            )
             new_cid = cursor.fetchone()[0]
 
             for sname, sstart, shalf, send in zip(shift_names, shift_starts, shift_halfs, shift_ends):
@@ -1816,6 +1867,11 @@ def add_company():
         flash("Failed to add company; no changes were made.", "error")
         return redirect(dest)
 
+    if logo_file and logo_file.filename:
+        logo_path = _save_company_image(logo_file, new_cid, "logo")
+        cursor.execute("UPDATE companies SET logo_path=%s WHERE id=%s", (logo_path, new_cid))
+        db.commit()
+
     cursor.close()
     db.close()
     invalidate_companies_cache()
@@ -1828,6 +1884,10 @@ def add_company():
 def edit_company(cid):
     name = request.form.get("name", "").strip()
     new_code = (request.form.get("code", "").strip().upper()[:20]) or None
+    address = request.form.get("address", "").strip() or None
+    website = request.form.get("website", "").strip() or None
+    email = request.form.get("email", "").strip() or None
+    phone = request.form.get("phone", "").strip() or None
     redirect_to = request.form.get("redirect_to", "companies")
     dest = "/settings?tab=company" if redirect_to == "settings" else "/companies"
 
@@ -1835,20 +1895,32 @@ def edit_company(cid):
         flash("Company name is required.", "error")
         return redirect(dest)
 
+    logo_file = request.files.get("logo")
+    if logo_file and logo_file.filename:
+        logo_ok, logo_err = _validate_image_file(logo_file)
+        if not logo_ok:
+            flash(f"Company logo: {logo_err}", "error")
+            return redirect(dest)
+
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     w_days = ",".join(request.form.getlist("working_days")) or "Mon,Tue,Wed,Thu,Fri"
 
-    cursor.execute("SELECT COALESCE(code,'') FROM companies WHERE id=%s", (cid,))
+    cursor.execute("SELECT COALESCE(code,''), COALESCE(logo_path,'') FROM companies WHERE id=%s", (cid,))
     row = cursor.fetchone()
     old_code = (row[0] or "").strip().upper() if row else ""
+    old_logo_path = row[1] if row and row[1] else None
 
     renamed_count = 0
     to_rename = []
     try:
         with transaction(db):
-            cursor.execute("UPDATE companies SET name=%s, code=%s, working_days=%s WHERE id=%s", (name, new_code, w_days, cid))
+            cursor.execute(
+                "UPDATE companies SET name=%s, code=%s, working_days=%s, address=%s, "
+                "website=%s, email=%s, phone=%s WHERE id=%s",
+                (name, new_code, w_days, address, website, email, phone, cid)
+            )
 
             if old_code and new_code and old_code != new_code:
                 cursor.execute(
@@ -1920,6 +1992,13 @@ def edit_company(cid):
             except Exception:
                 pass
 
+    if logo_file and logo_file.filename:
+        new_logo_path = _save_company_image(logo_file, cid, "logo")
+        cursor.execute("UPDATE companies SET logo_path=%s WHERE id=%s", (new_logo_path, cid))
+        db.commit()
+        if old_logo_path and old_logo_path != new_logo_path:
+            _delete_company_image(old_logo_path)
+
     if to_rename:
         flash(
             f"Company updated. {renamed_count} employee ID(s) renamed: "
@@ -1949,13 +2028,206 @@ def delete_company(cid):
         db.close()
         flash(f"Cannot delete: {count} employee(s) are assigned to this company.", "error")
         return redirect(dest)
+    cursor.execute("SELECT COALESCE(logo_path,'') FROM companies WHERE id=%s", (cid,))
+    logo_row = cursor.fetchone()
+    cursor.execute("SELECT COALESCE(front_image,''), COALESCE(back_image,'') FROM id_card_templates WHERE company_id=%s", (cid,))
+    tpl_row = cursor.fetchone()
     cursor.execute("DELETE FROM companies WHERE id=%s", (cid,))
     db.commit()
     cursor.close()
     db.close()
     invalidate_companies_cache()
+    _delete_company_image(logo_row[0] if logo_row else None)
+    if tpl_row:
+        _delete_company_image(tpl_row[0])
+        _delete_company_image(tpl_row[1])
     flash("Company deleted.", "success")
     return redirect(dest)
+
+
+# ── Custom ID card templates (per company) ─────────────────────────────────
+_ID_CARD_FIELD_KEYS = {
+    "photo", "logo", "name", "employee_id", "designation",
+    "email", "phone", "blood_group", "qr",
+    "date_of_joining", "company_address", "website",
+    "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
+}
+
+
+@admin_views_bp.route("/companies/<int:cid>/id_card_template/upload", methods=["POST"])
+@admin_required
+def id_card_template_upload(cid):
+    front_file = request.files.get("front_image")
+    back_file = request.files.get("back_image")
+    has_front = bool(front_file and front_file.filename)
+    has_back = bool(back_file and back_file.filename)
+    if not has_front and not has_back:
+        flash("Upload at least a front or back template image.", "error")
+        return redirect("/settings?tab=company")
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT COUNT(*) FROM companies WHERE id=%s", (cid,))
+    if not cursor.fetchone()[0]:
+        cursor.close()
+        db.close()
+        abort(404)
+
+    if has_front:
+        ok, err = _validate_image_file(front_file)
+        if not ok:
+            cursor.close()
+            db.close()
+            flash(f"Front template: {err}", "error")
+            return redirect("/settings?tab=company")
+    if has_back:
+        ok, err = _validate_image_file(back_file)
+        if not ok:
+            cursor.close()
+            db.close()
+            flash(f"Back template: {err}", "error")
+            return redirect("/settings?tab=company")
+
+    cursor.execute(
+        "SELECT COALESCE(front_image,''), COALESCE(back_image,'') FROM id_card_templates WHERE company_id=%s", (cid,)
+    )
+    existing = cursor.fetchone()
+    old_front = existing[0] if existing and existing[0] else None
+    old_back = existing[1] if existing and existing[1] else None
+
+    new_front = _save_company_image(front_file, cid, "front") if has_front else old_front
+    new_back = _save_company_image(back_file, cid, "back") if has_back else old_back
+
+    cursor.execute("""
+        INSERT INTO id_card_templates (company_id, front_image, back_image, updated_at)
+        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (company_id) DO UPDATE SET
+            front_image = EXCLUDED.front_image,
+            back_image = EXCLUDED.back_image,
+            updated_at = CURRENT_TIMESTAMP
+    """, (cid, new_front, new_back))
+    db.commit()
+    cursor.close()
+    db.close()
+
+    if has_front and old_front and old_front != new_front:
+        _delete_company_image(old_front)
+    if has_back and old_back and old_back != new_back:
+        _delete_company_image(old_back)
+
+    flash("Template image(s) uploaded. Now place the fields.", "success")
+    return redirect(f"/companies/{cid}/id_card_template/editor")
+
+
+@admin_views_bp.route("/companies/<int:cid>/id_card_template/editor")
+@admin_required
+def id_card_template_editor(cid):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT name FROM companies WHERE id=%s", (cid,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.close()
+        db.close()
+        abort(404)
+    company_name = row[0]
+    cursor.execute(
+        "SELECT front_image, back_image, fields FROM id_card_templates WHERE company_id=%s", (cid,)
+    )
+    tpl = cursor.fetchone()
+    cursor.close()
+    db.close()
+
+    front_image = tpl[0] if tpl else None
+    back_image = tpl[1] if tpl else None
+    try:
+        fields = json.loads(tpl[2]) if tpl and tpl[2] else {}
+    except (ValueError, TypeError):
+        fields = {}
+
+    return render_template(
+        "id_card_template_editor.html",
+        cid=cid, company_name=company_name,
+        front_image=front_image, back_image=back_image,
+        fields_json=json.dumps(fields),
+    )
+
+
+@admin_views_bp.route("/companies/<int:cid>/id_card_template/save_positions", methods=["POST"])
+@admin_required
+def id_card_template_save_positions(cid):
+    raw = request.form.get("positions_json", "")
+    try:
+        positions = json.loads(raw) if raw else {}
+    except ValueError:
+        positions = None
+
+    if not isinstance(positions, dict):
+        flash("Invalid field positions submitted.", "error")
+        return redirect(f"/companies/{cid}/id_card_template/editor")
+
+    cleaned = {}
+    for key, box in positions.items():
+        if key not in _ID_CARD_FIELD_KEYS or not isinstance(box, dict):
+            continue
+        try:
+            x, y, w, h = float(box["x"]), float(box["y"]), float(box["w"]), float(box["h"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not all(0 <= v <= 1 for v in (x, y, w, h)):
+            continue
+        side = box.get("side") if box.get("side") in ("front", "back") else "front"
+        entry = {"side": side, "x": x, "y": y, "w": w, "h": h}
+        if "font_size" in box:
+            try:
+                entry["font_size"] = max(6, min(72, int(box["font_size"])))
+            except (TypeError, ValueError):
+                pass
+        if box.get("bold"):
+            entry["bold"] = True
+        if box.get("square"):
+            entry["square"] = True
+        if box.get("round"):
+            entry["round"] = True
+        color = box.get("color")
+        if isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            entry["color"] = color
+        bg_color = box.get("bg_color")
+        if isinstance(bg_color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", bg_color):
+            entry["bg_color"] = bg_color
+        cleaned[key] = entry
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "UPDATE id_card_templates SET fields=%s, updated_at=CURRENT_TIMESTAMP WHERE company_id=%s",
+        (json.dumps(cleaned), cid)
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    flash("Field positions saved.", "success")
+    return redirect(f"/companies/{cid}/id_card_template/editor")
+
+
+@admin_views_bp.route("/companies/<int:cid>/id_card_template/reset", methods=["POST"])
+@admin_required
+def id_card_template_reset(cid):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT COALESCE(front_image,''), COALESCE(back_image,'') FROM id_card_templates WHERE company_id=%s", (cid,)
+    )
+    row = cursor.fetchone()
+    cursor.execute("DELETE FROM id_card_templates WHERE company_id=%s", (cid,))
+    db.commit()
+    cursor.close()
+    db.close()
+    if row:
+        _delete_company_image(row[0])
+        _delete_company_image(row[1])
+    flash("ID card template reset to default.", "success")
+    return redirect("/settings?tab=company")
 
 
 @admin_views_bp.route("/announcements", methods=["GET", "POST"])

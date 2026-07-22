@@ -57,6 +57,7 @@ _WIPE_TABLES = [
     "performance_reviews", "performance_kpis",
     # Scheduling / company config
     "shifts", "break_config", "holidays", "companies", "company_feature_settings",
+    "id_card_templates",
     # Email / alerting (old owner's SMTP + webhook secrets)
     "email_config",
     # Multi-tenant registry (att_master only, but harmless no-op elsewhere)

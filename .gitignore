@@ -14,6 +14,8 @@ static/qrcodes/
 mobile/node_modules/
 mobile/.expo/
 static/employee_docs/
+static/company_logos/
+static/id_card_templates/
 venv/
 cert.pem
 key.pem

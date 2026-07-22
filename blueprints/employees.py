@@ -1,5 +1,6 @@
 """Employees blueprint — CRUD, photos, QR codes, ID cards."""
 import os
+import json
 import datetime
 import secrets
 import psycopg2
@@ -1216,110 +1217,252 @@ def generate_emp_id():
     return jsonify({"emp_id": emp_id, "code": code, "seq": seq, "company_name": company_name})
 
 
-def _build_id_card_buf(emp_id):
-    """Generate the front+back ID card PNG and return a BytesIO buffer, or None if not found."""
-    from PIL import Image, ImageDraw, ImageFont
-    import io as _io2
+_IDC_DARK = (15, 40, 100)
+_IDC_BLUE = (30, 58, 138)
+_IDC_MID = (37, 99, 235)
+_IDC_PALE = (219, 234, 254)
+_IDC_WHITE = (255, 255, 255)
+_IDC_LGRAY = (241, 245, 249)
+_IDC_MGRAY = (100, 116, 139)
+_IDC_DGRAY = (15, 23, 42)
+_IDC_GOLD = (251, 191, 36)
+_IDC_RED = (220, 38, 38)
 
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
-               sh.name AS shift_name, e.blood_group, e.phone
-        FROM employees e
-        LEFT JOIN shifts sh ON e.shift_id = sh.id
-        WHERE e.employee_id = %s
-    """, (emp_id,))
-    row = cursor.fetchone()
-    if not row:
-        cursor.execute("""
-            SELECT employee_id, name, role, email, face_image, date_of_joining,
-                   NULL, blood_group, phone
-            FROM employees WHERE employee_id=%s
-        """, (emp_id,))
-        row = cursor.fetchone()
-    cursor.close()
-    db.close()
 
-    if not row:
-        return None
-    row = row[:7] + (decrypt_pii(row[7]),) + row[8:]  # [7]=blood_group
-
-    DARK = (15, 40, 100)
-    BLUE = (30, 58, 138)
-    MID = (37, 99, 235)
-    PALE = (219, 234, 254)
-    WHITE = (255, 255, 255)
-    LGRAY = (241, 245, 249)
-    MGRAY = (100, 116, 139)
-    DGRAY = (15, 23, 42)
-    GOLD = (251, 191, 36)
-    RED = (220, 38, 38)
-
-    def fnt(size, bold=False):
-        candidates = (
-            ["C:/Windows/Fonts/arialbd.ttf",
-             "C:/Windows/Fonts/calibrib.ttf",
-             "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
-            if bold else
-            ["C:/Windows/Fonts/arial.ttf",
-             "C:/Windows/Fonts/calibri.ttf",
-             "/System/Library/Fonts/Supplemental/Arial.ttf",
-             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
-        )
-        for p in candidates:
-            try:
-                return ImageFont.truetype(p, size)
-            except OSError:
-                pass
-        return ImageFont.load_default()
-
-    def _safe_text(text):
+def _idc_font(size, bold=False):
+    from PIL import ImageFont
+    candidates = (
+        ["C:/Windows/Fonts/segoeuib.ttf",
+         "C:/Windows/Fonts/arialbd.ttf",
+         "C:/Windows/Fonts/calibrib.ttf",
+         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+        if bold else
+        ["C:/Windows/Fonts/segoeui.ttf",
+         "C:/Windows/Fonts/arial.ttf",
+         "C:/Windows/Fonts/calibri.ttf",
+         "/System/Library/Fonts/Supplemental/Arial.ttf",
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+    )
+    for p in candidates:
         try:
-            text.encode('latin-1')
-            return text
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            return text.encode('ascii', 'replace').decode('ascii')
+            return ImageFont.truetype(p, size)
+        except OSError:
+            pass
+    return ImageFont.load_default()
 
-    def tw(draw, text, font):
-        bb = draw.textbbox((0, 0), _safe_text(text), font=font)
-        return bb[2] - bb[0]
 
-    def cx(draw, text, font, card_w, y, color):
-        t = _safe_text(text)
-        draw.text(((card_w - tw(draw, t, font)) // 2, y), t, font=font, fill=color)
+def _idc_safe_text(text):
+    try:
+        text.encode('latin-1')
+        return text
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text.encode('ascii', 'replace').decode('ascii')
+
+
+def _idc_text_width(draw, text, font):
+    bb = draw.textbbox((0, 0), _idc_safe_text(text), font=font)
+    return bb[2] - bb[0]
+
+
+def _idc_center_text(draw, text, font, card_w, y, color):
+    t = _idc_safe_text(text)
+    draw.text(((card_w - _idc_text_width(draw, t, font)) // 2, y), t, font=font, fill=color)
+
+
+def _idc_wrap_text(draw, text, font, max_width, max_lines=2):
+    """Greedy word-wrap `text` to fit within `max_width` px, capped at
+    `max_lines` lines — used for the default card's company address, which
+    is free-form text unlike the other fixed single-line fields. Anything
+    past `max_lines` is dropped, with the last line ellipsized."""
+    words = _idc_safe_text(text).split()
+    lines, current = [], ""
+    for word in words:
+        candidate = (current + " " + word).strip()
+        if not current or _idc_text_width(draw, candidate, font) <= max_width:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    if len(lines) <= max_lines:
+        return lines
+
+    kept = lines[:max_lines]
+    last = kept[-1]
+    while len(last) > 1 and _idc_text_width(draw, last + "…", font) > max_width:
+        last = last[:-1]
+    kept[-1] = last + "…"
+    return kept
+
+
+def _idc_header_logo_and_name(draw, img, bar_h, company_name, logo_path, fallback_title, fallback_subtitle):
+    """Draw the default card's header as a logo+company-name lockup when the
+    employee's company has branding on file, or the generic fixed title
+    otherwise — shared by both the front and back default layouts so they
+    stay visually identical instead of drifting apart."""
+    from PIL import Image
+
+    CW = img.width
+    if not company_name and not logo_path:
+        _idc_center_text(draw, fallback_title, _idc_font(18, bold=True), CW, 18, _IDC_WHITE)
+        _idc_center_text(draw, fallback_subtitle, _idc_font(11), CW, 52, _IDC_PALE)
+        return
+
+    text_x = 24
+    if logo_path:
+        try:
+            logo_img = Image.open(_idc_static_path(logo_path)).convert("RGBA").resize((56, 56), Image.LANCZOS)
+            box_y = (bar_h - 60) // 2
+            draw.rounded_rectangle([(14, box_y), (14 + 60, box_y + 60)], radius=8, fill=_IDC_WHITE)
+            img.paste(logo_img, (16, box_y + 2), logo_img)
+            text_x = 14 + 60 + 14
+        except Exception:
+            pass
+
+    if company_name:
+        font = _idc_font(22, bold=True)
+        max_w = CW - text_x - 120  # leave room for the decorative circle at top-right
+        name = _idc_safe_text(company_name)
+        while len(name) > 1 and _idc_text_width(draw, name, font) > max_w:
+            name = name[:-1]
+        text_y = (bar_h - 26) // 2
+        draw.text((text_x, text_y), name, font=font, fill=_IDC_WHITE)
+
+
+def _idc_box_text(draw, text, box, color, font_size=14, bold=False, align="center"):
+    """Draw text truncated to fit inside a pixel box (x, y, w, h) — used by
+    custom-template rendering, where fields sit at admin-chosen positions
+    rather than the fixed default layout's hardcoded coordinates."""
+    font = _idc_font(font_size, bold=bold)
+    x, y, w, h = box
+    t = _idc_safe_text(str(text))
+    while len(t) > 1 and _idc_text_width(draw, t, font) > w:
+        t = t[:-1]
+    tw_ = _idc_text_width(draw, t, font)
+    tx = x + max(0, (w - tw_) // 2) if align == "center" else x
+    ty = y + max(0, (h - font_size) // 2)
+    draw.text((tx, ty), t, font=font, fill=color)
+
+
+def _idc_static_path(rel_path):
+    return os.path.join(app.root_path, "static", rel_path)
+
+
+def _idc_box_bg_color(img, box):
+    """Best-guess background fill color for a text field's box, sampled from
+    the (unmodified) template image at each edge's midpoint. Custom templates
+    often have their own placeholder wording baked into the pixels ("YOUR
+    NAME", "JOB POSITION") on a pill/rounded-rect background — the box's
+    actual corners usually land outside a *rounded* pill (in whatever
+    surrounds it), while edge midpoints reliably land on the pill's fill and
+    rarely on a glyph stroke (text is centered with padding from the edges).
+    Filling with this color before drawing the real value covers the
+    placeholder text instead of drawing over it."""
+    x, y, w, h = box
+    inset = max(2, min(w, h) // 8)
+    points = [
+        (x + inset, y + h // 2),
+        (x + w - inset, y + h // 2),
+        (x + w // 2, y + inset),
+        (x + w // 2, y + h - inset),
+    ]
+    samples = []
+    for px, py in points:
+        px = min(max(0, px), img.width - 1)
+        py = min(max(0, py), img.height - 1)
+        samples.append(img.getpixel((px, py)))
+    counts = {}
+    for s in samples:
+        counts[s] = counts.get(s, 0) + 1
+    best = max(counts.items(), key=lambda kv: kv[1])
+    if best[1] > 1:
+        return best[0]
+    return tuple(sum(c[i] for c in samples) // len(samples) for i in range(3))
+
+
+def _idc_contrast_color(bg_rgb):
+    """Pick white or dark-navy text, whichever reads better against `bg_rgb`,
+    using perceptual (WCAG-style) relative luminance. This is the fallback
+    used whenever a custom-template field doesn't pin an explicit text
+    color — so a field placed over a dark pill (navy header, photo overlay)
+    or a light one (white card body) is legible by default instead of always
+    rendering the same fixed gray regardless of what's underneath."""
+    def _chan(c):
+        c = c / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = bg_rgb
+    luminance = 0.2126 * _chan(r) + 0.7152 * _chan(g) + 0.0722 * _chan(b)
+    return _IDC_WHITE if luminance < 0.5 else _IDC_DGRAY
+
+
+def _idc_parse_color(hex_str, default):
+    """Parse a '#rrggbb' string (from a custom template field's saved color)
+    into an (r,g,b) tuple, falling back to `default` for anything invalid —
+    an admin-placed field over a dark pill background needs light text, so
+    this can't be a single hardcoded color for every template."""
+    if not hex_str or not isinstance(hex_str, str):
+        return default
+    h = hex_str.lstrip("#")
+    if len(h) != 6:
+        return default
+    try:
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return default
+
+
+def _idc_combine(front_img, back_img):
+    from PIL import Image, ImageDraw
+    gap, lbl_h = 40, 24
+    bgcol = (215, 225, 240)
+    total_w = front_img.width + gap + back_img.width
+    total_h = max(front_img.height, back_img.height) + lbl_h
+    total = Image.new("RGB", (total_w, total_h), bgcol)
+    td = ImageDraw.Draw(total)
+    td.text((10, 4), "FRONT", font=_idc_font(13, bold=True), fill=_IDC_BLUE)
+    td.text((front_img.width + gap + 10, 4), "BACK", font=_idc_font(13, bold=True), fill=_IDC_BLUE)
+    total.paste(front_img, (0, lbl_h))
+    total.paste(back_img, (front_img.width + gap, lbl_h))
+    return total
+
+
+def _render_default_front(emp_id, row, company_name=None, logo_path=None, company_address=None):
+    """Today's fixed ID-card front layout, now showing the employee's company
+    name/logo in the header when set (falls back to the generic subtitle for
+    companies with no branding on file — no visual change for those)."""
+    from PIL import Image, ImageDraw
 
     CW, CH = 500, 820
-
-    # ── FRONT ──────────────────────────────────────────────
-    front = Image.new("RGB", (CW, CH), WHITE)
+    front = Image.new("RGB", (CW, CH), _IDC_WHITE)
     fd = ImageDraw.Draw(front)
 
-    fd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
-    fd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=MID)
-    cx(fd, "EMPLOYEE ID CARD", fnt(18, bold=True), CW, 18, WHITE)
-    cx(fd, "Attendance Management System", fnt(11), CW, 52, PALE)
-    fd.rectangle([(0, 108), (CW, 113)], fill=GOLD)
+    fd.rectangle([(0, 0), (CW, 110)], fill=_IDC_BLUE)
+    fd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=_IDC_MID)
+    _idc_header_logo_and_name(fd, front, 110, company_name, logo_path,
+                              "EMPLOYEE ID CARD", "Attendance Management System")
+    fd.rectangle([(0, 108), (CW, 113)], fill=_IDC_GOLD)
 
-    fd.rectangle([(0, 113), (CW, 370)], fill=LGRAY)
+    fd.rectangle([(0, 113), (CW, 370)], fill=_IDC_LGRAY)
     PH_W, PH_H = 160, 190
     PH_X = CW // 2 - PH_W // 2
     PH_Y = 128
-    fd.rounded_rectangle([(PH_X - 5, PH_Y - 5), (PH_X + PH_W + 5, PH_Y + PH_H + 5)], radius=8, fill=GOLD)
-    fd.rounded_rectangle([(PH_X - 2, PH_Y - 2), (PH_X + PH_W + 2, PH_Y + PH_H + 2)], radius=6, fill=WHITE)
+    fd.rounded_rectangle([(PH_X - 5, PH_Y - 5), (PH_X + PH_W + 5, PH_Y + PH_H + 5)], radius=8, fill=_IDC_GOLD)
+    fd.rounded_rectangle([(PH_X - 2, PH_Y - 2), (PH_X + PH_W + 2, PH_Y + PH_H + 2)], radius=6, fill=_IDC_WHITE)
     photo_path = os.path.join("dataset", emp_id + ".jpg")
     try:
         ph = Image.open(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
         front.paste(ph, (PH_X, PH_Y))
     except Exception:
-        fd.rounded_rectangle([(PH_X, PH_Y), (PH_X + PH_W, PH_Y + PH_H)], radius=4, fill=MID)
+        fd.rounded_rectangle([(PH_X, PH_Y), (PH_X + PH_W, PH_Y + PH_H)], radius=4, fill=_IDC_MID)
         ini = row[1][0].upper() if row and row[1] else "?"
-        cx(fd, ini, fnt(56, bold=True), CW, PH_Y + PH_H // 2 - 38, WHITE)
+        _idc_center_text(fd, ini, _idc_font(56, bold=True), CW, PH_Y + PH_H // 2 - 38, _IDC_WHITE)
 
-    cx(fd, (row[1] or "Unknown")[:24], fnt(18, bold=True), CW, 328, DGRAY)
-    cx(fd, (row[2] or "Employee")[:28], fnt(12), CW, 352, MGRAY)
-    fd.rectangle([(40, 372), (CW - 40, 374)], fill=PALE)
+    _idc_center_text(fd, (row[1] or "Unknown")[:24], _idc_font(18, bold=True), CW, 328, _IDC_DGRAY)
+    _idc_center_text(fd, (row[2] or "Employee")[:28], _idc_font(12), CW, 352, _IDC_MGRAY)
+    fd.rectangle([(40, 372), (CW - 40, 374)], fill=_IDC_PALE)
 
     info_rows = [
         ("Employee ID", row[0] if row else "-"),
@@ -1330,33 +1473,55 @@ def _build_id_card_buf(emp_id):
     y = 390
     for i, (lbl, val) in enumerate(info_rows):
         if i % 2 == 0:
-            fd.rectangle([(0, y - 4), (CW, y + 38)], fill=LGRAY)
-        cx(fd, lbl, fnt(10), CW, y + 2, MGRAY)
-        cx(fd, str(val)[:34], fnt(13, bold=True), CW, y + 17, DGRAY)
+            fd.rectangle([(0, y - 4), (CW, y + 38)], fill=_IDC_LGRAY)
+        _idc_center_text(fd, lbl, _idc_font(10), CW, y + 2, _IDC_MGRAY)
+        _idc_center_text(fd, str(val)[:34], _idc_font(13, bold=True), CW, y + 17, _IDC_DGRAY)
         y += 44
 
     bg_val = row[7] if row and row[7] else None
+    addr_y = y + 8
     if bg_val:
-        bw = tw(fd, bg_val, fnt(13, bold=True)) + 28
+        bw = _idc_text_width(fd, bg_val, _idc_font(13, bold=True)) + 28
         bx = (CW - bw) // 2
-        by = y + 8
-        fd.rounded_rectangle([(bx, by), (bx + bw, by + 32)], radius=16, fill=RED)
-        cx(fd, bg_val, fnt(13, bold=True), CW, by + 8, WHITE)
+        by = addr_y
+        fd.rounded_rectangle([(bx, by), (bx + bw, by + 32)], radius=16, fill=_IDC_RED)
+        _idc_center_text(fd, bg_val, _idc_font(13, bold=True), CW, by + 8, _IDC_WHITE)
+        addr_y = by + 48
 
-    fd.rectangle([(0, CH - 60), (CW, CH)], fill=BLUE)
-    fd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=GOLD)
-    cx(fd, "Confidential  |  Not Transferable", fnt(10), CW, CH - 44, PALE)
-    cx(fd, "Property of the Organization", fnt(10), CW, CH - 26, (160, 185, 240))
+    if company_address:
+        addr_font = _idc_font(11)
+        addr_y += 12
+        fd.rectangle([(60, addr_y), (CW - 60, addr_y + 2)], fill=_IDC_PALE)
+        addr_y += 14
+        _idc_center_text(fd, "OFFICE ADDRESS", _idc_font(9, bold=True), CW, addr_y, _IDC_MGRAY)
+        addr_y += 18
+        for line in _idc_wrap_text(fd, company_address, addr_font, CW - 80, max_lines=2):
+            _idc_center_text(fd, line, addr_font, CW, addr_y, _IDC_DGRAY)
+            addr_y += 18
 
-    # ── BACK ───────────────────────────────────────────────
-    back = Image.new("RGB", (CW, CH), LGRAY)
+    fd.rectangle([(0, CH - 60), (CW, CH)], fill=_IDC_BLUE)
+    fd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=_IDC_GOLD)
+    _idc_center_text(fd, "Confidential  |  Not Transferable", _idc_font(10), CW, CH - 44, _IDC_PALE)
+    _idc_center_text(fd, "Property of the Organization", _idc_font(10), CW, CH - 26, (160, 185, 240))
+    return front
+
+
+def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emergency_phone=None,
+                          emergency_relation=None, company_name=None):
+    """Today's fixed ID-card back layout, now also showing the company logo
+    and name in the header (matching the front) and the employee's emergency
+    contact in place of the generic "return to HR" line when one is on file."""
+    from PIL import Image, ImageDraw
+
+    CW, CH = 500, 820
+    back = Image.new("RGB", (CW, CH), _IDC_LGRAY)
     bd = ImageDraw.Draw(back)
 
-    bd.rectangle([(0, 0), (CW, 110)], fill=BLUE)
-    bd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=MID)
-    cx(bd, "ATTENDANCE MANAGEMENT SYSTEM", fnt(14, bold=True), CW, 22, WHITE)
-    cx(bd, "Employee Attendance Card", fnt(11), CW, 52, PALE)
-    bd.rectangle([(0, 108), (CW, 113)], fill=GOLD)
+    bd.rectangle([(0, 0), (CW, 110)], fill=_IDC_BLUE)
+    bd.ellipse([(CW - 100, -60), (CW + 60, 100)], fill=_IDC_MID)
+    _idc_header_logo_and_name(bd, back, 110, company_name, logo_path,
+                              "ATTENDANCE MANAGEMENT SYSTEM", "Employee Attendance Card")
+    bd.rectangle([(0, 108), (CW, 113)], fill=_IDC_GOLD)
 
     qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
     if not os.path.exists(qr_path):
@@ -1364,15 +1529,15 @@ def _build_id_card_buf(emp_id):
     QS = 240
     qr_x = (CW - QS) // 2
     qr_y = 148
-    bd.rounded_rectangle([(qr_x - 16, qr_y - 16), (qr_x + QS + 16, qr_y + QS + 16)], radius=14, fill=WHITE)
+    bd.rounded_rectangle([(qr_x - 16, qr_y - 16), (qr_x + QS + 16, qr_y + QS + 16)], radius=14, fill=_IDC_WHITE)
     try:
         qr_img = Image.open(qr_path).convert("RGB").resize((QS, QS), Image.LANCZOS)
         back.paste(qr_img, (qr_x, qr_y))
     except Exception:
-        cx(bd, "QR NOT AVAILABLE", fnt(13), CW, qr_y + QS // 2, MGRAY)
+        _idc_center_text(bd, "QR NOT AVAILABLE", _idc_font(13), CW, qr_y + QS // 2, _IDC_MGRAY)
 
-    cx(bd, "Scan to Mark Attendance", fnt(14, bold=True), CW, qr_y + QS + 28, BLUE)
-    cx(bd, row[0] if row else "", fnt(12), CW, qr_y + QS + 52, MGRAY)
+    _idc_center_text(bd, "Scan to Mark Attendance", _idc_font(14, bold=True), CW, qr_y + QS + 28, _IDC_BLUE)
+    _idc_center_text(bd, row[0] if row else "", _idc_font(12), CW, qr_y + QS + 52, _IDC_MGRAY)
     bd.rectangle([(40, qr_y + QS + 78), (CW - 40, qr_y + QS + 80)], fill=(203, 213, 225))
 
     sub_info = [
@@ -1382,32 +1547,202 @@ def _build_id_card_buf(emp_id):
     ]
     sy = qr_y + QS + 94
     for lbl2, val2 in sub_info:
-        cx(bd, lbl2, fnt(10), CW, sy, MGRAY)
-        cx(bd, val2, fnt(12, bold=True), CW, sy + 14, DGRAY)
+        _idc_center_text(bd, lbl2, _idc_font(10), CW, sy, _IDC_MGRAY)
+        _idc_center_text(bd, val2, _idc_font(12, bold=True), CW, sy + 14, _IDC_DGRAY)
         sy += 42
 
     bd.rectangle([(36, sy + 8), (CW - 36, sy + 10)], fill=(203, 213, 225))
-    cx(bd, "If found, please return to:", fnt(10), CW, sy + 18, MGRAY)
-    cx(bd, "HR Department", fnt(12, bold=True), CW, sy + 34, BLUE)
-    if row and row[3]:
-        cx(bd, row[3][:34], fnt(10), CW, sy + 54, MGRAY)
+    if emergency_name:
+        rel_suffix = f" ({emergency_relation})" if emergency_relation else ""
+        _idc_center_text(bd, "Emergency Contact:", _idc_font(10), CW, sy + 18, _IDC_MGRAY)
+        _idc_center_text(bd, (emergency_name + rel_suffix)[:34], _idc_font(12, bold=True), CW, sy + 34, _IDC_BLUE)
+        if emergency_phone:
+            _idc_center_text(bd, emergency_phone[:34], _idc_font(10), CW, sy + 54, _IDC_MGRAY)
+    else:
+        _idc_center_text(bd, "If found, please return to:", _idc_font(10), CW, sy + 18, _IDC_MGRAY)
+        _idc_center_text(bd, "HR Department", _idc_font(12, bold=True), CW, sy + 34, _IDC_BLUE)
+        if row and row[3]:
+            _idc_center_text(bd, row[3][:34], _idc_font(10), CW, sy + 54, _IDC_MGRAY)
 
-    bd.rectangle([(0, CH - 100), (CW, CH - 68)], fill=DARK)
-    bd.rectangle([(0, CH - 60), (CW, CH)], fill=BLUE)
-    bd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=GOLD)
-    cx(bd, "Authorized Personnel Only  |  Not Transferable", fnt(10), CW, CH - 44, PALE)
-    cx(bd, "Misuse is subject to disciplinary action", fnt(10), CW, CH - 26, (160, 185, 240))
+    bd.rectangle([(0, CH - 100), (CW, CH - 68)], fill=_IDC_DARK)
+    bd.rectangle([(0, CH - 60), (CW, CH)], fill=_IDC_BLUE)
+    bd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=_IDC_GOLD)
+    _idc_center_text(bd, "Authorized Personnel Only  |  Not Transferable", _idc_font(10), CW, CH - 44, _IDC_PALE)
+    _idc_center_text(bd, "Misuse is subject to disciplinary action", _idc_font(10), CW, CH - 26, (160, 185, 240))
+    return back
 
-    # ── Combine front + back ───────────────────────────────
-    GAP, LBL_H = 40, 24
-    BGCOL = (215, 225, 240)
-    total = Image.new("RGB", (CW * 2 + GAP, CH + LBL_H), BGCOL)
-    td = ImageDraw.Draw(total)
-    td.text((10, 4), "FRONT", font=fnt(13, bold=True), fill=BLUE)
-    td.text((CW + GAP + 10, 4), "BACK", font=fnt(13, bold=True), fill=BLUE)
-    total.paste(front, (0, LBL_H))
-    total.paste(back, (CW + GAP, LBL_H))
 
+_ID_CARD_TEXT_FIELDS = {
+    "name", "employee_id", "designation", "email", "phone", "blood_group",
+    "date_of_joining", "company_address", "website",
+    "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
+}
+
+
+def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, company_address=None, company_website=None):
+    """Render one side of an admin-uploaded custom ID card template: opens
+    the template image at its own native size and pastes/draws each
+    admin-placed field (photo/logo/qr/text) at its saved normalized (0-1)
+    position, converted to that image's actual pixel dimensions."""
+    from PIL import Image, ImageDraw
+
+    img = Image.open(_idc_static_path(image_path)).convert("RGB")
+    original = img.copy()
+    draw = ImageDraw.Draw(img)
+    W, H = img.size
+    joined = row[5]
+    values = {
+        "name": row[1] or "-",
+        "employee_id": row[0] or "-",
+        "designation": row[2] or "-",
+        "email": row[3] or "-",
+        "phone": row[8] or "-",
+        "blood_group": row[7] or "-",
+        "date_of_joining": joined.strftime("%d-%m-%Y") if joined else "-",
+        "company_address": company_address or "-",
+        "website": company_website or "-",
+        "emergency_contact_name": (row[9] if len(row) > 9 else None) or "-",
+        "emergency_contact_phone": (row[10] if len(row) > 10 else None) or "-",
+        "emergency_contact_relation": (row[11] if len(row) > 11 else None) or "-",
+    }
+
+    for key, box in fields.items():
+        if (box.get("side") or "front") != side:
+            continue
+        try:
+            x = int(round(box["x"] * W))
+            y = int(round(box["y"] * H))
+            w = int(round(box["w"] * W))
+            h = int(round(box["h"] * H))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if w <= 0 or h <= 0:
+            continue
+
+        if key == "photo":
+            photo_path = os.path.join("dataset", emp_id + ".jpg")
+            try:
+                ph = Image.open(photo_path).convert("RGB").resize((w, h), Image.LANCZOS)
+                img.paste(ph, (x, y))
+            except Exception:
+                draw.rectangle([(x, y), (x + w, y + h)], fill=_IDC_MID)
+                ini = row[1][0].upper() if row and row[1] else "?"
+                _idc_box_text(draw, ini, (x, y, w, h), _IDC_WHITE, font_size=max(10, min(w, h) // 2), bold=True)
+        elif key == "logo":
+            if logo_path:
+                try:
+                    from PIL import ImageOps
+                    logo_img = Image.open(_idc_static_path(logo_path)).convert("RGBA")
+                    fitted = ImageOps.contain(logo_img, (w, h), Image.LANCZOS)
+                    bg = _idc_parse_color(box.get("bg_color"), None) or _idc_box_bg_color(original, (x, y, w, h))
+                    off_x = (w - fitted.width) // 2
+                    off_y = (h - fitted.height) // 2
+                    if box.get("round"):
+                        mask = Image.new("L", (w, h), 0)
+                        ImageDraw.Draw(mask).ellipse([(0, 0), (w, h)], fill=255)
+                        canvas = Image.new("RGBA", (w, h), bg + (255,))
+                        canvas.paste(fitted, (off_x, off_y), fitted)
+                        canvas.putalpha(mask)
+                        img.paste(canvas, (x, y), canvas)
+                    else:
+                        draw.rectangle([(x, y), (x + w, y + h)], fill=bg)
+                        img.paste(fitted, (x + off_x, y + off_y), fitted)
+                except Exception:
+                    pass
+        elif key == "qr":
+            qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
+            if not os.path.exists(qr_path):
+                qr_path = generate_qr(emp_id)
+            try:
+                qr_img = Image.open(qr_path).convert("RGB").resize((w, h), Image.LANCZOS)
+                img.paste(qr_img, (x, y))
+            except Exception:
+                pass
+        elif key in _ID_CARD_TEXT_FIELDS:
+            font_size = box.get("font_size", 14)
+            bg = _idc_parse_color(box.get("bg_color"), None) or _idc_box_bg_color(original, (x, y, w, h))
+            color = _idc_parse_color(box.get("color"), None) or _idc_contrast_color(bg)
+            if box.get("square"):
+                draw.rectangle([(x, y), (x + w, y + h)], fill=bg)
+            else:
+                radius = max(0, min(w, h) // 2 - 1)
+                try:
+                    draw.rounded_rectangle([(x, y), (x + w, y + h)], radius=radius, fill=bg)
+                except ValueError:
+                    draw.rectangle([(x, y), (x + w, y + h)], fill=bg)
+            _idc_box_text(draw, values.get(key, "-"), (x, y, w, h), color,
+                          font_size=font_size, bold=bool(box.get("bold")))
+    return img
+
+
+def _build_id_card_buf(emp_id):
+    """Generate the front+back ID card PNG and return a BytesIO buffer, or
+    None if not found. Renders the employee's company's custom template when
+    one is configured, else the default generated design (company-branded
+    when the company has a logo/name on file)."""
+    import io as _io2
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("""
+        SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
+               sh.name AS shift_name, e.blood_group, e.phone,
+               e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+               c.name, COALESCE(c.logo_path,''), t.front_image, t.back_image, t.fields,
+               COALESCE(c.address,''), COALESCE(c.website,'')
+        FROM employees e
+        LEFT JOIN shifts sh ON e.shift_id = sh.id
+        LEFT JOIN companies c ON e.company_id = c.id
+        LEFT JOIN id_card_templates t ON t.company_id = c.id
+        WHERE e.employee_id = %s
+    """, (emp_id,))
+    full_row = cursor.fetchone()
+    if not full_row:
+        cursor.execute("""
+            SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
+                   NULL, e.blood_group, e.phone,
+                   e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+                   c.name, COALESCE(c.logo_path,''), t.front_image, t.back_image, t.fields,
+                   COALESCE(c.address,''), COALESCE(c.website,'')
+            FROM employees e
+            LEFT JOIN companies c ON e.company_id = c.id
+            LEFT JOIN id_card_templates t ON t.company_id = c.id
+            WHERE e.employee_id=%s
+        """, (emp_id,))
+        full_row = cursor.fetchone()
+    cursor.close()
+    db.close()
+
+    if not full_row:
+        return None
+
+    row = full_row[:12]
+    row = (row[:7] + (decrypt_pii(row[7]),) + row[8:9]
+           + tuple(decrypt_pii(v) for v in row[9:12]))  # [7]=blood_group, [9:12]=emergency contact
+    (company_name, logo_path_raw, front_image, back_image, fields_raw,
+     company_address_raw, company_website_raw) = full_row[12:19]
+    logo_path = logo_path_raw or None
+    company_address = company_address_raw or None
+    company_website = company_website_raw or None
+    emergency_name, emergency_phone, emergency_relation = row[9], row[10], row[11]
+
+    try:
+        fields = json.loads(fields_raw) if fields_raw else {}
+    except (ValueError, TypeError):
+        fields = {}
+
+    if front_image:
+        front = _render_custom_side(front_image, fields, "front", emp_id, row, logo_path, company_address, company_website)
+    else:
+        front = _render_default_front(emp_id, row, company_name, logo_path, company_address)
+
+    if back_image:
+        back = _render_custom_side(back_image, fields, "back", emp_id, row, logo_path, company_address, company_website)
+    else:
+        back = _render_default_back(emp_id, row, logo_path, emergency_name, emergency_phone,
+                                     emergency_relation, company_name)
+
+    total = _idc_combine(front, back)
     buf = _io2.BytesIO()
     total.save(buf, format="PNG", dpi=(200, 200))
     buf.seek(0)

@@ -460,13 +460,17 @@
             </div>
 
             <div class="u-d-flex u-fxd-column u-gap-12">
-              {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin = c %}{% set cwd_list = cwd.split(',') %}
+              {% for c in companies %}{% set cid,cname,ccode,ccreated,cemp,cwd,cpin,clogo,chastpl,caddr,cweb,cemail,cphone = c %}{% set cwd_list = cwd.split(',') %}
 
               <!-- View card -->
               <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-ov-hidden" id="co-view-{{ cid }}">
                 <div class="u-p-14-18 u-d-flex u-ai-center u-gap-14">
-                  <div class="u-w-42 u-h-42 u-br-11 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0">
+                  <div class="u-w-42 u-h-42 u-br-11 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0 u-ov-hidden">
+                    {% if clogo %}
+                    <img src="/static/{{ clogo }}" alt="{{ cname }} logo" class="u-w-100pct u-h-100pct" style="object-fit:cover;" />
+                    {% else %}
                     <i class="ti ti-building u-c-1e3a8a u-fs-20"></i>
+                    {% endif %}
                   </div>
                   <div class="u-fx-1 u-minw-0">
                     <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-4">{{ cname }}</div>
@@ -485,6 +489,11 @@
                       title="{{ 'PIN set — click to change' if cpin else 'Set PIN protection' }}">
                       <i class="ti ti-lock{{ '-open' if not cpin else '' }} u-fs-12"></i> PIN{{ ' ✓' if cpin else '' }}
                     </button>
+                    <a href="/companies/{{ cid }}/id_card_template/editor"
+                      style="display:flex;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid {{ '#bfdbfe' if chastpl else '#e2e8f0' }};border-radius:8px;background:{{ '#eff6ff' if chastpl else '#f8fafc' }};color:{{ '#1e3a8a' if chastpl else '#64748b' }};font-size:11px;font-weight:700;text-decoration:none;font-family:inherit;"
+                      title="{{ 'Custom ID card template set' if chastpl else 'Set up a custom ID card template' }}">
+                      <i class="ti ti-id-badge-2 u-fs-12"></i> ID Card{{ ' ✓' if chastpl else '' }}
+                    </a>
                     <button class="u-d-flex u-ai-center u-gap-5 u-p-6-12 u-bd-1d5-solid-e2e8f0 u-br-8 u-bg-f8fafc u-c-475569 u-fs-12 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="openEditCompany({{ cid }})">
                       <i class="ti ti-pencil u-fs-12"></i> Edit
                     </button>
@@ -494,6 +503,20 @@
                     </form>
                   </div>
                 </div>
+                {% if cweb or cemail or cphone %}
+                <!-- Contact details strip -->
+                <div class="u-p-8-18-4 u-bdt-1-solid-f1f5f9 u-d-flex u-ai-center u-gap-14 u-fxw-wrap">
+                  {% if cweb %}
+                  <a href="{{ cweb if cweb.startswith('http') else 'https://' + cweb }}" target="_blank" rel="noopener" class="u-fs-11 u-c-1e3a8a u-td-none"><i class="ti ti-world u-fs-11"></i> {{ cweb }}</a>
+                  {% endif %}
+                  {% if cemail %}
+                  <span class="u-fs-11 u-c-64748b"><i class="ti ti-mail u-fs-11"></i> {{ cemail }}</span>
+                  {% endif %}
+                  {% if cphone %}
+                  <span class="u-fs-11 u-c-64748b"><i class="ti ti-phone u-fs-11"></i> {{ cphone }}</span>
+                  {% endif %}
+                </div>
+                {% endif %}
                 <!-- Working days strip -->
                 <div class="u-p-8-18-4 u-bdt-1-solid-f1f5f9 u-d-flex u-ai-center u-gap-6 u-fxw-wrap">
                   <span class="u-fs-11 u-fw-600 u-c-64748b u-mr-4">📅 Working days:</span>
@@ -619,7 +642,7 @@
               <!-- Inline edit row -->
               <div class="u-d-none u-bg-f0f7ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-18" id="co-edit-{{ cid }}">
                 <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-14">✏️ Edit {{ cname }}</div>
-                <form method="POST" action="/companies/{{ cid }}/edit">
+                <form method="POST" action="/companies/{{ cid }}/edit" enctype="multipart/form-data">
                   <input type="hidden" name="redirect_to" value="settings" />
                   <div class="u-d-grid u-gtc-1fr-180 u-gap-10 u-mb-14">
                     <div class="field u-m-0">
@@ -630,6 +653,28 @@
                       <label class="u-fs-12">Code <span class="u-fw-400 u-c-94a3b8">(ID prefix)</span></label>
                       <input class="u-ff-monospace u-ls-1" type="text" name="code" value="{{ ccode or '' }}" maxlength="20" placeholder="e.g. MGZ" />
                     </div>
+                  </div>
+                  <div class="field u-mb-14">
+                    <label class="u-fs-12 u-fw-700 u-c-475569">🖼️ Company Logo <span class="u-fw-400 u-c-94a3b8">{{ '(replace)' if clogo else '(optional)' }}</span></label>
+                    <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/bmp" />
+                  </div>
+                  <div class="field u-mb-14">
+                    <label class="u-fs-12 u-fw-700 u-c-475569">📍 Office Address <span class="u-fw-400 u-c-94a3b8">(shown on ID cards)</span></label>
+                    <input type="text" name="address" value="{{ caddr or '' }}" placeholder="e.g. 4th Floor, Tech Park, Bengaluru, India" />
+                  </div>
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-10 u-mb-14">
+                    <div class="field u-m-0">
+                      <label class="u-fs-12 u-fw-700 u-c-475569">🌐 Website</label>
+                      <input type="text" name="website" value="{{ cweb or '' }}" placeholder="e.g. company.com" />
+                    </div>
+                    <div class="field u-m-0">
+                      <label class="u-fs-12 u-fw-700 u-c-475569">✉️ Contact Email</label>
+                      <input type="email" name="email" value="{{ cemail or '' }}" placeholder="info@company.com" />
+                    </div>
+                  </div>
+                  <div class="field u-mb-14">
+                    <label class="u-fs-12 u-fw-700 u-c-475569">📞 Contact Phone</label>
+                    <input type="text" name="phone" value="{{ cphone or '' }}" placeholder="e.g. +91 98765 43210" />
                   </div>
                   <div class="u-mb-14">
                     <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">📅 Working Days</label>
@@ -1196,7 +1241,7 @@
   <div class="modal-bg" id="addCompanyModal">
     <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
       <div class="modal-title u-fxs-0">🏢 Add Company</div>
-      <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="/companies/add">
+      <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="/companies/add" enctype="multipart/form-data">
         <input type="hidden" name="redirect_to" value="settings" />
         <div class="u-ovy-auto u-fx-1 u-pr-2">
           <div class="u-d-grid u-gtc-1fr-160 u-gap-10">
@@ -1208,6 +1253,28 @@
               <label>Code <span class="u-fs-11 u-c-94a3b8">(ID prefix)</span></label>
               <input class="u-ff-monospace u-ls-1" type="text" name="code" placeholder="e.g. MGZ" maxlength="20" />
             </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569">🖼️ Company Logo <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569">📍 Office Address <span class="u-fs-11 u-c-94a3b8">(optional — shown on ID cards)</span></label>
+            <input type="text" name="address" placeholder="e.g. 4th Floor, Tech Park, Bengaluru, India" />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569">🌐 Website <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="text" name="website" placeholder="e.g. company.com" />
+            </div>
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569">✉️ Contact Email <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="email" name="email" placeholder="info@company.com" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569">📞 Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
           </div>
           <div class="field">
             <label class="u-fs-12 u-fw-700 u-c-475569">📅 Working Days</label>

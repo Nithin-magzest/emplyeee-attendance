@@ -1387,6 +1387,17 @@ def init_db():
     """)
     db.commit()
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS id_card_templates (
+            company_id INT PRIMARY KEY,
+            front_image VARCHAR(255) DEFAULT NULL,
+            back_image VARCHAR(255) DEFAULT NULL,
+            fields TEXT DEFAULT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+        )
+    """)
+    db.commit()
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS shift_swap_requests (
             id SERIAL PRIMARY KEY,
             requester_id VARCHAR(50) NOT NULL,
@@ -1475,6 +1486,11 @@ def init_db():
         "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS half_day_session VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS company_code VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'admin'",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_path VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS address TEXT DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS website VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS worked_minutes INT DEFAULT 0",
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS last_relogin TIME DEFAULT NULL",
         "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS monthly_ctc DECIMAL(12,2) DEFAULT 0",

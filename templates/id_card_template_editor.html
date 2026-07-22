@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ID Card Template — {{ company_name }}</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#f1f5f9;min-height:100vh}
+    .main{max-width:1100px;margin:0 auto;padding:28px 24px}
+    .breadcrumb{font-size:12px;color:#64748b;margin-bottom:8px}
+    .breadcrumb a{color:#1e3a8a;text-decoration:none}
+    .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:22px}
+    .page-header h1{font-size:22px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
+    .section{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px 24px;margin-bottom:20px}
+    .section-title{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .flash-list{list-style:none;margin-bottom:16px}
+    .flash-msg{padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:6px}
+    .flash-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+    .flash-error{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .btn{padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+    .btn-navy{background:#1e3a8a;color:#fff}
+    .btn-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+    .btn-red{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .upload-box{border:1.5px dashed #cbd5e1;border-radius:12px;padding:16px;text-align:center}
+    .upload-box img{max-width:100%;max-height:140px;border-radius:8px;margin-bottom:10px}
+    .upload-box .lbl{font-size:12px;font-weight:700;color:#475569;margin-bottom:8px}
+    .field-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+    .field-toggle{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:700;color:#475569;cursor:pointer;user-select:none}
+    .field-toggle.on{background:#eff6ff;border-color:#93c5fd;color:#1e3a8a}
+    .card-editor{display:flex;gap:24px;flex-wrap:wrap}
+    .card-side{flex-shrink:0}
+    .card-side h4{font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px}
+    .card-canvas{position:relative;width:400px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc}
+    .card-canvas img{display:block;width:400px;height:auto;pointer-events:none;user-select:none}
+    .field-box{position:absolute;border:2px solid;border-radius:4px;background:rgba(255,255,255,0.35);cursor:move;min-width:24px;min-height:18px}
+    .field-box-label{position:absolute;top:-20px;left:-2px;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px 4px 0 0;white-space:nowrap}
+    .resize-handle{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;background:#1e293b;border:2px solid #fff;border-radius:50%;cursor:nwse-resize}
+    .field-color-input{position:absolute;left:-2px;bottom:-4px;width:18px;height:18px;padding:0;border:2px solid #fff;border-radius:4px;cursor:pointer}
+    .field-bgcolor-input{position:absolute;right:20px;bottom:-4px;width:18px;height:18px;padding:0;border:2px dashed #fff;border-radius:4px;cursor:pointer}
+    .field-bgcolor-input:disabled{opacity:0.35;cursor:not-allowed}
+    .field-bg-toggle{position:absolute;right:-2px;top:-20px;background:#fff;border:1px solid #cbd5e1;border-radius:4px;font-size:9px;padding:1px 4px;display:flex;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
+    .field-size-input{position:absolute;left:20px;bottom:-4px;width:34px;height:18px;padding:0 2px;border:1px solid #cbd5e1;border-radius:4px;font-size:10px}
+    .field-round-toggle{position:absolute;right:-2px;top:-20px;background:#fff;border:1px solid #cbd5e1;border-radius:4px;font-size:9px;padding:1px 4px;display:flex;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
+    .empty-hint{font-size:13px;color:#94a3b8;font-style:italic;padding:20px;text-align:center}
+    .actions-row{display:flex;gap:10px;margin-top:18px}
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="breadcrumb"><a href="/settings?tab=company">&larr; Back to Settings</a></div>
+    <div class="page-header">
+      <h1><i class="ti ti-id-badge-2 u-c-1e3a8a"></i> ID Card Template — {{ company_name }}</h1>
+      {% if front_image or back_image %}
+      <form method="POST" action="/companies/{{ cid }}/id_card_template/reset" onsubmit="return confirm('Reset to the default generated ID card design for this company?')">
+        <button class="btn btn-red" type="submit"><i class="ti ti-refresh"></i> Reset to Default</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <ul class="flash-list">
+        {% for category, message in messages %}
+        <li class="flash-msg flash-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    {% endwith %}
+
+    <div class="section">
+      <div class="section-title"><i class="ti ti-upload"></i> Upload Your Card Design</div>
+      <form method="POST" action="/companies/{{ cid }}/id_card_template/upload" enctype="multipart/form-data">
+        <div class="upload-grid">
+          <div class="upload-box">
+            {% if front_image %}<img src="/static/{{ front_image }}" alt="Front template" />{% endif %}
+            <div class="lbl">Front side {{ '(uploaded)' if front_image else '(required)' }}</div>
+            <input type="file" name="front_image" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          </div>
+          <div class="upload-box">
+            {% if back_image %}<img src="/static/{{ back_image }}" alt="Back template" />{% endif %}
+            <div class="lbl">Back side {{ '(uploaded)' if back_image else '(optional — falls back to the default QR back)' }}</div>
+            <input type="file" name="back_image" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          </div>
+        </div>
+        <div class="actions-row">
+          <button class="btn btn-navy" type="submit"><i class="ti ti-upload"></i> Upload</button>
+        </div>
+      </form>
+    </div>
+
+    {% if front_image %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-layout-grid"></i> Place Fields on Your Design</div>
+      <div class="field-toggles" id="fieldToggles"></div>
+      <div class="card-editor">
+        <div class="card-side">
+          <h4>Front</h4>
+          <div class="card-canvas" id="frontCanvas">
+            <img src="/static/{{ front_image }}" id="frontImg" alt="Front template" />
+          </div>
+        </div>
+        {% if back_image %}
+        <div class="card-side">
+          <h4>Back</h4>
+          <div class="card-canvas" id="backCanvas">
+            <img src="/static/{{ back_image }}" id="backImg" alt="Back template" />
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-navy" type="button" onclick="saveFieldPositions()"><i class="ti ti-device-floppy"></i> Save Positions</button>
+      </div>
+      {% if not back_image %}
+      <p class="u-fs-12 u-c-94a3b8 u-mt-10">No back image uploaded — the back of the card will use the default QR/back layout automatically.</p>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="section"><div class="empty-hint">Upload a front template image above to start placing fields.</div></div>
+    {% endif %}
+  </div>
+
+  <form id="savePositionsForm" method="POST" action="/companies/{{ cid }}/id_card_template/save_positions" style="display:none">
+    <input type="hidden" name="positions_json" id="positionsJsonInput" />
+  </form>
+
+  <script>
+    var FIELD_DEFS = {
+      photo:           {side: 'front', label: 'Photo',          color: '#2563eb'},
+      logo:            {side: 'front', label: 'Company Logo',   color: '#7c3aed'},
+      name:            {side: 'front', label: 'Name',           color: '#16a34a'},
+      employee_id:     {side: 'front', label: 'Employee ID',    color: '#ca8a04'},
+      designation:     {side: 'front', label: 'Designation',    color: '#0891b2'},
+      date_of_joining: {side: 'front', label: 'Joining Date',   color: '#9333ea'},
+      qr:              {side: 'back',  label: 'QR Code',        color: '#2563eb'},
+      email:           {side: 'back',  label: 'Email',          color: '#16a34a'},
+      phone:           {side: 'back',  label: 'Phone',          color: '#ca8a04'},
+      blood_group:     {side: 'back',  label: 'Blood Group',    color: '#dc2626'},
+      company_address: {side: 'back',  label: 'Company Address', color: '#0d9488'},
+      website:         {side: 'back',  label: 'Website',        color: '#334155'},
+      emergency_contact_name:     {side: 'back', label: 'Emergency Contact Name',     color: '#be123c'},
+      emergency_contact_phone:    {side: 'back', label: 'Emergency Contact Phone',    color: '#be123c'},
+      emergency_contact_relation: {side: 'back', label: 'Emergency Contact Relation', color: '#be123c'}
+    };
+    var savedFields = {{ fields_json|safe }};
+    var hasBack = {{ 'true' if back_image else 'false' }};
+    var boxes = {};
+    var TEXT_FIELDS = [
+      'name', 'employee_id', 'designation', 'email', 'phone', 'blood_group', 'date_of_joining',
+      'company_address', 'website',
+      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation'
+    ];
+
+    function defaultBoxFor(key, index) {
+      return {x: 0.1, y: 0.08 + index * 0.11, w: 0.8, h: 0.09};
+    }
+
+    function positionBox(box, canvas, frac) {
+      box.style.left = (frac.x * canvas.clientWidth) + 'px';
+      box.style.top = (frac.y * canvas.clientHeight) + 'px';
+      box.style.width = (frac.w * canvas.clientWidth) + 'px';
+      box.style.height = (frac.h * canvas.clientHeight) + 'px';
+    }
+
+    function attachDragResize(box, canvas) {
+      var dragging = false, resizing = false, startX, startY, startLeft, startTop, startW, startH;
+      box.addEventListener('mousedown', function (e) {
+        if (e.target.classList.contains('resize-handle')) {
+          resizing = true;
+        } else {
+          dragging = true;
+        }
+        startX = e.clientX; startY = e.clientY;
+        startLeft = box.offsetLeft; startTop = box.offsetTop;
+        startW = box.offsetWidth; startH = box.offsetHeight;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!dragging && !resizing) return;
+        var dx = e.clientX - startX, dy = e.clientY - startY;
+        if (dragging) {
+          var newLeft = Math.max(0, Math.min(canvas.clientWidth - box.offsetWidth, startLeft + dx));
+          var newTop = Math.max(0, Math.min(canvas.clientHeight - box.offsetHeight, startTop + dy));
+          box.style.left = newLeft + 'px';
+          box.style.top = newTop + 'px';
+        } else if (resizing) {
+          var newW = Math.max(24, Math.min(canvas.clientWidth - box.offsetLeft, startW + dx));
+          var newH = Math.max(18, Math.min(canvas.clientHeight - box.offsetTop, startH + dy));
+          box.style.width = newW + 'px';
+          box.style.height = newH + 'px';
+        }
+      });
+      document.addEventListener('mouseup', function () { dragging = false; resizing = false; });
+    }
+
+    function createBox(key) {
+      var def = FIELD_DEFS[key];
+      var side = def.side;
+      if (side === 'back' && !hasBack) side = 'front';
+      var canvas = document.getElementById(side === 'back' ? 'backCanvas' : 'frontCanvas');
+      if (!canvas) return null;
+      var box = document.createElement('div');
+      box.className = 'field-box';
+      box.style.borderColor = def.color;
+      var label = document.createElement('span');
+      label.className = 'field-box-label';
+      label.style.background = def.color;
+      label.textContent = def.label;
+      var handle = document.createElement('div');
+      handle.className = 'resize-handle';
+      box.appendChild(label);
+      box.appendChild(handle);
+      var colorInput = null, sizeInput = null, bgColorInput = null;
+      if (TEXT_FIELDS.indexOf(key) !== -1) {
+        colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.className = 'field-color-input';
+        colorInput.title = 'Text color';
+        colorInput.value = (savedFields[key] && savedFields[key].color) || '#0f172a';
+        colorInput.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        box.appendChild(colorInput);
+
+        sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.className = 'field-size-input';
+        sizeInput.title = 'Font size';
+        sizeInput.min = 6; sizeInput.max = 72;
+        sizeInput.value = (savedFields[key] && savedFields[key].font_size) || 14;
+        sizeInput.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        box.appendChild(sizeInput);
+
+        var hasBgOverride = !!(savedFields[key] && savedFields[key].bg_color);
+        bgColorInput = document.createElement('input');
+        bgColorInput.type = 'color';
+        bgColorInput.className = 'field-bgcolor-input';
+        bgColorInput.title = 'Background fill color (only used when "custom bg" is checked)';
+        bgColorInput.value = (savedFields[key] && savedFields[key].bg_color) || '#ffffff';
+        bgColorInput.disabled = !hasBgOverride;
+        bgColorInput.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        box.appendChild(bgColorInput);
+
+        var bgToggle = document.createElement('label');
+        bgToggle.className = 'field-bg-toggle';
+        bgToggle.title = 'Use a fixed background fill instead of auto-detecting it from the template';
+        var bgCb = document.createElement('input');
+        bgCb.type = 'checkbox';
+        bgCb.checked = hasBgOverride;
+        bgCb.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        bgCb.addEventListener('change', function () { bgColorInput.disabled = !bgCb.checked; });
+        bgToggle.appendChild(bgCb);
+        bgToggle.appendChild(document.createTextNode(' bg'));
+        bgToggle._checkbox = bgCb;
+        box.appendChild(bgToggle);
+      }
+      var roundInput = null;
+      if (key === 'logo') {
+        roundInput = document.createElement('label');
+        roundInput.className = 'field-round-toggle';
+        roundInput.title = 'Circular logo';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!(savedFields[key] && savedFields[key].round);
+        cb.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        roundInput.appendChild(cb);
+        roundInput.appendChild(document.createTextNode(' round'));
+        roundInput._checkbox = cb;
+        box.appendChild(roundInput);
+      }
+      canvas.appendChild(box);
+      var idx = Object.keys(boxes).length;
+      var frac = savedFields[key] || defaultBoxFor(key, idx);
+      positionBox(box, canvas, frac);
+      attachDragResize(box, canvas);
+      return {
+        box: box, canvas: canvas, side: side,
+        colorInput: colorInput, sizeInput: sizeInput, roundInput: roundInput,
+        bgColorInput: bgColorInput, bgToggle: bgToggle
+      };
+    }
+
+    function toggleField(key, on) {
+      if (on) {
+        if (!boxes[key]) boxes[key] = createBox(key);
+      } else if (boxes[key]) {
+        boxes[key].box.remove();
+        delete boxes[key];
+      }
+    }
+
+    function buildToggles() {
+      var wrap = document.getElementById('fieldToggles');
+      Object.keys(FIELD_DEFS).forEach(function (key) {
+        var def = FIELD_DEFS[key];
+        if (def.side === 'back' && !hasBack) return; // qr/email/phone/blood_group need a back image
+        var chip = document.createElement('div');
+        chip.className = 'field-toggle';
+        chip.textContent = def.label;
+        chip.dataset.key = key;
+        var isOn = !!savedFields[key];
+        if (isOn) chip.classList.add('on');
+        chip.addEventListener('click', function () {
+          var nowOn = !chip.classList.contains('on');
+          chip.classList.toggle('on', nowOn);
+          toggleField(key, nowOn);
+        });
+        wrap.appendChild(chip);
+        if (isOn) toggleField(key, true);
+      });
+    }
+
+    function saveFieldPositions() {
+      var result = {};
+      Object.keys(boxes).forEach(function (key) {
+        var entry = boxes[key];
+        var canvas = entry.canvas;
+        var box = entry.box;
+        result[key] = {
+          side: entry.side,
+          x: box.offsetLeft / canvas.clientWidth,
+          y: box.offsetTop / canvas.clientHeight,
+          w: box.offsetWidth / canvas.clientWidth,
+          h: box.offsetHeight / canvas.clientHeight
+        };
+        if (entry.colorInput) result[key].color = entry.colorInput.value;
+        if (entry.sizeInput) result[key].font_size = parseInt(entry.sizeInput.value, 10) || 14;
+        if (entry.roundInput) result[key].round = entry.roundInput._checkbox.checked;
+        if (entry.bgToggle && entry.bgToggle._checkbox.checked) result[key].bg_color = entry.bgColorInput.value;
+      });
+      document.getElementById('positionsJsonInput').value = JSON.stringify(result);
+      document.getElementById('savePositionsForm').submit();
+    }
+
+    if (document.getElementById('frontCanvas')) {
+      window.addEventListener('load', buildToggles);
+    }
+  </script>
+</body>
+</html>
