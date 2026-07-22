@@ -2051,6 +2051,7 @@ _ID_CARD_FIELD_KEYS = {
     "email", "phone", "blood_group", "qr",
     "date_of_joining", "company_address", "website",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
+    "department", "shift", "reporting_manager", "shift_timing", "work_mode", "company_phone",
 }
 
 

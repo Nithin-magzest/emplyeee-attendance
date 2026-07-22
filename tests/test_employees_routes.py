@@ -241,6 +241,76 @@ class TestAddEmployeePage:
         cur.close()
         assert row is not None
 
+    def test_extended_profile_fields_saved_and_decrypt(self, client, seed_admin, db_engine, cleanup_emp_files):
+        """Bank/PAN/Aadhar/UAN/emergency-contact/blood-group/address fields
+        submitted from the Add Employee form should round-trip through
+        encrypt_pii and land on the right columns, and education rows
+        should land in employee_education."""
+        from utils.helpers import decrypt_pii
+        cleanup_emp_files.append("ADDPAGE2")
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/add_employee_page", data={
+            "name": "Extended Fields Employee", "emp_id": "ADDPAGE2",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+            "gender": "Female", "dob": "1995-06-15", "blood_group": "O+",
+            "address": "221B Baker Street", "city": "London", "state": "Greater London", "pincode": "NW16XE",
+            "emergency_contact_name": "Jane Doe", "emergency_contact_phone": "9999999999",
+            "emergency_contact_relation": "Sister",
+            "aadhar_number": "123412341234", "pan_number": "abcde1234f", "uan_number": "100200300400",
+            "bank_name": "Test Bank", "bank_account": "000111222333", "bank_ifsc": "tbnk0001234",
+            "degree[]": ["B.Tech", "M.Tech"], "institution[]": ["ABC University", "XYZ Institute"],
+            "year_of_passing[]": ["2016", "2018"], "percentage[]": ["82", "75"],
+            "salary_per_day": "1800.00",
+        }, follow_redirects=True)
+        assert b"registered" in resp.data
+
+        cur = db_engine.cursor()
+        cur.execute(
+            "SELECT gender, dob, blood_group, address, city, state, pincode, "
+            "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
+            "aadhar_number, pan_number, uan_number, bank_name, bank_account, bank_ifsc "
+            "FROM employees WHERE employee_id='ADDPAGE2'"
+        )
+        row = cur.fetchone()
+        assert row is not None
+        decrypted = [decrypt_pii(v) if v else v for v in row]
+        (gender, dob, blood_group, address, city, state, pincode,
+         ec_name, ec_phone, ec_relation, aadhar, pan, uan, bank_name, bank_account, bank_ifsc) = decrypted
+        assert gender == "Female"
+        assert dob == "1995-06-15"
+        assert blood_group == "O+"
+        assert address == "221B Baker Street"
+        assert city == "London"
+        assert state == "Greater London"
+        assert pincode == "NW16XE"
+        assert ec_name == "Jane Doe"
+        assert ec_phone == "9999999999"
+        assert ec_relation == "Sister"
+        assert aadhar == "123412341234"
+        assert pan == "ABCDE1234F"
+        assert uan == "100200300400"
+        assert bank_name == "Test Bank"
+        assert bank_account == "000111222333"
+        assert bank_ifsc == "TBNK0001234"
+
+        cur.execute(
+            "SELECT degree, institution, year_of_passing, percentage FROM employee_education "
+            "WHERE employee_id='ADDPAGE2' ORDER BY id"
+        )
+        edu_rows = cur.fetchall()
+        cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id='ADDPAGE2'")
+        salary_row = cur.fetchone()
+        cur.execute("DELETE FROM employee_education WHERE employee_id='ADDPAGE2'")
+        cur.execute("DELETE FROM salary_config WHERE employee_id='ADDPAGE2'")
+        cur.execute("DELETE FROM employees WHERE employee_id='ADDPAGE2'")
+        cur.close()
+        assert edu_rows == [
+            ("B.Tech", "ABC University", "2016", "82"),
+            ("M.Tech", "XYZ Institute", "2018", "75"),
+        ]
+        assert salary_row is not None
+        assert float(salary_row[0]) == 1800.0
+
 
 class TestUpdateEmployeePhoto:
     def test_unknown_employee(self, client, seed_admin):

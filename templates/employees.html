@@ -173,6 +173,11 @@
       .field-group select:focus,
       .field-group textarea:focus { border-color: #93c5fd; background: #fff; }
       .sec-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin: 4px 0 10px; grid-column: 1 / -1; }
+      .form-sub-section { border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 10px; overflow: hidden; }
+      .form-sub-header { padding: 10px 14px; background: #f8fafc; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: #374151; transition: 0.15s; user-select: none; }
+      .form-sub-header:hover { background: #eff6ff; color: #1e3a8a; }
+      .form-sub-header i { transition: transform 0.2s; font-size: 14px; }
+      .form-sub-body { padding: 14px 14px 2px; }
       .radio-group { display: flex; gap: 14px; flex-wrap: wrap; }
       .radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: #334155; }
       .location-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 12px; grid-column: 1 / -1; }
@@ -778,31 +783,6 @@
               <input type="email" name="email" placeholder="employee@company.com" required />
             </div>
             <div class="field-group">
-              <label>Phone</label>
-              <input type="text" name="phone" placeholder="9876543210" />
-            </div>
-            <div class="field-group">
-              <label>Role / Designation</label>
-              <input type="text" name="role" placeholder="Developer" />
-            </div>
-            <div class="field-group">
-              <label>Department</label>
-              <input type="text" name="department" placeholder="e.g. Full Stack, Backend…"
-                     list="deptList" autocomplete="off" />
-              <datalist id="deptList">
-                {% for dept in departments %}
-                  <option value="{{ dept }}">
-                {% endfor %}
-              </datalist>
-            </div>
-            <div class="field-group">
-              <label>Gender</label>
-              <select name="gender">
-                <option value="">Select</option>
-                <option>Male</option><option>Female</option><option>Other</option>
-              </select>
-            </div>
-            <div class="field-group">
               <label>Date of Joining <span class="u-c-dc2626">*</span></label>
               <input type="date" name="date_of_joining" required />
             </div>
@@ -825,6 +805,178 @@
                 {% endfor %}
               </select>
               <input type="hidden" name="manager_name" id="add_manager_name" />
+            </div>
+
+            <div class="sec-title u-gc-1_-1 u-m-0">
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-professional')">
+                  <span>💼 Professional Details</span>
+                  <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
+                </div>
+                <div id="sec-professional" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
+                    <div class="field-group">
+                      <label>Role / Designation</label>
+                      <input type="text" name="role" placeholder="Developer" />
+                    </div>
+                    <div class="field-group">
+                      <label>Department</label>
+                      <input type="text" name="department" placeholder="e.g. Full Stack, Backend…"
+                             list="deptList" autocomplete="off" />
+                      <datalist id="deptList">
+                        {% for dept in departments %}
+                          <option value="{{ dept }}">
+                        {% endfor %}
+                      </datalist>
+                    </div>
+                    <div class="field-group">
+                      <label>Phone</label>
+                      <input type="text" name="phone" placeholder="9876543210" />
+                    </div>
+                    <div class="field-group">
+                      <label>Daily Salary (₹)</label>
+                      <input type="number" name="salary_per_day" placeholder="e.g. 1500.00" step="0.01" min="0" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-personal')">
+                  <span>👤 Personal Details</span>
+                  <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
+                </div>
+                <div id="sec-personal" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
+                    <div class="field-group">
+                      <label>Gender</label>
+                      <select name="gender">
+                        <option value="">Select</option>
+                        <option>Male</option><option>Female</option><option>Other</option>
+                      </select>
+                    </div>
+                    <div class="field-group">
+                      <label>Date of Birth</label>
+                      <input type="date" name="dob" />
+                    </div>
+                    <div class="field-group">
+                      <label>Blood Group</label>
+                      <select name="blood_group">
+                        <option value="">Select</option>
+                        <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                        <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-address')">
+                  <span>🏠 Address</span>
+                  <i class="ti ti-chevron-down" id="sec-address-icon"></i>
+                </div>
+                <div id="sec-address" class="form-sub-body u-d-none">
+                  <div class="field-group">
+                    <label>Street Address</label>
+                    <textarea name="address" placeholder="Flat / House no, Street, Area"></textarea>
+                  </div>
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
+                    <div class="field-group">
+                      <label>City</label>
+                      <input type="text" name="city" />
+                    </div>
+                    <div class="field-group">
+                      <label>State</label>
+                      <input type="text" name="state" />
+                    </div>
+                    <div class="field-group">
+                      <label>Pincode</label>
+                      <input type="text" name="pincode" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-emergency')">
+                  <span>🚨 Emergency Contact</span>
+                  <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
+                </div>
+                <div id="sec-emergency" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
+                    <div class="field-group">
+                      <label>Contact Name</label>
+                      <input type="text" name="emergency_contact_name" placeholder="Parent / Spouse name" />
+                    </div>
+                    <div class="field-group">
+                      <label>Relation</label>
+                      <input type="text" name="emergency_contact_relation" placeholder="Father / Spouse" />
+                    </div>
+                    <div class="field-group u-gc-1_-1">
+                      <label>Contact Phone</label>
+                      <input type="text" name="emergency_contact_phone" placeholder="9876543210" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-docs')">
+                  <span>📄 Documents &amp; Finance</span>
+                  <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
+                </div>
+                <div id="sec-docs" class="form-sub-body u-d-none">
+                  <div class="u-d-grid u-gtc-1fr-1fr u-gap-0-20">
+                    <div class="field-group">
+                      <label>Aadhar Number</label>
+                      <input type="text" name="aadhar_number" placeholder="XXXX XXXX XXXX" />
+                    </div>
+                    <div class="field-group">
+                      <label>PAN Number</label>
+                      <input class="u-ff-monospace u-ls-1 u-ttr-uppercase" type="text" name="pan_number" placeholder="ABCDE1234F" maxlength="10" />
+                    </div>
+                    <div class="field-group">
+                      <label>UAN Number</label>
+                      <input type="text" name="uan_number" placeholder="Provident Fund UAN" />
+                    </div>
+                    <div class="field-group">
+                      <label>Bank Name</label>
+                      <input type="text" name="bank_name" placeholder="e.g. HDFC Bank" />
+                    </div>
+                    <div class="field-group">
+                      <label>Account Number</label>
+                      <input type="text" name="bank_account" />
+                    </div>
+                    <div class="field-group">
+                      <label>IFSC Code</label>
+                      <input class="u-ff-monospace u-ls-1 u-ttr-uppercase" type="text" name="bank_ifsc" maxlength="11" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-edu')">
+                  <span>🎓 Qualifications</span>
+                  <i class="ti ti-chevron-down" id="sec-edu-icon"></i>
+                </div>
+                <div id="sec-edu" class="form-sub-body u-d-none">
+                  <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+                    <span class="u-fs-11 u-fw-600 u-c-64748b">Education history</span>
+                    <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="addEduRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+                  </div>
+                  <div class="u-gap-6 u-mb-4 u-p-0-2" style="display:grid;grid-template-columns:1fr 1fr 90px 70px 28px;">
+                    <span class="u-fs-10 u-fw-600 u-c-94a3b8">Degree</span>
+                    <span class="u-fs-10 u-fw-600 u-c-94a3b8">Institution</span>
+                    <span class="u-fs-10 u-fw-600 u-c-94a3b8">Year</span>
+                    <span class="u-fs-10 u-fw-600 u-c-94a3b8">%</span>
+                    <span></span>
+                  </div>
+                  <div class="u-d-flex u-fxd-column u-gap-6" id="addEduList"></div>
+                  <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — add any degrees/certifications.</div>
+                </div>
+              </div>
             </div>
 
             <div class="sec-title">Work Mode</div>
@@ -872,22 +1024,29 @@
               <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ Please take or upload a face photo before registering.</div>
             </div>
 
-            <div class="sec-title u-gc-1_-1">Fingerprint / Biometric <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional — for fingerprint attendance)</span></div>
-            <div class="field-group full">
-              <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-18 u-ta-center u-bg-f8fafc u-trs-0d3s" id="fpEnrollBox">
-                <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393">👆</div>
-                <div class="u-fs-13 u-c-64748b u-mb-12" id="fpEnrollStatus">
-                  Not enrolled — employee can use QR + Face by default
+            <div class="sec-title u-gc-1_-1 u-m-0">
+              <div class="form-sub-section">
+                <div class="form-sub-header" onclick="toggleSubSection('sec-fingerprint')">
+                  <span>👆 Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
+                  <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
-                <div class="u-d-flex u-gap-8 u-jc-center">
-                  <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
-                    👆 Enroll Fingerprint
-                  </button>
-                  <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
-                    ✕ Clear
-                  </button>
+                <div id="sec-fingerprint" class="form-sub-body u-d-none">
+                  <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-18 u-ta-center u-bg-f8fafc u-trs-0d3s" id="fpEnrollBox">
+                    <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393">👆</div>
+                    <div class="u-fs-13 u-c-64748b u-mb-12" id="fpEnrollStatus">
+                      Not enrolled — employee can use QR + Face by default
+                    </div>
+                    <div class="u-d-flex u-gap-8 u-jc-center">
+                      <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
+                        👆 Enroll Fingerprint
+                      </button>
+                      <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
+                        ✕ Clear
+                      </button>
+                    </div>
+                    <input type="hidden" id="fpAttestation" name="fingerprint_attestation" value="" />
+                  </div>
                 </div>
-                <input type="hidden" id="fpAttestation" name="fingerprint_attestation" value="" />
               </div>
             </div>
           </div>
@@ -1317,7 +1476,7 @@
       function openModal(id) {
         document.getElementById(id).classList.add('open');
         document.body.style.overflow = 'hidden';
-        if (id === 'addModal') { setTimeout(generateEmpId, 50); }
+        if (id === 'addModal') { setTimeout(generateEmpId, 50); resetEduRows(); }
       }
       function closeModal(id) {
         document.getElementById(id).classList.remove('open');
@@ -1472,6 +1631,14 @@
         document.getElementById('addPhotoErr').style.display = 'none';
       }
 
+      function toggleSubSection(id) {
+        var el   = document.getElementById(id);
+        var icon = document.getElementById(id + '-icon');
+        var open = el.style.display === 'none';
+        el.style.display = open ? 'block' : 'none';
+        if (icon) icon.style.transform = open ? 'rotate(180deg)' : '';
+      }
+
       function validateAddForm(form) {
         var faceInput = document.getElementById('addFaceInput');
         var errDiv    = document.getElementById('addPhotoErr');
@@ -1483,6 +1650,25 @@
         }
         if (errDiv) errDiv.style.display = 'none';
         return true;
+      }
+
+      function makeEduRow(degree, institution, year, pct) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 90px 70px 28px;gap:6px;align-items:center;';
+        row.innerHTML =
+          '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="degree[]" value="' + degree + '" placeholder="B.Tech" />' +
+          '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="institution[]" value="' + institution + '" placeholder="University" />' +
+          '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="year_of_passing[]" value="' + year + '" placeholder="2020" />' +
+          '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="percentage[]" value="' + pct + '" placeholder="%" />' +
+          '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
+        return row;
+      }
+      function addEduRow() {
+        document.getElementById('addEduList').appendChild(makeEduRow('', '', '', ''));
+      }
+      function resetEduRows() {
+        var list = document.getElementById('addEduList');
+        if (list) list.innerHTML = '';
       }
 
       async function generateEmpId() {

@@ -326,6 +326,56 @@ class TestIdCardRendering:
         assert plain.size == branded.size == (500, 820)
         assert plain.tobytes() != branded.tobytes()
 
+    def test_default_front_shows_department(self, company_employee):
+        from blueprints.employees import _render_default_front
+        row = ("IDC001", "Card Holder", "Employee", "card@test.local", None, None, None, "O+", "9999999999")
+        no_dept = _render_default_front("IDC001", row, department=None)
+        with_dept = _render_default_front("IDC001", row, department="Engineering")
+        assert no_dept.size == with_dept.size == (500, 820)
+        assert no_dept.tobytes() != with_dept.tobytes()
+
+    def test_default_back_shows_shift_and_reporting_manager(self, company_employee):
+        from blueprints.employees import _render_default_back
+        row_no_shift = ("IDC001", "Card Holder", "Employee", "card@test.local", None, None, None, "O+", "9999999999")
+        row_with_shift = row_no_shift[:6] + ("Morning Shift",) + row_no_shift[7:]
+        plain = _render_default_back("IDC001", row_no_shift, manager_name=None)
+        with_shift_and_manager = _render_default_back("IDC001", row_with_shift, manager_name="Priya Sharma")
+        assert plain.size == with_shift_and_manager.size == (500, 820)
+        assert plain.tobytes() != with_shift_and_manager.tobytes()
+
+    def test_default_front_and_back_show_footer_contact_line(self, company_employee):
+        """Company name/website/toll-free number should appear as a compact
+        line just above the fixed footer bar on both sides, when on file."""
+        from blueprints.employees import _render_default_front, _render_default_back
+        row = ("IDC001", "Card Holder", "Employee", "card@test.local", None, None, None, "O+", "9999999999")
+
+        plain_front = _render_default_front("IDC001", row)
+        with_contact_front = _render_default_front(
+            "IDC001", row, company_name="Acme Corp",
+            company_website="acmecorp.com", company_phone="1800-123-4567"
+        )
+        assert plain_front.size == with_contact_front.size == (500, 820)
+        assert plain_front.tobytes() != with_contact_front.tobytes()
+
+        plain_back = _render_default_back("IDC001", row)
+        with_contact_back = _render_default_back(
+            "IDC001", row, company_name="Acme Corp",
+            company_website="acmecorp.com", company_phone="1800-123-4567"
+        )
+        assert plain_back.size == with_contact_back.size == (500, 820)
+        assert plain_back.tobytes() != with_contact_back.tobytes()
+
+    def test_default_back_shows_shift_timing_and_work_mode(self, company_employee):
+        import datetime as _dt
+        from blueprints.employees import _render_default_back
+        row = ("IDC001", "Card Holder", "Employee", "card@test.local", None, None, None, "O+", "9999999999")
+        plain = _render_default_back("IDC001", row)
+        with_timing = _render_default_back(
+            "IDC001", row, shift_start=_dt.time(9, 0), shift_end=_dt.time(18, 0), work_mode="wfh"
+        )
+        assert plain.size == with_timing.size == (500, 820)
+        assert plain.tobytes() != with_timing.tobytes()
+
     def test_default_back_shows_logo_and_emergency_contact(self, company_employee):
         from blueprints.employees import _render_default_back
         row = ("IDC001", "Card Holder", "Employee", "card@test.local", None, None, None, "O+", "9999999999")
@@ -443,14 +493,46 @@ class TestIdCardRendering:
                                                     company_address=None)
             assert img_with_addr.tobytes() != img_without_addr.tobytes()
 
-            row_with_emergency = row_with_date + ("Aisha Begum", "+91 90000 11223", "Sister")
-            row_without_emergency = row_with_date + (None, None, None)
+            row_with_emergency = row_with_date + (None, None, "Aisha Begum", "+91 90000 11223", "Sister")
+            row_without_emergency = row_with_date + (None, None, None, None, None)
             emergency_fields = {
                 "emergency_contact_name": {"side": "front", "x": 0.1, "y": 0.6, "w": 0.8, "h": 0.1, "font_size": 12},
             }
             img_with_emg = _render_custom_side(rel_path, emergency_fields, "front", "IDC001", row_with_emergency, None)
             img_without_emg = _render_custom_side(rel_path, emergency_fields, "front", "IDC001", row_without_emergency, None)
             assert img_with_emg.tobytes() != img_without_emg.tobytes()
+
+            row_with_prof = row_with_date[:6] + ("Morning Shift",) + row_with_date[7:] + ("Engineering", "Priya Sharma")
+            row_without_prof = row_with_date[:6] + (None,) + row_with_date[7:] + (None, None)
+            prof_fields = {
+                "department": {"side": "front", "x": 0.1, "y": 0.7, "w": 0.8, "h": 0.1, "font_size": 12},
+                "shift": {"side": "front", "x": 0.1, "y": 0.8, "w": 0.8, "h": 0.1, "font_size": 12},
+                "reporting_manager": {"side": "front", "x": 0.1, "y": 0.9, "w": 0.8, "h": 0.09, "font_size": 12},
+            }
+            img_with_prof = _render_custom_side(rel_path, prof_fields, "front", "IDC001", row_with_prof, None)
+            img_without_prof = _render_custom_side(rel_path, prof_fields, "front", "IDC001", row_without_prof, None)
+            assert img_with_prof.tobytes() != img_without_prof.tobytes()
+
+            row_with_timing = row_with_date[:6] + (None,) + row_with_date[7:] + (
+                None, None, None, None, None, _dt.time(9, 0), _dt.time(18, 0), "wfh")
+            row_without_timing = row_with_date[:6] + (None,) + row_with_date[7:] + (
+                None, None, None, None, None, None, None, None)
+            timing_fields = {
+                "shift_timing": {"side": "front", "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.1, "font_size": 12},
+                "work_mode": {"side": "front", "x": 0.1, "y": 0.2, "w": 0.8, "h": 0.1, "font_size": 12},
+            }
+            img_with_timing = _render_custom_side(rel_path, timing_fields, "front", "IDC001", row_with_timing, None)
+            img_without_timing = _render_custom_side(rel_path, timing_fields, "front", "IDC001", row_without_timing, None)
+            assert img_with_timing.tobytes() != img_without_timing.tobytes()
+
+            phone_fields = {
+                "company_phone": {"side": "front", "x": 0.1, "y": 0.3, "w": 0.8, "h": 0.1, "font_size": 12},
+            }
+            img_with_phone = _render_custom_side(rel_path, phone_fields, "front", "IDC001", row_with_date, None,
+                                                  company_phone="1800-123-4567")
+            img_without_phone = _render_custom_side(rel_path, phone_fields, "front", "IDC001", row_with_date, None,
+                                                     company_phone=None)
+            assert img_with_phone.tobytes() != img_without_phone.tobytes()
         finally:
             os.remove(abs_path)
 

@@ -892,6 +892,30 @@ def add_employee_page():
     company_id_raw = request.form.get("company_id", "").strip()
     company_id = int(company_id_raw) if company_id_raw.isdigit() else None
 
+    gender = encrypt_pii(request.form.get("gender", "").strip() or None)
+    dob_raw = request.form.get("dob", "").strip()
+    dob = encrypt_pii(dob_raw) if dob_raw else None
+    blood_group = encrypt_pii(request.form.get("blood_group", "").strip() or None)
+    address = encrypt_pii(request.form.get("address", "").strip() or None)
+    city = encrypt_pii(request.form.get("city", "").strip() or None)
+    state = encrypt_pii(request.form.get("state", "").strip() or None)
+    pincode = encrypt_pii(request.form.get("pincode", "").strip() or None)
+    ec_name = encrypt_pii(request.form.get("emergency_contact_name", "").strip() or None)
+    ec_phone = encrypt_pii(request.form.get("emergency_contact_phone", "").strip() or None)
+    ec_relation = encrypt_pii(request.form.get("emergency_contact_relation", "").strip() or None)
+    aadhar = encrypt_pii(request.form.get("aadhar_number", "").strip() or None)
+    pan = encrypt_pii(request.form.get("pan_number", "").strip().upper() or None)
+    bank_name = encrypt_pii(request.form.get("bank_name", "").strip() or None)
+    bank_account = encrypt_pii(request.form.get("bank_account", "").strip() or None)
+    bank_ifsc = encrypt_pii(request.form.get("bank_ifsc", "").strip().upper() or None)
+    uan = encrypt_pii(request.form.get("uan_number", "").strip() or None)
+    edu_degrees = request.form.getlist("degree[]")
+    edu_institutions = request.form.getlist("institution[]")
+    edu_years = request.form.getlist("year_of_passing[]")
+    edu_pcts = request.form.getlist("percentage[]")
+    salary_per_day_raw = request.form.get("salary_per_day", "").strip()
+    salary_per_day = float(salary_per_day_raw) if salary_per_day_raw else None
+
     if not name or not emp_id:
         flash("Name and Employee ID are required.", "error")
         return redirect("/employees")
@@ -970,15 +994,36 @@ def add_employee_page():
             cursor.execute(
                 "INSERT INTO employees (name, employee_id, email, role, face_image, qr_code, password, "
                 "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department, "
+                "gender, dob, blood_group, address, city, state, pincode, "
+                "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
+                "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number, "
                 "force_pin_change) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
                 (name, emp_id, email, role, filepath, qr_path, hashed_pwd,
                  date_of_joining, work_mode, work_lat, work_lon, company_id,
-                 _mgr_id, _mgr_name, _dept)
+                 _mgr_id, _mgr_name, _dept,
+                 gender, dob, blood_group, address, city, state, pincode,
+                 ec_name, ec_phone, ec_relation,
+                 aadhar, pan, bank_name, bank_account, bank_ifsc, uan)
             )
             db.commit()
             _enroll_fingerprint_from_form(emp_id, cursor, db)
             assign_leave_balances_for_employee(cursor, emp_id)
+            for _deg, _inst, _yr, _pct in zip(edu_degrees, edu_institutions, edu_years, edu_pcts):
+                _deg, _inst = _deg.strip(), _inst.strip()
+                if _deg and _inst:
+                    cursor.execute(
+                        "INSERT INTO employee_education (employee_id, degree, institution, year_of_passing, percentage) "
+                        "VALUES (%s,%s,%s,%s,%s)",
+                        (emp_id, _deg, _inst, _yr.strip() or None, _pct.strip() or None)
+                    )
+            if salary_per_day is not None:
+                cursor.execute(
+                    "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s) "
+                    "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=%s",
+                    (emp_id, salary_per_day, salary_per_day)
+                )
             db.commit()
             registered = True
             break
@@ -1229,6 +1274,19 @@ _IDC_GOLD = (251, 191, 36)
 _IDC_RED = (220, 38, 38)
 
 
+def _idc_blood_drop(draw, x, y, w, h, color):
+    """Draw a small blood-drop (teardrop) icon inside box (x, y, w, h) —
+    vector-drawn rather than an emoji glyph, since the PIL fonts available
+    in this environment can't render color emoji (they'd just show as a
+    missing-glyph box)."""
+    r = w / 2.0
+    cx = x + r
+    circle_bottom = y + h
+    circle_top = circle_bottom - 2 * r
+    draw.polygon([(cx, y), (x, circle_top + r * 0.2), (x + w, circle_top + r * 0.2)], fill=color)
+    draw.ellipse([(cx - r, circle_top), (cx + r, circle_bottom)], fill=color)
+
+
 def _idc_font(size, bold=False):
     from PIL import ImageFont
     candidates = (
@@ -1263,6 +1321,23 @@ def _idc_safe_text(text):
 def _idc_text_width(draw, text, font):
     bb = draw.textbbox((0, 0), _idc_safe_text(text), font=font)
     return bb[2] - bb[0]
+
+
+_IDC_WORK_MODE_LABELS = {"office": "Office", "wfh": "Work From Home"}
+
+
+def _idc_fmt_shift_time(t):
+    t = _td_to_time(t)
+    return t.strftime("%I:%M %p") if t else None
+
+
+def _idc_shift_timing_text(shift_start, shift_end):
+    s, e = _idc_fmt_shift_time(shift_start), _idc_fmt_shift_time(shift_end)
+    return f"{s} - {e}" if s and e else "-"
+
+
+def _idc_work_mode_text(work_mode):
+    return _IDC_WORK_MODE_LABELS.get(work_mode, work_mode or "-")
 
 
 def _idc_center_text(draw, text, font, card_w, y, color):
@@ -1311,25 +1386,68 @@ def _idc_header_logo_and_name(draw, img, bar_h, company_name, logo_path, fallbac
         _idc_center_text(draw, fallback_subtitle, _idc_font(11), CW, 52, _IDC_PALE)
         return
 
-    text_x = 24
+    logo_img = None
     if logo_path:
         try:
             logo_img = Image.open(_idc_static_path(logo_path)).convert("RGBA").resize((56, 56), Image.LANCZOS)
-            box_y = (bar_h - 60) // 2
-            draw.rounded_rectangle([(14, box_y), (14 + 60, box_y + 60)], radius=8, fill=_IDC_WHITE)
-            img.paste(logo_img, (16, box_y + 2), logo_img)
-            text_x = 14 + 60 + 14
         except Exception:
-            pass
+            logo_img = None
 
-    if company_name:
-        font = _idc_font(22, bold=True)
-        max_w = CW - text_x - 120  # leave room for the decorative circle at top-right
-        name = _idc_safe_text(company_name)
-        while len(name) > 1 and _idc_text_width(draw, name, font) > max_w:
+    circle_margin = 120  # leave room for the decorative circle at top-right
+    font = _idc_font(22, bold=True)
+    name = _idc_safe_text(company_name) if company_name else ""
+    logo_block_w = 60 + 14 if logo_img else 0
+    if name:
+        max_name_w = max(20, CW - circle_margin - 14 - logo_block_w)
+        while len(name) > 1 and _idc_text_width(draw, name, font) > max_name_w:
             name = name[:-1]
+    name_w = _idc_text_width(draw, name, font) if name else 0
+    total_w = logo_block_w + name_w
+    start_x = max(14, (CW - circle_margin - total_w) // 2)
+
+    if logo_img:
+        box_y = (bar_h - 60) // 2
+        draw.rounded_rectangle([(start_x, box_y), (start_x + 60, box_y + 60)], radius=8, fill=_IDC_WHITE)
+        img.paste(logo_img, (start_x + 2, box_y + 2), logo_img)
+        text_x = start_x + 60 + 14
+    else:
+        text_x = start_x
+
+    if name:
         text_y = (bar_h - 26) // 2
         draw.text((text_x, text_y), name, font=font, fill=_IDC_WHITE)
+
+
+def _idc_footer_contact(draw, cw, ch, company_name, company_website, company_phone):
+    """Draw the company's identity (name, then website/toll-free) as up to
+    two compact lines centered in the card's bottom footer bar — the same
+    spot where a generic disclaimer used to sit — shared by front and back
+    so they stay in sync. Draws nothing when the company has none of these
+    on file, preserving today's look for uncustomized companies."""
+    contact_parts = [p for p in (
+        company_website, f"Toll-Free: {company_phone}" if company_phone else None,
+    ) if p]
+    if not company_name and not contact_parts:
+        return
+
+    def _fit(text, font, max_w):
+        t = text
+        while len(t) > 1 and _idc_text_width(draw, t, font) > max_w:
+            t = t[:-1]
+        return t
+
+    max_w = cw - 40
+    if company_name and contact_parts:
+        _idc_center_text(draw, _fit(company_name, _idc_font(11, bold=True), max_w),
+                          _idc_font(11, bold=True), cw, ch - 44, _IDC_WHITE)
+        line2 = "  |  ".join(contact_parts)
+        _idc_center_text(draw, _fit(line2, _idc_font(9), max_w), _idc_font(9), cw, ch - 26, (200, 210, 225))
+    elif company_name:
+        _idc_center_text(draw, _fit(company_name, _idc_font(12, bold=True), max_w),
+                          _idc_font(12, bold=True), cw, ch - 34, _IDC_WHITE)
+    else:
+        line = "  |  ".join(contact_parts)
+        _idc_center_text(draw, _fit(line, _idc_font(10), max_w), _idc_font(10), cw, ch - 34, _IDC_WHITE)
 
 
 def _idc_box_text(draw, text, box, color, font_size=14, bold=False, align="center"):
@@ -1429,7 +1547,8 @@ def _idc_combine(front_img, back_img):
     return total
 
 
-def _render_default_front(emp_id, row, company_name=None, logo_path=None, company_address=None):
+def _render_default_front(emp_id, row, company_name=None, logo_path=None, company_address=None, department=None,
+                           company_website=None, company_phone=None):
     """Today's fixed ID-card front layout, now showing the employee's company
     name/logo in the header when set (falls back to the generic subtitle for
     companies with no branding on file — no visual change for those)."""
@@ -1466,6 +1585,7 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
 
     info_rows = [
         ("Employee ID", row[0] if row else "-"),
+        ("Department", department or "-"),
         ("Email", row[3] if row and row[3] else "-"),
         ("Phone", row[8] if row and row[8] else "-"),
         ("Blood Group", row[7] if row and row[7] else "-"),
@@ -1481,11 +1601,16 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
     bg_val = row[7] if row and row[7] else None
     addr_y = y + 8
     if bg_val:
-        bw = _idc_text_width(fd, bg_val, _idc_font(13, bold=True)) + 28
+        font_bg = _idc_font(13, bold=True)
+        text_w = _idc_text_width(fd, bg_val, font_bg)
+        icon_w, icon_h, gap = 13, 18, 6
+        bw = 14 + icon_w + gap + text_w + 14
         bx = (CW - bw) // 2
         by = addr_y
         fd.rounded_rectangle([(bx, by), (bx + bw, by + 32)], radius=16, fill=_IDC_RED)
-        _idc_center_text(fd, bg_val, _idc_font(13, bold=True), CW, by + 8, _IDC_WHITE)
+        icon_x, icon_y = bx + 14, by + (32 - icon_h) // 2
+        _idc_blood_drop(fd, icon_x, icon_y, icon_w, icon_h, _IDC_WHITE)
+        fd.text((icon_x + icon_w + gap, by + 8), _idc_safe_text(bg_val), font=font_bg, fill=_IDC_WHITE)
         addr_y = by + 48
 
     if company_address:
@@ -1501,13 +1626,14 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
 
     fd.rectangle([(0, CH - 60), (CW, CH)], fill=_IDC_BLUE)
     fd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=_IDC_GOLD)
-    _idc_center_text(fd, "Confidential  |  Not Transferable", _idc_font(10), CW, CH - 44, _IDC_PALE)
-    _idc_center_text(fd, "Property of the Organization", _idc_font(10), CW, CH - 26, (160, 185, 240))
+    _idc_footer_contact(fd, CW, CH, company_name, company_website, company_phone)
     return front
 
 
 def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emergency_phone=None,
-                          emergency_relation=None, company_name=None):
+                          emergency_relation=None, company_name=None, manager_name=None,
+                          shift_start=None, shift_end=None, work_mode=None,
+                          company_website=None, company_phone=None):
     """Today's fixed ID-card back layout, now also showing the company logo
     and name in the header (matching the front) and the employee's emergency
     contact in place of the generic "return to HR" line when one is on file."""
@@ -1526,7 +1652,7 @@ def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emerg
     qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
     if not os.path.exists(qr_path):
         qr_path = generate_qr(emp_id)
-    QS = 240
+    QS = 200
     qr_x = (CW - QS) // 2
     qr_y = 148
     bd.rounded_rectangle([(qr_x - 16, qr_y - 16), (qr_x + QS + 16, qr_y + QS + 16)], radius=14, fill=_IDC_WHITE)
@@ -1543,13 +1669,25 @@ def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emerg
     sub_info = [
         ("Name", (row[1] or "-")[:26] if row else "-"),
         ("Designation", (row[2] or "-")[:26] if row else "-"),
+        ("Shift", (row[6] or "-")[:26] if row and len(row) > 6 else "-"),
+        ("Shift Timing", _idc_shift_timing_text(shift_start, shift_end)),
+        ("Work Mode", _idc_work_mode_text(work_mode)),
+        ("Reporting Manager", (manager_name or "-")[:26]),
         ("Blood Group", (row[7] or "-") if row else "-"),
     ]
-    sy = qr_y + QS + 94
+    sy = qr_y + QS + 90
     for lbl2, val2 in sub_info:
         _idc_center_text(bd, lbl2, _idc_font(10), CW, sy, _IDC_MGRAY)
-        _idc_center_text(bd, val2, _idc_font(12, bold=True), CW, sy + 14, _IDC_DGRAY)
-        sy += 42
+        if lbl2 == "Blood Group" and val2 and val2 != "-":
+            font_bg = _idc_font(12, bold=True)
+            text_w = _idc_text_width(bd, val2, font_bg)
+            icon_w, icon_h, gap = 11, 15, 5
+            start_x = (CW - (icon_w + gap + text_w)) // 2
+            _idc_blood_drop(bd, start_x, sy + 15, icon_w, icon_h, _IDC_RED)
+            bd.text((start_x + icon_w + gap, sy + 14), _idc_safe_text(val2), font=font_bg, fill=_IDC_DGRAY)
+        else:
+            _idc_center_text(bd, val2, _idc_font(12, bold=True), CW, sy + 14, _IDC_DGRAY)
+        sy += 30
 
     bd.rectangle([(36, sy + 8), (CW - 36, sy + 10)], fill=(203, 213, 225))
     if emergency_name:
@@ -1567,8 +1705,7 @@ def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emerg
     bd.rectangle([(0, CH - 100), (CW, CH - 68)], fill=_IDC_DARK)
     bd.rectangle([(0, CH - 60), (CW, CH)], fill=_IDC_BLUE)
     bd.rectangle([(0, CH - 62), (CW, CH - 60)], fill=_IDC_GOLD)
-    _idc_center_text(bd, "Authorized Personnel Only  |  Not Transferable", _idc_font(10), CW, CH - 44, _IDC_PALE)
-    _idc_center_text(bd, "Misuse is subject to disciplinary action", _idc_font(10), CW, CH - 26, (160, 185, 240))
+    _idc_footer_contact(bd, CW, CH, company_name, company_website, company_phone)
     return back
 
 
@@ -1576,10 +1713,12 @@ _ID_CARD_TEXT_FIELDS = {
     "name", "employee_id", "designation", "email", "phone", "blood_group",
     "date_of_joining", "company_address", "website",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
+    "department", "shift", "reporting_manager", "shift_timing", "work_mode", "company_phone",
 }
 
 
-def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, company_address=None, company_website=None):
+def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, company_address=None,
+                         company_website=None, company_phone=None):
     """Render one side of an admin-uploaded custom ID card template: opens
     the template image at its own native size and pastes/draws each
     admin-placed field (photo/logo/qr/text) at its saved normalized (0-1)
@@ -1591,6 +1730,10 @@ def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, compan
     draw = ImageDraw.Draw(img)
     W, H = img.size
     joined = row[5]
+
+    def _at(idx):
+        return row[idx] if len(row) > idx else None
+
     values = {
         "name": row[1] or "-",
         "employee_id": row[0] or "-",
@@ -1601,9 +1744,15 @@ def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, compan
         "date_of_joining": joined.strftime("%d-%m-%Y") if joined else "-",
         "company_address": company_address or "-",
         "website": company_website or "-",
-        "emergency_contact_name": (row[9] if len(row) > 9 else None) or "-",
-        "emergency_contact_phone": (row[10] if len(row) > 10 else None) or "-",
-        "emergency_contact_relation": (row[11] if len(row) > 11 else None) or "-",
+        "company_phone": company_phone or "-",
+        "department": _at(9) or "-",
+        "reporting_manager": _at(10) or "-",
+        "emergency_contact_name": _at(11) or "-",
+        "emergency_contact_phone": _at(12) or "-",
+        "emergency_contact_relation": _at(13) or "-",
+        "shift": _at(6) or "-",
+        "shift_timing": _idc_shift_timing_text(_at(14), _at(15)),
+        "work_mode": _idc_work_mode_text(_at(16)),
     }
 
     for key, box in fields.items():
@@ -1687,9 +1836,11 @@ def _build_id_card_buf(emp_id):
     cursor.execute("""
         SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
                sh.name AS shift_name, e.blood_group, e.phone,
+               COALESCE(e.department,''), COALESCE(e.manager_name,''),
                e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+               sh.start_time, sh.end_time, e.work_mode,
                c.name, COALESCE(c.logo_path,''), t.front_image, t.back_image, t.fields,
-               COALESCE(c.address,''), COALESCE(c.website,'')
+               COALESCE(c.address,''), COALESCE(c.website,''), COALESCE(c.phone,'')
         FROM employees e
         LEFT JOIN shifts sh ON e.shift_id = sh.id
         LEFT JOIN companies c ON e.company_id = c.id
@@ -1701,9 +1852,11 @@ def _build_id_card_buf(emp_id):
         cursor.execute("""
             SELECT e.employee_id, e.name, e.role, e.email, e.face_image, e.date_of_joining,
                    NULL, e.blood_group, e.phone,
+                   COALESCE(e.department,''), COALESCE(e.manager_name,''),
                    e.emergency_contact_name, e.emergency_contact_phone, e.emergency_contact_relation,
+                   NULL, NULL, e.work_mode,
                    c.name, COALESCE(c.logo_path,''), t.front_image, t.back_image, t.fields,
-                   COALESCE(c.address,''), COALESCE(c.website,'')
+                   COALESCE(c.address,''), COALESCE(c.website,''), COALESCE(c.phone,'')
             FROM employees e
             LEFT JOIN companies c ON e.company_id = c.id
             LEFT JOIN id_card_templates t ON t.company_id = c.id
@@ -1716,15 +1869,19 @@ def _build_id_card_buf(emp_id):
     if not full_row:
         return None
 
-    row = full_row[:12]
-    row = (row[:7] + (decrypt_pii(row[7]),) + row[8:9]
-           + tuple(decrypt_pii(v) for v in row[9:12]))  # [7]=blood_group, [9:12]=emergency contact
+    row = full_row[:17]
+    row = (row[:7] + (decrypt_pii(row[7]),) + row[8:11]
+           + tuple(decrypt_pii(v) for v in row[11:14]) + row[14:17])
+    # [7]=blood_group, [11:14]=emergency contact, [14:17]=shift_start,shift_end,work_mode
     (company_name, logo_path_raw, front_image, back_image, fields_raw,
-     company_address_raw, company_website_raw) = full_row[12:19]
+     company_address_raw, company_website_raw, company_phone_raw) = full_row[17:25]
     logo_path = logo_path_raw or None
     company_address = company_address_raw or None
     company_website = company_website_raw or None
-    emergency_name, emergency_phone, emergency_relation = row[9], row[10], row[11]
+    company_phone = company_phone_raw or None
+    department, manager_name = row[9], row[10]
+    emergency_name, emergency_phone, emergency_relation = row[11], row[12], row[13]
+    shift_start, shift_end, work_mode = row[14], row[15], row[16]
 
     try:
         fields = json.loads(fields_raw) if fields_raw else {}
@@ -1732,15 +1889,19 @@ def _build_id_card_buf(emp_id):
         fields = {}
 
     if front_image:
-        front = _render_custom_side(front_image, fields, "front", emp_id, row, logo_path, company_address, company_website)
+        front = _render_custom_side(front_image, fields, "front", emp_id, row, logo_path, company_address,
+                                     company_website, company_phone)
     else:
-        front = _render_default_front(emp_id, row, company_name, logo_path, company_address)
+        front = _render_default_front(emp_id, row, company_name, logo_path, company_address, department,
+                                       company_website, company_phone)
 
     if back_image:
-        back = _render_custom_side(back_image, fields, "back", emp_id, row, logo_path, company_address, company_website)
+        back = _render_custom_side(back_image, fields, "back", emp_id, row, logo_path, company_address,
+                                    company_website, company_phone)
     else:
         back = _render_default_back(emp_id, row, logo_path, emergency_name, emergency_phone,
-                                     emergency_relation, company_name)
+                                     emergency_relation, company_name, manager_name,
+                                     shift_start, shift_end, work_mode, company_website, company_phone)
 
     total = _idc_combine(front, back)
     buf = _io2.BytesIO()

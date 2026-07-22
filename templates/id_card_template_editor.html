@@ -144,7 +144,13 @@
       website:         {side: 'back',  label: 'Website',        color: '#334155'},
       emergency_contact_name:     {side: 'back', label: 'Emergency Contact Name',     color: '#be123c'},
       emergency_contact_phone:    {side: 'back', label: 'Emergency Contact Phone',    color: '#be123c'},
-      emergency_contact_relation: {side: 'back', label: 'Emergency Contact Relation', color: '#be123c'}
+      emergency_contact_relation: {side: 'back', label: 'Emergency Contact Relation', color: '#be123c'},
+      department:                 {side: 'front', label: 'Department',       color: '#0369a1'},
+      shift:                      {side: 'back',  label: 'Shift',            color: '#0369a1'},
+      reporting_manager:          {side: 'back',  label: 'Reporting Manager', color: '#0369a1'},
+      shift_timing:               {side: 'back',  label: 'Shift Timing',     color: '#0369a1'},
+      work_mode:                  {side: 'back',  label: 'Work Mode',        color: '#0369a1'},
+      company_phone:              {side: 'back',  label: 'Toll-Free Number', color: '#0d9488'}
     };
     var savedFields = {{ fields_json|safe }};
     var hasBack = {{ 'true' if back_image else 'false' }};
@@ -152,7 +158,8 @@
     var TEXT_FIELDS = [
       'name', 'employee_id', 'designation', 'email', 'phone', 'blood_group', 'date_of_joining',
       'company_address', 'website',
-      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation'
+      'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
+      'department', 'shift', 'reporting_manager', 'shift_timing', 'work_mode', 'company_phone'
     ];
 
     function defaultBoxFor(key, index) {
