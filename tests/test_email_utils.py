@@ -161,18 +161,6 @@ class TestBuildNewIpLoginEmail:
         assert "1 Jan 2026, 10:00 AM" in html_out
 
 
-class TestBuildAttendanceEmail:
-    def test_login_action_uses_checked_in_label(self):
-        html_out = email_utils.build_attendance_email("Bob", "EMP1", "login", "On Time", "09:00", "2026-01-01")
-        assert "Checked In" in html_out
-        assert "#16a34a" in html_out
-
-    def test_logout_action_uses_checked_out_label(self):
-        html_out = email_utils.build_attendance_email("Bob", "EMP1", "logout", "On Time", "18:00", "2026-01-01")
-        assert "Checked Out" in html_out
-        assert "#2563eb" in html_out
-
-
 class TestNotifyIfNewLoginIp:
     def _clear(self, db_engine, identifier):
         cur = db_engine.cursor()

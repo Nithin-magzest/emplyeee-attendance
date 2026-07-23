@@ -44,20 +44,6 @@ def get_employee_shift(emp_id, cursor):
     return cfg.SHIFT_START, cfg.SHIFT_HALF, cfg.SHIFT_END, "Default"
 
 
-def get_attendance_type(login_status, logout_status):
-    if not login_status:
-        return "Absent"
-    if not logout_status:
-        return "Half Day" if login_status == "Half Day Login" else "Present"
-    if login_status == "Half Day Login":
-        return "Half Day"
-    if logout_status in ("Half Day Logout", "Early Logout"):
-        return "Half Day"
-    if login_status == "Late Login":
-        return "Late - Full Day"
-    return "Full Day"
-
-
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
     today_d = datetime.date.today()
     shift_mins = max(1, int((
@@ -67,23 +53,6 @@ def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
     if total_minutes >= shift_mins * 0.75:
         return "Late - Full Day" if login_status == "Late Login" else "Full Day"
     return "Half Day"
-
-
-def calculate_deduction(salary_per_day, attendance_type):
-    spd = float(salary_per_day)
-    if attendance_type == "Full Day":
-        return 0.0
-    if attendance_type == "Approved Leave":
-        return spd if cfg.LEAVE_PAY == "absent" else 0.0
-    if attendance_type == "Holiday":
-        return spd if cfg.HOLIDAY_PAY == "unpaid" else 0.0
-    if attendance_type == "Late - Full Day":
-        return round(spd * cfg.LATE_DEDUCTION_RATE, 2)
-    if attendance_type in ("Half Day", "Present"):
-        return round(spd * cfg.HALF_DAY_RATE, 2)
-    if attendance_type == "Absent":
-        return spd
-    return 0.0
 
 
 def infer_type_legacy(status, login_time, logout_time):
@@ -168,20 +137,3 @@ def fetch_holidays_set(year, month):
 def get_billable_past_days(year, month):
     today = datetime.date.today()
     return [d for d in get_working_days(year, month) if d <= today]
-
-
-def fetch_leave_map(year, month):
-    _, last_day = calendar.monthrange(year, month)
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT employee_id, leave_date FROM leave_requests "
-        "WHERE status='Approved' AND leave_date BETWEEN %s AND %s",
-        (datetime.date(year, month, 1), datetime.date(year, month, last_day))
-    )
-    result = {}
-    for emp_id, leave_date in cursor.fetchall():
-        result.setdefault(emp_id, set()).add(leave_date)
-    cursor.close()
-    db.close()
-    return result

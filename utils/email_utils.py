@@ -275,34 +275,3 @@ def notify_if_new_login_ip(identifier, attempt_type, ip_address, display_name, t
         send_email_async(to_email, "New Sign-In to Your Account", html_body, cfg)
     except Exception as e:
         app_log.error("notify_if_new_login_ip: failed to queue email for %s: %s", identifier, e)
-
-
-def build_attendance_email(employee_name, emp_id, action, status, time_str, today_str):
-    """Matches app.py's fuller version (extra subtitle + detail table) —
-    this module's copy was plainer; standardized on the one real users
-    have actually been seeing, not the other way around, to avoid a
-    visible regression in email appearance once this becomes the single
-    source both entrypoints use."""
-    color = "#16a34a" if action == "login" else "#2563eb"
-    action_label = "Checked In" if action == "login" else "Checked Out"
-    return f"""
-<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
-  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
-    <div style="font-size:20px;font-weight:700;">&#127970; Employee Attendance System</div>
-    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Attendance Confirmation</div>
-  </div>
-  <div style="padding:28px;">
-    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{employee_name}</strong>,</p>
-    <div style="background:#ffffff;border:1px solid #dbeafe;border-radius:12px;padding:20px;margin-bottom:20px;">
-      <div style="font-size:28px;font-weight:700;color:{color};text-align:center;margin-bottom:4px;">{action_label}</div>
-      <div style="text-align:center;color:#64748b;font-size:13px;">{today_str}</div>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
-      <table style="width:100%;font-size:14px;color:#1e293b;">
-        <tr><td style="color:#64748b;padding:4px 0;">Employee ID</td><td style="text-align:right;font-weight:600;">{emp_id}</td></tr>
-        <tr><td style="color:#64748b;padding:4px 0;">Time</td><td style="text-align:right;font-weight:600;">{time_str}</td></tr>
-        <tr><td style="color:#64748b;padding:4px 0;">Status</td><td style="text-align:right;font-weight:600;color:{color};">{status}</td></tr>
-      </table>
-    </div>
-    <p style="font-size:12px;color:#94a3b8;text-align:center;">This is an automated message. Please do not reply.</p>
-  </div>
-</div>"""

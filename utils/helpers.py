@@ -487,10 +487,6 @@ def get_auth_config():
     return dict(_AUTH_CONFIG_DEFAULTS)
 
 
-def get_fingerprint_enabled():
-    return get_auth_config()["fingerprint_enabled"]
-
-
 def _read_global_features():
     try:
         db = get_db_connection()

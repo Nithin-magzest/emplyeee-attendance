@@ -1,7 +1,6 @@
 """Unit tests for utils/attendance_utils.py branches not already exercised
 indirectly through blueprint tests: time conversion, shift lookup,
-deduction fallback, legacy status inference, overtime detection, and the
-monthly approved-leave map used by payroll reporting.
+legacy status inference, and overtime detection.
 """
 import datetime
 import utils.attendance_utils as au
@@ -47,11 +46,6 @@ class TestGetEmployeeShift:
         start, half, end, name = au.get_employee_shift(seed_employee["employee_id"], cur)
         cur.close()
         assert (start, half, end, name) == (cfg.SHIFT_START, cfg.SHIFT_HALF, cfg.SHIFT_END, "Default")
-
-
-class TestCalculateDeduction:
-    def test_unmatched_attendance_type_returns_zero(self):
-        assert au.calculate_deduction(1000, "Some Unknown Status") == 0.0
 
 
 class TestInferTypeLegacy:
@@ -102,28 +96,3 @@ class TestDetectOvertime:
     def test_db_error_is_swallowed(self, monkeypatch, seed_employee):
         monkeypatch.setattr(au, "get_db_connection", lambda: (_ for _ in ()).throw(RuntimeError("down")))
         au.detect_overtime(seed_employee["employee_id"], datetime.date.today(), datetime.time(19, 0))
-
-
-class TestFetchLeaveMap:
-    def test_maps_approved_leaves_within_month(self, db_engine, seed_employee):
-        emp_id = seed_employee["employee_id"]
-        year, month = 2026, 3
-        cur = db_engine.cursor()
-        cur.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, status) VALUES (%s,%s,%s,%s)",
-            (emp_id, datetime.date(year, month, 10), "Helper test leave", "Approved"),
-        )
-        cur.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, status) VALUES (%s,%s,%s,%s)",
-            (emp_id, datetime.date(year, month, 15), "Helper test leave pending", "Pending"),
-        )
-        try:
-            result = au.fetch_leave_map(year, month)
-            assert datetime.date(year, month, 10) in result.get(emp_id, set())
-            assert datetime.date(year, month, 15) not in result.get(emp_id, set())
-        finally:
-            cur.execute(
-                "DELETE FROM leave_requests WHERE employee_id=%s AND leave_date IN (%s,%s)",
-                (emp_id, datetime.date(year, month, 10), datetime.date(year, month, 15)),
-            )
-            cur.close()

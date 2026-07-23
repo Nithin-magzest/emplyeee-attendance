@@ -370,10 +370,6 @@ class TestAuthConfig:
         assert result == helpers._AUTH_CONFIG_DEFAULTS
         helpers._auth_cache["data"] = None
 
-    def test_get_fingerprint_enabled_reads_config(self):
-        helpers._auth_cache["data"] = None
-        assert isinstance(helpers.get_fingerprint_enabled(), bool)
-
 
 class TestReadGlobalFeatures:
     def test_returns_dict_with_expected_keys(self):

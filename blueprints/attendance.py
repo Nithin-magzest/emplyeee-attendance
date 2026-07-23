@@ -1154,7 +1154,7 @@ def attendance():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "SELECT face_image, name, email, work_mode, work_lat, work_lon "
+        "SELECT face_image, name, work_mode, work_lat, work_lon "
         "FROM employees WHERE employee_id=%s", (emp_id,))
     result = cursor.fetchone()
 
@@ -1166,7 +1166,7 @@ def attendance():
                          else "Employee not found. Please check your QR code.")
         return jsonify({"ok": False, "msg": not_found_msg})
 
-    face_path, employee_name, employee_email, emp_work_mode, emp_work_lat, emp_work_lon = result
+    face_path, employee_name, emp_work_mode, emp_work_lat, emp_work_lon = result
 
     # Location check
     if auth_cfg["location_enabled"] and (not user_lat or not user_lon):

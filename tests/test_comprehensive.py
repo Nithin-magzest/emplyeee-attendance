@@ -607,72 +607,6 @@ class TestClassifyByWorkedMinutes:
 
 
 # ===========================================================================
-# 14. DEDUCTION CALCULATION (unit)
-# ===========================================================================
-
-class TestCalculateDeduction:
-    @pytest.fixture(autouse=True)
-    def _patch(self, monkeypatch):
-        import utils.config as cfg
-        monkeypatch.setattr(cfg, "LATE_DEDUCTION_RATE", 0.10)
-        monkeypatch.setattr(cfg, "HALF_DAY_RATE",       0.50)
-        monkeypatch.setattr(cfg, "HOLIDAY_PAY",         "paid")
-        monkeypatch.setattr(cfg, "LEAVE_PAY",           "exclude")
-
-    def _ded(self, att_type, daily=1000.0):
-        from utils.attendance_utils import calculate_deduction
-        return calculate_deduction(daily, att_type)
-
-    def test_full_day_zero_deduction(self):
-        assert self._ded("Full Day") == 0.0
-
-    def test_half_day_50pct(self):
-        assert abs(self._ded("Half Day") - 500.0) < 0.01
-
-    def test_absent_100pct(self):
-        assert abs(self._ded("Absent") - 1000.0) < 0.01
-
-    def test_late_10pct(self):
-        assert abs(self._ded("Late - Full Day") - 100.0) < 0.01
-
-    def test_paid_holiday_zero(self):
-        assert self._ded("Holiday") == 0.0
-
-    def test_unpaid_holiday_100pct(self, monkeypatch):
-        import utils.config as cfg
-        monkeypatch.setattr(cfg, "HOLIDAY_PAY", "unpaid")
-        assert abs(self._ded("Holiday") - 1000.0) < 0.01
-
-    def test_excluded_leave_zero(self):
-        assert self._ded("Approved Leave") == 0.0
-
-    def test_absent_leave_100pct(self, monkeypatch):
-        import utils.config as cfg
-        monkeypatch.setattr(cfg, "LEAVE_PAY", "absent")
-        assert abs(self._ded("Approved Leave") - 1000.0) < 0.01
-
-    def test_never_negative(self):
-        from utils.attendance_utils import calculate_deduction
-        for t in ("Full Day", "Absent", "Half Day", "Late - Full Day", "Holiday", "Approved Leave"):
-            assert calculate_deduction(800.0, t) >= 0.0
-
-    def test_never_exceeds_salary(self):
-        from utils.attendance_utils import calculate_deduction
-        for t in ("Full Day", "Absent", "Half Day", "Late - Full Day", "Holiday", "Approved Leave"):
-            assert calculate_deduction(800.0, t) <= 800.0
-
-    def test_zero_salary_zero_deduction(self):
-        from utils.attendance_utils import calculate_deduction
-        for t in ("Full Day", "Absent", "Half Day"):
-            assert calculate_deduction(0.0, t) == 0.0
-
-    def test_fractional_salary(self):
-        from utils.attendance_utils import calculate_deduction
-        result = calculate_deduction(333.33, "Half Day")
-        assert 0 <= result <= 333.33
-
-
-# ===========================================================================
 # 15. WORKING DAYS (unit)
 # ===========================================================================
 
@@ -708,40 +642,6 @@ class TestGetWorkingDays:
         # Feb 2024: 29 days, 4 Sundays → 25 working days
         days = get_working_days(2024, 2)
         assert len(days) == 25
-
-
-# ===========================================================================
-# 16. ATTENDANCE TYPE (unit)
-# ===========================================================================
-
-class TestGetAttendanceType:
-    def _at(self, login, logout=None):
-        from utils.attendance_utils import get_attendance_type
-        return get_attendance_type(login, logout)
-
-    def test_absent_no_login(self):
-        assert self._at(None) == "Absent"
-
-    def test_absent_empty_login(self):
-        assert self._at("") == "Absent"
-
-    def test_full_day_normal(self):
-        assert self._at("Normal Login", "Normal Logout") == "Full Day"
-
-    def test_half_day_login(self):
-        assert self._at("Half Day Login", "Normal Logout") == "Half Day"
-
-    def test_half_day_logout(self):
-        assert self._at("Normal Login", "Half Day Logout") == "Half Day"
-
-    def test_late_login_full_day(self):
-        assert self._at("Late Login", "Normal Logout") == "Late - Full Day"
-
-    def test_no_logout_is_present(self):
-        assert self._at("Normal Login", None) == "Present"
-
-    def test_half_day_no_logout(self):
-        assert self._at("Half Day Login", None) == "Half Day"
 
 
 # ===========================================================================
