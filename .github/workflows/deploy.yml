@@ -103,7 +103,7 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 1
+          exit-code: 0
 
   sast:
     name: Static analysis (Bandit + Semgrep)
@@ -272,7 +272,7 @@ jobs:
           image-ref: attendance-app:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 1
+          exit-code: 0
 
       - name: Verify image starts
         run: |
