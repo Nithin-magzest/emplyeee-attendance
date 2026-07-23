@@ -1,0 +1,338 @@
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function AttendanceStatusCard({
+  checkIn = "--:--",
+  checkOut = "--:--",
+  workingHours = "--",
+  status = "Not Marked",
+}) {
+  const statusColor =
+    status === "Present"
+      ? "#22C55E"
+      : status === "Late"
+      ? "#F59E0B"
+      : status === "Absent"
+      ? "#EF4444"
+      : "#94A3B8";
+
+  const statusBg =
+    status === "Present"
+      ? "#ECFDF5"
+      : status === "Late"
+      ? "#FFFBEB"
+      : status === "Absent"
+      ? "#FEF2F2"
+      : "#F1F5F9";
+
+  return (
+    <View style={styles.card}>
+      {/* Header */}
+
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>
+            Today's Attendance
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Live attendance information
+          </Text>
+        </View>
+
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+
+          <Text style={styles.liveText}>
+            LIVE
+          </Text>
+        </View>
+      </View>
+
+      {/* Check In / Out */}
+
+      <View style={styles.timeContainer}>
+        <View style={styles.timeBox}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: "#ECFDF5" },
+            ]}
+          >
+            <Ionicons
+              name="log-in-outline"
+              size={22}
+              color="#22C55E"
+            />
+          </View>
+
+          <Text style={styles.timeLabel}>
+            Check In
+          </Text>
+
+          <Text style={styles.timeValue}>
+            {checkIn}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.timeBox}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: "#FEF2F2" },
+            ]}
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={22}
+              color="#EF4444"
+            />
+          </View>
+
+          <Text style={styles.timeLabel}>
+            Check Out
+          </Text>
+
+          <Text style={styles.timeValue}>
+            {checkOut}
+          </Text>
+        </View>
+      </View>
+
+      {/* Working Hours */}
+
+      <View style={styles.workCard}>
+        <Ionicons
+          name="time-outline"
+          size={18}
+          color="#173B8C"
+        />
+
+        <View style={{ marginLeft: 10 }}>
+          <Text style={styles.workLabel}>
+            Working Hours
+          </Text>
+
+          <Text style={styles.workHours}>
+            {workingHours}
+          </Text>
+        </View>
+      </View>
+
+      {/* Status */}
+
+      <View style={styles.statusRow}>
+        <Text style={styles.statusTitle}>
+          Current Status
+        </Text>
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: statusBg },
+          ]}
+        >
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: statusColor },
+            ]}
+          />
+
+          <Text
+            style={[
+              styles.statusText,
+              { color: statusColor },
+            ]}
+          >
+            {status}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+
+    marginBottom: 18,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+
+    elevation: 5,
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+
+    marginBottom: 18,
+  },
+
+  title: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  subtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#64748B",
+  },
+
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    backgroundColor: "#DCFCE7",
+
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+
+    borderRadius: 20,
+  },
+
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#22C55E",
+
+    marginRight: 6,
+  },
+
+  liveText: {
+    color: "#15803D",
+    fontWeight: "700",
+    fontSize: 11,
+  },
+
+  timeContainer: {
+    flexDirection: "row",
+
+    backgroundColor: "#F8FAFC",
+
+    borderRadius: 18,
+
+    overflow: "hidden",
+
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
+  },
+
+  divider: {
+    width: 1,
+    backgroundColor: "#E5E7EB",
+  },
+
+  timeBox: {
+    flex: 1,
+
+    alignItems: "center",
+
+    paddingVertical: 18,
+  },
+
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  timeLabel: {
+    marginTop: 10,
+    color: "#64748B",
+    fontSize: 13,
+  },
+
+  timeValue: {
+    marginTop: 6,
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  workCard: {
+    marginTop: 18,
+
+    backgroundColor: "#EEF4FF",
+
+    borderRadius: 16,
+
+    padding: 14,
+
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  workLabel: {
+    color: "#64748B",
+    fontSize: 12,
+  },
+
+  workHours: {
+    marginTop: 2,
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#173B8C",
+  },
+
+  statusRow: {
+    marginTop: 18,
+
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  statusTitle: {
+    fontWeight: "700",
+    fontSize: 16,
+    color: "#0F172A",
+  },
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+
+    borderRadius: 20,
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+
+    marginRight: 7,
+  },
+
+  statusText: {
+    fontWeight: "700",
+    fontSize: 13,
+  },
+});

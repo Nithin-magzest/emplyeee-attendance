@@ -1,0 +1,297 @@
+networks:
+  frontend:
+    internal: false
+  backend:
+    internal: true
+
+secrets:
+  # Postgres has no separate "root" superuser secret the way MySQL's
+  # MYSQL_ROOT_PASSWORD_FILE did — POSTGRES_USER is already the superuser,
+  # so one secret covers what took two before.
+  db_password:
+    file: ./secrets/db_pass.txt
+
+services:
+  db:
+    image: postgres:16
+    # podman-restart.service (enabled for the app user by deploy.sh) only
+    # picks up containers with policy exactly `always` — `unless-stopped`
+    # is not restarted by it — so `always` is required for the stack to
+    # survive a host reboot under rootless Podman.
+    restart: always
+    # UID 999 is the postgres image's own postgres user, same convention
+    # the prior mysql:8.0 image used.
+    user: "999:999"
+    # Lets `podman auto-update` (via the podman-auto-update.timer systemd
+    # unit deploy.sh enables) pull a new image if the postgres:16 tag's
+    # upstream digest changes, and roll back automatically if the new image
+    # fails its healthcheck. Only meaningful for pulled images — not set on
+    # `app` below, which is built locally, not pulled from a registry.
+    labels:
+      io.containers.autoupdate: registry
+    networks:
+      - backend
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+    secrets:
+      - db_password
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1gb
+    # k8s-file driver + explicit caps: without a bound, container logs grow
+    # unbounded on disk — a flood of requests (accidental or a deliberate
+    # DoS attempt) fills the volume over time. 3 x 10MB per service is
+    # generous for normal operation and bounded worst-case.
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+    # Read-only root + explicit tmpfs for the paths postgres actually
+    # writes outside its data dir: /tmp for temp files, and
+    # /var/run/postgresql for its unix socket (pg_isready in the
+    # healthcheck below needs this to exist).
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    pids_limit: 200
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: always
+    labels:
+      io.containers.autoupdate: registry
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          # clamd with the full signature DB loaded routinely needs
+          # 1.5-2.5GB RAM — tune based on actual usage, this is a starting point.
+          cpus: "1.0"
+          memory: 3gb
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      # Persists virus signatures across restarts (freshclam re-downloads
+      # the full DB, several hundred MB, if this is wiped every time).
+      - clamav_data:/var/lib/clamav:Z
+    # Not verified against this specific image's write footprint the way
+    # the other services were (mysql/nginx are well-documented; this
+    # one I haven't tested) — /tmp, /run, /var/log cover the ones freshclam
+    # and clamd are generally known to need. Watch the container's logs on
+    # first boot for permission-denied errors and add paths here if needed.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/log
+    pids_limit: 100
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # --ping asks clamd to respond without doing a full scan. Long
+      # start_period because the first boot downloads the full signature
+      # database (can take several minutes).
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  app:
+    build: .
+    restart: always
+    user: "1001:1001"
+    networks:
+      - frontend
+      - backend
+    expose:
+      - "5000"
+    env_file: .env
+    environment:
+      DB_HOST: db
+      # CLAMAV_HOST/CLAMAV_PORT default to "clamav"/3310 in app.py and
+      # utils/helpers.py, matching this service's name and clamd's
+      # standard port — set explicitly here for clarity, not necessity.
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2gb
+    depends_on:
+      db:
+        condition: service_healthy
+      # Not health-gated on purpose: first boot can take several minutes
+      # to download the full signature DB, and none of app's other
+      # functionality (login, attendance, dashboards) needs ClamAV ready —
+      # only upload endpoints do, and _scan_for_malware() already fails
+      # closed/open correctly if clamd isn't reachable yet.
+      clamav:
+        condition: service_started
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      # :z (lowercase) — this volume is also mounted read-only into nginx
+      # below; shared SELinux label lets both containers access it. :Z
+      # (uppercase, private label) on a volume actually shared between
+      # containers would make it inaccessible to the second one under
+      # SELinux-enforcing hosts.
+      - qrcodes:/app/static/qrcodes:z
+      - dataset:/app/dataset:ro,Z # Hardened to read-only if writes aren't needed
+      - documents:/app/static/employee_docs:Z
+      # world-readable (see deploy.sh): under rootless Podman's default user
+      # namespace, container UID 1001 maps to an arbitrary high host UID, not
+      # the attendance user's own UID, so it can't read attendance-owned
+      # files unless they're readable by others. Low-sensitivity — this is
+      # only the internal nginx<->app TLS hop, not the real cert.
+      # :z — also mounted into nginx below, needs the shared label.
+      - ./cert.pem:/app/cert.pem:ro,z
+      - ./key.pem:/app/key.pem:ro,z
+    # Read-only root: gunicorn logs to stdout/stderr (no files to write),
+    # and everything the app writes at runtime already goes to one of the
+    # named volumes above. /tmp covers stdlib tempfile use (PDF/Excel
+    # export) — see Containerfile's PYTHONDONTWRITEBYTECODE for why the
+    # app's own source tree doesn't need to be writable either.
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:5000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # "system32_crypto_admin" — decoy listeners on ports nothing legitimate
+  # here ever uses (FTP/Telnet/SMTP/MSSQL/MySQL/RDP). Any connection is
+  # unambiguous scan/attack activity — see utils/honeypot.py and
+  # terraform/honeypot.tf for the full reasoning. Reuses the app image
+  # (same build) rather than a second Containerfile — it never touches
+  # face_recognition/opencv, so the extra image weight costs nothing at
+  # runtime and this avoids maintaining a second build pipeline for one
+  # small decoy process.
+  honeypot:
+    build: .
+    entrypoint: ["python", "-m", "utils.honeypot"]
+    restart: always
+    user: "1001:1001"
+    networks:
+      - frontend
+      # Deliberately NOT on backend — this must never be able to reach
+      # db/clamav even if a crafted payload somehow compromised it.
+      # Only outbound HTTPS to the alert webhook is needed.
+    ports:
+      - "8021:8021" # decoys public 21 (FTP) via deploy.sh's ufw DNAT, same pattern as nginx's 80->8080
+      - "8023:8023" # decoys public 23 (Telnet)
+      - "8025:8025" # decoys public 25 (SMTP)
+      - "1433:1433" # decoys MSSQL directly — already unprivileged, no redirect needed
+      - "3306:3306" # decoys MySQL directly
+      - "3389:3389" # decoys RDP directly
+    env_file: .env # only needs SECURITY_ALERT_* and ENCRYPTION_KEY (utils.alerts' import chain requires the latter — see utils/honeypot.py)
+    volumes:
+      - honeypot_logs:/var/log/honeypot:z
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128mb
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 20
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:alpine # Hardened unprivileged alternative to stock nginx
+    restart: always
+    labels:
+      io.containers.autoupdate: registry
+    networks:
+      - frontend
+    ports:
+      - "8080:8080" # Swapped to unprivileged ports (cannot bind 80/443 without root)
+      - "8443:8443"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256mb
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z # world-readable, see app service comment above
+      - ./cert.pem:/etc/ssl/certs/app.crt:ro,z
+      - ./key.pem:/etc/ssl/private/app.key:ro,z
+      - qrcodes:/app/static/qrcodes:ro,z
+    # nginx-unprivileged still needs to write its pid file, client body
+    # buffers, and proxy/fastcgi cache dirs — all under /var/cache/nginx
+    # and /var/run — plus /tmp, even though it never touches disk for
+    # our actual traffic.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    pids_limit: 50
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # No cap_add: NET_BIND_SERVICE — rootless Podman containers can't bind
+    # ports <1024 regardless of in-container capabilities (that would need
+    # net.ipv4.ip_unprivileged_port_start lowered on the host, which we
+    # don't want), and we already publish on 8080/8443, so it's a no-op.
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  qrcodes:
+  dataset:
+  documents:
+  clamav_data:
+  honeypot_logs:

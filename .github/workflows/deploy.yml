@@ -1,0 +1,315 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: Syntax & structure check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (for import checks)
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Check Python syntax
+        run: |
+          for f in app.py wsgi.py extensions.py \
+                   utils/auth.py utils/helpers.py utils/config.py \
+                   utils/email_utils.py utils/attendance_utils.py; do
+            python -m py_compile "$f" && echo "✅ $f" || (echo "❌ $f syntax error" && exit 1)
+          done
+
+      - name: Check key templates exist
+        run: |
+          for f in \
+            templates/index.html \
+            templates/admin.html \
+            templates/employee_portal.html \
+            templates/employees.html \
+            templates/employee_detail.html \
+            templates/qrcodes.html; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+      - name: Check static assets exist
+        run: |
+          for f in static/shared.css static/darkmode.js static/jsQR.min.js; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+      - name: Check DevOps files exist
+        run: |
+          for f in Containerfile entrypoint.sh wsgi.py extensions.py \
+                   compose.yaml compose.prod.yaml \
+                   nginx/nginx.conf.template \
+                   generate_cert.py init-letsencrypt.sh deploy.sh; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+      - name: Check utils package exists
+        run: |
+          for f in utils/__init__.py utils/auth.py utils/helpers.py \
+                   utils/config.py utils/email_utils.py utils/attendance_utils.py; do
+            [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
+          done
+
+  security:
+    name: Dependency & secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Audit Python dependencies (pip-audit)
+        # Scans requirements.txt/-dev.txt against the OSV vulnerability
+        # database. Fails the build on any known CVE in a resolvable
+        # version — bump the affected package's floor in requirements.txt
+        # to fix, don't silence this check.
+        run: |
+          pip install --no-cache-dir pip-audit
+          python -m pip_audit -r requirements.txt -r requirements-dev.txt
+
+      - name: Scan dependencies + secrets (Trivy)
+        # Two things pip-audit alone doesn't cover: the mobile app's npm
+        # dependencies (Trivy reads package-lock.json directly, no separate
+        # npm-audit job needed), and hardcoded secrets anywhere in the
+        # tracked tree (API keys, private keys, credential-shaped strings) —
+        # nothing in this pipeline checked for that before. Gated to
+        # HIGH/CRITICAL only per the severity floor we actually want to
+        # block a PR on; ignore-unfixed skips CVEs with no available patch
+        # yet, since failing the build on something nobody can act on today
+        # just trains people to ignore red X's.
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+  sast:
+    name: Static analysis (Bandit + Semgrep)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Bandit SAST
+        # -ll: only report medium+ severity. -iii: only high-confidence
+        # findings. Bandit's raw default output is noisy enough that a prior
+        # manual run needed hand-verification of several findings before
+        # trusting the severity labels — this filters to the subset worth
+        # blocking a PR on, rather than training reviewers to click through
+        # a wall of low-confidence noise.
+        run: |
+          pip install --no-cache-dir bandit
+          bandit -r . -x ./tests,./venv,./mobile,./node_modules -ll -iii
+
+      - name: Run Semgrep SAST
+        # Bandit only understands Python — it can't see mobile/ (React
+        # Native/TS) or the Jinja templates at all. Semgrep's OWASP
+        # Top-10 + secrets + Flask/JS rulesets cover both, so it's a
+        # genuinely additive gate rather than a second opinion on the same
+        # code Bandit already checked. --severity ERROR --error means only
+        # ERROR-severity findings produce a nonzero (build-blocking) exit;
+        # WARNING/INFO findings still print to the job log but don't fail
+        # the build, matching Bandit's own "-ll -iii" bar of only blocking
+        # on high-confidence findings.
+        run: |
+          pip install --no-cache-dir semgrep
+          semgrep scan \
+            --config p/owasp-top-ten --config p/secrets --config p/flask --config p/javascript \
+            --severity ERROR --error \
+            --sarif --output semgrep.sarif \
+            --exclude tests --exclude venv --exclude node_modules .
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+        continue-on-error: true
+
+  secrets-scan:
+    name: Secret scan (TruffleHog)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # TruffleHog needs full history to scan past commits, not just the current tree
+
+      - name: Run TruffleHog
+        # Distinct from the Trivy secret scan in the `security` job above —
+        # Trivy there only scans the current checked-out tree; this walks
+        # the full commit history (fetch-depth: 0), which is the only way
+        # to catch a secret that was committed and later deleted/rotated
+        # but still sits in git history. --only-verified suppresses the
+        # "this looks like it could be a key" noise Bandit's own comment
+        # above warns about, and only fails the build on a credential
+        # TruffleHog actually confirmed is live against its issuing service.
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified --fail
+
+  notify-security-failure:
+    name: Alert security ops on gate failure
+    runs-on: ubuntu-latest
+    needs: [security, sast, secrets-scan]
+    # This is a notification-only job — it never blocks anything itself.
+    # The actual blocking already happens because `test`/`podman`/`deploy`
+    # all transitively `needs:` these three jobs and GitHub Actions skips
+    # (does not run) a job whose needs didn't all succeed. `if: failure()`
+    # means this job only runs when at least one of them actually failed.
+    if: failure()
+
+    steps:
+      - name: Post alert to security-ops channel
+        # SECURITY_OPS_WEBHOOK_URL is a Slack/Discord/Teams incoming-webhook
+        # URL, set as a repo/org secret — kept separate from the app's own
+        # runtime SECURITY_ALERT_WEBHOOK_URL (utils/alerts.py) since a CI
+        # gate failure and a production security event have different
+        # on-call audiences and shouldn't share a channel by default.
+        env:
+          WEBHOOK_URL: ${{ secrets.SECURITY_OPS_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::SECURITY_OPS_WEBHOOK_URL not set — skipping alert (gate failure above still blocks the build)"
+            exit 0
+          fi
+          curl -sf -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "text": "🛑 CI security gate FAILED — build blocked.\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nTriggered by: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    needs: [lint, security, sast, secrets-scan]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_testpass
+          POSTGRES_DB: att_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d att_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+      - name: Run pytest
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASS: ci_testpass
+          DB_NAME: att_test
+          SECRET_KEY: ci-test-secret-key-not-used-in-prod
+          FLASK_ENV: testing
+        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=80
+
+  podman:
+    name: Podman build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Podman image
+        run: podman build -t attendance-app:ci .
+
+      - name: Scan built image for OS-level vulnerabilities (Trivy)
+        # The fs scan in the security job checks Python/npm dependency
+        # manifests; it can't see CVEs in the base image's own OS packages
+        # (the app image's own base, plus whatever's baked into
+        # postgres:16 / nginx-unprivileged at deploy time).
+        # This is the only step in the pipeline that actually looks inside
+        # the built image.
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: attendance-app:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Verify image starts
+        run: |
+          podman run -d --name test-app \
+            -e DB_HOST=localhost \
+            -e DB_USER=test \
+            -e DB_PASS=test \
+            -e DB_NAME=test \
+            -e SECRET_KEY=ci-test-key \
+            attendance-app:ci || true
+          sleep 5
+          podman logs test-app 2>&1 | tail -20
+          podman rm -f test-app || true
+
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: podman
+    # Only deploy on a direct push to master, never on pull_request runs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    environment: production   # requires approval from a repo admin before deploy runs
+
+    steps:
+      - name: Deploy via SSH
+        # SSH_USER must be the "attendance" user deploy.sh creates — it runs
+        # rootless Podman and owns /opt/employee-attendance directly, so no
+        # sudo is needed (and it has none). Add the CI key to
+        # /home/attendance/.ssh/authorized_keys on the instance.
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            cd /opt/employee-attendance
+            git pull origin master
+            COMPOSE="podman-compose -f compose.yaml -f compose.prod.yaml"
+            $COMPOSE build app
+            $COMPOSE up -d --no-deps app nginx certbot
+            podman image prune -f
+            echo "Deploy complete at $(date)"

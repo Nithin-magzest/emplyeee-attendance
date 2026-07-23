@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Performance Review</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#eff6ff;min-height:100vh;display:flex}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460,#1a3a8f);padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,.2)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .main{flex:1;padding:28px;overflow-y:auto}
+    .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+    .page-hdr h1{font-size:20px;font-weight:800;color:#1e293b}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:18px}
+    .sec-title{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .emp-card{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:16px;padding:22px 26px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+    .emp-card h2{font-size:20px;font-weight:800;margin-bottom:4px}
+    .emp-card p{font-size:13px;opacity:.75}
+    .rating-big{text-align:center}
+    .rating-big .num{font-size:40px;font-weight:900;color:#f59e0b}
+    .rating-big .lbl{font-size:12px;opacity:.75}
+    .stars-big{font-size:22px;display:flex;gap:4px;justify-content:center;margin-top:4px}
+    .star-f{color:#f59e0b} .star-e{color:rgba(255,255,255,.3)}
+    .form-group{margin-bottom:14px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:9px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;color:#1e293b;background:#f8fafc;outline:none;resize:vertical}
+    .form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#3b82f6;background:#fff}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .btn{padding:8px 18px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.15s}
+    .btn-primary{background:#1e3a8a;color:#fff}
+    .btn-primary:hover{background:#1e40af}
+    .btn-success{background:#16a34a;color:#fff}
+    .btn-success:hover{background:#15803d}
+    .btn-danger{background:#fee2e2;color:#dc2626;border:1px solid #fecdd3}
+    .btn-danger:hover{background:#fecdd3}
+    .btn-back{background:#fff;color:#1e3a8a;border:1.5px solid #dbeafe}
+    .kpi-card{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:12px;transition:.15s}
+    .kpi-card:hover{border-color:#bfdbfe;background:#f0f9ff}
+    .kpi-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px}
+    .kpi-title{font-size:14px;font-weight:800;color:#1e293b}
+    .kpi-desc{font-size:12px;color:#64748b;margin-top:2px}
+    .kpi-meta{display:flex;gap:16px;font-size:12px;color:#64748b;margin-bottom:10px;flex-wrap:wrap}
+    .kpi-meta span{display:flex;align-items:center;gap:4px}
+    .weight-badge{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;flex-shrink:0}
+    .star-rating{display:flex;gap:4px;align-items:center}
+    .star-btn{font-size:22px;cursor:pointer;color:#e2e8f0;transition:.1s;border:none;background:none;padding:2px}
+    .star-btn:hover,.star-btn.on{color:#f59e0b}
+    .progress-wrap{background:#e2e8f0;border-radius:20px;height:6px;overflow:hidden;flex:1}
+    .progress-fill{height:100%;border-radius:20px;transition:.4s}
+    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .tab-bar{display:flex;gap:4px;border-bottom:2px solid #dbeafe;margin-bottom:18px}
+    .tab{padding:9px 18px;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s}
+    .tab.active{color:#1e3a8a;border-bottom-color:#1e3a8a}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .history-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px}
+    .q-pill{background:#dbeafe;color:#1e3a8a;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:800;white-space:nowrap}
+    .rating-label{font-size:12px;color:#64748b}
+    /* ── Dark mode ── */
+    body.dark-mode{background:#0d1117 !important}
+    body.dark-mode .main{background:#0d1117 !important;color:#cdd9e5 !important}
+    body.dark-mode .page-hdr h1{color:#cdd9e5 !important}
+    body.dark-mode .card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .sec-title{color:#4d9de0 !important}
+    body.dark-mode .tab-bar{border-color:#30363d !important}
+    body.dark-mode .tab{color:#768390 !important}
+    body.dark-mode .tab.active{color:#4d9de0 !important;border-bottom-color:#4d9de0 !important}
+    body.dark-mode .form-group label{color:#768390 !important}
+    body.dark-mode .form-group input,body.dark-mode .form-group textarea,body.dark-mode .form-group select{background:#0d1117 !important;border-color:#30363d !important;color:#cdd9e5 !important}
+    body.dark-mode .kpi-card{background:#1c2128 !important;border-color:#30363d !important}
+    body.dark-mode .kpi-title{color:#cdd9e5 !important}
+    body.dark-mode .kpi-desc{color:#768390 !important}
+    body.dark-mode .kpi-meta{color:#768390 !important}
+    body.dark-mode .weight-badge{background:#1e3a8a !important;border-color:#1d4ed8 !important;color:#93c5fd !important}
+    body.dark-mode .star-btn{color:#30363d !important}
+    body.dark-mode .star-btn.on{color:#f59e0b !important}
+    body.dark-mode .progress-wrap{background:#30363d !important}
+    body.dark-mode .q-pill{background:#1e3a8a !important;color:#93c5fd !important}
+    body.dark-mode .history-row{border-color:#30363d !important}
+    body.dark-mode .rating-label{color:#768390 !important}
+    body.dark-mode .flash-success{background:#14532d !important;border-color:#166534 !important;color:#86efac !important}
+    body.dark-mode .btn-back{background:#161b22 !important;border-color:#30363d !important;color:#cdd9e5 !important}
+    body.dark-mode .btn-danger{background:#7f1d1d !important;border-color:#991b1b !important;color:#fca5a5 !important}
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co[0] if co else '' }}</div></div>
+
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep u-mt-12"/>
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item active" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+</div>
+
+<div class="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Employee header card -->
+  {% set emp_id, emp_name, emp_role, emp_dept, emp_email, emp_phone = emp %}
+  <div class="emp-card">
+    <div>
+      <h2>{{ emp_name }}</h2>
+      <p>{{ emp_id }} &nbsp;·&nbsp; {{ emp_role }} &nbsp;·&nbsp; {{ emp_dept or 'No Department' }}</p>
+      <p class="u-mt-6">
+        <i class="ti ti-mail u-fs-13"></i> {{ emp_email or '—' }}
+        &nbsp;&nbsp;<i class="ti ti-phone u-fs-13"></i> {{ emp_phone or '—' }}
+      </p>
+    </div>
+    <div class="rating-big">
+      {% if review and review[1] and review[1] > 0 %}
+      <div class="num">{{ "%.1f"|format(review[1]) }}</div>
+      <div class="stars-big">
+        {% for i in range(1,6) %}<span class="{% if i <= review[1] %}star-f{% else %}star-e{% endif %}">★</span>{% endfor %}
+      </div>
+      <div class="lbl">Q{{ quarter }} {{ year }} Rating</div>
+      {% else %}
+      <div class="u-fs-32 u-op-d4">—</div>
+      <div class="lbl">Not rated yet</div>
+      {% endif %}
+    </div>
+    <div class="u-d-flex u-fxd-column u-gap-8">
+      <a href="/performance?quarter={{ quarter }}&year={{ year }}" class="btn btn-back"><i class="ti ti-arrow-left"></i> Back</a>
+      {% if review %}
+      <form class="u-m-0" method="POST" action="/performance_save_review">
+        <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
+        <input type="hidden" name="quarter" value="{{ quarter }}"/>
+        <input type="hidden" name="year" value="{{ year }}"/>
+        <input type="hidden" name="reviewer_feedback" value="{{ review[2] or '' }}"/>
+        <input type="hidden" name="status" value="Submitted"/>
+        <button type="submit" class="btn btn-success u-op-d5" {% if review[4]=='Submitted' %}disabled{% endif %}>
+          <i class="ti ti-send"></i> {% if review[4]=='Submitted' %}Submitted{% else %}Submit Review{% endif %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('kpis',this)">KPIs &amp; Ratings</div>
+    <div class="tab" onclick="switchTab('feedback',this)">Reviewer Feedback</div>
+    <div class="tab" onclick="switchTab('history',this)">Review History</div>
+  </div>
+
+  <!-- ── TAB 1: KPIs ────────────────────────────────── -->
+  <div class="tab-content active" id="tab-kpis">
+
+    <!-- Add KPI form -->
+    {% if not review or review[4] != 'Submitted' %}
+    <div class="card">
+      <div class="sec-title"><i class="ti ti-plus"></i> Add KPI</div>
+      <form method="POST" action="/performance_add_kpi">
+        <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
+        <input type="hidden" name="quarter" value="{{ quarter }}"/>
+        <input type="hidden" name="year" value="{{ year }}"/>
+        <div class="grid3">
+          <div class="form-group u-gc-span-2">
+            <label>KPI Title *</label>
+            <input type="text" name="kpi_title" placeholder="e.g. Monthly Sales Target" required/>
+          </div>
+          <div class="form-group">
+            <label>Weight (%)</label>
+            <select name="weight">
+              {% for w in [10,15,20,25,30,35,40,50] %}
+              <option value="{{ w }}" {% if w==20 %}selected{% endif %}>{{ w }}%</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="form-group">
+            <label>Target / Goal</label>
+            <input type="text" name="target" placeholder="e.g. Achieve Rs.5L revenue"/>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" name="description" placeholder="Brief description (optional)"/>
+          </div>
+        </div>
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary"><i class="ti ti-plus"></i> Add KPI</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- KPI Cards -->
+    {% if kpis %}
+    {% set total_weight = kpis|sum(attribute=5) %}
+    <div class="u-d-flex u-ai-center u-jc-space-between u-mb-12">
+      <div class="u-fs-13 u-fw-700 u-c-1e3a8a">
+        {{ kpis|length }} KPIs &nbsp;·&nbsp; Total weight: <span style="color:{% if total_weight == 100 %}#16a34a{% elif total_weight > 100 %}#ef4444{% else %}#f59e0b{% endif %};">{{ total_weight }}%</span>
+        {% if total_weight != 100 %}<span class="u-fs-11 u-c-f59e0b"> (should sum to 100%)</span>{% endif %}
+      </div>
+    </div>
+
+    {% for kpi_id, kpi_title, kpi_desc, target, achievement, weight, rating, comments in kpis %}
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div>
+          <div class="kpi-title">{{ kpi_title }}</div>
+          {% if kpi_desc %}<div class="kpi-desc">{{ kpi_desc }}</div>{% endif %}
+        </div>
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <span class="weight-badge">{{ weight }}%</span>
+          {% if not review or review[4] != 'Submitted' %}
+          <form class="u-m-0" method="POST" action="/performance_delete_kpi">
+            <input type="hidden" name="kpi_id" value="{{ kpi_id }}"/>
+            <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
+            <input type="hidden" name="quarter" value="{{ quarter }}"/>
+            <input type="hidden" name="year" value="{{ year }}"/>
+            <button type="submit" class="btn btn-danger u-p-5-10 u-fs-11"
+                    onclick="return confirm('Delete this KPI?')">
+              <i class="ti ti-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="kpi-meta">
+        {% if target %}<span><i class="ti ti-target"></i> Target: {{ target }}</span>{% endif %}
+        {% if achievement %}<span><i class="ti ti-check"></i> Achieved: {{ achievement }}</span>{% endif %}
+      </div>
+
+      {% if not review or review[4] != 'Submitted' %}
+      <form method="POST" action="/performance_rate_kpi">
+        <input type="hidden" name="kpi_id" value="{{ kpi_id }}"/>
+        <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
+        <input type="hidden" name="quarter" value="{{ quarter }}"/>
+        <input type="hidden" name="year" value="{{ year }}"/>
+        <div class="grid3">
+          <div class="form-group">
+            <label>Achievement (actual)</label>
+            <input type="text" name="achievement" value="{{ achievement or '' }}" placeholder="What was achieved?"/>
+          </div>
+          <div class="form-group">
+            <label>Rating (1–5)</label>
+            <div class="star-rating" id="stars_{{ kpi_id }}">
+              {% for i in range(1,6) %}
+              <button type="button" class="star-btn {% if rating and i <= rating %}on{% endif %}"
+                      onclick="setRating({{ kpi_id }}, {{ i }})" title="{{ rating_labels[i] }}">★</button>
+              {% endfor %}
+              <input type="hidden" name="rating" id="rating_{{ kpi_id }}" value="{{ rating or 0 }}"/>
+              <span class="u-fs-12 u-c-64748b u-ml-6" id="rlbl_{{ kpi_id }}">
+                {{ rating_labels.get(rating or 0, '') }}
+              </span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Comments</label>
+            <input type="text" name="comments" value="{{ comments or '' }}" placeholder="Reviewer notes"/>
+          </div>
+        </div>
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary u-p-6-16 u-fs-12">
+            <i class="ti ti-device-floppy"></i> Save Rating
+          </button>
+        </div>
+      </form>
+      {% else %}
+      <!-- Read-only view when submitted -->
+      <div class="u-d-flex u-ai-center u-gap-12 u-fxw-wrap">
+        <div>
+          {% for i in range(1,6) %}
+          <span style="font-size:20px;color:{% if i <= (rating or 0) %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
+          {% endfor %}
+        </div>
+        <span class="u-fw-800 u-c-f59e0b">{{ rating or 0 }}/5</span>
+        <span class="u-fs-12 u-c-64748b">{{ rating_labels.get(rating or 0,'') }}</span>
+        {% if comments %}<span class="u-fs-12 u-c-64748b u-fst-italic">"{{ comments }}"</span>{% endif %}
+        <div class="progress-wrap">
+          <div class="progress-fill" style="width:{{ ((rating or 0) / 5 * 100)|int }}%;background:{% if (rating or 0) >= 4 %}#22c55e{% elif (rating or 0) >= 3 %}#3b82f6{% elif (rating or 0) >= 2 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="u-ta-center u-p-40 u-c-94a3b8">
+      <i class="ti ti-target u-fs-48 u-d-block u-mb-12"></i>
+      No KPIs added yet. Use the form above to add goals.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── TAB 2: Feedback ────────────────────────────── -->
+  <div class="tab-content" id="tab-feedback">
+    <div class="card">
+      <div class="sec-title"><i class="ti ti-message-circle"></i> Reviewer Feedback</div>
+      <form method="POST" action="/performance_save_review">
+        <input type="hidden" name="employee_id" value="{{ emp_id }}"/>
+        <input type="hidden" name="quarter" value="{{ quarter }}"/>
+        <input type="hidden" name="year" value="{{ year }}"/>
+        <input type="hidden" name="status" value="{{ review[4] if review else 'Draft' }}"/>
+        <div class="form-group">
+          <label>Manager / HR Feedback</label>
+          <textarea name="reviewer_feedback" rows="5" placeholder="Write detailed feedback about the employee's performance, strengths, and areas for improvement…" {% if review and review[4]=='Submitted' %}readonly{% endif %}>{{ review[2] if review and review[2] else '' }}</textarea>
+        </div>
+        {% if not review or review[4] != 'Submitted' %}
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Save Feedback</button>
+        </div>
+        {% endif %}
+      </form>
+
+      {% if review and review[3] %}
+      <div class="u-mt-22 u-pt-18 u-bdt-1-solid-e2e8f0">
+        <div class="sec-title"><i class="ti ti-user"></i> Employee Comment</div>
+        <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10 u-p-14-16 u-fs-13 u-c-1e293b u-fst-italic">
+          "{{ review[3] }}"
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── TAB 3: History ─────────────────────────────── -->
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <div class="sec-title"><i class="ti ti-history"></i> Review History</div>
+      {% if history %}
+        {% for h_id, h_q, h_yr, h_rating, h_status, h_date in history %}
+        <div class="history-row">
+          <span class="q-pill">Q{{ h_q }} {{ h_yr }}</span>
+          <div class="u-fx-1">
+            <div class="u-d-flex u-ai-center u-gap-8">
+              {% if h_rating and h_rating > 0 %}
+              <span class="u-fw-800 u-c-f59e0b u-fs-15">{{ "%.1f"|format(h_rating) }}</span>
+              <span class="u-fs-16">
+                {% for i in range(1,6) %}<span style="color:{% if i <= h_rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>{% endfor %}
+              </span>
+              <span class="rating-label">{{ rating_labels.get(h_rating|int,'') }}</span>
+              {% else %}
+              <span class="u-c-94a3b8 u-fs-13">Not rated</span>
+              {% endif %}
+            </div>
+          </div>
+          <span class="u-fs-11 u-c-94a3b8">{{ h_date.strftime('%d %b %Y') if h_date else '' }}</span>
+          <span class="badge {% if h_status=='Submitted' %}b-submitted{% elif h_status=='Acknowledged' %}b-acknowledged{% else %}b-draft{% endif %} u-fs-11">{{ h_status }}</span>
+          <a class="u-fs-12 u-c-3b82f6 u-tdec-none u-fw-700" href="/performance_review/{{ emp_id }}?quarter={{ h_q }}&year={{ h_yr }}">View</a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="u-ta-center u-p-30 u-c-94a3b8">No previous reviews found.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+const LABELS = {{ rating_labels|tojson }};
+
+function setRating(kpiId, val) {
+  document.getElementById('rating_' + kpiId).value = val;
+  document.getElementById('rlbl_' + kpiId).textContent = LABELS[val] || '';
+  document.querySelectorAll('#stars_' + kpiId + ' .star-btn').forEach((btn, i) => {
+    btn.classList.toggle('on', i < val);
+  });
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

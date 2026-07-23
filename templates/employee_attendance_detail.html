@@ -1,0 +1,476 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ emp[1] }} — Attendance Detail</title>
+    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      .sidebar { width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%); padding: 22px 14px; color: white; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.18); }
+      .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
+      .brand-icon { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+      .brand { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+      .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+      .nav-group-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin: 14px 0 4px; }
+      .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s; position: relative; }
+      .nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+      .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+      .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
+      .nav-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); }
+      .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
+      .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+      .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
+
+      .main { flex: 1; padding: 28px; color: #1e293b; overflow-x: hidden; }
+
+      /* BACK BUTTON */
+      .back-link { display: inline-flex; align-items: center; gap: 7px; color: #2563eb; font-size: 13px; font-weight: 600; text-decoration: none; margin-bottom: 18px; padding: 7px 14px; background: #dbeafe; border-radius: 8px; transition: 0.2s; }
+      .back-link:hover { background: #bfdbfe; }
+
+      /* EMP CARD */
+      .emp-card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px 28px; margin-bottom: 22px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+      .emp-avatar { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; flex-shrink: 0; }
+      .emp-info h2 { font-size: 20px; font-weight: 800; color: #1e293b; }
+      .emp-meta { display: flex; gap: 18px; margin-top: 6px; flex-wrap: wrap; }
+      .emp-meta span { font-size: 13px; color: #64748b; }
+      .emp-meta strong { color: #1e293b; }
+
+      /* FILTER BAR */
+      .filter-bar { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 16px 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+      .filter-bar label { font-size: 13px; color: #64748b; font-weight: 600; }
+      .filter-bar select { padding: 8px 12px; border-radius: 8px; border: 1px solid #dbeafe; background: #f8fafc; color: #1e293b; font-size: 13px; outline: none; }
+      .filter-bar select:focus { border-color: #93c5fd; }
+      .filter-bar button { padding: 9px 20px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+      .filter-bar button:hover { background: #2563eb; }
+
+      /* SUMMARY */
+      .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 22px; }
+      .sum-card { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px; text-align: center; }
+      .sum-card .num { font-size: 32px; font-weight: 800; }
+      .sum-card .lbl { font-size: 12px; color: #64748b; margin-top: 5px; }
+      .c-green .num { color: #16a34a; }
+      .c-yellow .num { color: #d97706; }
+      .c-orange .num { color: #ea580c; }
+      .c-red .num { color: #dc2626; }
+
+      /* TABLE */
+      .section { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; }
+      .section-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+      td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #1e293b; white-space: nowrap; }
+      tr:last-child td { border-bottom: none; }
+
+      /* ROW COLORS */
+      tr.row-holiday td { background: #fef9c3; color: #92400e; }
+      tr.row-sunday  td { background: #f1f5f9; color: #94a3b8; }
+      tr.row-future  td { color: #94a3b8; }
+      tr.row-absent  td { background: #fff1f2; }
+      tr.row-full    td { background: #f0fdf4; }
+      tr.row-late    td { background: #fffbeb; }
+      tr.row-half    td { background: #fff7ed; }
+
+      /* STATUS BADGE */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+      .b-green  { background: #dcfce7; color: #15803d; }
+      .b-yellow { background: #fef9c3; color: #92400e; }
+      .b-orange { background: #ffedd5; color: #c2410c; }
+      .b-red    { background: #fee2e2; color: #dc2626; }
+      .b-gray   { background: #f1f5f9; color: #64748b; }
+      .b-blue   { background: #dbeafe; color: #1d4ed8; }
+      .b-purple { background: #f3e8ff; color: #7c3aed; }
+
+      /* EDIT BUTTON */
+      .btn-edit { background: none; border: 1px solid #dbeafe; border-radius: 7px; padding: 4px 8px; cursor: pointer; color: #3b82f6; font-size: 13px; transition: .18s; }
+      .btn-edit:hover { background: #dbeafe; color: #1e3a8a; }
+
+      /* MODAL */
+      .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,36,96,.45); z-index: 999; align-items: center; justify-content: center; }
+      .modal-backdrop.open { display: flex; }
+      .modal { background: #fff; border-radius: 18px; padding: 30px 28px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,.2); position: relative; }
+      .modal h3 { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+      .modal .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+      .modal label { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .4px; display: block; margin-bottom: 5px; margin-top: 14px; }
+      .modal input, .modal select { width: 100%; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; color: #1e293b; font-size: 14px; outline: none; }
+      .modal input:focus, .modal select:focus { border-color: #93c5fd; }
+      .modal-row { display: flex; gap: 12px; }
+      .modal-row > div { flex: 1; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+      .btn-save { flex: 1; padding: 11px; background: #1e3a8a; color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; transition: .18s; }
+      .btn-save:hover { background: #1e40af; }
+      .btn-cancel { padding: 11px 18px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .18s; }
+      .btn-cancel:hover { background: #e2e8f0; }
+      .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; line-height: 1; }
+      .modal-close:hover { color: #1e293b; }
+
+      /* FLASH */
+      .flash { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+      .flash.success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+      .flash.error   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+      @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; } }
+      @media print { .sidebar, .filter-bar, .back-link { display: none !important; } }
+
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
+      body.dark-mode .back-link { background: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode .emp-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .emp-info h2 { color: #cdd9e5 !important; }
+      body.dark-mode .emp-meta span, body.dark-mode .emp-meta strong { color: #768390 !important; }
+      body.dark-mode .filter-bar { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .filter-bar label { color: #768390 !important; }
+      body.dark-mode .sum-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .sum-card .lbl { color: #768390 !important; }
+      body.dark-mode .c-green .num { color: #4ade80 !important; }
+      body.dark-mode .c-yellow .num { color: #fbbf24 !important; }
+      body.dark-mode .c-orange .num { color: #fb923c !important; }
+      body.dark-mode .c-red .num { color: #f87171 !important; }
+      body.dark-mode .section { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .section-title { color: #cdd9e5 !important; }
+      body.dark-mode tr.row-holiday td { background: #3d2800 !important; color: #fde047 !important; }
+      body.dark-mode tr.row-sunday td  { background: #1c2128 !important; color: #768390 !important; }
+      body.dark-mode tr.row-absent td  { background: #3d0a0a !important; }
+      body.dark-mode tr.row-full td    { background: #0a2010 !important; }
+      body.dark-mode .b-green  { background: #14532d !important; color: #86efac !important; }
+      body.dark-mode .b-yellow { background: #713f12 !important; color: #fde047 !important; }
+      body.dark-mode .b-orange { background: #7c2d12 !important; color: #fdba74 !important; }
+      body.dark-mode .b-red    { background: #7f1d1d !important; color: #fca5a5 !important; }
+      body.dark-mode .b-gray   { background: #1c2128 !important; color: #768390 !important; }
+      body.dark-mode .b-blue   { background: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode .b-purple { background: #4c1d95 !important; color: #c4b5fd !important; }
+      body.dark-mode .modal { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .modal h3 { color: #cdd9e5 !important; }
+      body.dark-mode .modal .modal-sub { color: #768390 !important; }
+      body.dark-mode .modal label { color: #768390 !important; }
+      body.dark-mode .modal input, body.dark-mode .modal select { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .btn-cancel { background: #1c2128 !important; border-color: #30363d !important; color: #94a3b8 !important; }
+      body.dark-mode .flash.success { background: #14532d !important; border-color: #166534 !important; color: #86efac !important; }
+      body.dark-mode .flash.error   { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+    </style>
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  </head>
+  <body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="brand-wrap">
+        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+</div>
+      <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+      <a class="nav-item active" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+      <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+      <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+      <hr class="nav-sep u-mt-12" />
+      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+      <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+      
+      <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <a class="back-link" href="/monthly_report?year={{ year }}&month={{ month }}">← Back to Monthly Report</a>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}"><i class="ti ti-{{ 'circle-check' if category == 'success' else 'alert-circle' }}"></i> {{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <!-- EMPLOYEE CARD -->
+      <div class="emp-card">
+        <div class="emp-avatar">👤</div>
+        <div class="emp-info">
+          <h2>{{ emp[1] }}</h2>
+          <div class="emp-meta">
+            <span>🪪 ID: <strong>{{ emp[0] }}</strong></span>
+            {% if emp[2] %}<span>💼 Role: <strong>{{ emp[2] }}</strong></span>{% endif %}
+            {% if emp[3] %}<span>📞 <strong>{{ emp[3] }}</strong></span>{% endif %}
+            {% if emp[4] %}<span>✉ <strong>{{ emp[4] }}</strong></span>{% endif %}
+          </div>
+        </div>
+        <div class="u-ml-auto">
+          <a class="u-p-9-18 u-bg-1e3a8a u-c-fff u-br-9 u-fs-13 u-fw-700 u-tdec-none" href="/view_payslip/{{ emp[0] }}/{{ year }}/{{ month }}" target="_blank">
+            💳 View Pay Slip
+          </a>
+        </div>
+      </div>
+
+      <!-- MONTH FILTER -->
+      <div class="filter-bar">
+        <label>Month</label>
+        <select id="selMonth">
+          {% for m_num, m_name in months %}
+          <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
+          {% endfor %}
+        </select>
+        <label>Year</label>
+        <select id="selYear">
+          {% for y in years %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <button onclick="goMonth()">View</button>
+        <span class="u-fs-13 u-c-64748b u-fw-600">{{ month_name }}</span>
+        <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" onclick="window.print()">🖨️ Print</button>
+      </div>
+      <script>
+        function goMonth() {
+          var y = document.getElementById('selYear').value;
+          var m = document.getElementById('selMonth').value;
+          window.location.href = '/employee_attendance_detail/{{ emp[0] }}/' + y + '/' + m;
+        }
+      </script>
+
+      <!-- SUMMARY CARDS -->
+      <div class="summary">
+        <div class="sum-card c-green">
+          <div class="num">{{ full_days }}</div>
+          <div class="lbl">✅ Full Days</div>
+        </div>
+        <div class="sum-card c-yellow">
+          <div class="num">{{ late_days }}</div>
+          <div class="lbl">⏰ Late Days</div>
+        </div>
+        <div class="sum-card c-orange">
+          <div class="num">{{ half_days }}</div>
+          <div class="lbl">🌓 Half Days</div>
+        </div>
+        <div class="sum-card c-red">
+          <div class="num">{{ absent }}</div>
+          <div class="lbl">❌ Absent Days</div>
+        </div>
+      </div>
+
+      <!-- DAY-BY-DAY TABLE -->
+      <div class="section">
+        <div class="section-title">📅 Day-by-Day Attendance — {{ month_name }}</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Login Time</th>
+                <th>Logout Time</th>
+                <th>Status</th>
+                <th>Edit</th>
+              </tr>
+            </thead>
+            <tbody id="att-tbody">
+              {% for d in days %}
+              {% if d.is_holiday %}
+                <tr class="row-holiday att-row">
+              {% elif d.is_sunday %}
+                <tr class="row-sunday att-row">
+              {% elif d.is_future %}
+                <tr class="row-future att-row">
+              {% elif d.status in ("Full Day",) %}
+                <tr class="row-full att-row">
+              {% elif d.status == "Late - Full Day" %}
+                <tr class="row-late att-row">
+              {% elif d.status in ("Half Day", "Present") %}
+                <tr class="row-half att-row">
+              {% elif d.status == "Absent" or (d.status == "—" and not d.is_sunday and not d.is_holiday and not d.is_future) %}
+                <tr class="row-absent att-row">
+              {% else %}
+                <tr class="att-row">
+              {% endif %}
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ d.date.strftime("%d %b %Y") }}</strong></td>
+                <td>{{ d.day_name }}</td>
+                <td>
+                  {% if d.is_holiday %}
+                    <span class="badge b-yellow">Holiday</span>
+                  {% elif d.is_sunday %}
+                    <span class="badge b-gray">Sunday Off</span>
+                  {% elif d.is_future %}
+                    <span class="u-c-94a3b8 u-fs-12">—</span>
+                  {% else %}
+                    {{ d.login }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if d.is_holiday or d.is_sunday or d.is_future %}
+                    <span class="u-c-94a3b8 u-fs-12">—</span>
+                  {% else %}
+                    {{ d.logout }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if d.is_holiday %}
+                    <span class="badge b-blue">Holiday</span>
+                  {% elif d.is_sunday %}
+                    <span class="badge b-gray">Off</span>
+                  {% elif d.is_future %}
+                    <span class="badge b-gray">—</span>
+                  {% elif d.status == "Full Day" %}
+                    <span class="badge b-green">Full Day</span>
+                  {% elif d.status == "Late - Full Day" %}
+                    <span class="badge b-yellow">Late</span>
+                  {% elif d.status in ("Half Day", "Present") %}
+                    <span class="badge b-orange">Half Day</span>
+                  {% elif d.status == "Manual" %}
+                    <span class="badge b-purple">Manual</span>
+                  {% elif d.status == "Absent" or d.status == "—" %}
+                    <span class="badge b-red">Absent</span>
+                  {% else %}
+                    <span class="badge b-gray">{{ d.status }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not d.is_future %}
+                  <button class="btn-edit"
+                    onclick="openEdit('{{ d.date.isoformat() }}','{{ d.login if d.login != '—' else '' }}','{{ d.logout if d.logout != '—' else '' }}','{{ d.status if d.status not in ('—','') else '' }}')"
+                    title="Correct attendance">
+                    <i class="ti ti-edit"></i>
+                  </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Show more / collapse toggle -->
+        <div class="u-ta-center u-mt-14 u-d-none" id="att-toggle-wrap">
+          <button class="u-d-inline-flex u-ai-center u-gap-6 u-p-9-22 u-bd-1-solid-dbeafe u-br-10 u-bg-fff u-c-1e3a8a u-fs-13 u-fw-700 u-cur-pointer u-shad-0-1-4-rgba0_0_0_0d06 u-trs-d18s" id="att-toggle-btn" onclick="toggleAttRows()">
+            <i id="att-toggle-icon" class="ti ti-chevron-down"></i>
+            <span id="att-toggle-text">Show all days</span>
+          </button>
+        </div>
+      </div>
+
+      <script>
+        (function() {
+          var rows = document.querySelectorAll('#att-tbody .att-row');
+          var total = rows.length;
+          if (total <= 5) return;
+
+          // hide all rows before the last 5
+          for (var i = 0; i < total - 5; i++) {
+            rows[i].style.display = 'none';
+          }
+
+          var expanded = false;
+          var wrap = document.getElementById('att-toggle-wrap');
+          wrap.style.display = 'block';
+
+          window.toggleAttRows = function() {
+            expanded = !expanded;
+            for (var i = 0; i < total - 5; i++) {
+              rows[i].style.display = expanded ? '' : 'none';
+            }
+            document.getElementById('att-toggle-text').textContent = expanded ? 'Show less' : 'Show all ' + total + ' days';
+            document.getElementById('att-toggle-icon').className = expanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down';
+          };
+
+          // update initial button label with count
+          document.getElementById('att-toggle-text').textContent = 'Show all ' + total + ' days';
+        })();
+      </script>
+
+    </div><!-- /main -->
+
+  <!-- ATTENDANCE CORRECTION MODAL -->
+  <div class="modal-backdrop" id="editModal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+      <h3><i class="ti ti-edit u-c-3b82f6"></i> Correct Attendance</h3>
+      <div class="modal-sub" id="editModalSub">Editing record for <strong id="editDateLabel"></strong></div>
+
+      <form method="POST" action="/correct_attendance">
+        <input type="hidden" name="emp_id"  value="{{ emp[0] }}">
+        <input type="hidden" name="year"    value="{{ year }}">
+        <input type="hidden" name="month"   value="{{ month }}">
+        <input type="hidden" name="date"    id="editDate">
+
+        <div class="modal-row">
+          <div>
+            <label>Login Time</label>
+            <input type="time" name="login_time" id="editLogin">
+          </div>
+          <div>
+            <label>Logout Time</label>
+            <input type="time" name="logout_time" id="editLogout">
+          </div>
+        </div>
+
+        <label>Attendance Type</label>
+        <select name="attendance_type" id="editType" required>
+          <option value="">— Select type —</option>
+          <option value="Full Day">Full Day</option>
+          <option value="Late - Full Day">Late - Full Day</option>
+          <option value="Half Day">Half Day</option>
+          <option value="Absent">Absent</option>
+          <option value="Approved Leave">Approved Leave</option>
+          <option value="Work From Home">Work From Home</option>
+        </select>
+
+        <div class="u-mt-12 u-p-10-14 u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-fs-12 u-c-92400e">
+          <i class="ti ti-info-circle"></i>
+          Leave login/logout blank if the employee didn't punch in (e.g. Absent or Approved Leave).
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+          <button type="submit" class="btn-save"><i class="ti ti-device-floppy"></i> Save Correction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEdit(dateIso, login, logout, attType) {
+      var d = new Date(dateIso);
+      var label = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+      document.getElementById('editDateLabel').textContent = label;
+      document.getElementById('editDate').value   = dateIso;
+      document.getElementById('editLogin').value  = toTimeInput(login);
+      document.getElementById('editLogout').value = toTimeInput(logout);
+      var sel = document.getElementById('editType');
+      sel.value = (attType && attType !== '—') ? attType : '';
+      document.getElementById('editModal').classList.add('open');
+    }
+    function closeEdit() {
+      document.getElementById('editModal').classList.remove('open');
+    }
+    function toTimeInput(str) {
+      if (!str) return '';
+      // str may be "09:30 AM" format — convert to HH:MM (24h) for <input type="time">
+      var m = str.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!m) return '';
+      var h = parseInt(m[1]), min = m[2], period = m[3] ? m[3].toUpperCase() : null;
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return String(h).padStart(2,'0') + ':' + min;
+    }
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) closeEdit();
+    });
+  </script>
+
+  <script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

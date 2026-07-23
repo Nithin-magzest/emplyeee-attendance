@@ -1,0 +1,455 @@
+"""Route-level tests for blueprints/employees.py branches not already
+covered by tests/test_employee_registration.py (the /admin_action
+action=register happy/error paths) or tests/test_pii_encryption.py
+(/edit_employee PII round-trip). Covers the other admin_action
+sub-actions, delete/edit/profile/detail pages, the add_employee_page
+flow, photo/QR management, ID generation, and the REST-ish /api/employees
+endpoints.
+"""
+import io
+import os
+import pytest
+from PIL import Image
+from extensions import app as flask_app
+import utils.face_utils as face_utils
+
+
+def _jpeg_bytes():
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color=(50, 60, 70)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+@pytest.fixture(autouse=True)
+def _mock_face_detected(monkeypatch):
+    """Every route here that saves a face photo checks for a detectable
+    face — the synthetic test JPEGs have none, so mock detection True by
+    default (matches tests/test_employee_registration.py's pattern)."""
+    monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda p: "img")
+    monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: ["enc"])
+
+
+def _admin_session(client, username, role="admin"):
+    with client.session_transaction() as sess:
+        sess["admin_logged_in"] = True
+        sess["admin_username"] = username
+        sess["admin_role"] = role
+
+
+def _admin_bearer_token(client, seed_admin):
+    resp = client.post("/api/login", json={
+        "username": seed_admin["username"], "password": seed_admin["password"],
+    })
+    return resp.get_json()["token"]
+
+
+UPLOAD_FOLDER = flask_app.config["UPLOAD_FOLDER"]
+
+
+@pytest.fixture
+def cleanup_emp_files():
+    """Track employee_ids whose dataset/qrcode files should be removed after the test."""
+    ids = []
+    yield ids
+    for eid in ids:
+        jpg = os.path.join(UPLOAD_FOLDER, eid + ".jpg")
+        qr = os.path.join("static", "qrcodes", eid + ".png")
+        if os.path.exists(jpg):
+            os.remove(jpg)
+        if os.path.exists(qr):
+            os.remove(qr)
+
+
+class TestAdminActionUpdateFace:
+    def test_unknown_employee_rejected(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/admin_action", data={
+            "action": "update_face", "emp_id": "GHOST_EMP",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, follow_redirects=True)
+        assert b"not found" in resp.data
+
+    def test_success_updates_face_image(self, client, seed_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/admin_action", data={
+            "action": "update_face", "emp_id": seed_employee["employee_id"],
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, follow_redirects=True)
+        assert b"Face photo updated" in resp.data
+
+
+class TestAdminActionResetPassword:
+    def test_unknown_employee(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"], role="soc_analyst")
+        resp = client.post("/admin_action", data={"action": "reset_password", "emp_id": "GHOST_EMP"},
+                            follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/admin/security-dashboard?tab=pwdreset" in resp.location
+
+    def test_known_employee_resets(self, client, seed_admin, seed_employee):
+        from utils.auth import check_password_hash
+        _admin_session(client, seed_admin["username"], role="soc_analyst")
+        resp = client.post("/admin_action", data={
+            "action": "reset_password", "emp_id": seed_employee["employee_id"]}, follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/admin/security-dashboard?tab=pwdreset" in resp.location
+
+
+class TestAdminActionHoliday:
+    def test_adds_holiday(self, client, seed_admin, db_engine):
+        _admin_session(client, seed_admin["username"])
+        client.post("/admin_action", data={
+            "action": "holiday", "date": "2026-08-15", "holiday_name": "Route Test Holiday"})
+        cur = db_engine.cursor()
+        cur.execute("SELECT name FROM holidays WHERE name='Route Test Holiday'")
+        row = cur.fetchone()
+        cur.execute("DELETE FROM holidays WHERE name='Route Test Holiday'")
+        cur.close()
+        assert row is not None
+
+
+class TestAdminActionSalary:
+    def test_inserts_new_salary_config(self, client, seed_admin, seed_employee, db_engine):
+        _admin_session(client, seed_admin["username"])
+        client.post("/admin_action", data={
+            "action": "salary", "emp_id": seed_employee["employee_id"], "salary": "500"})
+        cur = db_engine.cursor()
+        cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
+                     (seed_employee["employee_id"],))
+        assert float(cur.fetchone()[0]) == 500.0
+        cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
+        cur.close()
+
+    def test_updates_existing_salary_config(self, client, seed_admin, seed_employee, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)",
+                     (seed_employee["employee_id"], 400))
+        _admin_session(client, seed_admin["username"])
+        client.post("/admin_action", data={
+            "action": "salary", "emp_id": seed_employee["employee_id"], "salary": "700"})
+        cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
+                     (seed_employee["employee_id"],))
+        assert float(cur.fetchone()[0]) == 700.0
+        cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
+        cur.close()
+
+
+class TestDeleteEmployee:
+    def test_unknown_employee(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/delete_employee/GHOST_EMP", follow_redirects=True)
+        assert b"not found" in resp.data
+
+    def test_known_employee_deleted(self, client, seed_admin, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO employees (employee_id, name) VALUES (%s,%s)",
+                     ("DELME1", "Delete Target"))
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/delete_employee/DELME1", follow_redirects=True)
+        assert b"deleted successfully" in resp.data
+        cur.execute("SELECT 1 FROM employees WHERE employee_id='DELME1'")
+        assert cur.fetchone() is None
+        cur.close()
+
+
+class TestEditEmployeePage:
+    def test_unknown_employee_404(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/edit_employee/GHOST_EMP")
+        assert resp.status_code == 404
+
+    def test_known_employee_renders(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get(f"/edit_employee/{seed_employee['employee_id']}")
+        assert resp.status_code == 200
+
+
+class TestEmployeeProfile:
+    def test_unknown_employee_404(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/employee_profile/GHOST_EMP")
+        assert resp.status_code == 404
+
+    def test_known_employee_renders(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get(f"/employee_profile/{seed_employee['employee_id']}")
+        assert resp.status_code == 200
+
+
+class TestEmployeeDetail:
+    def test_unknown_employee_redirects(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/employee_detail/GHOST_EMP", follow_redirects=True)
+        assert b"not found" in resp.data
+
+    def test_known_employee_renders(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get(f"/employee_detail/{seed_employee['employee_id']}")
+        assert resp.status_code == 200
+
+
+class TestViewEmployees:
+    def test_renders_with_seeded_employee(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/employees")
+        assert resp.status_code == 200
+
+    def test_scoped_to_active_company(self, client, seed_admin, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO companies (name) VALUES ('Emp Route Co') RETURNING id")
+        cid = cur.fetchone()[0]
+        _admin_session(client, seed_admin["username"])
+        with client.session_transaction() as sess:
+            sess["active_company_id"] = cid
+        try:
+            resp = client.get("/employees")
+            assert resp.status_code == 200
+        finally:
+            cur.execute("DELETE FROM companies WHERE id=%s", (cid,))
+            cur.close()
+
+
+class TestAddEmployeePage:
+    def test_missing_name_or_id_rejected(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/add_employee_page", data={"name": "", "emp_id": ""}, follow_redirects=True)
+        assert b"required" in resp.data
+
+    def test_invalid_emp_id_format_rejected(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/add_employee_page", data={"name": "X", "emp_id": "bad id!"},
+                            follow_redirects=True)
+        assert b"may only contain" in resp.data
+
+    def test_missing_photo_rejected(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/add_employee_page", data={"name": "NoPhoto Guy", "emp_id": "NOPHOTO1"},
+                            follow_redirects=True)
+        assert b"photo is required" in resp.data
+
+    def test_success_registers_employee(self, client, seed_admin, db_engine, cleanup_emp_files):
+        cleanup_emp_files.append("ADDPAGE1")
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/add_employee_page", data={
+            "name": "Add Page Employee", "emp_id": "ADDPAGE1",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, follow_redirects=True)
+        assert b"registered" in resp.data
+        cur = db_engine.cursor()
+        cur.execute("SELECT name FROM employees WHERE employee_id='ADDPAGE1'")
+        row = cur.fetchone()
+        cur.execute("DELETE FROM employees WHERE employee_id='ADDPAGE1'")
+        cur.close()
+        assert row is not None
+
+
+class TestUpdateEmployeePhoto:
+    def test_unknown_employee(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/update_employee_photo/GHOST_EMP", data={
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg")}, follow_redirects=True)
+        assert b"not found" in resp.data
+
+    def test_no_file_provided(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post(f"/update_employee_photo/{seed_employee['employee_id']}", data={},
+                            follow_redirects=True)
+        assert b"No photo file provided" in resp.data
+
+    def test_success(self, client, seed_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_admin["username"])
+        resp = client.post(f"/update_employee_photo/{seed_employee['employee_id']}", data={
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg")}, follow_redirects=True)
+        assert b"Photo updated" in resp.data
+
+
+class TestRegenerateQr:
+    def test_unknown_employee(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post("/regenerate_qr/GHOST_EMP", follow_redirects=True)
+        assert b"not found" in resp.data
+
+    def test_success(self, client, seed_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_admin["username"])
+        resp = client.post(f"/regenerate_qr/{seed_employee['employee_id']}", follow_redirects=True)
+        assert b"regenerated" in resp.data
+
+
+class TestViewQrcodesRedirect:
+    def test_redirects_to_view_photos(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/view_qrcodes", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/view_photos" in resp.headers["Location"]
+
+
+class TestServeDataset:
+    def test_missing_file_404(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/dataset/does_not_exist_xyz.jpg")
+        assert resp.status_code == 404
+
+
+class TestMyPhoto:
+    def test_not_logged_in_returns_403(self, client):
+        resp = client.get("/my_photo")
+        assert resp.status_code == 403
+
+    def test_no_photo_on_file_returns_404(self, client, seed_employee):
+        with client.session_transaction() as sess:
+            sess["employee_id"] = seed_employee["employee_id"]
+        resp = client.get("/my_photo")
+        assert resp.status_code == 404
+
+
+class TestViewPhotos:
+    def test_renders(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/view_photos")
+        assert resp.status_code == 200
+
+
+class TestUpdatePhoto:
+    def test_invalid_file_returns_400(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        resp = client.post(f"/update_photo/{seed_employee['employee_id']}", data={
+            "photo": (io.BytesIO(b"not-an-image"), "f.txt")})
+        assert resp.status_code == 400
+
+    def test_success(self, client, seed_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_admin["username"])
+        resp = client.post(f"/update_photo/{seed_employee['employee_id']}", data={
+            "photo": (io.BytesIO(_jpeg_bytes()), "f.jpg")})
+        assert resp.status_code == 200
+        assert resp.get_json()["ok"] is True
+
+
+class TestGenerateEmpId:
+    def test_not_logged_in_returns_401(self, client):
+        resp = client.get("/api/generate_emp_id")
+        assert resp.status_code == 401
+
+    def test_without_company_id(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/api/generate_emp_id")
+        assert resp.status_code == 200
+        assert "emp_id" in resp.get_json()
+
+    def test_with_company_id(self, client, seed_admin, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO companies (name, code) VALUES ('GenId Co', 'GID') RETURNING id")
+        cid = cur.fetchone()[0]
+        _admin_session(client, seed_admin["username"])
+        try:
+            resp = client.get(f"/api/generate_emp_id?company_id={cid}")
+            assert resp.status_code == 200
+            assert resp.get_json()["code"] == "GID"
+        finally:
+            cur.execute("DELETE FROM companies WHERE id=%s", (cid,))
+            cur.close()
+
+
+class TestApiEmployeesList:
+    def test_requires_token(self, client):
+        assert client.get("/api/employees").status_code == 401
+
+    def test_returns_paginated_list(self, client, seed_admin, seed_employee):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.get("/api/employees?page=1&per_page=10",
+                           headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert any(e["employee_id"] == seed_employee["employee_id"] for e in data["employees"])
+
+
+class TestApiRegisterEmployee:
+    def test_missing_fields_returns_400(self, client, seed_admin):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={"name": ""},
+                            headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 400
+
+    def test_invalid_emp_id_format(self, client, seed_admin):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={
+            "name": "API Guy", "emp_id": "bad id"},
+            headers={"Authorization": f"Bearer {token}"},
+            content_type="multipart/form-data")
+        assert resp.status_code in (400,)
+
+    def test_success(self, client, seed_admin, db_engine, cleanup_emp_files):
+        cleanup_emp_files.append("APIREG1")
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={
+            "name": "Api Registered", "emp_id": "APIREG1",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert resp.get_json()["ok"] is True
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM employees WHERE employee_id='APIREG1'")
+        cur.close()
+
+    def test_duplicate_id_returns_400(self, client, seed_admin, seed_employee):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={
+            "name": "Dup", "emp_id": seed_employee["employee_id"],
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 400
+
+
+class TestApiEmployeeDetail:
+    def test_not_found(self, client, seed_admin):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.get("/api/employees/GHOST_EMP", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 404
+
+    def test_found(self, client, seed_admin, seed_employee):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.get(f"/api/employees/{seed_employee['employee_id']}",
+                           headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert resp.get_json()["employee"]["employee_id"] == seed_employee["employee_id"]
+
+
+class TestApiEditEmployee:
+    def test_missing_name_returns_400(self, client, seed_admin, seed_employee):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.put(f"/api/employees/{seed_employee['employee_id']}", json={"name": ""},
+                           headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 400
+
+    def test_success_updates_employee(self, client, seed_admin, seed_employee, db_engine):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.put(f"/api/employees/{seed_employee['employee_id']}", json={
+            "name": "Updated Via API", "email": "updated@test.local"},
+            headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        cur = db_engine.cursor()
+        cur.execute("SELECT name FROM employees WHERE employee_id=%s", (seed_employee["employee_id"],))
+        assert cur.fetchone()[0] == "Updated Via API"
+        cur.close()
+
+
+class TestApiDeleteEmployee:
+    def test_not_found(self, client, seed_admin):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.delete("/api/employees/GHOST_EMP", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 404
+
+    def test_success(self, client, seed_admin, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO employees (employee_id, name) VALUES (%s,%s)",
+                     ("APIDEL1", "Api Delete Target"))
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.delete("/api/employees/APIDEL1", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        cur.execute("SELECT 1 FROM employees WHERE employee_id='APIDEL1'")
+        assert cur.fetchone() is None
+        cur.close()
