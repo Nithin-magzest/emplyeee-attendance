@@ -96,7 +96,7 @@ jobs:
         # block a PR on; ignore-unfixed skips CVEs with no available patch
         # yet, since failing the build on something nobody can act on today
         # just trains people to ignore red X's.
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           scan-ref: .
@@ -170,9 +170,15 @@ jobs:
         # "this looks like it could be a key" noise Bandit's own comment
         # above warns about, and only fails the build on a credential
         # TruffleHog actually confirmed is live against its issuing service.
+        # --exclude-paths skips a venv/ folder that was accidentally
+        # committed once (then removed) early in this repo's history —
+        # vendored third-party package source/binaries in there produce
+        # false-positive matches (e.g. cryptography's ssh.py legitimately
+        # contains the literal string "BEGIN OPENSSH PRIVATE KEY" as a
+        # parser constant), not actual project secrets.
         uses: trufflesecurity/trufflehog@main
         with:
-          extra_args: --only-verified --fail
+          extra_args: --only-verified --fail --exclude-paths=.github/trufflehog-exclude.txt
 
   notify-security-failure:
     name: Alert security ops on gate failure
@@ -266,7 +272,7 @@ jobs:
         # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: attendance-app:ci
           severity: HIGH,CRITICAL
