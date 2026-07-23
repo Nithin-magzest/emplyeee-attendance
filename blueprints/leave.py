@@ -14,6 +14,7 @@ from flask import (
     flash, g,
 )
 
+from extensions import app_log
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required, employee_api_required
 from utils.helpers import _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column
@@ -129,7 +130,9 @@ def admin_leave_types():
     leave_types = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("leave_types_admin.html", leave_types=leave_types)
+    return render_template("leave_types_admin.html", leave_types=leave_types,
+        active_nav="leaves",
+    )
 
 
 @leave_bp.route("/import_indian_holidays", methods=["POST"])
@@ -247,7 +250,6 @@ def request_leave():
                     html_body, config
                 )
         except Exception as e:
-            from extensions import app_log
             app_log.error("Leave request notification email failed: %s", e)
 
     return redirect("/employee_portal?leave_sent=1#apply-leave")
@@ -315,7 +317,8 @@ def leave_balance():
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
-                           shift_start="09:00 AM", shift_end="06:00 PM"
+                           shift_start="09:00 AM", shift_end="06:00 PM",
+                           active_nav="leaves",
                            )
 
 
@@ -426,6 +429,7 @@ def leave_holidays():
                            pending_leaves=pending_leaves, pending_tickets=pending_tickets,
                            pending_resignations=pending_resignations,
                            holidays=holidays_data, cal_data=cal_data, year=year, today=today,
+                           active_nav="leaves",
                            )
 
 
@@ -607,6 +611,7 @@ def leave_calendar():
 
     return render_template("leave_calendar.html",
                            cal_weeks=cal_mod.monthcalendar(year, month),
+                           active_nav="leaves",
                            cal_data=dict(cal_data),
                            year=year, month=month,
                            month_name=cal_mod.month_name[month],
@@ -696,7 +701,9 @@ def resignation_requests_view():
     resignations = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("resignation_requests.html", resignations=resignations)
+    return render_template("resignation_requests.html", resignations=resignations,
+        active_nav="leaves",
+    )
 
 
 @leave_bp.route("/resignation_action/<int:rid>", methods=["POST"])
@@ -839,6 +846,7 @@ def api_holidays():
     cursor.close()
     db.close()
     return jsonify({"ok": True, "holidays": [{"date": str(r[0]), "name": r[1]} for r in rows]})
+
 
 
 @leave_bp.route("/api/leave_requests", methods=["GET"])
@@ -1271,6 +1279,7 @@ def overtime():
                            records=records,
                            month=month, year=year,
                            month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           active_nav="overtime",
                            total_ot_hours=total_ot_hours,
                            total_ot_pay=total_ot_pay,
                            pending_count=pending_count,
@@ -1403,7 +1412,8 @@ def compoff_old():
                            company_name=company_name,
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
-                           pending_tickets=pending_tickets
+                           pending_tickets=pending_tickets,
+                           active_nav="overtime",
                            )
 
 

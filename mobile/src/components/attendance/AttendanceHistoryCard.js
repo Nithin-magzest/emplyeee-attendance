@@ -7,150 +7,89 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const STATUS = {
-  Present: {
-    color: "#16A34A",
-    bg: "#ECFDF5",
-    icon: "checkmark-circle",
-  },
-  Late: {
-    color: "#D97706",
-    bg: "#FFFBEB",
-    icon: "time",
-  },
-  Absent: {
-    color: "#DC2626",
-    bg: "#FEF2F2",
-    icon: "close-circle",
-  },
-  Holiday: {
-    color: "#7C3AED",
-    bg: "#F5F3FF",
-    icon: "gift",
-  },
-  "Half Day": {
-    color: "#EA580C",
-    bg: "#FFF7ED",
-    icon: "sunny",
-  },
+const STATUS_COLORS = {
+  Present: "#22C55E",
+  Absent: "#EF4444",
+  Late: "#F59E0B",
+  "Half Day": "#FB923C",
+  Holiday: "#8B5CF6",
 };
 
 export default function AttendanceHistoryCard({
   records = [],
 }) {
   const renderItem = ({ item }) => {
-    const status =
-      STATUS[item.status] || {
-        color: "#64748B",
-        bg: "#F8FAFC",
-        icon: "ellipse",
-      };
-
-    const date = new Date(item.date);
+    const color =
+      STATUS_COLORS[item.status] || "#94A3B8";
 
     return (
       <View style={styles.card}>
-        {/* Date */}
+        {/* Left Date */}
 
-        <View style={styles.dateBox}>
+        <View style={styles.dateContainer}>
           <Text style={styles.day}>
-            {date.getDate()}
+            {new Date(item.date).getDate()}
           </Text>
 
           <Text style={styles.month}>
-            {date.toLocaleString("default", {
-              month: "short",
-            })}
+            {new Date(item.date).toLocaleString(
+              "default",
+              {
+                month: "short",
+              }
+            )}
           </Text>
         </View>
 
-        {/* Content */}
+        {/* Details */}
 
-        <View style={styles.content}>
-          <View style={styles.topRow}>
-            <Text style={styles.dateTitle}>
-              {date.toLocaleDateString(undefined, {
-                weekday: "long",
-              })}
+        <View style={styles.details}>
+          <View style={styles.row}>
+            <Ionicons
+              name="log-in-outline"
+              size={16}
+              color="#173B8C"
+            />
+
+            <Text style={styles.time}>
+              {item.check_in || "--:--"}
+            </Text>
+
+            <Ionicons
+              name="log-out-outline"
+              size={16}
+              color="#173B8C"
+              style={{ marginLeft: 18 }}
+            />
+
+            <Text style={styles.time}>
+              {item.check_out || "--:--"}
+            </Text>
+          </View>
+
+          <View style={styles.bottomRow}>
+            <Text style={styles.hours}>
+              {item.hours || "--"} hrs
             </Text>
 
             <View
               style={[
-                styles.statusBadge,
+                styles.badge,
                 {
-                  backgroundColor: status.bg,
+                  backgroundColor:
+                    color + "20",
                 },
               ]}
             >
-              <Ionicons
-                name={status.icon}
-                size={14}
-                color={status.color}
-              />
-
               <Text
                 style={[
-                  styles.statusText,
+                  styles.badgeText,
                   {
-                    color: status.color,
+                    color,
                   },
                 ]}
               >
                 {item.status}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.timeline}>
-            <View style={styles.timelineItem}>
-              <Ionicons
-                name="log-in-outline"
-                size={18}
-                color="#16A34A"
-              />
-
-              <Text style={styles.label}>
-                In
-              </Text>
-
-              <Text style={styles.value}>
-                {item.check_in || "--:--"}
-              </Text>
-            </View>
-
-            <View style={styles.timelineDivider} />
-
-            <View style={styles.timelineItem}>
-              <Ionicons
-                name="log-out-outline"
-                size={18}
-                color="#DC2626"
-              />
-
-              <Text style={styles.label}>
-                Out
-              </Text>
-
-              <Text style={styles.value}>
-                {item.check_out || "--:--"}
-              </Text>
-            </View>
-
-            <View style={styles.timelineDivider} />
-
-            <View style={styles.timelineItem}>
-              <Ionicons
-                name="time-outline"
-                size={18}
-                color="#173B8C"
-              />
-
-              <Text style={styles.label}>
-                Hours
-              </Text>
-
-              <Text style={styles.value}>
-                {item.hours || "--"}
               </Text>
             </View>
           </View>
@@ -161,23 +100,9 @@ export default function AttendanceHistoryCard({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.heading}>
-            Attendance History
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Daily attendance records
-          </Text>
-        </View>
-
-        <Ionicons
-          name="time-outline"
-          size={22}
-          color="#173B8C"
-        />
-      </View>
+      <Text style={styles.heading}>
+        Attendance History
+      </Text>
 
       <FlatList
         scrollEnabled={false}
@@ -187,7 +112,7 @@ export default function AttendanceHistoryCard({
         }
         renderItem={renderItem}
         ItemSeparatorComponent={() => (
-          <View style={{ height: 16 }} />
+          <View style={{ height: 14 }} />
         )}
       />
     </View>
@@ -200,38 +125,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-
   heading: {
     fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
-  },
-
-  subtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "600",
+    marginBottom: 18,
   },
 
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 22,
+
+    borderRadius: 20,
+
     padding: 18,
+
     flexDirection: "row",
 
-    borderWidth: 1,
-    borderColor: "#E8EDF5",
+    alignItems: "center",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowRadius: 10,
     shadowOffset: {
       width: 0,
       height: 5,
@@ -240,87 +154,70 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  dateBox: {
-    width: 68,
-    height: 68,
+  dateContainer: {
+    width: 65,
+    height: 65,
+
     borderRadius: 18,
+
     backgroundColor: "#EEF4FF",
+
     justifyContent: "center",
     alignItems: "center",
   },
 
   day: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: "#173B8C",
   },
 
   month: {
-    marginTop: 2,
     fontSize: 12,
     fontWeight: "700",
     color: "#64748B",
+    marginTop: 2,
   },
 
-  content: {
+  details: {
     flex: 1,
     marginLeft: 18,
   },
 
-  topRow: {
+  row: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
   },
 
-  dateTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+  time: {
+    marginLeft: 6,
     color: "#0F172A",
-  },
-
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 18,
-  },
-
-  statusText: {
-    marginLeft: 5,
-    fontSize: 12,
     fontWeight: "700",
+    fontSize: 14,
   },
 
-  timeline: {
-    marginTop: 18,
+  bottomRow: {
+    marginTop: 14,
+
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-  },
-
-  timelineItem: {
-    flex: 1,
     alignItems: "center",
   },
 
-  timelineDivider: {
-    width: 1,
-    height: 42,
-    backgroundColor: "#E5E7EB",
-  },
-
-  label: {
-    marginTop: 6,
-    fontSize: 12,
+  hours: {
     color: "#64748B",
+    fontWeight: "600",
+    fontSize: 14,
   },
 
-  value: {
-    marginTop: 3,
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#0F172A",
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

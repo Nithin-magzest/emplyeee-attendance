@@ -286,9 +286,11 @@ body.dark-mode .hol-legend { color: var(--text) !important; }
 .dm-toggle:hover { background: rgba(255,255,255,0.13); color: #fff; }
 .dm-toggle .dm-icon { font-size: 15px; }
 
-/* Override per-template margin-top:auto so footer sits just below toggle */
-.sidebar-footer { margin-top: 8px; }
-.sb-footer       { margin-top: 8px; }
+/* Only apply 8px gap when the dark-mode toggle is directly above the footer.
+   Pages without .dm-toggle fall back to their inline margin-top:auto which
+   pins the footer to the bottom of the sidebar regardless of nav content. */
+.dm-toggle + .sidebar-footer { margin-top: 8px; }
+.dm-toggle + .sb-footer       { margin-top: 8px; }
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 900px) {
@@ -1028,6 +1030,7 @@ body.dark-mode *[style*="border: 1px solid #c7d2fe"] { border-color: #30363d !im
 .u-bd-1d5-solid-bfdbfe { border: 1.5px solid #bfdbfe; }
 .u-bd-1d5-solid-c7d2fe { border: 1.5px solid #c7d2fe; }
 .u-bd-1d5-solid-cbd5e1 { border: 1.5px solid #cbd5e1; }
+.u-bd-1d5-solid-d8b4fe { border: 1.5px solid #d8b4fe; }
 .u-bd-1d5-solid-dbeafe { border: 1.5px solid #dbeafe; }
 .u-bd-1d5-solid-ddd6fe { border: 1.5px solid #ddd6fe; }
 .u-bd-1d5-solid-e0e7ff { border: 1.5px solid #e0e7ff; }
@@ -1036,6 +1039,8 @@ body.dark-mode *[style*="border: 1px solid #c7d2fe"] { border-color: #30363d !im
 .u-bd-1d5-solid-fb923c { border: 1.5px solid #fb923c; }
 .u-bd-1d5-solid-fca5a5 { border: 1.5px solid #fca5a5; }
 .u-bd-1d5-solid-fcd34d { border: 1.5px solid #fcd34d; }
+.u-bd-1d5-solid-fda4af { border: 1.5px solid #fda4af; }
+.u-bd-1d5-solid-fde047 { border: 1.5px solid #fde047; }
 .u-bd-1d5-solid-fde68a { border: 1.5px solid #fde68a; }
 .u-bd-1d5-solid-fed7aa { border: 1.5px solid #fed7aa; }
 .u-bd-2-dashed-93c5fd { border: 2px dashed #93c5fd; }

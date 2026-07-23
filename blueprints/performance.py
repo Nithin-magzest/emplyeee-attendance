@@ -136,6 +136,7 @@ def performance():
                            total_hike_cost=total_hike_cost,
                            total_bonus_pool=total_bonus_pool,
                            hike_eligible_count=hike_eligible_count,
+                           active_nav="performance",
                            )
 
 
@@ -199,7 +200,8 @@ def performance_review(emp_id):
                            quarter=q, year=yr, rating_labels=RATING_LABELS,
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
-                           pending_tickets=pending_tickets, co=co
+                           pending_tickets=pending_tickets, co=co,
+                           active_nav="performance",
                            )
 
 

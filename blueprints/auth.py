@@ -58,7 +58,6 @@ _INJECTION_PATTERN_RE = re.compile(
     r"('|--|;|\bunion\b|\bor\b\s+['\"0-9]|<script\b)", re.IGNORECASE
 )
 
-
 @auth_bp.route("/setup", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def setup_wizard():

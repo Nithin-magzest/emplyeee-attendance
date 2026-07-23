@@ -1,10 +1,8 @@
-﻿<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Profile – {{ emp[1] }}</title>
-  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+{% extends "admin_base.html" %}
+
+{% block title %}Employee Detail{% endblock %}
+
+{% block page_css %}
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#eff6ff;min-height:100vh;display:flex}
@@ -195,78 +193,9 @@
     body.dark-mode .center-col img.qr{border-color:#30363d!important;background:#fff}
     body.dark-mode .center-col img.photo{border-color:#30363d!important}
   </style>
-<link rel="stylesheet" href="/static/shared.min.css" />
-  </head>
-<body>
+{% endblock %}
 
-<!-- SIDEBAR -->
-<div class="sidebar">
-  <div class="brand-wrap">
-    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
-    <div>
-      <div class="brand">Admin Panel</div>
-      <div class="brand-sub">{{ co.company_name }}</div>
-    </div>
-  </div>
-  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
-  <a class="nav-item active" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
-
-  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
-  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
-  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
-  <hr class="nav-sep u-mt-12" />
-  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
-  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
-  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
-  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
-  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
-  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
-  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
-  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
-  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> {{ shift_start }} – {{ shift_end }}</div>
-  </div>
-
-<!-- MAIN -->
-{% set emp_id        = emp[0]  %}
-{% set name          = emp[1]  %}
-{% set role          = emp[2]  %}
-{% set email         = emp[3]  %}
-{% set doj           = emp[4]  %}
-{% set work_mode     = emp[5]  %}
-{% set work_lat      = emp[6]  %}
-{% set work_lon      = emp[7]  %}
-{% set face_image    = emp[8]  %}
-{% set qr_code       = emp[9]  %}
-{% set department    = emp[10] %}
-{% set phone         = emp[11] %}
-{% set gender        = emp[12] %}
-{% set dob           = emp[13] %}
-{% set blood_group   = emp[14] %}
-{% set shift_id      = emp[15] %}
-{% set manager_name  = emp[16] %}
-{% set address       = emp[17] %}
-{% set city          = emp[18] %}
-{% set state         = emp[19] %}
-{% set pincode       = emp[20] %}
-{% set ec_name       = emp[21] %}
-{% set ec_phone      = emp[22] %}
-{% set ec_rel        = emp[23] %}
-{% set aadhar        = emp[24] %}
-{% set pan           = emp[25] %}
-{% set bank_name     = emp[26] %}
-{% set bank_account  = emp[27] %}
-{% set bank_ifsc     = emp[28] %}
-{% set uan           = emp[29] %}
-{% set shift_name    = emp[30] %}
-{% set total_days    = emp[31] %}
-{% set last_seen     = emp[32] %}
-{% set full_days     = emp[33] %}
-{% set half_days     = emp[34] %}
-{% set late_days     = emp[35] %}
-{% set salary_pd     = emp[36] %}
-{% set about_me      = emp[37] %}
-
-<div class="main">
+{% block main %}
   <a class="back-btn" href="/employees"><i class="ti ti-arrow-left"></i> Back to Employees</a>
 
   <!-- HEADER -->
@@ -694,7 +623,10 @@
     </div>
 
   </div><!-- /grid2 -->
-</div><!-- /main -->
+
+{% endblock %}
+
+{% block scripts %}
 
 <!-- LIGHTBOX -->
 {% if face_image %}
@@ -722,8 +654,6 @@
   if(lb){lb.addEventListener('click',function(e){if(e.target===lb)closeLb()})}
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb()})
 </script>
-<script src="/static/darkmode.min.js"></script>
 
 
-</body>
-</html>
+{% endblock %}

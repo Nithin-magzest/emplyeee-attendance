@@ -71,8 +71,8 @@ import app as _app_module  # noqa: F401 — triggers route registration + init_d
 # before the imports would permanently lock out the real .env values, since
 # load_dotenv() never overrides an already-set env var.
 os.environ.setdefault("DB_PORT", "5432")
-os.environ.setdefault("DB_USER", "postgres")
-os.environ.setdefault("DB_PASS", "")
+os.environ.setdefault("DB_USER", os.getenv("DB_USER", "postgres"))
+os.environ.setdefault("DB_PASS", os.getenv("DB_PASS", ""))
 
 # Disable Flask-Limiter for all tests — its .enabled attribute is set at init
 # time (not dynamically from config), so we patch the instance directly.
@@ -108,6 +108,10 @@ def _init_test_db(db_engine):
     with flask_app.app_context():
         from app import init_db
         init_db()
+    # Clear transient state tables so stale data from prior runs doesn't bleed in
+    cur = db_engine.cursor()
+    cur.execute("DELETE FROM login_attempts WHERE 1=1")
+    cur.close()
 
 
 @pytest.fixture(scope="session", autouse=True)

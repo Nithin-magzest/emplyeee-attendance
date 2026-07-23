@@ -309,7 +309,7 @@ def employee_required(f):
             return _killed
         # Prevent bypassing forced password change by navigating directly to portal
         from flask import request as _req
-        if session.get("_fpc") and _req.endpoint != "auth.force_change_pin":
+        if session.get("_fpc") and _req.endpoint not in ("auth.force_change_pin", "force_change_pin"):
             return redirect("/force_change_pin")
         return f(*args, **kwargs)
     return wrapper
@@ -355,6 +355,25 @@ def role_required(*allowed_roles):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def manager_or_admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            is_ajax = (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.headers.get("Accept", "").startswith("application/json")
+                or request.is_json
+            )
+            if is_ajax:
+                return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
+                                "redirect": url_for("auth.admin_login")}), 401
+            return redirect(url_for("auth.admin_login"))
+        if session.get("admin_role", "admin") not in ("admin", "manager"):
+            return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+        return f(*args, **kwargs)
+    return wrapper
 
 
 # ── API Bearer token guards ───────────────────────────────────────────────────

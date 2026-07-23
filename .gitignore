@@ -30,3 +30,5 @@ FIX_MYSQL.bat
 READ_MYSQL_LOG.bat
 RESET_MYSQL_PASSWORD.bat
 reset_mysql_password.ps1
+hashi/
+blueprints/static/

@@ -355,7 +355,7 @@ def edit_employee_page(emp_id):
     db.close()
     if not emp:
         return "Employee not found", 404
-    return render_template("edit_employee.html", emp=emp)
+    return render_template("edit_employee.html", emp=emp, active_nav="employees")
 
 
 @employees_bp.route("/employee_profile/<emp_id>")
@@ -472,6 +472,7 @@ def employee_profile(emp_id):
                            open_tickets=open_tickets,
                            shift_name=shift_name,
                            today=today,
+                           active_nav="employees",
                            )
 
 
@@ -711,6 +712,7 @@ def view_employees():
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
+                           active_nav="employees",
                            )
 
 
@@ -864,6 +866,16 @@ def employee_detail(emp_id):
     db.close()
     return render_template("employee_detail.html",
                            emp=row,
+                           emp_id=row[0], name=row[1], role=row[2], email=row[3],
+                           doj=row[4], work_mode=row[5], work_lat=row[6], work_lon=row[7],
+                           face_image=row[8], qr_code=row[9], department=row[10], phone=row[11],
+                           gender=row[12], dob=row[13], blood_group=row[14], shift_id=row[15],
+                           manager_name=row[16], address=row[17], city=row[18], state=row[19],
+                           pincode=row[20], ec_name=row[21], ec_phone=row[22], ec_rel=row[23],
+                           aadhar=row[24], pan=row[25], bank_name=row[26], bank_account=row[27],
+                           bank_ifsc=row[28], uan=row[29], shift_name=row[30], total_days=row[31],
+                           last_seen=row[32], full_days=row[33], half_days=row[34], late_days=row[35],
+                           salary_pd=row[36], about_me=row[37],
                            emp_status=emp_status,
                            recent_attendance=recent_attendance,
                            experience=experience,
@@ -873,6 +885,7 @@ def employee_detail(emp_id):
                            pending_tickets=pending_tickets,
                            emp_docs=emp_docs,
                            salary_hidden=salary_hidden,
+                           active_nav="employees",
                            )
 
 
@@ -1195,7 +1208,7 @@ def view_photos():
     employees = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("employee_photos.html", employees=employees)
+    return render_template("employee_photos.html", employees=employees, active_nav="employees")
 
 
 @employees_bp.route("/update_photo/<emp_id>", methods=["POST"])

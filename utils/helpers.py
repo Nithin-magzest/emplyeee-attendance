@@ -28,8 +28,17 @@ _APP_URL = os.environ.get("APP_URL", "").rstrip("/")
 
 
 def _safe_app_url() -> str:
-    """Return a trusted base URL, never derived from the Host header."""
-    return _APP_URL if _APP_URL else request.host_url.rstrip("/")
+    """Return a trusted base URL. In production APP_URL must be set — falling
+    back to request.host_url is unsafe because the Host header is attacker-controlled."""
+    if _APP_URL:
+        return _APP_URL
+    if os.environ.get("APP_ENV", "production") != "development":
+        app_log.warning(
+            "APP_URL is not set in hashi/.env — password-reset links will use the "
+            "request Host header, which is unsafe in production. "
+            "Set APP_URL=https://yourdomain.com in hashi/.env to fix this."
+        )
+    return request.host_url.rstrip("/")
 
 
 def _safe_redirect(dest: str, fallback: str = "/admin") -> str:

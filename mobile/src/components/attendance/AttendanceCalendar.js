@@ -4,23 +4,7 @@ import {
   Text,
   StyleSheet,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
 
 export default function AttendanceCalendar({
   records = [],
@@ -33,7 +17,7 @@ export default function AttendanceCalendar({
     records.forEach((item) => {
       if (!item.date) return;
 
-      let color = "#CBD5E1";
+      let color = "#22C55E";
 
       switch ((item.status || "").toLowerCase()) {
         case "present":
@@ -56,6 +40,9 @@ export default function AttendanceCalendar({
         case "absent":
           color = "#EF4444";
           break;
+
+        default:
+          color = "#CBD5E1";
       }
 
       marks[item.date] = {
@@ -70,30 +57,14 @@ export default function AttendanceCalendar({
 
   return (
     <View style={styles.card}>
-      {/* Header */}
-
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>
-            Attendance Calendar
-          </Text>
+        <Text style={styles.title}>
+          Attendance Calendar
+        </Text>
 
-          <Text style={styles.subtitle}>
-            Monthly attendance overview
-          </Text>
-        </View>
-
-        <View style={styles.badge}>
-          <Ionicons
-            name="calendar-outline"
-            size={16}
-            color="#173B8C"
-          />
-
-          <Text style={styles.badgeText}>
-            {MONTHS[month - 1]}
-          </Text>
-        </View>
+        <Text style={styles.subtitle}>
+          Monthly Attendance Overview
+        </Text>
       </View>
 
       <Calendar
@@ -105,30 +76,27 @@ export default function AttendanceCalendar({
         theme={{
           calendarBackground: "#FFFFFF",
 
-          monthTextColor: "#0F172A",
-          textMonthFontSize: 20,
+          monthTextColor: "#173B8C",
           textMonthFontWeight: "800",
+          textMonthFontSize: 18,
 
           textDayFontSize: 15,
           textDayFontWeight: "700",
 
-          textDayHeaderFontSize: 13,
           textDayHeaderFontWeight: "700",
+          textDayHeaderFontSize: 13,
 
           textSectionTitleColor: "#94A3B8",
 
           dayTextColor: "#0F172A",
 
           todayTextColor: "#173B8C",
-          todayBackgroundColor: "#EEF4FF",
 
           selectedDayTextColor: "#FFFFFF",
 
           arrowColor: "#173B8C",
 
-          textDisabledColor: "#CBD5E1",
-
-          indicatorColor: "#173B8C",
+          textDisabledColor: "#D1D5DB",
         }}
         style={styles.calendar}
       />
@@ -140,78 +108,43 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
 
-    borderRadius: 24,
+    borderRadius: 26,
 
     marginTop: 22,
 
-    borderWidth: 1,
-    borderColor: "#E8EDF5",
+    overflow: "hidden",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#000",
     shadowOpacity: 0.06,
-    shadowRadius: 18,
+    shadowRadius: 14,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 6,
     },
 
     elevation: 5,
-
-    overflow: "hidden",
   },
 
   header: {
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    justifyContent: "space-between",
-
     paddingHorizontal: 22,
     paddingTop: 22,
-    paddingBottom: 18,
+    paddingBottom: 12,
   },
 
   title: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
   },
 
   subtitle: {
     marginTop: 4,
-    fontSize: 13,
     color: "#64748B",
+    fontSize: 13,
     fontWeight: "600",
   },
 
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-
-    backgroundColor: "#EEF4FF",
-
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-
-    borderRadius: 24,
-  },
-
-  badgeText: {
-    marginLeft: 6,
-
-    color: "#173B8C",
-
-    fontWeight: "700",
-
-    fontSize: 13,
-  },
-
   calendar: {
-    borderTopWidth: 1,
-    borderTopColor: "#EEF2F7",
-
     paddingBottom: 18,
-    paddingHorizontal: 6,
   },
 });

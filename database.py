@@ -7,7 +7,8 @@ import psycopg2.pool
 from contextlib import contextmanager
 from dotenv import load_dotenv
 
-load_dotenv()
+_HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
+load_dotenv(_HASHI_ENV)
 
 _log = logging.getLogger("attendance")
 # Logger is configured in app.py; database.py uses the same named logger so

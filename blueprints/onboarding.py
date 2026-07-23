@@ -86,7 +86,8 @@ def onboarding():
                            total_completed=total_completed,
                            total_overdue=total_overdue,
                            default_onboarding_tpl=default_onboarding_tpl,
-                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0,
+                           active_nav="onboarding",
                            )
 
 
@@ -312,7 +313,8 @@ def onboarding_template_detail(tid):
     db.close()
     return render_template("onboarding_template_detail.html",
                            template=template, tasks=tasks, co=co,
-                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0,
+                           active_nav="onboarding",
                            )
 
 
@@ -410,7 +412,8 @@ def onboarding_detail(ob_id):
     return render_template("onboarding_detail.html",
                            ob=ob, tasks=tasks, co=co,
                            today=datetime.date.today(),
-                           pending_leaves=0, pending_resignations=0, pending_tickets=0
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0,
+                           active_nav="onboarding",
                            )
 
 
@@ -477,7 +480,9 @@ def offer_letter(ob_id):
     db.close()
     return render_template("offer_letter.html", ob=ob, monthly_ctc=monthly_ctc,
                            existing=existing, co=co,
-                           pending_leaves=0, pending_resignations=0, pending_tickets=0)
+                           pending_leaves=0, pending_resignations=0, pending_tickets=0,
+                           active_nav="onboarding",
+                           )
 
 
 @onboarding_bp.route("/offer_letter_save", methods=["POST"])

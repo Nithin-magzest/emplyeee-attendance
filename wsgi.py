@@ -38,6 +38,7 @@ try:
 except Exception:
     pass
 
+import os as _os
 from dotenv import load_dotenv
 from utils.secrets_loader import load_aws_secrets
 # In production, AWS_SECRET_ID must be set as a plain instance env var
@@ -81,7 +82,7 @@ threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-work
 # shared setup (init_db, error handlers, before/after_request hooks,
 # template filters).
 
-# ✅ Migrated blueprints
+# ✅ All routes migrated to blueprints — app.py now contains only helpers/init
 from blueprints.health import health_bp
 from blueprints.notifications import notifications_bp
 from blueprints.payroll import payroll_bp

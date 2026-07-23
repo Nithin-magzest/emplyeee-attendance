@@ -418,7 +418,9 @@ def admin_shift_swaps():
     cursor.close()
     db.close()
     return render_template("admin_shift_swaps.html", swap_rows=swap_rows,
-                           ok=request.args.get("ok"), error=request.args.get("error"))
+                           ok=request.args.get("ok"),
+                           active_nav="employees",
+                           error=request.args.get("error"))
 
 
 @attendance_bp.route("/api/breaks")
@@ -627,6 +629,7 @@ def monthly_report():
     return render_template("monthly_report.html",
                            report=report,
                            month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           active_nav="attendance",
                            year=year, month=month,
                            months=months, years=years,
                            holiday_count=len(holidays),
@@ -713,6 +716,7 @@ def employee_attendance_detail(emp_id, year, month):
                            emp=emp,
                            days=days,
                            month_name=datetime.date(year, month, 1).strftime("%B %Y"),
+                           active_nav="attendance",
                            year=year, month=month,
                            months=months, years=years,
                            full_days=full_days,
@@ -893,6 +897,7 @@ def bulk_mark_attendance():
                            today=today, pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
+                           active_nav="attendance",
                            )
 
 

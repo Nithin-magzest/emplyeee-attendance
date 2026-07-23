@@ -60,7 +60,7 @@ def view_salary():
     data = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template("salary.html", salaries=data)
+    return render_template("salary.html", salaries=data, active_nav="salary")
 
 
 @payroll_bp.route("/update_salary", methods=["POST"])
@@ -197,6 +197,7 @@ def salary_report():
                            email_configured=email_cfg is not None,
                            is_locked=is_locked,
                            lock_info=lock_info,
+                           active_nav="salary",
                            )
 
 

@@ -15,6 +15,7 @@ All actual values are always passed as %s-bound params, never interpolated.
 import os
 import re
 import json
+import secrets
 import datetime
 import calendar
 from flask import (
@@ -188,6 +189,7 @@ def admin():
                            absent=total - present,
                            late=late,
                            today=today.strftime("%d %b %Y"),
+                           active_nav="dashboard",
                            today_rows=today_rows,
                            all_employees=all_employees,
                            shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
@@ -668,6 +670,7 @@ def settings_page():
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
                            saved=request.args.get("saved") == "1",
+                           active_nav="settings",
                            default_start=_co_shift_start,
                            default_half=_co_shift_half,
                            default_end=_co_shift_end,
@@ -1728,7 +1731,7 @@ def switch_company():
         flash("Company not found.", "error")
         return redirect(dest)
     cname, stored_pin = row
-    if stored_pin and stored_pin != pin:
+    if stored_pin and not secrets.compare_digest(stored_pin, pin):
         flash(f"Incorrect PIN for {cname}.", "error")
         return redirect(dest + ("&" if "?" in dest else "?") + "pin_error=1&pin_cid=" + str(cid))
     session["active_company_id"] = cid
@@ -2713,6 +2716,7 @@ def analytics():
                            late_trend=late_trend,
                            retention=retention,
                            smart_alerts=smart_alerts,
+                           active_nav="analytics",
                            )
 
 
@@ -2833,6 +2837,7 @@ def admin_tools():
                            actor_f=actor_f, action_f=action_f, date_f=date_f, actors=actors,
                            pending_leaves=pending_leaves, pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
+                           active_nav="admin_tools",
                            )
 
 
