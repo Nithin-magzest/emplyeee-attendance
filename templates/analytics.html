@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>HR Analytics — {{ co.company_name }}</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  <script src="/static/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    html,body{height:100%}
+    body{background:#eff6ff;display:flex;min-height:100vh}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,.2)}
+    .nav-item:hover .nav-icon{background:rgba(255,255,255,.12)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .sidebar-footer{margin-top:auto;font-size:11px;color:rgba(255,255,255,.4);padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:7px}
+    .dm-toggle{margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;width:100%;transition:.18s}
+    .dm-toggle:hover{background:rgba(255,255,255,.14)}
+    .main{flex:1;padding:28px 30px;overflow-y:auto;min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-header h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-header p{font-size:13px;color:#64748b;margin-top:4px}
+    .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+    .stat-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+    .stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:4px}
+    .stat-label{font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .stat-val{font-size:28px;font-weight:800;color:#1e293b;line-height:1}
+    .stat-sub{font-size:11px;color:#94a3b8}
+    .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+    .chart-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:20px}
+    .chart-card.full{grid-column:1/-1}
+    .chart-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px}
+    .chart-wrap{position:relative;height:200px}
+    .chart-wrap.tall{height:260px}
+    table{width:100%;border-collapse:collapse}
+    th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;padding:8px 12px;text-align:left;border-bottom:2px solid #e2e8f0}
+    td{padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#374151;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    .pct-bar{background:#e2e8f0;border-radius:20px;height:6px;overflow:hidden;min-width:80px}
+    .pct-fill{height:100%;border-radius:20px;background:#3b82f6}
+    .bottom-grid{display:grid;grid-template-columns:1fr 280px;gap:16px}
+    .empty{text-align:center;color:#94a3b8;padding:30px;font-size:13px}
+    body.dark-mode{background:#0d1117 !important}
+    body.dark-mode .main{background:#0d1117 !important;color:#cdd9e5 !important}
+    body.dark-mode .page-header h1{color:#cdd9e5 !important}
+    body.dark-mode .page-header p{color:#768390 !important}
+    body.dark-mode .stat-card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .chart-card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .chart-wrap{background:#161b22 !important}
+    body.dark-mode .stat-label{color:#768390 !important}
+    body.dark-mode .stat-val{color:#cdd9e5 !important}
+    body.dark-mode .chart-title{color:#cdd9e5 !important}
+    body.dark-mode .stat-icon[style*="background:#fdf4ff"]{background:#2d1c48 !important}
+    body.dark-mode .pct-bar{background:#30363d !important}
+    body.dark-mode td{color:#cdd9e5 !important;border-color:#30363d !important}
+    body.dark-mode th{background:#1c2128 !important;color:#768390 !important;border-color:#30363d !important}
+    body.dark-mode tr:hover td{background:#1c2128 !important}
+  </style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep u-mt-12"/>
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item active" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+</nav>
+
+<div class="main">
+  <div class="page-header">
+    <h1><i class="ti ti-chart-bar u-c-3b82f6"></i> HR Analytics</h1>
+    <p>Workforce insights and attendance overview</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-icon u-bg-eff6ff u-c-3b82f6"><i class="ti ti-users"></i></div>
+      <div class="stat-label">Total Employees</div>
+      <div class="stat-val">{{ total_employees }}</div>
+      <div class="stat-sub">+{{ new_this_month }} this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-f0fdf4 u-c-22c55e"><i class="ti ti-user-check"></i></div>
+      <div class="stat-label">Present Today</div>
+      <div class="stat-val">{{ today_present }}</div>
+      <div class="stat-sub">{{ today_absent }} absent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-fefce8 u-c-f59e0b"><i class="ti ti-user-plus"></i></div>
+      <div class="stat-label">New This Month</div>
+      <div class="stat-val">{{ new_this_month }}</div>
+      <div class="stat-sub">joined this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-fdf4ff u-c-a855f7"><i class="ti ti-chart-line"></i></div>
+      <div class="stat-label">Avg Attendance</div>
+      <div class="stat-val">{{ avg_attendance_pct }}%</div>
+      <div class="stat-sub">this month</div>
+    </div>
+  </div>
+
+  <!-- Smart Alerts Panel -->
+  <div class="u-mb-20">
+    <div class="chart-card full u-p-20-24">
+      <div class="u-d-flex u-ai-center u-jc-space-between u-mb-16">
+        <div class="u-d-flex u-ai-center u-gap-10">
+          <div class="u-w-36 u-h-36 u-br-10 u-bg-linear-gradienfd6b85 u-d-flex u-ai-center u-jc-center">
+            <i class="ti ti-bell-ringing u-c-fff u-fs-17"></i>
+          </div>
+          <div>
+            <div class="u-fs-15 u-fw-800 u-c-1e293b">Smart Alerts</div>
+            <div class="u-fs-11 u-c-94a3b8">Auto-detected anomalies &amp; action items</div>
+          </div>
+        </div>
+        <span class="u-fs-11 u-fw-700 u-bg-eff6ff u-c-3b82f6 u-bd-1-solid-bfdbfe u-p-4-12 u-br-20">{{ smart_alerts|length }} alert{{ 's' if smart_alerts|length != 1 else '' }}</span>
+      </div>
+      <div class="u-d-grid u-gtc-repeatauto-fil3032fd u-gap-10">
+        {% for alert in smart_alerts %}
+        {% if alert.level == 'danger' %}
+          {% set bg='#fff1f2' %}{% set border='#fecdd3' %}{% set ic='#ef4444' %}{% set badge_bg='#fee2e2' %}{% set badge_c='#b91c1c' %}{% set badge='Critical' %}
+        {% elif alert.level == 'warning' %}
+          {% set bg='#fffbeb' %}{% set border='#fde68a' %}{% set ic='#f59e0b' %}{% set badge_bg='#fef3c7' %}{% set badge_c='#92400e' %}{% set badge='Warning' %}
+        {% elif alert.level == 'success' %}
+          {% set bg='#f0fdf4' %}{% set border='#bbf7d0' %}{% set ic='#16a34a' %}{% set badge_bg='#dcfce7' %}{% set badge_c='#15803d' %}{% set badge='Healthy' %}
+        {% else %}
+          {% set bg='#eff6ff' %}{% set border='#bfdbfe' %}{% set ic='#3b82f6' %}{% set badge_bg='#dbeafe' %}{% set badge_c='#1d4ed8' %}{% set badge='Info' %}
+        {% endif %}
+        {% if alert.link %}
+        <a class="u-tdec-none" href="{{ alert.link }}">
+        {% endif %}
+        <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
+          {% if alert.link %}cursor:pointer;transition:all .18s;{% endif %}"
+          {% if alert.link %}
+          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,.1)';this.style.borderColor='{{ ic }}';"
+          onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='{{ border }}';"
+          {% endif %}>
+          <div style="width:34px;height:34px;border-radius:9px;background:{{ badge_bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti {{ alert.icon }}" style="color:{{ ic }};font-size:16px;"></i>
+          </div>
+          <div class="u-fx-1 u-minw-0">
+            <div class="u-fs-13 u-fw-700 u-c-1e293b u-lh-1d4">{{ alert.title }}</div>
+            <div class="u-fs-11 u-c-64748b u-mt-3">{{ alert.detail }}</div>
+          </div>
+          <div class="u-d-flex u-ai-center u-gap-6 u-fxs-0">
+            <span style="font-size:10px;font-weight:700;background:{{ badge_bg }};color:{{ badge_c }};padding:2px 9px;border-radius:20px;white-space:nowrap;">{{ badge }}</span>
+            {% if alert.link %}<i class="ti ti-arrow-right" style="color:{{ ic }};font-size:14px;"></i>{% endif %}
+          </div>
+        </div>
+        {% if alert.link %}
+        </a>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card full">
+      <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
+        <div class="chart-title u-mb-0"><i class="ti ti-chart-bar u-c-3b82f6"></i> Last 6 Months Attendance Rate</div>
+        <div class="u-d-flex u-ai-center u-gap-12 u-fs-11 u-fw-600">
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-16a34a u-d-inline-block"></span> ≥80% Good</span>
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-f59e0b u-d-inline-block"></span> 60–80% Average</span>
+          <span class="u-d-flex u-ai-center u-gap-4"><span class="u-w-10 u-h-10 u-br-3 u-bg-ef4444 u-d-inline-block"></span> &lt;60% Poor</span>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-ticket u-c-f59e0b"></i> Leave Type Breakdown (This Year)</div>
+      <div class="chart-wrap"><canvas id="leaveChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-gender-bigender u-c-22c55e"></i> Gender Distribution</div>
+      <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="chart-card full">
+      <div class="chart-title"><i class="ti ti-trophy u-c-f59e0b"></i> Top 5 Employees by Attendance (This Month)</div>
+      {% if top_present %}
+      <table>
+        <thead><tr><th>#</th><th>Employee</th><th>ID</th><th>Attendance %</th></tr></thead>
+        <tbody>
+          {% for e in top_present %}
+          <tr>
+            <td class="u-c-94a3b8 u-fw-700">{{ loop.index }}</td>
+            <td>{{ e.name }}</td>
+            <td class="u-c-64748b">{{ e.employee_id }}</td>
+            <td>
+              <div class="u-d-flex u-ai-center u-gap-8">
+                <div class="pct-bar"><div class="pct-fill" style="width:{{ [e.pct,100]|min }}%;"></div></div>
+                <span class="u-fw-700 u-c-1e293b">{{ e.pct }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No attendance data this month.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ROW 3: Heatmap + Late Trend -->
+  <div class="charts-grid u-mt-16">
+    <!-- Attendance Heatmap -->
+    <div class="chart-card full u-p-24-28 u-bg-fff u-bd-1-solid-e2e8f0 u-shad-0-2-16-rgba99_fe98b1">
+
+      <!-- Header -->
+      <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-12 u-mb-20">
+        <div class="u-d-flex u-ai-center u-gap-12">
+          <div class="u-w-42 u-h-42 u-br-12 u-bg-linear-gradienfd6b85 u-d-flex u-ai-center u-jc-center u-shad-0-4-12-rgba99_91c004">
+            <i class="ti ti-calendar-stats u-c-fff u-fs-20"></i>
+          </div>
+          <div>
+            <div class="u-fs-15 u-fw-800 u-c-1e293b">Attendance Heatmap</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-1">Last 35 days · {{ total_employees }} employees</div>
+          </div>
+        </div>
+        <!-- Legend -->
+        <div class="u-d-flex u-ai-center u-gap-8 u-fs-11 u-c-64748b u-fw-500">
+          <span>Less</span>
+          <div class="u-d-flex u-gap-3 u-ai-center">
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-fca5a5 u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-fde68a u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-86efac u-d-inline-block"></span>
+            <span class="u-w-16 u-h-16 u-br-4 u-bg-16a34a u-d-inline-block"></span>
+          </div>
+          <span>More</span>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div class="u-d-flex u-gap-0 u-ovx-auto">
+        <!-- Day labels -->
+        <div class="u-d-grid u-gridte-repeat7_58 u-gap-5 u-mr-10 u-fxs-0 u-pt-28">
+          {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          <div class="u-fs-10 u-c-94a3b8 u-fw-700 u-d-flex u-ai-center u-h-58 u-ls-d3">{{ day }}</div>
+          {% endfor %}
+        </div>
+
+        <!-- Weeks wrapper with labels -->
+        <div class="u-d-flex u-fxd-column u-gap-0 u-fx-1">
+          <!-- Week labels -->
+          <div class="u-d-grid u-gtc-repeat5_1fr u-gap-5 u-mb-5">
+            {% for w in range(1,6) %}
+            {% set wi = (w-1)*7 %}
+            <div class="u-fs-10 u-c-94a3b8 u-fw-700 u-ta-center u-ls-d3">
+              {% if wi < heatmap_data|length %}Wk {{ w }}{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Cells: 5 columns × 7 rows -->
+          <div class="u-d-grid u-gridte-repeat7_58 u-gtc-repeat5_1fr u-gridau-column u-gap-5">
+            {% for d in heatmap_data %}
+            {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
+            {% set absent = total_employees - d.count %}
+            {% if pct == 0 %}{% set bg='#f1f5f9' %}{% set tc='#94a3b8' %}{% set sh='rgba(0,0,0,0)' %}{% set ac='#94a3b8' %}
+            {% elif pct < 25 %}{% set bg='#fee2e2' %}{% set tc='#b91c1c' %}{% set sh='rgba(239,68,68,.2)' %}{% set ac='#f87171' %}
+            {% elif pct < 50 %}{% set bg='#fca5a5' %}{% set tc='#7f1d1d' %}{% set sh='rgba(239,68,68,.25)' %}{% set ac='#ef4444' %}
+            {% elif pct < 75 %}{% set bg='#fde68a' %}{% set tc='#78350f' %}{% set sh='rgba(245,158,11,.3)' %}{% set ac='#d97706' %}
+            {% elif pct < 90 %}{% set bg='#86efac' %}{% set tc='#14532d' %}{% set sh='rgba(34,197,94,.3)' %}{% set ac='#15803d' %}
+            {% else %}{% set bg='#16a34a' %}{% set tc='#fff' %}{% set sh='rgba(22,163,74,.4)' %}{% set ac='rgba(255,255,255,.7)' %}{% endif %}
+            <div
+              onmouseenter="showHeatmapTooltip(this,'{{ d.date }}',{{ d.count }},{{ absent }},{{ pct|round(1) }})"
+              onmouseleave="document.getElementById('hmTooltip').style.display='none'"
+              style="border-radius:10px;background:{{ bg }};
+                     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+                     cursor:pointer;transition:all .18s;box-shadow:0 2px 6px {{ sh }};position:relative;padding:4px 2px;"
+              onmouseover="this.style.transform='scale(1.08)';this.style.zIndex=10;"
+              onmouseout="this.style.transform='';this.style.zIndex='';">
+              <div style="font-size:9px;color:{{ tc }};font-weight:600;opacity:.6;line-height:1;">{{ d.date[8:] }}</div>
+              <div style="font-size:13px;color:{{ tc }};font-weight:800;line-height:1.2;">{{ d.count }}</div>
+              <div style="font-size:10px;color:{{ ac }};font-weight:600;opacity:.8;line-height:1;">-{{ absent }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      {% set total_present = heatmap_data | sum(attribute='count') %}
+      {% set best_day = heatmap_data | max(attribute='count') %}
+      <div class="u-d-flex u-gap-24 u-mt-18 u-pt-16 u-bdt-1-solid-f1f5f9 u-fxw-wrap">
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-eff6ff u-d-flex u-ai-center u-jc-center"><i class="ti ti-users u-fs-15 u-c-3b82f6"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Total Check-ins</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ total_present }}</div></div>
+        </div>
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-fdf4ff u-d-flex u-ai-center u-jc-center"><i class="ti ti-trending-up u-fs-15 u-c-a855f7"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Best Single Day</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ best_day.count }} <span class="u-fs-11 u-c-94a3b8 u-fw-500">on {{ best_day.date }}</span></div></div>
+        </div>
+        <div class="u-d-flex u-ai-center u-gap-8">
+          <div class="u-w-32 u-h-32 u-br-8 u-bg-f0fdf4 u-d-flex u-ai-center u-jc-center"><i class="ti ti-calendar-check u-fs-15 u-c-16a34a"></i></div>
+          <div><div class="u-fs-11 u-c-94a3b8 u-fw-600">Avg / Day</div><div class="u-fs-16 u-fw-800 u-c-1e293b">{{ ((total_present / 35) | round(1)) }}</div></div>
+        </div>
+      </div>
+
+      <!-- Tooltip -->
+      <div class="u-d-none u-pos-fixed u-bg-1e293b u-c-fff u-fs-12 u-p-10-16 u-br-10 u-shad-0-8-28-rgba0_0_0_d25 u-zi-9999 u-pe-none u-bd-1-solid-334155 u-minw-160" id="hmTooltip">
+        <div class="u-fw-700 u-c-818cf8 u-fs-13" id="hmDate"></div>
+        <div class="u-mt-4 u-c-e2e8f0" id="hmCount"></div>
+        <div class="u-mt-2 u-c-94a3b8 u-fs-11" id="hmPct"></div>
+      </div>
+    </div>
+
+    <!-- Late Arrival Trend -->
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-clock-exclamation u-c-ef4444"></i> Late Arrivals — Last 14 Days</div>
+      <div class="chart-wrap tall"><canvas id="lateChart"></canvas></div>
+    </div>
+
+    <!-- Retention Bands -->
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-users-group u-c-a855f7"></i> Staff Tenure Overview</div>
+      <div class="chart-wrap tall"><canvas id="retentionChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 4: Department Distribution + Department-wise Attendance Rate side by side -->
+  <div class="u-d-grid u-gtc-1fr-1fr u-gap-16 u-mt-16">
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-building u-c-6366f1"></i> Department Distribution</div>
+      <div class="chart-wrap tall"><canvas id="deptChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="ti ti-building u-c-3b82f6"></i> Department-wise Attendance Rate — This Month</div>
+      {% if dept_attendance %}
+      <div class="u-d-flex u-fxd-column u-gap-12 u-mt-8">
+        {% for d in dept_attendance %}
+        <div class="u-d-flex u-ai-center u-gap-14">
+          <div class="u-w-130 u-fs-13 u-fw-600 u-c-1e293b u-ws-nowrap u-ov-hidden u-tov-ellipsis">{{ d.dept }}</div>
+          <div class="u-fx-1 u-bg-e2e8f0 u-br-20 u-h-10 u-ov-hidden">
+            <div style="height:100%;border-radius:20px;width:{{ d.pct }}%;
+              background:{% if d.pct >= 90 %}#16a34a{% elif d.pct >= 70 %}#3b82f6{% elif d.pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
+              transition:.4s;"></div>
+          </div>
+          <div class="u-w-44 u-fs-13 u-fw-800 u-c-1e293b u-ta-right">{{ d.pct }}%</div>
+          <div class="u-fs-11 u-c-94a3b8 u-ws-nowrap">{{ d.present }}/{{ d.total }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No department data available.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Heatmap tooltip
+function showHeatmapTooltip(el, date, present, absent, pct) {
+  const tip = document.getElementById('hmTooltip');
+  document.getElementById('hmDate').textContent = date;
+  document.getElementById('hmCount').textContent = '+' + present + ' present   -' + absent + ' absent';
+  document.getElementById('hmPct').textContent = pct + '% attendance rate';
+  tip.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  tip.style.left = (r.left + r.width / 2 - 90) + 'px';
+  tip.style.top  = (r.top - 80 + window.scrollY) + 'px';
+}
+document.addEventListener('scroll', () => { document.getElementById('hmTooltip').style.display='none'; });
+
+const COLORS = ['#3b82f6','#22c55e','#ef4444','#f59e0b','#a855f7','#6366f1','#ec4899','#14b8a6'];
+
+const monthlyData = {{ monthly_series | tojson }};
+const monthlyColors = monthlyData.map(d =>
+  d.att_pct >= 80 ? '#16a34a' : d.att_pct >= 60 ? '#f59e0b' : '#ef4444'
+);
+const monthlyBorderColors = monthlyData.map(d =>
+  d.att_pct >= 80 ? '#15803d' : d.att_pct >= 60 ? '#d97706' : '#dc2626'
+);
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: monthlyData.map(d => d.month_label),
+    datasets: [{
+      label: 'Attendance Rate',
+      data: monthlyData.map(d => d.att_pct),
+      backgroundColor: monthlyColors,
+      borderColor: monthlyBorderColors,
+      borderWidth: 2,
+      borderRadius: 10,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y}% attendance rate`,
+          afterLabel: ctx => {
+            const d = monthlyData[ctx.dataIndex];
+            return ` Present: ${d.present_days}  |  Absent: ${d.absent_days}`;
+          }
+        }
+      },
+      // Target line annotation via datalabels
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' } } },
+      y: {
+        beginAtZero: true, max: 100,
+        ticks: { callback: v => v + '%', font: { size: 11 } },
+        grid: { color: '#f1f5f9' }
+      }
+    },
+    // Draw % label inside each bar
+    animation: {
+      onComplete: function() {
+        const chart = this;
+        const ctx2 = chart.ctx;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((bar, index) => {
+            const val = dataset.data[index];
+            ctx2.save();
+            ctx2.font = 'bold 13px Segoe UI';
+            ctx2.fillStyle = '#fff';
+            ctx2.textAlign = 'center';
+            ctx2.textBaseline = 'middle';
+            const y = bar.y + (bar.base - bar.y) / 2;
+            if (bar.base - bar.y > 24) ctx2.fillText(val + '%', bar.x, y);
+            ctx2.restore();
+          });
+        });
+      }
+    }
+  }
+});
+
+const deptData = {{ dept_data | tojson }};
+if (deptData.length) {
+  new Chart(document.getElementById('deptChart'), {
+    type: 'doughnut',
+    data: {
+      labels: deptData.map(d => d.department),
+      datasets: [{ data: deptData.map(d => d.count), backgroundColor: COLORS, borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+  });
+} else {
+  document.getElementById('deptChart').parentNode.innerHTML = '<div class="empty">No department data.</div>';
+}
+
+const leaveData = {{ leave_by_type | tojson }};
+if (leaveData.length) {
+  new Chart(document.getElementById('leaveChart'), {
+    type: 'doughnut',
+    data: {
+      labels: leaveData.map(d => d.name),
+      datasets: [{ data: leaveData.map(d => d.count), backgroundColor: COLORS.slice(2), borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+  });
+} else {
+  document.getElementById('leaveChart').parentNode.innerHTML = '<div class="empty">No approved leaves this year.</div>';
+}
+
+const genderData = {{ gender_data | tojson }};
+if (genderData.length) {
+  new Chart(document.getElementById('genderChart'), {
+    type: 'doughnut',
+    data: {
+      labels: genderData.map(d => d.gender),
+      datasets: [{ data: genderData.map(d => d.count), backgroundColor: ['#3b82f6','#ec4899','#94a3b8'], borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+  });
+} else {
+  document.getElementById('genderChart').parentNode.innerHTML = '<div class="empty">No gender data.</div>';
+}
+
+// Late Arrival Trend
+const lateData = {{ late_trend | tojson }};
+new Chart(document.getElementById('lateChart'), {
+  type: 'line',
+  data: {
+    labels: lateData.map(d => d.date),
+    datasets: [{
+      label: 'Late Arrivals',
+      data: lateData.map(d => d.count),
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239,68,68,0.1)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#ef4444',
+      pointRadius: 4,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+// Retention Bands
+const retentionData = {{ retention | tojson }};
+new Chart(document.getElementById('retentionChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['< 6 Months', '6–12 Months', '1–3 Years', '3+ Years'],
+    datasets: [{
+      data: [retentionData['0-6m'], retentionData['6-12m'], retentionData['1-3y'], retentionData['3y+']],
+      backgroundColor: ['#fca5a5','#fde68a','#6ee7b7','#3b82f6'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+    }
+  }
+});
+</script>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

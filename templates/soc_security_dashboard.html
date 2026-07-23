@@ -1,0 +1,1456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SecOps SIEM-Lite Portal — Security Operations Center</title>
+    <link rel="stylesheet" href="/static/shared.min.css" />
+    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+      body {
+        background: radial-gradient(circle at 50% 10%, #0f172a, #020617);
+        color: #e2e8f0; min-height: 100vh; padding: 28px; position: relative; overflow-x: hidden;
+      }
+
+      /* Glow background elements */
+      .glow-orb { position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.18; pointer-events: none; }
+      .orb-blue { width: 550px; height: 550px; background: #3b82f6; top: -150px; left: -150px; }
+      .orb-indigo { width: 500px; height: 500px; background: #6366f1; bottom: -150px; right: -150px; }
+
+      /* Top Header */
+      .sec-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+      }
+      .sec-brand { display: flex; align-items: center; gap: 14px; }
+      .sec-logo {
+        width: 48px; height: 48px;
+        background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+        border-radius: 14px; display: flex; align-items: center; justify-content: center;
+        font-size: 26px; color: #fff; box-shadow: 0 0 24px rgba(59, 130, 246, 0.4);
+      }
+      .sec-title h1 { font-size: 22px; font-weight: 800; color: #f8fafc; letter-spacing: -0.3px; }
+      .sec-title p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+      .status-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 12px; border-radius: 20px; background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      }
+      .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+
+      .hdr-actions { display: flex; align-items: center; gap: 10px; }
+      .btn-nav {
+        background: #1e293b; border: 1px solid #334155; color: #cbd5e1;
+        padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+        cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        transition: 0.2s ease;
+      }
+      .btn-nav:hover { background: #334155; color: #fff; transform: translateY(-1px); }
+
+      /* Stat Cards Grid */
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+      .stat-card {
+        background: rgba(15, 23, 42, 0.75); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+        border: 1px solid rgba(51, 65, 85, 0.5); border-radius: 16px; padding: 20px;
+        transition: 0.2s ease;
+      }
+      .stat-card:hover { border-color: rgba(59, 130, 246, 0.4); transform: translateY(-2px); }
+      .stat-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+      .stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+      .icon-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+      .icon-red { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+      .icon-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+      .icon-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+
+      .stat-val { font-size: 24px; font-weight: 800; color: #f8fafc; }
+      .stat-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-top: 4px; letter-spacing: 0.5px; }
+
+      /* Tabs Navigation */
+      .tabs-bar {
+        display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        padding-bottom: 8px; overflow-x: auto;
+      }
+      .tab-btn {
+        background: transparent; border: none; color: #94a3b8; padding: 10px 18px;
+        font-size: 13px; font-weight: 700; border-radius: 10px; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 8px; transition: 0.2s ease; white-space: nowrap;
+      }
+      .tab-btn:hover { color: #cbd5e1; background: rgba(30, 41, 59, 0.5); }
+      .tab-btn.active { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+      /* Tab Panels */
+      .tab-panel { display: none; }
+      .tab-panel.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Glass Panels */
+      .glass-card {
+        background: rgba(15, 23, 42, 0.75); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+        border: 1px solid rgba(51, 65, 85, 0.5); border-radius: 18px; padding: 24px; margin-bottom: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+      .card-title {
+        font-size: 14px; font-weight: 800; text-transform: uppercase; color: #94a3b8;
+        letter-spacing: 0.6px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+      }
+
+      /* Data Tables */
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { text-align: left; padding: 10px 14px; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e293b; }
+      td { padding: 12px 14px; border-bottom: 1px solid rgba(30, 41, 59, 0.6); color: #cbd5e1; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: rgba(30, 41, 59, 0.3); }
+
+      /* Input Fields & Forms */
+      .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
+      .form-group { display: flex; flex-direction: column; gap: 6px; }
+      .form-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; }
+      .form-input {
+        background: #090d16; border: 1.5px solid #1e293b; border-radius: 10px;
+        padding: 10px 14px; color: #f8fafc; font-size: 13px; outline: none; transition: 0.2s ease;
+      }
+      .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; color: #fff;
+        padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px; transition: 0.2s ease;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      }
+      .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6); }
+
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5;
+        padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s ease;
+      }
+      .btn-danger:hover { background: rgba(239, 68, 68, 0.3); color: #fff; }
+
+      .badge-tag {
+        display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      }
+      .badge-info { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+      .badge-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+      .badge-error { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+      .toast-box {
+        position: fixed; bottom: 24px; right: 24px; z-index: 999;
+        background: #1e293b; border: 1px solid #3b82f6; color: #fff;
+        padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 600;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; animation: slideUp 0.3s ease;
+      }
+      @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+  </head>
+  <body>
+    <div class="glow-orb orb-blue"></div>
+    <div class="glow-orb orb-indigo"></div>
+
+    <!-- Header Bar -->
+    <div class="sec-hdr">
+      <div class="sec-brand">
+        <div class="sec-logo"><i class="ti ti-shield-lock"></i></div>
+        <div class="sec-title">
+          <h1>SecOps SIEM-Lite Portal</h1>
+          <p>Cybersecurity Telemetry, SIEM Query Engine &amp; Infrastructure Health</p>
+        </div>
+      </div>
+
+      <div class="hdr-actions" style="display: flex; align-items: center; gap: 10px;">
+        <div class="status-pill">
+          <span class="pulse-dot"></span> System Protected
+        </div>
+
+        <!-- Notification Bell Component -->
+        <div style="position: relative;">
+          <button type="button" id="secopsNotifBellBtn" onclick="toggleSecopsNotifDropdown()" style="
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            position: relative;
+            height: 38px; padding: 0 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; font-weight: 600;
+            transition: all 0.2s ease;
+          " onmouseover="this.style.borderColor='#3b82f6';this.style.background='#0f172a';" onmouseout="this.style.borderColor='#334155';this.style.background='#1e293b';">
+            <i class="ti ti-bell-ringing" style="font-size: 17px; color: #60a5fa;"></i> Alerts
+            <span id="secopsNotifBadge" style="
+              display: none;
+              background: linear-gradient(135deg, #ef4444, #dc2626);
+              color: #fff;
+              font-size: 10px; font-weight: 800;
+              min-width: 18px; height: 18px;
+              border-radius: 999px;
+              display: flex; align-items: center; justify-content: center;
+              padding: 0 4px;
+              box-shadow: 0 2px 6px rgba(239,68,68,0.5);
+            ">0</span>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div id="secopsNotifDropdown" style="display: none; position: absolute; right: 0; top: 46px; width: 360px; background: #0f172a; border: 1px solid #334155; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.6); z-index: 999; padding: 18px; color: #e2e8f0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 10px;">
+              <span style="font-weight: 800; font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Security Alerts &amp; Telemetry</span>
+              <button onclick="markSecopsNotifsRead()" style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; cursor: pointer;">Mark Read</button>
+            </div>
+            <div id="secopsNotifList" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+              <div style="text-align: center; color: #64748b; font-size: 12px; padding: 10px;">Loading security alerts…</div>
+            </div>
+          </div>
+        </div>
+
+        <a class="btn-nav" href="/admin_login"><i class="ti ti-key"></i> Admin Login</a>
+        <a class="btn-nav" href="/logout"><i class="ti ti-logout"></i> Logout</a>
+      </div>
+    </div>
+
+    <!-- Live Stat Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-hdr">
+          <div class="stat-icon icon-blue"><i class="ti ti-activity"></i></div>
+          <span class="badge-tag badge-info">UPTIME</span>
+        </div>
+        <div class="stat-val" id="stat-uptime">{{ health.uptime_formatted }}</div>
+        <div class="stat-lbl">Server Running Time</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-hdr">
+          <div class="stat-icon icon-green"><i class="ti ti-cpu"></i></div>
+          <span class="badge-tag badge-info">LOAD</span>
+        </div>
+        <div class="stat-val" id="stat-cpu">{{ health.cpu_load }}</div>
+        <div class="stat-lbl">CPU Usage</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-hdr">
+          <div class="stat-icon icon-purple"><i class="ti ti-database"></i></div>
+          <span class="badge-tag badge-info">STATUS</span>
+        </div>
+        <div class="stat-val" style="color: #4ade80;">{{ health.database_status }}</div>
+        <div class="stat-lbl">PostgreSQL Engine</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-hdr">
+          <div class="stat-icon icon-red"><i class="ti ti-bug"></i></div>
+          <span class="badge-tag badge-error">QUARANTINE</span>
+        </div>
+        <div class="stat-val">{{ quarantined_files|length }}</div>
+        <div class="stat-lbl">Blocked Payloads</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="switchTab('siem')"><i class="ti ti-terminal-2"></i> SIEM Log Engine</button>
+      <button class="tab-btn" onclick="switchTab('threatintel')"><i class="ti ti-rss"></i> Threat Intel Feed</button>
+      <button class="tab-btn" onclick="switchTab('quarantine')"><i class="ti ti-bug"></i> Malware Quarantine</button>
+      <button class="tab-btn" onclick="switchTab('ports')"><i class="ti ti-network"></i> Port &amp; Network Health</button>
+      <button class="tab-btn" onclick="switchTab('pwdreset')"><i class="ti ti-key"></i> Employee Password Reset</button>
+      <button class="tab-btn" onclick="switchTab('ipbans')"><i class="ti ti-ban"></i> IP Ban Management</button>
+      <button class="tab-btn" onclick="switchTab('smtp')"><i class="ti ti-mail-cog"></i> SMTP Settings</button>
+      <button class="tab-btn" onclick="switchTab('health')"><i class="ti ti-heart-rate-monitor"></i> System Health</button>
+      <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture &amp; Sessions</button>
+    </div>
+
+    <!-- TAB: THREAT INTEL FEED -->
+    <div id="tab-threatintel" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-rss"></i> Automated SOC Threat Intelligence Feed &amp; IP Boundary Auto-Blocking</span>
+          <button class="btn-primary" onclick="refreshThreatIntel()"><i class="ti ti-refresh"></i> Refresh Threat Feed</button>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
+          Polls CISA KEV (Known Exploited Vulnerabilities) &amp; malicious IP blocklists. High-confidence malicious IPs are auto-blocked at the boundary.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div>
+            <h4 style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 10px;"><i class="ti ti-alert-triangle"></i> CISA KEV Vulnerability Alerts</h4>
+            <table>
+              <thead>
+                <tr><th>CVE ID</th><th>Vendor / Product</th><th>Vulnerability Name</th><th>Due Date</th></tr>
+              </thead>
+              <tbody id="cve-tbody">
+                <tr><td colspan="4" style="text-align:center; color:#64748b;">Loading threat vulnerabilities...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h4 style="font-size: 14px; font-weight: 700; color: #fca5a5; margin-bottom: 10px;"><i class="ti ti-shield-x"></i> Auto-Blocked Malicious IPs</h4>
+            <table>
+              <thead>
+                <tr><th>IP Address</th><th>Threat Score</th><th>Source Feed</th><th>Fetched At</th></tr>
+              </thead>
+              <tbody id="threat-ip-tbody">
+                <tr><td colspan="4" style="text-align:center; color:#64748b;">Loading malicious IP blocklist...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- TAB 1: SIEM LOG ENGINE & THREAT TELEMETRY -->
+    <div id="tab-siem" class="tab-panel active">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-terminal-2"></i> SIEM-Lite Log Management &amp; Query Builder</span>
+          <span class="badge-tag badge-info">Real-time Telemetry Stream</span>
+        </div>
+
+        <!-- Query Builder Filter Controls -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-input" id="siem-cat">
+              <option value="all">All Events</option>
+              <option value="escalation">Access &amp; Escalation</option>
+              <option value="malware">Malware &amp; Viruses</option>
+              <option value="injection">SQL / WAF Injections</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Severity Level</label>
+            <select class="form-input" id="siem-sev">
+              <option value="">All Severities</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="ERROR">ERROR</option>
+              <option value="WARN">WARN</option>
+              <option value="INFO">INFO</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Filter Source IP</label>
+            <input class="form-input" type="text" id="siem-ip" placeholder="e.g. 127.0.0.1" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Filter User ID</label>
+            <input class="form-input" type="text" id="siem-user" placeholder="e.g. sp_admin or EMP001" />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <button class="btn-primary" onclick="querySiemLogs()"><i class="ti ti-filter"></i> Run Query</button>
+        </div>
+
+        <table id="siem-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Event Type</th>
+              <th>Details / Message</th>
+              <th>Severity</th>
+              <th>Source IP</th>
+              <th>User ID</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="siem-tbody">
+            {% for log in threat_logs %}
+            <tr>
+              <td>#{{ log.id }}</td>
+              <td style="font-weight: 700; color: #60a5fa;">{{ log.event_type }}</td>
+              <td>{{ log.details }}</td>
+              <td>
+                {% if log.severity == 'ERROR' or log.severity == 'CRITICAL' %}
+                <span class="badge-tag badge-error">{{ log.severity }}</span>
+                {% elif log.severity == 'WARN' or log.severity == 'MEDIUM' %}
+                <span class="badge-tag badge-warn">{{ log.severity }}</span>
+                {% else %}
+                <span class="badge-tag badge-info">{{ log.severity }}</span>
+                {% endif %}
+              </td>
+              <td style="font-family: monospace; color: #94a3b8;">{{ log.ip_address }}</td>
+              <td style="color: #cbd5e1;">{{ log.user_id }}</td>
+              <td style="font-size: 12px; color: #64748b;">{{ log.timestamp }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: MALWARE DETECTION & QUARANTINE QUEUE -->
+    <div id="tab-quarantine" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-bug"></i> Malware Detection &amp; Quarantine Management Panel</span>
+          <span class="badge-tag badge-info">Antivirus Daemon Active</span>
+        </div>
+
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Asynchronous runtime antivirus scanner intercepts document uploads (resumes, ID proofs, tax forms), quarantines malicious payloads, and records SHA-256 signatures.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Original Filename</th>
+              <th>SHA-256 Hash</th>
+              <th>Uploader User ID</th>
+              <th>Detection Signature</th>
+              <th>Status</th>
+              <th>Timestamp</th>
+              <th>Automated Response Triggers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for q in quarantined_files %}
+            <tr>
+              <td>#{{ q.id }}</td>
+              <td style="font-weight: 700; color: #f8fafc;">{{ q.filename }}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #94a3b8;" title="{{ q.file_hash }}">{{ q.file_hash[:16] }}…</td>
+              <td><span class="badge-tag badge-info">{{ q.uploader_id }}</span></td>
+              <td><span class="badge-tag badge-error">{{ q.signature }}</span></td>
+              <td><span class="badge-tag badge-warn">{{ q.status }}</span></td>
+              <td style="font-size: 12px; color: #64748b;">{{ q.timestamp }}</td>
+              <td>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="purgeQuarantineFile({{ q.id }})">Purge File</button>
+                  <button class="btn-danger" style="padding: 4px 8px; font-size: 11px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);" onclick="isolateUser('{{ q.uploader_id }}')">Isolate Account</button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: NETWORK & PORT HEALTH MONITORING -->
+    <div id="tab-ports" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-network"></i> Active Infrastructure Ports &amp; Binding Exposure</span>
+          <span class="badge-tag badge-info">Port Health Monitor</span>
+        </div>
+
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Tracks active service listening ports to ensure internal databases and cache engines remain isolated behind local interfaces.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Port Number</th>
+              <th>Service / Protocol</th>
+              <th>Binding Address</th>
+              <th>Process Name</th>
+              <th>Exposure State</th>
+              <th>Health Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in port_health %}
+            <tr>
+              <td style="font-family: monospace; font-weight: 800; font-size: 15px; color: #60a5fa;">Port {{ item.port }}</td>
+              <td><strong>{{ item.service }}</strong></td>
+              <td><code>{{ item.binding }}</code></td>
+              <td>{{ item.process }}</td>
+              <td>
+                {% if '0.0.0.0' in item.binding or 'Public' in item.binding %}
+                <span class="badge-tag badge-warn">Public Web Gateway</span>
+                {% else %}
+                <span class="badge-tag badge-info">Internal Only</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.is_open %}
+                <span class="badge-tag badge-info">{{ item.status }}</span>
+                {% else %}
+                <span class="badge-tag badge-warn">INACTIVE</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: PASSWORD RESET & CREDENTIAL RECOVERY GATEWAY -->
+    <div id="tab-pwdreset" class="tab-panel">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, msg in messages %}
+            <div class="status-pill" style="background: {% if category == 'success' %}rgba(74, 222, 128, 0.15){% else %}rgba(239, 68, 68, 0.15){% endif %}; color: {% if category == 'success' %}#4ade80{% else %}#f87171{% endif %}; border: 1px solid {% if category == 'success' %}rgba(74, 222, 128, 0.3){% else %}rgba(239, 68, 68, 0.3){% endif %}; padding: 12px; margin-bottom: 20px; border-radius: 8px; font-size: 13px;">
+              {% if category == 'success' %}✅{% else %}❌{% endif %} {{ msg }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% if request.args.get('pwd_ok') %}
+        <div class="status-pill" style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); padding: 12px; margin-bottom: 20px; border-radius: 8px; font-size: 13px;">
+          ✅ Password updated successfully.
+        </div>
+      {% elif request.args.get('pwd_error') == 'wrong' %}
+        <div class="status-pill" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; margin-bottom: 20px; border-radius: 8px; font-size: 13px;">
+          ❌ Current password is incorrect.
+        </div>
+      {% elif request.args.get('pwd_error') == 'mismatch' %}
+        <div class="status-pill" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; margin-bottom: 20px; border-radius: 8px; font-size: 13px;">
+          ❌ New passwords do not match.
+        </div>
+      {% endif %}
+
+      {% if request.args.get('email_ok') %}
+        <div class="status-pill" style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); padding: 12px; margin-bottom: 20px; border-radius: 8px; font-size: 13px;">
+          ✅ Recovery email saved successfully.
+        </div>
+      {% endif %}
+
+      <!-- Password Management Panel (Migrated from admin portal) -->
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-lock"></i> Change Admin Password</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Change your current administrative password securely.
+        </p>
+        <form action="/change_admin_password" method="POST">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input class="form-input" type="password" name="current_password" placeholder="Enter current password" autocomplete="current-password" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input class="form-input" type="password" name="new_password" placeholder="Enter new password" autocomplete="new-password" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input class="form-input" type="password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password" required />
+            </div>
+          </div>
+          <button class="btn-primary" type="submit" style="margin-top: 15px;"><i class="ti ti-check"></i> Update Password</button>
+        </form>
+      </div>
+
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-key"></i> Reset Employee Password (Default ID Reset)</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Resets the employee's PIN back to their Employee ID.
+        </p>
+        <form action="/admin_action" method="POST">
+          <input type="hidden" name="action" value="reset_password" />
+          <div class="form-grid" style="grid-template-columns: 1fr;">
+            <div class="form-group">
+              <label class="form-label">Employee ID</label>
+              <input class="form-input" type="text" name="emp_id" placeholder="e.g. EMP001" required />
+            </div>
+          </div>
+          <button class="btn-primary" type="submit" style="margin-top: 15px; background: #d97706; box-shadow: none;" onclick="return confirm('Reset this employee\'s password to their Employee ID?')"><i class="ti ti-refresh"></i> Reset Password</button>
+        </form>
+      </div>
+
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-mail"></i> Admin Recovery Email</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Set the email address used to receive password reset links when you forget your admin password.
+        </p>
+        <form action="/admin_set_recovery_email" method="POST">
+          <div class="form-grid" style="grid-template-columns: 1fr;">
+            <div class="form-group">
+              <label class="form-label">Recovery Email</label>
+              <input class="form-input" type="email" name="recovery_email" placeholder="admin@example.com" required />
+            </div>
+          </div>
+          <button class="btn-primary" type="submit" style="margin-top: 15px;"><i class="ti ti-device-floppy"></i> Save Email</button>
+        </form>
+      </div>
+
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-key"></i> SecOps Employee Password Reset Gateway</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Direct security reset tool to update employee credentials and enforce PIN change on next login.
+        </p>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Employee ID or Email</label>
+            <input class="form-input" type="text" id="reset-emp-id" placeholder="e.g. SHA001 or employee@company.com" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input class="form-input" type="password" id="reset-new-pw" placeholder="Enter new strong password" required />
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="submitPasswordReset()"><i class="ti ti-check"></i> Reset Employee Password</button>
+
+        <hr style="border-color: rgba(51, 65, 85, 0.4); margin: 24px 0;" />
+
+        <div class="card-title"><span>Search Employees</span></div>
+        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+          <input class="form-input" type="text" id="search-query" placeholder="Type Employee ID, Name, or Email..." style="flex: 1;" />
+          <button class="btn-primary" onclick="searchEmployees()"><i class="ti ti-search"></i> Search</button>
+        </div>
+
+        <div id="search-results" style="margin-bottom: 24px;"></div>
+
+        <hr style="border-color: rgba(51, 65, 85, 0.4); margin: 24px 0;" />
+
+        <!-- Normal Admin Password Recovery Section -->
+        <div class="card-title">
+          <span><i class="ti ti-user-shield"></i> Admin Password Recovery Gateway</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          SecOps administrative control panel to reset standard system administrator passwords.
+        </p>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Admin Username / Email</label>
+            <input class="form-input" type="text" id="reset-admin-username" placeholder="e.g. admin" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">New Admin Password</label>
+            <input class="form-input" type="password" id="reset-admin-pw" placeholder="Enter new admin password" required />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <button class="btn-primary" onclick="submitAdminPasswordReset()"><i class="ti ti-key"></i> Recover &amp; Reset Admin Password</button>
+          <button class="btn-primary" style="background: #334155; box-shadow: none;" onclick="loadAdminUsers()"><i class="ti ti-users"></i> List Active Admins</button>
+        </div>
+
+        <div id="admin-list-results"></div>
+      </div>
+    </div>
+
+    <!-- TAB 5: IP BAN MANAGEMENT -->
+    <div id="tab-ipbans" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-ban"></i> Active Banned IP Addresses</span>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+          <input class="form-input" type="text" id="ban-ip-val" placeholder="Enter IP address (e.g. 192.168.1.100)" style="flex: 1;" />
+          <input class="form-input" type="text" id="ban-reason-val" placeholder="Reason (e.g. Excessive login failures)" style="flex: 2;" />
+          <button class="btn-primary" onclick="banIp()"><i class="ti ti-plus"></i> Ban IP</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>IP Address</th>
+              <th>Reason</th>
+              <th>Banned At</th>
+              <th>Expires At</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in banned_ips %}
+            <tr>
+              <td>#{{ item.id }}</td>
+              <td style="font-family: monospace; font-weight: 700; color: #fca5a5;">{{ item.ip }}</td>
+              <td>{{ item.reason }}</td>
+              <td>{{ item.banned_at }}</td>
+              <td>{{ item.expires_at }}</td>
+              <td>
+                <button class="btn-danger" onclick="unbanIp('{{ item.ip }}')">Unban</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">No IP addresses currently banned.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 6: SMTP SECURITY SETTINGS & 2FA IDENTITY LOCK -->
+    <div id="tab-smtp" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-mail-cog"></i> SecOps SMTP &amp; Security Alert Configuration</span>
+        </div>
+
+        <!-- 2FA Gate State -->
+        <div id="email-2fa-gate" style="padding: 20px; background: rgba(15,23,42,0.6); border-radius: 12px; border: 1px solid #334155;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <i class="ti ti-shield-lock" style="font-size:24px; color:#f87171;"></i>
+            <div style="font-size:16px; font-weight:700; color:#f8fafc;">Identity Verification Required</div>
+          </div>
+          <div style="font-size:13px; color:#94a3b8; margin-bottom:16px;">
+            SMTP settings contain sensitive credentials and passwords. Confirm 2FA identity before editing or viewing.
+          </div>
+
+          <!-- Enrollment sub-view -->
+          <div id="email-2fa-enroll" style="display:none;">
+            <div style="font-size:13px; color:#cbd5e1; margin-bottom:10px;">Scan with Google Authenticator or any TOTP app, then enter the 6-digit code.</div>
+            <img id="email-2fa-qr" alt="2FA QR Code" style="width:160px; height:160px; display:block; margin:0 auto 12px; border-radius:8px; border:2px solid #3b82f6;" />
+            <div style="font-size:12px; color:#94a3b8; text-align:center; margin-bottom:14px;">Secret: <code id="email-2fa-secret" style="color:#60a5fa; font-weight:700;"></code></div>
+            <div style="max-width:280px; margin:0 auto 14px;">
+              <label style="display:block; font-size:12px; color:#cbd5e1; margin-bottom:4px;">6-Digit TOTP Code</label>
+              <input class="form-input" type="text" id="email-2fa-enroll-code" placeholder="000000" maxlength="6" />
+            </div>
+            <button class="btn-primary" onclick="confirmEmail2faEnroll()"><i class="ti ti-check"></i> Confirm & Enable MFA</button>
+            <div id="email-2fa-enroll-err" style="display:none; color:#f87171; font-size:12px; margin-top:8px;"></div>
+          </div>
+
+          <!-- Unlock sub-view -->
+          <div id="email-2fa-verify" style="display:none; max-width:320px;">
+            <div style="margin-bottom:12px;">
+              <label style="display:block; font-size:12px; color:#cbd5e1; margin-bottom:4px;">6-Digit Authenticator Code</label>
+              <input class="form-input" type="text" id="email-2fa-code" placeholder="000000" maxlength="6" />
+            </div>
+            <button class="btn-primary" onclick="verifyEmail2fa()"><i class="ti ti-lock-open"></i> Verify & Unlock Settings</button>
+            <div id="email-2fa-err" style="display:none; color:#f87171; font-size:12px; margin-top:8px;"></div>
+            <div style="margin-top:12px;">
+              <a href="#" style="font-size:12px; color:#60a5fa;" onclick="event.preventDefault(); document.getElementById('email-2fa-lost').style.display=''; this.style.display='none';">Lost access to authenticator?</a>
+            </div>
+            <div id="email-2fa-lost" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #334155;">
+              <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">Enter admin account password to reset MFA enrollment:</div>
+              <input class="form-input" type="password" id="email-2fa-reset-password" placeholder="Password" style="margin-bottom:8px;" />
+              <button class="btn-primary" onclick="resetEmail2fa()"><i class="ti ti-refresh"></i> Reset & Get New QR</button>
+              <div id="email-2fa-reset-err" style="display:none; color:#f87171; font-size:12px; margin-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Unlocked Panel -->
+        <div id="email-settings-panel" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding:10px 14px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:8px;">
+            <span style="font-size:13px; color:#4ade80; font-weight:600;"><i class="ti ti-lock-open"></i> Unlocked — 2FA Identity Confirmed (re-locks after 15 min idle)</span>
+            <button class="btn-nav" onclick="lockEmailSettings()"><i class="ti ti-lock"></i> Lock Now</button>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">SMTP Host</label>
+              <input class="form-input" type="text" id="es-host" placeholder="smtp.gmail.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP Port</label>
+              <input class="form-input" type="number" id="es-port" placeholder="587" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username / Account</label>
+              <input class="form-input" type="text" id="es-user" placeholder="you@domain.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP Password</label>
+              <div style="display:flex; gap:8px;">
+                <input class="form-input" type="password" id="es-pass" placeholder="••••••••" style="flex:1;" />
+                <button type="button" class="btn-nav" onclick="revealEmailPassword()"><i class="ti ti-eye"></i> Reveal</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sender Name (From Name)</label>
+              <input class="form-input" type="text" id="es-from-name" placeholder="HR & Attendance Team" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sender Email (From Email)</label>
+              <input class="form-input" type="email" id="es-from-email" placeholder="notifications@domain.com" />
+            </div>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center; margin-top:20px;">
+            <button class="btn-primary" onclick="saveEmailSettings()"><i class="ti ti-device-floppy"></i> Save SMTP Configuration</button>
+            <div id="email-settings-err" style="display:none; color:#f87171; font-size:13px;"></div>
+          </div>
+
+          <div style="margin-top:24px; padding-top:16px; border-top:1px solid #334155;">
+            <div style="font-size:14px; font-weight:700; color:#f8fafc; margin-bottom:10px;">Test Email Connection</div>
+            <div style="display:flex; gap:10px; max-width:480px;">
+              <input class="form-input" type="email" id="testEmail" placeholder="Send test email to..." style="flex:1;" />
+              <button class="btn-primary" onclick="sendTestEmail()"><i class="ti ti-send"></i> Send Test</button>
+            </div>
+            <div id="testResult" style="margin-top:10px; font-size:13px;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 7: SYSTEM HEALTH & METRICS -->
+    <div id="tab-health" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-heart-rate-monitor"></i> System Health &amp; Security Service Posture</span>
+        </div>
+        <table>
+          <tbody>
+            <tr><td><strong>System Uptime</strong></td><td>{{ health.uptime_formatted }} ({{ health.uptime_seconds }} seconds)</td></tr>
+            <tr><td><strong>CPU Load Average</strong></td><td>{{ health.cpu_load }}</td></tr>
+            <tr><td><strong>Memory Utilization</strong></td><td>{{ health.memory_usage }}</td></tr>
+            <tr><td><strong>Database Cluster</strong></td><td><span class="badge-tag badge-info">{{ health.database_status }}</span></td></tr>
+            <tr><td><strong>WAF Injection Shield</strong></td><td><span class="badge-tag badge-info">ENABLED</span></td></tr>
+            <tr><td><strong>Session Guard &amp; Killswitch</strong></td><td><span class="badge-tag badge-info">ACTIVE</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 8: SECURITY POSTURE & LIVE SESSIONS -->
+    <div id="tab-posture" class="tab-panel">
+      <!-- 1. Log Analysis Summary -->
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-chart-bar"></i> Log Analysis Summary</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          All-time SIEM log summary analytics showing total registered events, severity levels, and distinct telemetry counts.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+          <div style="background: #1e293b; padding: 14px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Total events</div>
+            <div style="font-size: 24px; font-weight: 800; color: #f8fafc; margin-top: 4px;">{{ summary.total or 0 }}</div>
+          </div>
+          <div style="background: #1e293b; padding: 14px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Distinct Users</div>
+            <div style="font-size: 24px; font-weight: 800; color: #f8fafc; margin-top: 4px;">{{ summary.distinct_identifiers or 0 }}</div>
+          </div>
+          <div style="background: #1e293b; padding: 14px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Distinct IPs</div>
+            <div style="font-size: 24px; font-weight: 800; color: #f8fafc; margin-top: 4px;">{{ summary.distinct_ips or 0 }}</div>
+          </div>
+          <div style="background: #1e293b; padding: 14px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Critical Alerts</div>
+            <div style="font-size: 24px; font-weight: 800; color: #f43f5e; margin-top: 4px;">{{ (summary.by_level or {}).get('CRITICAL', 0) }}</div>
+          </div>
+        </div>
+
+        <div class="card-title"><span>Top Event Classes</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Event Type (Slug)</th>
+              <th>Occurrences Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if summary.top_event_types %}
+              {% for et, cnt in summary.top_event_types %}
+              <tr>
+                <td><code>{{ et }}</code></td>
+                <td><strong>{{ cnt }}</strong></td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="2" style="text-align: center; color: #64748b;">No event types registered</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 2. Security Posture Controls -->
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-shield-check"></i> Security Posture Controls</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Tracks dynamic application-level hardening metrics derived directly from system environment files.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Security Policy Control</th>
+              <th>Configuration State</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>HTTP Strict Transport Security (HSTS)</td>
+              <td><code>max-age=31536000; includeSubDomains</code></td>
+              <td><span class="badge-tag badge-info">ENABLED</span></td>
+            </tr>
+            <tr>
+              <td>Content Security Policy (CSP) Frame Ancestors</td>
+              <td><code>'self'</code></td>
+              <td><span class="badge-tag badge-info">ENABLED</span></td>
+            </tr>
+            <tr>
+              <td>X-Content-Type-Options / X-Frame-Options</td>
+              <td><code>nosniff / DENY</code></td>
+              <td><span class="badge-tag badge-info">ENABLED</span></td>
+            </tr>
+            <tr>
+              <td>Turnstile CAPTCHA Protection</td>
+              <td>{% if posture and posture.login_captcha_configured %}<code>ACTIVE</code>{% else %}<code>NOT CONFIGURED</code>{% endif %}</td>
+              <td>
+                {% if posture and posture.login_captcha_configured %}
+                <span class="badge-tag badge-info">ACTIVE</span>
+                {% else %}
+                <span class="badge-tag badge-warn">INACTIVE</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td>ClamAV Malware Quarantine Scanner Daemon</td>
+              <td>{% if posture and posture.malware_scan_enabled %}<code>ACTIVE</code>{% else %}<code>NOT CONFIGURED</code>{% endif %}</td>
+              <td>
+                {% if posture and posture.malware_scan_enabled %}
+                <span class="badge-tag badge-info">ACTIVE</span>
+                {% else %}
+                <span class="badge-tag badge-warn">INACTIVE</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. Admin MFA Enrollment -->
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-title">
+          <span><i class="ti ti-shield-lock"></i> Admin MFA Enrollment Status</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Enforces and monitors multi-factor authentication enrollment across standard administrator accounts.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Administrator Account</th>
+              <th>Designated Privilege Level</th>
+              <th>MFA / TOTP Enrollment Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for adm in admins %}
+            <tr>
+              <td><strong>{{ adm.username }}</strong></td>
+              <td><span class="badge-tag badge-info">{{ adm.role }}</span></td>
+              <td>
+                {% if adm.totp_enabled %}
+                <span class="badge-tag badge-info">MFA ENROLLED</span>
+                {% else %}
+                <span class="badge-tag badge-error">UNPROTECTED</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. Active / Compromised Sessions -->
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-users"></i> Real-time High Risk / Compromised Sessions</span>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+          Lists active web sessions flagged as compromised due to extreme risk behavior or geo-velocity deviations.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Session ID (SID)</th>
+              <th>User ID</th>
+              <th>User Type</th>
+              <th>Risk Score</th>
+              <th>Flags Status</th>
+              <th>Trigger Deviation Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if compromised_sessions %}
+              {% for s in compromised_sessions %}
+              <tr>
+                <td style="font-family: monospace; font-size: 11px;">{{ s.sid[:12] }}…</td>
+                <td><strong>{{ s.identifier }}</strong></td>
+                <td><span class="badge-tag badge-info">{{ s.attempt_type }}</span></td>
+                <td style="color: #ef4444; font-weight: 800;">{{ s.score }} / 100</td>
+                <td><span class="badge-tag badge-error">{{ s.status }}</span></td>
+                <td style="font-size: 12px; color: #cbd5e1;">{{ s.last_reason }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">
+                  No compromised or high-risk active sessions detected.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast-box"></div>
+
+    <script>
+      function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+        
+        event.currentTarget.classList.add('active');
+        document.getElementById('tab-' + tabId).classList.add('active');
+      }
+
+      function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3500);
+      }
+
+      function querySiemLogs() {
+        const cat = document.getElementById('siem-cat').value;
+        const sev = document.getElementById('siem-sev').value;
+        const ip = document.getElementById('siem-ip').value.trim();
+        const user = document.getElementById('siem-user').value.trim();
+
+        let url = `/api/secops/siem-query?category=${cat}&severity=${sev}&ip=${encodeURIComponent(ip)}&user_id=${encodeURIComponent(user)}`;
+        fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.logs) {
+            let html = '';
+            data.logs.forEach(log => {
+              let badge = 'badge-info';
+              if (log.severity === 'ERROR' || log.severity === 'CRITICAL') badge = 'badge-error';
+              else if (log.severity === 'WARN' || log.severity === 'MEDIUM') badge = 'badge-warn';
+
+              html += `<tr>
+                <td>#${log.id}</td>
+                <td style="font-weight: 700; color: #60a5fa;">${log.event_type}</td>
+                <td>${log.details}</td>
+                <td><span class="badge-tag ${badge}">${log.severity}</span></td>
+                <td style="font-family: monospace; color: #94a3b8;">${log.ip_address}</td>
+                <td style="color: #cbd5e1;">${log.user_id}</td>
+                <td style="font-size: 12px; color: #64748b;">${log.timestamp}</td>
+              </tr>`;
+            });
+            document.getElementById('siem-tbody').innerHTML = html;
+            showToast(`Loaded ${data.logs.length} SIEM event logs.`);
+          }
+        });
+      }
+
+      function purgeQuarantineFile(fileId) {
+        fetch('/api/secops/quarantine/purge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: fileId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          showToast(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
+          if (data.ok) location.reload();
+        });
+      }
+
+      function isolateUser(userId) {
+        fetch('/api/secops/quarantine/isolate-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploader_id: userId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          showToast(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
+        });
+      }
+
+      function submitPasswordReset() {
+        const empId = document.getElementById('reset-emp-id').value.trim();
+        const newPw = document.getElementById('reset-new-pw').value.trim();
+        if (!empId || !newPw) {
+          showToast("❌ Please fill in both Employee ID and New Password.");
+          return;
+        }
+
+        fetch('/api/secops/reset-employee-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employee_id: empId, new_password: newPw })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            showToast("✅ " + data.msg);
+            document.getElementById('reset-emp-id').value = '';
+            document.getElementById('reset-new-pw').value = '';
+          } else {
+            showToast("❌ " + data.msg);
+          }
+        })
+        .catch(err => showToast("❌ Failed to reset password."));
+      }
+
+      function searchEmployees() {
+        const q = document.getElementById('search-query').value.trim();
+        if (!q) return;
+
+        fetch('/api/secops/search-employees?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.employees) {
+            let html = '<table><thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Action</th></tr></thead><tbody>';
+            data.employees.forEach(e => {
+              html += `<tr>
+                <td><strong>${e.employee_id}</strong></td>
+                <td>${e.name}</td>
+                <td>${e.role}</td>
+                <td><button class="btn-primary" style="padding:4px 10px; font-size:11px;" onclick="selectEmployeeForReset('${e.employee_id}')">Select</button></td>
+              </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('search-results').innerHTML = html;
+          }
+        });
+      }
+
+      function selectEmployeeForReset(empId) {
+        document.getElementById('reset-emp-id').value = empId;
+        showToast("Selected employee " + empId);
+      }
+
+      function banIp() {
+        const ip = document.getElementById('ban-ip-val').value.trim();
+        const reason = document.getElementById('ban-reason-val').value.trim();
+        if (!ip) return;
+
+        fetch('/api/secops/ban-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: ip, reason: reason })
+        })
+        .then(r => r.json())
+        .then(data => {
+          showToast(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
+          if (data.ok) location.reload();
+        });
+      }
+
+      function unbanIp(ip) {
+        fetch('/api/secops/unban-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: ip })
+        })
+        .then(r => r.json())
+        .then(data => {
+          showToast(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
+          if (data.ok) location.reload();
+        });
+      }
+
+      function saveSmtpConfig() {
+        const config = {
+          smtp_server: document.getElementById('smtp-server').value.trim(),
+          smtp_port: parseInt(document.getElementById('smtp-port').value),
+          smtp_username: document.getElementById('smtp-username').value.trim(),
+          alert_email: document.getElementById('alert-email').value.trim(),
+        };
+
+        fetch('/api/secops/smtp-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        })
+        .then(r => r.json())
+        .then(data => {
+          showToast(data.ok ? "✅ " + data.msg : "❌ " + data.msg);
+        });
+      }
+
+      function loadSecopsNotifications() {
+        fetch('/web/secops/notifications')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            const badge = document.getElementById('secopsNotifBadge');
+            if (badge) {
+              if (data.unread_count > 0) {
+                badge.innerText = data.unread_count;
+                badge.style.display = 'inline-block';
+              } else {
+                badge.style.display = 'none';
+              }
+            }
+
+            let html = '';
+            if (data.notifications && data.notifications.length > 0) {
+              data.notifications.forEach(n => {
+                let borderColor = '#3b82f6';
+                if (n.title.includes('CRITICAL') || n.title.includes('Quarantine') || n.title.includes('WARN')) {
+                  borderColor = '#ef4444';
+                }
+                html += `<div style="background: #1e293b; padding: 10px; border-radius: 8px; border-left: 3px solid ${borderColor};">
+                  <div style="font-size: 12px; font-weight: 700; color: #f8fafc;">${n.title}</div>
+                  <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">${n.message}</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 4px;">${n.created_at}</div>
+                </div>`;
+              });
+            } else {
+              html = '<div style="text-align: center; color: #64748b; font-size: 12px; padding: 10px;">No active security alerts</div>';
+            }
+            const listEl = document.getElementById('secopsNotifList');
+            if (listEl) listEl.innerHTML = html;
+          }
+        });
+      }
+
+      function toggleSecopsNotifDropdown() {
+        const dd = document.getElementById('secopsNotifDropdown');
+        if (!dd) return;
+        if (dd.style.display === 'none' || !dd.style.display) {
+          dd.style.display = 'block';
+          loadSecopsNotifications();
+        } else {
+          dd.style.display = 'none';
+        }
+      }
+
+      function markSecopsNotifsRead() {
+        fetch('/web/secops/notifications/mark_read', { method: 'POST' })
+        .then(() => { loadSecopsNotifications(); });
+      }
+
+      function loadAdminUsers() {
+        fetch('/api/secops/list-admins')
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.admins) {
+            let html = '<table><thead><tr><th>Admin Username</th><th>Role / Level</th><th>Email</th><th>Action</th></tr></thead><tbody>';
+            data.admins.forEach(adm => {
+              html += `<tr>
+                <td><strong>${adm.username}</strong></td>
+                <td><span class="badge-tag badge-info">${adm.role}</span></td>
+                <td>${adm.email}</td>
+                <td><button class="btn-primary" style="padding:4px 10px; font-size:11px;" onclick="selectAdminForReset('${adm.username}')">Select</button></td>
+              </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('admin-list-results').innerHTML = html;
+            showToast("Fetched active administrator accounts.");
+          }
+        });
+      }
+
+      function selectAdminForReset(username) {
+        document.getElementById('reset-admin-username').value = username;
+        showToast("Selected admin user: " + username);
+      }
+
+      function submitAdminPasswordReset() {
+        const username = document.getElementById('reset-admin-username').value.trim();
+        const newPw = document.getElementById('reset-admin-pw').value.trim();
+        if (!username || !newPw) {
+          showToast("❌ Please fill in both Username and New Password.");
+          return;
+        }
+
+        fetch('/api/secops/reset-admin-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, new_password: newPw })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            showToast("✅ " + data.msg);
+            document.getElementById('reset-admin-username').value = '';
+            document.getElementById('reset-admin-pw').value = '';
+          } else {
+            showToast("❌ " + data.msg);
+          }
+        })
+        .catch(err => showToast("❌ Failed to reset admin password."));
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        loadSecopsNotifications();
+        initEmail2faGate();
+      });
+
+      /* ── SMTP 2FA IDENTITY LOCK GATE & MANAGEMENT ── */
+      let emailIdleTimer = null;
+      function resetEmailIdleTimer() {
+        if (emailIdleTimer) clearTimeout(emailIdleTimer);
+        emailIdleTimer = setTimeout(lockEmailSettings, 15 * 60 * 1000);
+      }
+
+      window.lockEmailSettings = function() {
+        if (emailIdleTimer) clearTimeout(emailIdleTimer);
+        const panel = document.getElementById('email-settings-panel');
+        if (panel) panel.style.display = 'none';
+        const gate = document.getElementById('email-2fa-gate');
+        if (gate) gate.style.display = '';
+        const pass = document.getElementById('es-pass');
+        if (pass) pass.value = '';
+        fetch('/api/settings/2fa/lock', { method: 'POST' }).catch(() => {});
+      };
+
+      window.initEmail2faGate = function() {
+        fetch('/api/settings/2fa/setup')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok) return;
+            if (d.already_enabled) {
+              document.getElementById('email-2fa-verify').style.display = '';
+              document.getElementById('email-2fa-enroll').style.display = 'none';
+            } else {
+              document.getElementById('email-2fa-qr').src = d.qr_code;
+              document.getElementById('email-2fa-secret').textContent = d.secret;
+              document.getElementById('email-2fa-enroll').style.display = '';
+              document.getElementById('email-2fa-verify').style.display = 'none';
+            }
+          })
+          .catch(() => {});
+      };
+
+      window.confirmEmail2faEnroll = function() {
+        const code = document.getElementById('email-2fa-enroll-code').value.trim();
+        const err = document.getElementById('email-2fa-enroll-err');
+        err.style.display = 'none';
+        fetch('/api/settings/2fa/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok) { err.textContent = d.msg || 'Invalid 2FA code'; err.style.display = 'block'; return; }
+          unlockEmailSettingsUI();
+        })
+        .catch(() => { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      window.verifyEmail2fa = function() {
+        const code = document.getElementById('email-2fa-code').value.trim();
+        const err = document.getElementById('email-2fa-err');
+        err.style.display = 'none';
+        fetch('/api/settings/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.style.display = 'block'; return; }
+          unlockEmailSettingsUI();
+        })
+        .catch(() => { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      window.resetEmail2fa = function() {
+        const password = document.getElementById('email-2fa-reset-password').value;
+        const err = document.getElementById('email-2fa-reset-err');
+        err.style.display = 'none';
+        fetch('/api/settings/2fa/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password }),
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok) { err.textContent = d.msg || 'Reset failed'; err.style.display = 'block'; return; }
+          document.getElementById('email-2fa-reset-password').value = '';
+          document.getElementById('email-2fa-lost').style.display = 'none';
+          initEmail2faGate();
+        })
+        .catch(() => { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      function unlockEmailSettingsUI() {
+        fetch('/api/settings/email')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok) { initEmail2faGate(); return; }
+            const c = d.config || {};
+            document.getElementById('es-host').value       = c.host || '';
+            document.getElementById('es-port').value       = c.port || 587;
+            document.getElementById('es-user').value       = c.user || '';
+            document.getElementById('es-pass').value       = c.password || '';
+            document.getElementById('es-from-name').value  = c.from_name || '';
+            document.getElementById('es-from-email').value = c.from_email || '';
+            document.getElementById('email-2fa-gate').style.display = 'none';
+            const panel = document.getElementById('email-settings-panel');
+            panel.style.display = '';
+            resetEmailIdleTimer();
+          })
+          .catch(() => lockEmailSettings());
+      }
+
+      window.revealEmailPassword = function() {
+        fetch('/api/settings/email/reveal-password', { method: 'POST' })
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok) { showToast("❌ " + (d.msg || 'Could not reveal password.')); return; }
+            const field = document.getElementById('es-pass');
+            field.value = d.password;
+            field.type = 'text';
+            setTimeout(() => { field.type = 'password'; }, 8000);
+          })
+          .catch(() => showToast("❌ Network error."));
+      };
+
+      window.saveEmailSettings = function() {
+        const err = document.getElementById('email-settings-err');
+        err.style.display = 'none';
+        fetch('/api/settings/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host:       document.getElementById('es-host').value.trim(),
+            port:       document.getElementById('es-port').value.trim(),
+            user:       document.getElementById('es-user').value.trim(),
+            password:   document.getElementById('es-pass').value,
+            from_name:  document.getElementById('es-from-name').value.trim(),
+            from_email: document.getElementById('es-from-email').value.trim(),
+          }),
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok) { err.textContent = d.msg || 'Save failed.'; err.style.display = 'block'; return; }
+          resetEmailIdleTimer();
+          showToast("✅ SMTP settings saved successfully.");
+        })
+        .catch(() => { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      window.sendTestEmail = function() {
+        const target = document.getElementById('testEmail').value.trim();
+        const resEl = document.getElementById('testResult');
+        if (!target) { showToast("❌ Enter an email address to send test."); return; }
+        resEl.style.color = '#3b82f6'; resEl.textContent = 'Sending test email...';
+        fetch('/test_email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'email=' + encodeURIComponent(target)
+        })
+        .then(r => r.json())
+        .then(d => {
+          resEl.style.color = d.ok ? '#4ade80' : '#f87171';
+          resEl.textContent = d.msg || (d.ok ? 'Test email sent!' : 'Failed to send.');
+        })
+        .catch(() => { resEl.style.color = '#f87171'; resEl.textContent = 'Network error.'; });
+      };
+    </script>
+  </body>
+</html>

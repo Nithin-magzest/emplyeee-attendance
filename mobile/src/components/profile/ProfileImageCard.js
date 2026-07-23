@@ -1,0 +1,221 @@
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function ProfileImageCard({
+  image = null,
+  employeeName = "John Doe",
+  employeeId = "EMP001",
+  designation = "Software Engineer",
+  department = "Engineering",
+  onChangePhoto = () => {},
+  onEditProfile = () => {},
+}) {
+  return (
+    <View style={styles.card}>
+      {/* Avatar */}
+
+      <View style={styles.avatarWrapper}>
+        {image ? (
+          <Image
+            source={{ uri: image }}
+            style={styles.avatar}
+          />
+        ) : (
+          <View style={styles.avatar}>
+            <Ionicons
+              name="person"
+              size={38}
+              color="#173B8C"
+            />
+          </View>
+        )}
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.cameraButton}
+          onPress={onChangePhoto}
+        >
+          <Ionicons
+            name="camera"
+            size={14}
+            color="#FFFFFF"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Details */}
+
+      <Text style={styles.name}>
+        {employeeName}
+      </Text>
+
+      <Text style={styles.designation}>
+        {designation}
+      </Text>
+
+      <View style={styles.badge}>
+        <Ionicons
+          name="business-outline"
+          size={13}
+          color="#173B8C"
+        />
+
+        <Text style={styles.badgeText}>
+          {department}
+        </Text>
+      </View>
+
+      <Text style={styles.employeeId}>
+        Employee ID • {employeeId}
+      </Text>
+
+      {/* Action */}
+
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.editButton}
+        onPress={onEditProfile}
+      >
+        <Ionicons
+          name="create-outline"
+          size={18}
+          color="#FFFFFF"
+        />
+
+        <Text style={styles.editText}>
+          Edit Profile
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  // Card
+card: {
+  backgroundColor: "#FFFFFF",
+  borderRadius: 20,
+  paddingHorizontal: 18,
+  paddingVertical: 18,
+  marginBottom: 16,
+
+  borderWidth: 1,
+  borderColor: "#E8EDF3",
+
+  shadowColor: "#0F172A",
+  shadowOpacity: 0.04,
+  shadowRadius: 8,
+  shadowOffset: {
+    width: 0,
+    height: 3,
+  },
+  elevation: 2,
+},
+
+  avatarWrapper: {
+    position: "relative",
+  },
+
+  // Avatar
+avatar: {
+  width: 78,
+  height: 78,
+  borderRadius: 39,
+  backgroundColor: "#EEF4FF",
+
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+  cameraButton: {
+  position: "absolute",
+  bottom: 0,
+  right: 0,
+
+  width: 28,
+  height: 28,
+  borderRadius: 14,
+
+  backgroundColor: "#173B8C",
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  borderWidth: 2,
+  borderColor: "#FFFFFF",
+},
+
+  name: {
+  marginTop: 12,
+  fontSize: 21,
+  fontWeight: "700",
+  color: "#0F172A",
+},
+
+  designation: {
+  marginTop: 3,
+  fontSize: 13,
+  fontWeight: "500",
+  color: "#64748B",
+},
+
+  badge: {
+  marginTop: 10,
+
+  flexDirection: "row",
+  alignItems: "center",
+
+  backgroundColor: "#F8FAFC",
+
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+
+  borderRadius: 20,
+},
+
+  badgeText: {
+    marginLeft: 6,
+
+    color: "#173B8C",
+
+    fontWeight: "700",
+
+    fontSize: 13,
+  },
+
+  employeeId: {
+  marginTop: 10,
+  fontSize: 12,
+  fontWeight: "500",
+  color: "#94A3B8",
+},
+
+  editButton: {
+  marginTop: 16,
+
+  width: 170,
+  height: 42,
+
+  borderRadius: 12,
+
+  backgroundColor: "#173B8C",
+
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+  editText: {
+  marginLeft: 6,
+  fontSize: 14,
+  fontWeight: "600",
+  color: "#FFFFFF",
+},
+});

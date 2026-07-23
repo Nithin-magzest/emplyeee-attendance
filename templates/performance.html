@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Performance &amp; Announcements</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <link rel="stylesheet" href="/static/shared.min.css"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    html,body{height:100%}
+    body{background:#eff6ff;display:flex;min-height:100vh}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460,#1a3a8f);padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,.2)}
+    .nav-item:hover .nav-icon{background:rgba(255,255,255,.12)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .dm-toggle{margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;width:100%;transition:.18s}
+    .dm-toggle:hover{background:rgba(255,255,255,.14)}
+    .main{flex:1;padding:28px;overflow-y:auto;min-width:0}
+    .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    /* Tabs */
+    .tab-bar{display:flex;gap:0;border-bottom:2px solid #dbeafe;margin-bottom:22px}
+    .tab{padding:10px 24px;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:7px;transition:.15s}
+    .tab:hover{color:#1e3a8a}
+    .tab.active{color:#1e3a8a;border-bottom-color:#1e3a8a;background:#eff6ff;border-radius:8px 8px 0 0}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    /* Flash */
+    .flash{padding:10px 16px;border-radius:10px;margin-bottom:18px;font-size:13px;font-weight:600}
+    .flash-success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+    .flash-danger{background:#fef2f2;color:#ef4444;border:1px solid #fecaca}
+    /* Performance styles */
+    .quarter-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+    .q-tab{padding:7px 18px;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;border:1.5px solid #dbeafe;color:#64748b;background:#fff;transition:.15s}
+    .q-tab:hover{background:#eff6ff;color:#1e3a8a}
+    .q-tab.active{background:#1e3a8a;color:#fff;border-color:#1e3a8a}
+    .filters{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+    .filters label{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+    .filters select{padding:8px 12px;border:1.5px solid #dbeafe;border-radius:8px;font-size:13px;color:#1e293b;background:#f8fafc;outline:none}
+    .stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+    .stat-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:16px;text-align:center}
+    .stat-card .num{font-size:26px;font-weight:800;margin-bottom:4px}
+    .stat-card .lbl{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:14px;overflow:hidden;margin-bottom:18px}
+    .card-pad{padding:20px}
+    .sec-title{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#dbeafe;color:#1e3a8a;padding:10px 14px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+    td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fafc}
+    .rating-stars{display:inline-flex;gap:2px}
+    .star{font-size:14px}
+    .star.filled{color:#f59e0b}
+    .star.empty{color:#e2e8f0}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .b-draft{background:#f1f5f9;color:#64748b}
+    .b-submitted{background:#dbeafe;color:#1e3a8a}
+    .b-acknowledged{background:#dcfce7;color:#15803d}
+    .b-none{background:#f1f5f9;color:#94a3b8}
+    .progress-wrap{background:#e2e8f0;border-radius:20px;height:6px;overflow:hidden;width:100px}
+    .progress-fill{height:100%;border-radius:20px}
+    .search-box{position:relative;margin-left:auto}
+    .search-box i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#3b82f6;font-size:14px;pointer-events:none}
+    .search-box input{padding:8px 12px 8px 32px;border:2px solid #bfdbfe;border-radius:9px;background:#f8fafc;font-size:13px;outline:none;color:#1e293b;width:200px}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;border:none;text-decoration:none;transition:.15s}
+    .btn-primary{background:#1e3a8a;color:#fff}
+    .btn-primary:hover{background:#1e40af}
+    /* Announcement styles */
+    .ann-form-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:22px;margin-bottom:18px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .form-group{display:flex;flex-direction:column;gap:6px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+    .form-group input,.form-group select,.form-group textarea{padding:10px 12px;border:1.5px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;font-family:inherit}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#3b82f6}
+    .form-group textarea{resize:vertical;min-height:80px}
+    .ann-card{border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:flex-start;gap:14px}
+    .ann-card.priority-urgent{border-left:4px solid #ef4444}
+    .ann-card.priority-important{border-left:4px solid #f59e0b}
+    .ann-card.priority-normal{border-left:4px solid #3b82f6}
+    .ann-icon{font-size:24px;flex-shrink:0;margin-top:2px}
+    .ann-body{flex:1}
+    .ann-title{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px}
+    .ann-content{font-size:13px;color:#475569;line-height:1.6}
+    .ann-meta{font-size:11px;color:#94a3b8;margin-top:8px;display:flex;align-items:center;gap:10px}
+    .badge-pri{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .pri-urgent{background:#fee2e2;color:#dc2626}
+    .pri-important{background:#fef9c3;color:#92400e}
+    .pri-normal{background:#dbeafe;color:#1e40af}
+    .btn-del{padding:5px 12px;border:none;border-radius:7px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:12px;cursor:pointer}
+    .btn-del:hover{background:#ef4444;color:#fff}
+    .empty-state{text-align:center;padding:40px;color:#94a3b8;font-size:13px}
+    .badge-vis{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+    .vis-public{background:#dcfce7;color:#166534}
+    .vis-private{background:#fef3c7;color:#92400e}
+    .ann-sec-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;padding:8px 0 6px;border-bottom:1px solid #e2e8f0;margin-bottom:12px}
+    .vis-toggle{display:flex;gap:0;border:1.5px solid #dbeafe;border-radius:10px;overflow:hidden;margin-bottom:2px}
+    .vis-toggle label{flex:1;text-align:center;padding:9px 0;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;color:#64748b}
+    .vis-toggle input{display:none}
+    .vis-toggle input:checked+span{background:#1e3a8a;color:#fff}
+    .vis-toggle label span{display:block;width:100%;padding:9px 0;border-radius:0;transition:.15s}
+    #privateEmpRow{display:none}
+    /* ── Dark mode ── */
+    body.dark-mode{background:#0d1117 !important}
+    body.dark-mode .main{background:#0d1117 !important;color:#cdd9e5 !important}
+    body.dark-mode .page-hdr h1{color:#cdd9e5 !important}
+    body.dark-mode .page-hdr p{color:#768390 !important}
+    /* Tabs */
+    body.dark-mode .tab-bar{border-color:#30363d !important}
+    body.dark-mode .tab{color:#768390 !important}
+    body.dark-mode .tab:hover{color:#cdd9e5 !important}
+    body.dark-mode .tab.active{color:#4d9de0 !important;background:#161b22 !important;border-bottom-color:#4d9de0 !important}
+    /* Quarter / year tabs */
+    body.dark-mode .q-tab{background:#161b22 !important;border-color:#30363d !important;color:#768390 !important}
+    body.dark-mode .q-tab:hover{background:#1c2128 !important;color:#cdd9e5 !important}
+    body.dark-mode .q-tab.active{background:#1e3a8a !important;color:#93c5fd !important;border-color:#1d4ed8 !important}
+    /* Filters bar */
+    body.dark-mode .filters{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .filters label{color:#768390 !important}
+    body.dark-mode .filters select{background:#0d1117 !important;border-color:#30363d !important;color:#cdd9e5 !important}
+    /* Search */
+    body.dark-mode .search-box input{background:#0d1117 !important;border-color:#30363d !important;color:#cdd9e5 !important}
+    /* Stat / main cards */
+    body.dark-mode .stat-card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .stat-card .lbl{color:#768390 !important}
+    body.dark-mode .stat-card .num{color:#cdd9e5 !important}
+    body.dark-mode .card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .ann-form-card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .sec-title{color:#4d9de0 !important}
+    /* Table */
+    body.dark-mode th{background:#1c2128 !important;color:#768390 !important;border-color:#30363d !important}
+    body.dark-mode td{color:#cdd9e5 !important;border-color:#30363d !important}
+    body.dark-mode tr:hover td{background:#1c2128 !important}
+    /* Status badges */
+    body.dark-mode .b-draft{background:#1c2128 !important;color:#768390 !important}
+    body.dark-mode .b-submitted{background:#1e3a8a !important;color:#93c5fd !important}
+    body.dark-mode .b-acknowledged{background:#14532d !important;color:#86efac !important}
+    body.dark-mode .b-none{background:#1c2128 !important;color:#768390 !important}
+    /* Star rating */
+    body.dark-mode .star.empty{color:#30363d !important}
+    /* Form inputs */
+    body.dark-mode .form-group label{color:#768390 !important}
+    body.dark-mode .form-group input,
+    body.dark-mode .form-group select,
+    body.dark-mode .form-group textarea{background:#0d1117 !important;border-color:#30363d !important;color:#cdd9e5 !important}
+    /* Announcement cards */
+    body.dark-mode .ann-card{background:#161b22 !important;border-color:#30363d !important}
+    body.dark-mode .ann-title{color:#cdd9e5 !important}
+    body.dark-mode .ann-content{color:#768390 !important}
+    body.dark-mode .ann-meta{color:#768390 !important}
+    /* Priority badges */
+    body.dark-mode .pri-urgent{background:#7f1d1d !important;color:#fca5a5 !important}
+    body.dark-mode .pri-important{background:#713f12 !important;color:#fbbf24 !important}
+    body.dark-mode .pri-normal{background:#1e3a8a !important;color:#93c5fd !important}
+    /* Delete btn */
+    body.dark-mode .btn-del{background:#7f1d1d !important;border-color:#991b1b !important;color:#fca5a5 !important}
+    /* Empty state */
+    body.dark-mode .empty-state{color:#768390 !important}
+    /* Flash */
+    body.dark-mode .flash-success{background:#14532d !important;border-color:#166534 !important;color:#86efac !important}
+    body.dark-mode .flash-danger{background:#7f1d1d !important;border-color:#991b1b !important;color:#fca5a5 !important}
+  </style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co[0] if co else '' }}</div></div>
+
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep u-mt-12"/>
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item active" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+</div>
+
+<div class="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash flash-{{ 'success' if cat == 'success' else 'danger' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="page-hdr">
+    <div>
+      <h1><i class="ti ti-chart-line u-c-3b82f6"></i> Performance &amp; Announcements</h1>
+      <p>Quarterly KPI reviews, ratings, and company-wide communications</p>
+    </div>
+    <div class="u-d-flex u-gap-10 u-ai-center u-fxw-wrap">
+      <button type="button" onclick="openImportModal()" class="btn u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-86efac u-fs-13 u-p-9-16">
+        <i class="ti ti-file-import"></i> Import Excel
+      </button>
+      <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" class="btn u-bg-eff6ff u-c-1e3a8a u-bd-1d5-solid-bfdbfe u-fs-13 u-p-9-16" id="exportBtn">
+        <i class="ti ti-file-export"></i> Export Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Import Modal ── -->
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_d45 u-zi-9999 u-ai-center u-jc-center" id="importModal">
+    <div class="u-bg-fff u-br-18 u-p-30 u-w-480 u-maxw-95vw u-shad-0-20-60-rgba0_0_0_d25">
+      <div class="u-d-flex u-jc-space-between u-ai-center u-mb-20">
+        <div>
+          <div class="u-fs-18 u-fw-800 u-c-1e293b"><i class="ti ti-file-import u-c-16a34a"></i> Import Performance Data</div>
+          <div class="u-fs-12 u-c-64748b u-mt-3">Upload an Excel file to bulk-import KPIs and ratings</div>
+        </div>
+        <button class="u-bg-none u-bd-none u-fs-20 u-c-94a3b8 u-cur-pointer" type="button" onclick="closeImportModal()">✕</button>
+      </div>
+
+      <form action="/performance_import" method="POST" enctype="multipart/form-data">
+        <div class="u-d-grid u-gtc-1fr-1fr u-gap-14 u-mb-16">
+          <div>
+            <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Quarter</label>
+            <select class="u-w-100pct u-p-9-12 u-bd-1d5-solid-dbeafe u-br-9 u-fs-13 u-out-none" name="quarter" id="importQuarter">
+              <option value="1" {% if quarter==1 %}selected{% endif %}>Q1 Jan–Mar</option>
+              <option value="2" {% if quarter==2 %}selected{% endif %}>Q2 Apr–Jun</option>
+              <option value="3" {% if quarter==3 %}selected{% endif %}>Q3 Jul–Sep</option>
+              <option value="4" {% if quarter==4 %}selected{% endif %}>Q4 Oct–Dec</option>
+            </select>
+          </div>
+          <div>
+            <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Year</label>
+            <select class="u-w-100pct u-p-9-12 u-bd-1d5-solid-dbeafe u-br-9 u-fs-13 u-out-none" name="year" id="importYear">
+              {% for y in range(today.year - 2, today.year + 2) %}
+              <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="u-mb-16">
+          <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Excel File <span class="u-c-dc2626">*</span></label>
+          <div class="u-bd-2-dashed-93c5fd u-br-12 u-p-28 u-ta-center u-cur-pointer u-bg-f8fafc u-trs-d15s" id="dropZone" onclick="document.getElementById('importFile').click()"
+               ondragover="event.preventDefault();this.style.borderColor='#1e3a8a'" ondragleave="this.style.borderColor='#93c5fd'"
+               ondrop="handleDrop(event)">
+            <i class="ti ti-cloud-upload u-fs-28 u-c-3b82f6 u-d-block u-mb-6"></i>
+            <div class="u-fs-13 u-c-64748b" id="dropLabel">Click to browse or drag &amp; drop .xlsx file here</div>
+          </div>
+          <input class="u-d-none" type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" onchange="onFileChosen(this)" required/>
+        </div>
+
+        <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-12-14 u-mb-18 u-fs-12 u-c-15803d u-lh-1d7">
+          <strong>Required columns:</strong> <code>employee_id</code>, <code>kpi_title</code>, <code>weight</code>, <code>rating (1–5)</code><br>
+          <strong>Optional:</strong> description, target, achievement, comments, status, reviewer_feedback<br>
+          <a class="u-c-1e3a8a u-fw-700 u-tdec-none" href="/performance_export?quarter={{ quarter }}&year={{ year }}">
+            <i class="ti ti-download"></i> Download template from current export
+          </a>
+        </div>
+
+        <div class="u-d-flex u-gap-10 u-jc-flex-end">
+          <button class="u-p-10-20 u-bd-1d5-solid-e2e8f0 u-br-9 u-bg-fff u-c-64748b u-fw-700 u-fs-13 u-cur-pointer" type="button" onclick="closeImportModal()">Cancel</button>
+          <button class="u-p-10-24 u-bd-none u-br-9 u-bg-1e3a8a u-c-fff u-fw-700 u-fs-13 u-cur-pointer u-d-flex u-ai-center u-gap-7" type="submit">
+            <i class="ti ti-upload"></i> Import &amp; Calculate
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Module Tabs -->
+  <div class="tab-bar">
+    <div class="tab {% if active_tab == 'performance' %}active{% endif %}" onclick="switchTab('performance',this)">
+      <i class="ti ti-chart-line"></i> Performance Reviews
+    </div>
+    <div class="tab {% if active_tab == 'hike' %}active{% endif %}" onclick="switchTab('hike',this)">
+      <i class="ti ti-trending-up"></i> Hike &amp; Incentives
+    </div>
+    <div class="tab {% if active_tab == 'announcements' %}active{% endif %}" onclick="switchTab('announcements',this)">
+      <i class="ti ti-speakerphone"></i> Announcements
+      {% if ann_list %}<span class="u-bg-3b82f6 u-c-fff u-br-20 u-p-1-7 u-fs-10 u-fw-700">{{ ann_list|length }}</span>{% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: PERFORMANCE ═══════════════ -->
+  <div class="tab-content {% if active_tab == 'performance' %}active{% endif %}" id="tab-performance">
+
+    <!-- Quarter + Year tabs -->
+    <div class="quarter-tabs">
+      {% for q_num, q_label in [(1,'Q1 Jan–Mar'),(2,'Q2 Apr–Jun'),(3,'Q3 Jul–Sep'),(4,'Q4 Oct–Dec')] %}
+      <a class="q-tab {% if q_num == quarter %}active{% endif %}"
+         href="/performance?tab=performance&quarter={{ q_num }}&year={{ year }}{% if selected_dept %}&dept={{ selected_dept }}{% endif %}">
+        {{ q_label }}
+      </a>
+      {% endfor %}
+      <div class="u-ml-auto u-d-flex u-ai-center u-gap-8">
+        {% for y in range(today.year - 1, today.year + 2) %}
+        <a class="q-tab {% if y == year %}active{% endif %}"
+           href="/performance?tab=performance&quarter={{ quarter }}&year={{ y }}{% if selected_dept %}&dept={{ selected_dept }}{% endif %}">
+          {{ y }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Dept + Search filters -->
+    <div class="filters">
+      <label>Department</label>
+      <select onchange="location.href='/performance?tab=performance&quarter={{ quarter }}&year={{ year }}&dept='+this.value">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+        <option value="{{ d }}" {% if d == selected_dept %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+      <div class="search-box">
+        <i class="ti ti-search"></i>
+        <input type="text" placeholder="Search employee…" oninput="filterTable(this.value)"/>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    {% set total_emp = employees|length %}
+    {% set reviewed  = employees|selectattr(4)|list|length %}
+    {% set submitted = employees|selectattr(6,'equalto','Submitted')|list|length %}
+    {% set rated_list = employees|selectattr(5)|list %}
+    {% set avg_rating = (rated_list|map(attribute=5)|sum / rated_list|length) if rated_list else 0 %}
+    <div class="stats-row">
+      <div class="stat-card"><div class="num u-c-1e3a8a">{{ total_emp }}</div><div class="lbl">Total Employees</div></div>
+      <div class="stat-card"><div class="num u-c-16a34a">{{ reviewed }}</div><div class="lbl">Reviews Started</div></div>
+      <div class="stat-card"><div class="num u-c-6366f1">{{ submitted }}</div><div class="lbl">Submitted</div></div>
+      <div class="stat-card"><div class="num u-c-f59e0b">{{ "%.1f"|format(avg_rating) if avg_rating else '—' }}</div><div class="lbl">Avg Rating / 5</div></div>
+      <div class="stat-card"><div class="num u-c-64748b">{{ total_emp - reviewed }}</div><div class="lbl">Pending Review</div></div>
+    </div>
+
+    <!-- Employee table -->
+    <div class="card">
+      <div class="card-pad">
+        <div class="sec-title"><i class="ti ti-users"></i> Employee Reviews — Q{{ quarter }} {{ year }}</div>
+      </div>
+      <div class="u-ovx-auto">
+        <table id="empTable">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>KPIs</th>
+              <th>Overall Rating</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp_id, name, role, dept, rev_id, rating, status, kpi_count in employees %}
+            <tr data-search="{{ name }} {{ dept }} {{ role }}">
+              <td>
+                <div class="u-fw-700">{{ name }}</div>
+                <div class="u-fs-11 u-c-94a3b8">{{ emp_id }} · {{ role }}</div>
+              </td>
+              <td class="u-c-64748b">{{ dept or '—' }}</td>
+              <td>
+                {% if rev_id %}
+                  <span class="u-fw-700 u-c-1e3a8a">{{ kpi_count }}</span>
+                  <span class="u-fs-11 u-c-94a3b8"> KPIs</span>
+                {% else %}<span class="u-c-94a3b8">—</span>{% endif %}
+              </td>
+              <td>
+                {% if rating and rating > 0 %}
+                <div class="u-d-flex u-ai-center u-gap-8">
+                  <div class="rating-stars">
+                    {% for i in range(1,6) %}<span class="star {% if i <= rating %}filled{% else %}empty{% endif %}">★</span>{% endfor %}
+                  </div>
+                  <span class="u-fw-800 u-c-f59e0b u-fs-14">{{ "%.1f"|format(rating) }}</span>
+                </div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">{{ rating_labels.get(rating|int,'') }}</div>
+                <div class="progress-wrap u-mt-4">
+                  <div class="progress-fill" style="width:{{ (rating/5*100)|int }}%;background:{% if rating>=4 %}#22c55e{% elif rating>=3 %}#3b82f6{% elif rating>=2 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+                </div>
+                {% else %}
+                <span class="u-c-94a3b8 u-fs-12">Not rated yet</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if status == 'Submitted' %}<span class="badge b-submitted"><i class="ti ti-circle-check"></i> Submitted</span>
+                {% elif status == 'Acknowledged' %}<span class="badge b-acknowledged"><i class="ti ti-check"></i> Acknowledged</span>
+                {% elif status == 'Draft' %}<span class="badge b-draft"><i class="ti ti-pencil"></i> Draft</span>
+                {% else %}<span class="badge b-none">Not Started</span>{% endif %}
+              </td>
+              <td>
+                <a href="/performance_review/{{ emp_id }}?quarter={{ quarter }}&year={{ year }}"
+                   class="btn btn-primary u-fs-12 u-p-6-14">
+                  {% if rev_id %}<i class="ti ti-edit"></i> Edit{% else %}<i class="ti ti-plus"></i> Start{% endif %}
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: HIKE & INCENTIVES ═══════════════ -->
+  <div class="tab-content {% if active_tab == 'hike' %}active{% endif %}" id="tab-hike">
+
+    <!-- Quarter + Year navigation -->
+    <div class="quarter-tabs">
+      {% for q_num, q_label in [(1,'Q1 Jan–Mar'),(2,'Q2 Apr–Jun'),(3,'Q3 Jul–Sep'),(4,'Q4 Oct–Dec')] %}
+      <a class="q-tab {% if q_num == quarter %}active{% endif %}"
+         href="/performance?tab=hike&quarter={{ q_num }}&year={{ year }}">{{ q_label }}</a>
+      {% endfor %}
+      <div class="u-ml-auto u-d-flex u-ai-center u-gap-8">
+        {% for y in range(today.year - 1, today.year + 2) %}
+        <a class="q-tab {% if y == year %}active{% endif %}"
+           href="/performance?tab=hike&quarter={{ quarter }}&year={{ y }}">{{ y }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if active_tab == 'hike' %}
+
+    <!-- Band Configuration (collapsible) -->
+    <div class="card u-mb-18">
+      <div class="card-pad u-cur-pointer u-usel-none" onclick="toggleHikeCfg()">
+        <div class="sec-title u-m-0 u-d-flex u-jc-space-between u-ai-center">
+          <span><i class="ti ti-adjustments-horizontal"></i> Hike Band Configuration</span>
+          <i class="ti ti-chevron-down u-fs-18 u-trs-d2s" id="hikeCfgChev"></i>
+        </div>
+      </div>
+      <div class="u-d-none u-p-0-20-20" id="hikeCfgBody">
+        <p class="u-fs-12 u-c-64748b u-mb-14">Define the rating thresholds, salary hike %, and quarterly bonus % of monthly CTC for each performance band.</p>
+        <form action="/save_hike_config" method="POST">
+          <input type="hidden" name="quarter" value="{{ quarter }}">
+          <input type="hidden" name="year" value="{{ year }}">
+          <div class="u-ovx-auto">
+            <table class="u-minw-600">
+              <thead>
+                <tr>
+                  <th>Band Label</th>
+                  <th>Min Rating</th>
+                  <th>Max Rating</th>
+                  <th>Hike %</th>
+                  <th>Bonus % (of Monthly CTC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for bid, blabel, bmin, bmax, bhike, binc, bcolor in hike_bands %}
+                <tr>
+                  <input type="hidden" name="band_id" value="{{ bid }}">
+                  <td class="u-d-flex u-ai-center u-gap-8">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ bcolor }};flex-shrink:0;"></span>
+                    <input class="u-w-170 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="text" name="band_label" value="{{ blabel }}">
+                  </td>
+                  <td><input class="u-w-68 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_min" value="{{ bmin }}" step="0.1" min="0" max="5"></td>
+                  <td><input class="u-w-68 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_max" value="{{ bmax }}" step="0.1" min="0" max="5"></td>
+                  <td><input class="u-w-75 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_hike" value="{{ bhike }}" step="0.5" min="0" max="100"> %</td>
+                  <td><input class="u-w-75 u-p-6-8 u-bd-1d5-solid-dbeafe u-br-7 u-fs-12 u-out-none" type="number" name="band_inc" value="{{ binc }}" step="0.5" min="0" max="100"> %</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" class="btn btn-primary u-mt-14 u-fs-12">
+            <i class="ti ti-device-floppy"></i> Save Configuration
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-row u-mb-18">
+      <div class="stat-card"><div class="num u-c-1e3a8a">{{ hike_employees|length }}</div><div class="lbl">Total Employees</div></div>
+      <div class="stat-card"><div class="num u-c-16a34a">{{ hike_eligible_count }}</div><div class="lbl">Rated (Eligible)</div></div>
+      <div class="stat-card"><div class="num u-c-7c3aed u-fs-18">₹{{ "{:,.0f}".format(total_hike_cost) }}</div><div class="lbl">Extra Hike Cost / Mo</div></div>
+      <div class="stat-card"><div class="num u-c-d97706 u-fs-18">₹{{ "{:,.0f}".format(total_bonus_pool) }}</div><div class="lbl">Total Bonus Pool</div></div>
+    </div>
+
+    <!-- Hidden submit form (populated by JS) -->
+    <form class="u-d-none" id="hikeForm" action="" method="POST">
+      <input type="hidden" name="quarter" value="{{ quarter }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <div id="hikeEmpIds"></div>
+    </form>
+
+    <!-- Employee hike table -->
+    <div class="card">
+      <div class="card-pad u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-10">
+        <div class="sec-title u-m-0"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>
+        <div class="u-d-flex u-gap-8 u-fxw-wrap u-ai-center">
+          <label class="u-fs-12 u-c-64748b u-d-flex u-ai-center u-gap-6 u-cur-pointer">
+            <input type="checkbox" id="hikeSelectAll" onchange="hikeSelectAll(this)"> Select all
+          </label>
+          <button type="button" class="btn u-bg-dcfce7 u-c-15803d u-bd-1d5-solid-86efac u-fs-12" onclick="submitHikeForm('/apply_hike')">
+            <i class="ti ti-arrow-up-circle"></i> Apply Hike to Selected
+          </button>
+          <button type="button" class="btn u-bg-fef9c3 u-c-854d0e u-bd-1d5-solid-fde68a u-fs-12" onclick="submitHikeForm('/award_performance_bonus')">
+            <i class="ti ti-gift"></i> Award Bonus to Selected
+          </button>
+        </div>
+      </div>
+      <div class="u-ovx-auto">
+        <table>
+          <thead>
+            <tr>
+              <th class="u-w-36 u-ta-center"></th>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>Current CTC / Mo</th>
+              <th>Q{{ quarter }} Rating</th>
+              <th>Performance Band</th>
+              <th>Hike %</th>
+              <th>New CTC / Mo</th>
+              <th>Bonus %</th>
+              <th>Bonus Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h_eid, h_name, h_role, h_dept, h_rating, h_status, h_ctc, band_label, band_color, hike_pct, new_ctc, inc_pct, bonus in hike_employees %}
+            <tr>
+              <td class="u-ta-center">
+                <input type="checkbox" class="hike-chk" value="{{ h_eid }}"
+                  {% if h_rating == 0 or h_ctc == 0 %}disabled title="Needs rating + salary configured"{% endif %}>
+              </td>
+              <td>
+                <div class="u-fw-600 u-fs-13">{{ h_name }}</div>
+                <div class="u-fs-11 u-c-64748b">{{ h_eid }}{% if h_role %} · {{ h_role }}{% endif %}</div>
+              </td>
+              <td>{{ h_dept or '—' }}</td>
+              <td>
+                {% if h_ctc > 0 %}
+                <span class="u-fw-600">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                {% else %}
+                <span class="u-c-94a3b8 u-fs-12">Not configured</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if h_rating > 0 %}
+                <span style="font-weight:700;color:{% if h_rating >= 4.5 %}#15803d{% elif h_rating >= 4.0 %}#2563eb{% elif h_rating >= 3.0 %}#7c3aed{% elif h_rating >= 2.0 %}#d97706{% else %}#dc2626{% endif %};">
+                  {{ "%.1f"|format(h_rating) }} / 5
+                </span>
+                {% else %}
+                <span class="u-c-94a3b8 u-fs-12">Not rated</span>
+                {% endif %}
+              </td>
+              <td>
+                <span style="background:{{ band_color }}22;color:{{ band_color }};border:1px solid {{ band_color }}44;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">
+                  {{ band_label }}
+                </span>
+              </td>
+              <td>
+                {% if hike_pct > 0 %}
+                <span class="u-c-15803d u-fw-700">{{ hike_pct }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if new_ctc > h_ctc and h_ctc > 0 %}
+                <span class="u-fw-700 u-c-15803d">₹{{ "{:,.0f}".format(new_ctc) }}</span>
+                <span class="u-fs-11 u-c-16a34a u-ws-nowrap">+₹{{ "{:,.0f}".format(new_ctc - h_ctc) }}</span>
+                {% elif h_ctc > 0 %}
+                <span class="u-c-64748b">₹{{ "{:,.0f}".format(h_ctc) }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if inc_pct > 0 %}
+                <span class="u-c-d97706 u-fw-700">{{ inc_pct }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if bonus > 0 %}
+                <span class="u-fw-700 u-c-92400e">₹{{ "{:,.0f}".format(bonus) }}</span>
+                {% else %}<span class="u-c-94a3b8">—</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td class="u-ta-center u-p-30 u-c-94a3b8" colspan="10">No employees found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="u-p-10-20 u-fs-12 u-c-64748b u-bdt-1-solid-f1f5f9 u-lh-1d6">
+        <i class="ti ti-info-circle"></i>
+        <strong>Apply Hike</strong> — updates monthly CTC and salary/day in salary settings, with today as the revision date. &nbsp;|&nbsp;
+        <strong>Award Bonus</strong> — adds a one-time incentive to the employee's payroll record for Q{{ quarter }} {{ year }}.
+        Employees without a salary configured or without a rating cannot be selected.
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════ TAB: ANNOUNCEMENTS ═══════════════ -->
+  <div class="tab-content {% if active_tab == 'announcements' %}active{% endif %}" id="tab-announcements">
+
+    <!-- Post form -->
+    <div class="ann-form-card">
+      <div class="sec-title"><i class="ti ti-plus"></i> Post New Announcement</div>
+      <form action="/announcements" method="POST">
+        <input type="hidden" name="action" value="add"/>
+        <div class="form-row u-mb-12">
+          <div class="form-group u-gc-span-2">
+            <label>Title</label>
+            <input type="text" name="title" placeholder="Announcement title…" required maxlength="255"/>
+          </div>
+          <div class="form-group u-gc-span-2">
+            <label>Content</label>
+            <textarea name="content" placeholder="Write the announcement details…" required rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select name="priority">
+              <option value="Normal">Normal</option>
+              <option value="Important">Important</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Visibility</label>
+            <div class="vis-toggle">
+              <label>
+                <input type="radio" name="visibility" value="public" checked onchange="annVisChange(this)"/>
+                <span><i class="ti ti-world u-fs-13 u-va-middle u-mr-4"></i>Public</span>
+              </label>
+              <label>
+                <input type="radio" name="visibility" value="private" onchange="annVisChange(this)"/>
+                <span><i class="ti ti-lock u-fs-13 u-va-middle u-mr-4"></i>Private</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group u-gc-span-2" id="privateEmpRow">
+            <label>Send To (Employee)</label>
+            <select name="target_employee_id" id="annTargetEmp">
+              <option value="">— Select employee —</option>
+              {% for eid, ename in ann_emp_list %}
+              <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary"><i class="ti ti-speakerphone"></i> Post Announcement</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- List -->
+    <div class="card card-pad">
+      <div class="sec-title"><i class="ti ti-list"></i> All Announcements ({{ ann_list|length }})</div>
+      {% if ann_list %}
+        {% if pub_anns %}
+        <div class="ann-sec-label"><i class="ti ti-world u-va-middle u-mr-4"></i>Public ({{ pub_anns|length }})</div>
+        {% for aid, atitle, acontent, apri, adate, avis, atgt_id, atgt_name in pub_anns %}
+        <div class="ann-card priority-{{ apri|lower }}">
+          <div class="ann-icon">
+            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle u-c-ef4444 u-fs-22"></i>
+            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle u-c-f59e0b u-fs-22"></i>
+            {% else %}<i class="ti ti-speakerphone u-c-3b82f6 u-fs-22"></i>{% endif %}
+          </div>
+          <div class="ann-body">
+            <div class="ann-title">{{ atitle }}</div>
+            <div class="ann-content">{{ acontent }}</div>
+            <div class="ann-meta">
+              <span class="badge-pri pri-{{ apri|lower }}">{{ apri }}</span>
+              <span class="badge-vis vis-public"><i class="ti ti-world u-fs-10"></i> Public</span>
+              <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
+              <form class="u-d-inline u-ml-auto" action="/announcements" method="POST">
+                <input type="hidden" name="action" value="delete"/>
+                <input type="hidden" name="ann_id" value="{{ aid }}"/>
+                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                  <i class="ti ti-trash"></i> Delete
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if priv_anns %}
+        <div class="ann-sec-label u-mt-18"><i class="ti ti-lock u-va-middle u-mr-4"></i>Private ({{ priv_anns|length }})</div>
+        {% for aid, atitle, acontent, apri, adate, avis, atgt_id, atgt_name in priv_anns %}
+        <div class="ann-card priority-{{ apri|lower }}">
+          <div class="ann-icon">
+            {% if apri == 'Urgent' %}<i class="ti ti-alert-circle u-c-ef4444 u-fs-22"></i>
+            {% elif apri == 'Important' %}<i class="ti ti-alert-triangle u-c-f59e0b u-fs-22"></i>
+            {% else %}<i class="ti ti-lock u-c-f59e0b u-fs-22"></i>{% endif %}
+          </div>
+          <div class="ann-body">
+            <div class="ann-title">{{ atitle }}</div>
+            <div class="ann-content">{{ acontent }}</div>
+            <div class="ann-meta">
+              <span class="badge-pri pri-{{ apri|lower }}">{{ apri }}</span>
+              <span class="badge-vis vis-private"><i class="ti ti-lock u-fs-10"></i> Private</span>
+              {% if atgt_name %}<span class="u-c-64748b u-fs-11"><i class="ti ti-user u-fs-10"></i> To: {{ atgt_name }}</span>{% endif %}
+              <span>{{ adate.strftime('%d %b %Y, %I:%M %p') if adate else '—' }}</span>
+              <form class="u-d-inline u-ml-auto" action="/announcements" method="POST">
+                <input type="hidden" name="action" value="delete"/>
+                <input type="hidden" name="ann_id" value="{{ aid }}"/>
+                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                  <i class="ti ti-trash"></i> Delete
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      {% else %}
+        <div class="empty-state"><i class="ti ti-speakerphone u-fs-40 u-d-block u-mb-12"></i>No announcements posted yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function annVisChange(radio) {
+  var row = document.getElementById('privateEmpRow');
+  var sel = document.getElementById('annTargetEmp');
+  if (radio.value === 'private') {
+    row.style.display = 'flex';
+    sel.required = true;
+  } else {
+    row.style.display = 'none';
+    sel.required = false;
+    sel.value = '';
+  }
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+  var url = new URL(window.location);
+  url.searchParams.set('tab', id);
+  window.history.replaceState(null, '', url);
+}
+function filterTable(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#empTable tbody tr').forEach(r => {
+    r.style.display = (r.dataset.search || '').toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+/* ── Import modal ── */
+function openImportModal() {
+  document.getElementById('importModal').style.display = 'flex';
+}
+function closeImportModal() {
+  document.getElementById('importModal').style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeImportModal();
+});
+document.getElementById('importModal').addEventListener('click', function(e) {
+  if (e.target === this) closeImportModal();
+});
+
+function onFileChosen(input) {
+  var label = document.getElementById('dropLabel');
+  if (input.files && input.files[0]) {
+    label.textContent = '📄 ' + input.files[0].name;
+    label.style.color = '#15803d';
+    label.style.fontWeight = '700';
+  }
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = '#93c5fd';
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  var inp = document.getElementById('importFile');
+  var dt  = new DataTransfer();
+  dt.items.add(file);
+  inp.files = dt.files;
+  onFileChosen(inp);
+}
+
+/* Keep export link in sync with the quarter/year tabs */
+document.querySelectorAll('a.q-tab').forEach(function(a) {
+  a.addEventListener('click', function() {
+    var url   = new URL(this.href, window.location.origin);
+    var q     = url.searchParams.get('quarter');
+    var yr    = url.searchParams.get('year');
+    var exp   = document.getElementById('exportBtn');
+    if (exp && q && yr) {
+      var eu = new URL(exp.href, window.location.origin);
+      eu.searchParams.set('quarter', q);
+      eu.searchParams.set('year', yr);
+      exp.href = eu.toString();
+    }
+  });
+});
+
+/* ── Hike & Incentives tab ── */
+function toggleHikeCfg() {
+  var body = document.getElementById('hikeCfgBody');
+  var chev = document.getElementById('hikeCfgChev');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function submitHikeForm(action) {
+  var checked = Array.from(document.querySelectorAll('.hike-chk:checked')).map(function(c){ return c.value; });
+  if (!checked.length) { alert('Select at least one employee first.'); return; }
+  var form = document.getElementById('hikeForm');
+  form.action = action;
+  var cont = document.getElementById('hikeEmpIds');
+  cont.innerHTML = '';
+  checked.forEach(function(id) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'emp_ids'; inp.value = id;
+    cont.appendChild(inp);
+  });
+  form.submit();
+}
+
+function hikeSelectAll(cb) {
+  document.querySelectorAll('.hike-chk:not([disabled])').forEach(function(b){ b.checked = cb.checked; });
+}
+</script>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

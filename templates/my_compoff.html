@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comp-off / OT</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  <style>
+
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      html, body { height: 100%; }
+      body { background: #f1f5f9; display: flex; flex-direction: row; min-height: 100dvh; }
+
+      .sidebar {
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow: hidden;
+        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        padding: 20px 14px; color: white;
+        display: flex; flex-direction: column; flex-shrink: 0;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.18); z-index: 300;
+        transition: transform 0.28s ease;
+      }
+      .sb-profile {
+        display: flex; align-items: center; gap: 12px;
+        padding-bottom: 18px; margin-bottom: 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .sb-avatar {
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+        background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        font-size: 18px; font-weight: 700; color: white;
+      }
+      .sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .sb-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
+      .sb-role { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+      .sb-id   { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+      .sb-nav-label {
+        font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 0 10px; margin: 12px 0 4px;
+      }
+      .sb-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 10px; margin: 1px 0;
+        color: rgba(255,255,255,0.75);
+        border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s;
+        position: relative; border: none; background: none; width: 100%;
+        text-align: left; cursor: pointer; font-family: inherit; text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sb-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+      .sb-item.active {
+        background: rgba(255,255,255,0.15); color: #fff; font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+      }
+      .sb-item.active::before {
+        content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+        width: 3px; border-radius: 2px; background: #60a5fa;
+      }
+      .sb-icon {
+        width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.08); font-size: 16px;
+      }
+      .sb-icon i { font-size: 16px; line-height: 1; }
+      .sb-item.active .sb-icon { background: rgba(96,165,250,0.2); }
+      .sb-item:hover .sb-icon  { background: rgba(255,255,255,0.12); }
+      .sb-item.danger { color: rgba(252,165,165,0.85); }
+      .sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+      .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .sb-scroll-nav { flex: 1; overflow-y: auto; min-height: 0; }
+      .sb-scroll-nav::-webkit-scrollbar { width: 3px; }
+      .sb-scroll-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+      .sb-bottom { flex-shrink: 0; padding-top: 4px; }
+      .sb-footer {
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        font-size: 11px; color: rgba(255,255,255,0.4);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .main-area { flex: 1; min-width: 0; overflow-y: auto; }
+      .app-content { padding: 24px 28px; }
+
+.sb-avatar img{width:100%;height:100%;object-fit:cover}
+    
+    
+    
+    
+    
+    
+    .sb-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)}
+    .sb-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    
+    .sb-item.active 
+    
+    .sb-item.danger:hover{background:rgba(239,68,68,0.15);color:#fca5a5}
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    .page-hdr{margin-bottom:20px}
+    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    .hero{background:linear-gradient(135deg,#0f2460,#1a3a8f);color:#fff;border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+    .hero h2{font-size:20px;font-weight:800;margin-bottom:4px}
+    .hero p{font-size:13px;opacity:.75}
+    .stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+    .stat-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:16px;text-align:center}
+    .stat-card .num{font-size:30px;font-weight:900;margin-bottom:4px}
+    .stat-card .lbl{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:18px}
+    .sec-title{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#dbeafe;color:#1e3a8a;padding:10px 14px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+    td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .b-pending{background:#fef9c3;color:#854d0e}
+    .b-approved{background:#dcfce7;color:#15803d}
+    .b-rejected{background:#fee2e2;color:#dc2626}
+    .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;font-size:13px;color:#1e3a8a;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px}
+    .btn{padding:8px 18px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+    .btn-primary{background:#1e3a8a;color:#fff}
+    .apply-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;color:#1e293b;outline:none;background:#f8fafc}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#3b82f6}
+    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .empty-row td{text-align:center;padding:30px;color:#94a3b8;font-style:italic}
+    .avail-badge{display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:20px;font-size:14px;font-weight:800;background:#dcfce7;color:#15803d}
+
+    /* ── Dark mode ── */
+    body.dark-mode{background:#0d1117!important}
+    body.dark-mode .main-area{background:#0d1117!important}
+    body.dark-mode .app-content{background:#0d1117!important}
+    body.dark-mode .page-hdr h1{color:#cdd9e5!important}
+    body.dark-mode .page-hdr p{color:#768390!important}
+    body.dark-mode .stat-card{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .stat-card .lbl{color:#768390!important}
+    body.dark-mode .card{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .sec-title{color:#93c5fd!important}
+    body.dark-mode th{background:#1e3a8a!important;color:#93c5fd!important}
+    body.dark-mode td{border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .info-box{background:#1c2750!important;border-color:#3b82f6!important;color:#93c5fd!important}
+    body.dark-mode .form-group label{color:#768390!important}
+    body.dark-mode .form-group input,.dark-mode .form-group select,.dark-mode .form-group textarea{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .flash-success{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
+    body.dark-mode .avail-badge{background:#14532d!important;color:#4ade80!important}
+  </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar">
+          {% if emp_info[3] %}
+            <img src="/my_photo" alt="{{ emp_info[0] }}" onerror="this.parentNode.innerHTML='{{ emp_info[0][0] | upper }}'" />
+          {% else %}
+            {{ emp_info[0][0] | upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div class="sb-name">{{ emp_info[0] }}</div>
+          <div class="sb-role">{{ emp_info[1] or 'Employee' }}</div>
+          <div class="sb-id">ID: {{ emp_id }}</div>
+        </div>
+      </div>
+      <div class="sb-scroll-nav">
+
+
+      <div class="sb-nav-label">Main</div>
+      <a href="/employee_portal#dashboard" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-home"></i></span>Dashboard
+      </a>
+      <a href="/employee_portal#attendance" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-calendar-check"></i></span>Attendance
+      </a>
+      <a href="/employee_portal#apply-leave" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-file-plus"></i></span>Apply Leave
+      </a>
+      <a href="/employee_portal#earnings" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-trophy"></i></span>Earnings
+      </a>
+      <a href="/employee_portal#holidays" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-calendar-event"></i></span>Holidays
+      </a>
+
+      <div class="sb-nav-label">Account</div>
+      <a href="/my_compoff" class="sb-item active u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-replace"></i></span>Comp-off / OT
+      </a>
+      <a href="/my_performance" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-chart-line"></i></span>My Performance
+      </a>
+      <a href="/my_onboarding" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-checklist"></i></span>My Onboarding
+      </a>
+      <a href="/employee_portal#tickets" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-ticket"></i></span>Support Tickets
+      </a>
+      <a href="/employee_portal#my-profile" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-user"></i></span>My Profile
+      </a>
+
+      <div class="sb-nav-label">Policies</div>
+      <a href="/employee_portal#policies" class="sb-item u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-book"></i></span>Policies &amp; Guidelines
+      </a>
+      </div>
+
+      <div class="sb-bottom">
+        <hr class="sb-sep" />
+        <a href="/employee_portal#resign" class="sb-item danger u-tdec-none">
+          <span class="sb-icon"><i class="ti ti-alert-triangle"></i></span>Resignation
+        </a>
+        <a href="/employee_logout" class="sb-item danger u-tdec-none">
+        <span class="sb-icon"><i class="ti ti-logout"></i></span>Logout
+      </a>
+  
+        <div class="sb-footer">👤 {{ emp_id }}</div>
+      </div>
+    </nav>
+  <div class="main-area">
+    <div class="app-content">
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% set emp_name, emp_role, emp_dept, _ = emp_info %}
+  <div class="hero">
+    <div>
+      <h2>{{ emp_name }}</h2>
+      <p>{{ emp_role }} &nbsp;·&nbsp; {{ emp_dept or 'No Department' }}</p>
+    </div>
+    <div class="u-ta-center">
+      <div style="font-size:38px;font-weight:900;color:{% if avail_days > 0 %}#4ade80{% else %}rgba(255,255,255,.5){% endif %};">
+        {{ "%.1f"|format(avail_days) }}
+      </div>
+      <div class="u-fs-12 u-op-d75">Comp-off Days Available</div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num u-c-3b82f6">{{ "%.1f"|format(earned_min / 60) }}</div>
+      <div class="lbl">OT Hours Earned</div>
+    </div>
+    <div class="stat-card">
+      <div class="num u-c-16a34a">{{ "%.1f"|format(avail_days) }}</div>
+      <div class="lbl">Days Available</div>
+    </div>
+    <div class="stat-card">
+      <div class="num u-c-f59e0b">{{ "%.1f"|format(used_days) }}</div>
+      <div class="lbl">Days Used</div>
+    </div>
+    <div class="stat-card">
+      <div class="num u-c-6366f1">{{ "%.1f"|format(earned_days) }}</div>
+      <div class="lbl">Total Earned</div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <i class="ti ti-info-circle u-fs-18 u-fxs-0"></i>
+    <span>
+      OT of ≥ <b>{{ min_ot_minutes }} minutes</b> per day (when approved by admin) credits your comp-off balance.
+      Every <b>{{ minutes_per_day }} OT minutes</b> ({{ "%.0f"|format(minutes_per_day / 60) }} hrs) = <b>1 comp-off day</b>.
+    </span>
+  </div>
+
+  <!-- OT Records -->
+  <div class="card">
+    <div class="sec-title"><i class="ti ti-clock-bolt"></i> My Overtime Records</div>
+    <div class="u-ovx-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>OT Duration</th>
+            <th>OT Pay</th>
+            <th>Comp-off Credited</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for date, ot_min, ot_pay, status, notes in ot_records %}
+          <tr>
+            <td>{{ date.strftime('%d %b %Y') if date else '—' }}</td>
+            <td>
+              <span class="u-fw-700 u-c-3b82f6">{{ (ot_min // 60) }}h {{ (ot_min % 60) }}m</span>
+              <span class="u-fs-11 u-c-94a3b8">({{ ot_min }} min)</span>
+            </td>
+            <td class="u-c-16a34a u-fw-600">Rs. {{ "%.2f"|format(ot_pay) }}</td>
+            <td>
+              {% if status == 'Approved' and ot_min >= min_ot_minutes %}
+              <span class="u-c-16a34a u-fw-700 u-fs-12">
+                <i class="ti ti-check"></i> +{{ "%.1f"|format(ot_min / minutes_per_day) }} days
+              </span>
+              {% elif ot_min < min_ot_minutes %}
+              <span class="u-c-94a3b8 u-fs-11">Below threshold</span>
+              {% else %}
+              <span class="u-c-94a3b8 u-fs-11">Pending</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {% if status=='Approved' %}b-approved{% elif status=='Rejected' %}b-rejected{% else %}b-pending{% endif %}">
+                {{ status }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty-row">No overtime records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Comp-off Leave History -->
+  <div class="card">
+    <div class="sec-title"><i class="ti ti-calendar-off"></i> Comp-off Leave Applications</div>
+    <div class="u-ovx-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Reason</th>
+            <th>Applied On</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for leave_date, status, reason, created_at in compoff_leaves %}
+          <tr>
+            <td class="u-fw-700">{{ leave_date.strftime('%d %b %Y') if leave_date else '—' }}</td>
+            <td>
+              <span class="badge {% if status=='Approved' %}b-approved{% elif status=='Rejected' %}b-rejected{% else %}b-pending{% endif %}">
+                {{ status }}
+              </span>
+            </td>
+            <td class="u-c-64748b">{{ reason or '—' }}</td>
+            <td class="u-c-94a3b8 u-fs-11">{{ created_at.strftime('%d %b %Y') if created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-row">No comp-off leaves applied yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Apply Comp-off Modal -->
+{% if compoff_lt_id %}
+<div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_d45 u-zi-999 u-ai-center u-jc-center" id="applyModal">
+  <div class="u-bg-fff u-br-18 u-p-28 u-w-460 u-maxw-95pct u-shad-0-20-60-rgba0_0_0_d25">
+    <div class="u-d-flex u-jc-space-between u-ai-center u-mb-20">
+      <h2 class="u-fs-17 u-fw-800 u-c-1e293b"><i class="ti ti-calendar-plus u-c-3b82f6"></i> Apply for Comp-off Leave</h2>
+      <button class="u-bg-none u-bd-none u-cur-pointer u-fs-20 u-c-64748b" onclick="document.getElementById('applyModal').style.display='none'">&times;</button>
+    </div>
+
+    {% if avail_days <= 0 %}
+    <div class="u-bg-fee2e2 u-bd-1-solid-fca5a5 u-br-10 u-p-14-16 u-c-dc2626 u-fs-13 u-mb-16">
+      <i class="ti ti-alert-circle"></i> You don't have any comp-off balance available. Get overtime approved first.
+    </div>
+    {% else %}
+    <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-10-16 u-c-15803d u-fs-13 u-mb-16">
+      <i class="ti ti-circle-check"></i> Available balance: <b>{{ "%.1f"|format(avail_days) }} days</b>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/apply_leave" class="apply-form">
+      <input type="hidden" name="leave_type_id" value="{{ compoff_lt_id }}"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Leave Date</label>
+          <input type="date" name="leave_date" required min="{{ today }}"/>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select name="is_half">
+            <option value="0">Full Day</option>
+            <option value="1">Half Day</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <textarea name="reason" rows="3" placeholder="Reason for comp-off leave…"></textarea>
+      </div>
+      <div class="u-d-flex u-jc-flex-end u-gap-10 u-mt-16">
+        <button type="button" onclick="document.getElementById('applyModal').style.display='none'" class="btn u-bg-f1f5f9 u-c-64748b">Cancel</button>
+        <button type="submit" class="btn btn-primary" {% if avail_days <= 0 %}disabled{% endif %}><i class="ti ti-send"></i> Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+var today = new Date().toISOString().split('T')[0];
+document.querySelectorAll('input[type=date]').forEach(function(el){ el.min = today; });
+</script>
+<script src="/static/darkmode.min.js"></script>
+  </div>
+</div>
+<script src="/static/darkmode.min.js"></script>
+    </div>
+  </div>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

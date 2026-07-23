@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaves & Holidays — {{ co.company_name }}</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    body{background:#eff6ff;min-height:100vh;display:flex}
+
+    /* SIDEBAR */
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:white;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff}.brand-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,0.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:0.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,0.2)}
+    .nav-item:hover .nav-icon{background:rgba(255,255,255,0.12)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:white;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .sidebar-footer{margin-top:auto;font-size:11px;color:rgba(255,255,255,0.4);padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:7px}
+    .dm-toggle{padding:8px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:12px}
+
+    /* MAIN */
+    .main{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
+
+    /* TOP HEADER + MODULE TABS */
+    .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:18px 28px 0;flex-shrink:0}
+    .topbar-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+    .topbar-heading h1{font-size:22px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
+    .topbar-heading .sub{font-size:12px;color:#94a3b8;margin-top:2px}
+    .topbar-actions{display:flex;gap:8px}
+    .topbar-actions a{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;transition:0.15s}
+    .btn-leave-balance{background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0}
+    .btn-leave-balance:hover{background:#dcfce7}
+    .btn-leave-cal{background:#1e3a8a;color:#fff}
+    .btn-leave-cal:hover{background:#1d4ed8}
+    .module-tabs{display:flex;gap:0;border-top:1px solid #e2e8f0}
+    .mtab-btn{padding:12px 22px;border:none;background:none;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px;transition:0.15s}
+    .mtab-btn:hover{color:#1e3a8a;background:#f8fafc}
+    .mtab-btn.active{color:#1e3a8a;border-bottom-color:#3b82f6}
+    .mtab-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;line-height:1.4}
+    .tb-pending{background:#fef3c7;color:#92400e}
+    .tb-open{background:#dbeafe;color:#1e3a8a}
+
+    /* MODULE PANELS */
+    .module-panel{display:none;flex:1;overflow-y:auto;padding:24px 28px}
+    .module-panel.active{display:block}
+
+    /* FLASH */
+    .flash{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;font-weight:500}
+    .flash-success{background:#dcfce7;border:1px solid #86efac;color:#15803d}
+    .flash-error{background:#fee2e2;border:1px solid #fca5a5;color:#dc2626}
+    .flash-info{background:#fef9c3;border:1px solid #fde68a;color:#92400e}
+
+    /* LEAVE QUOTA BANNER */
+    .quota-bar{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:14px 20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .quota-bar span{font-size:13px;font-weight:700;color:#1e3a8a;margin-right:4px}
+    .quota-chip{background:#eff6ff;border:1px solid #dbeafe;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#1e3a8a}
+
+    /* INNER TABS (leaves / tickets / resignations) */
+    .tab-nav{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:20px}
+    .tab-btn{padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#64748b;border-bottom:3px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:8px;transition:0.18s}
+    .tab-btn:hover{color:#1e3a8a}
+    .tab-btn.active{color:#1e3a8a;border-bottom-color:#3b82f6}
+    .tab-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;line-height:1.4}
+    .tb-resign{background:#fee2e2;color:#dc2626}
+    .tb-none{background:#f1f5f9;color:#64748b}
+    .tab-pane{display:none}
+    .tab-pane.active{display:block}
+
+    /* REQUEST CARDS */
+    .req-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 22px;margin-bottom:14px;border-left:4px solid #e2e8f0;transition:box-shadow 0.2s}
+    .req-card:hover{box-shadow:0 4px 20px rgba(30,58,138,0.08)}
+    .req-card.card-pending{border-left-color:#f59e0b}
+    .req-card.card-approved{border-left-color:#22c55e;opacity:0.85}
+    .req-card.card-rejected{border-left-color:#ef4444;opacity:0.75}
+    .req-card.card-resign{border-left-color:#ef4444}
+    .card-top{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+    .avatar{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff}
+    .card-info{flex:1;min-width:0}
+    .emp-name{font-size:15px;font-weight:700;color:#1e293b}
+    .emp-id-tag{font-size:12px;color:#94a3b8;font-weight:500;margin-left:6px}
+    .card-meta{font-size:12px;color:#64748b;margin-top:3px}
+    .status-badge{flex-shrink:0;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px}
+    .sb-pending{background:#fef9c3;color:#92400e;border:1px solid #fde047}
+    .sb-approved{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+    .sb-rejected{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .sb-resign{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5}
+    .sb-accepted{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+    .sb-declined{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+    .sb-open{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd}
+    .sb-inprog{background:#fff7ed;color:#c2410c;border:1px solid #fdba74}
+    .sb-resolved{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+    .reason-quote{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;margin-bottom:10px;font-style:italic}
+    .balance-row{font-size:12px;color:#64748b;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+    .balance-row strong{color:#1e293b}
+    .dot-sep{color:#cbd5e1}
+    .notice-box{background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:11px 14px;font-size:13px;color:#92400e;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+    .notice-box i{margin-top:1px;flex-shrink:0;color:#d97706;font-size:15px}
+    .card-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .btn-approve{padding:7px 18px;border-radius:9px;border:1.5px solid #86efac;background:#f0fdf4;color:#15803d;font-size:13px;font-weight:700;cursor:pointer;transition:0.18s;display:flex;align-items:center;gap:5px}
+    .btn-approve:hover{background:#22c55e;color:#fff;border-color:#22c55e}
+    .btn-reject{padding:7px 18px;border-radius:9px;border:1.5px solid #fca5a5;background:#fff1f2;color:#dc2626;font-size:13px;font-weight:700;cursor:pointer;transition:0.18s;display:flex;align-items:center;gap:5px}
+    .btn-reject:hover{background:#ef4444;color:#fff;border-color:#ef4444}
+    .btn-profile{padding:7px 18px;border-radius:9px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:0.18s;display:inline-flex;align-items:center;gap:5px}
+    .btn-profile:hover{background:#e2e8f0;color:#1e293b}
+    .done-label{font-size:12px;color:#94a3b8;padding:7px 0}
+    .form-inline{display:inline}
+    .ticket-subject{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px}
+    .ticket-desc{font-size:13px;color:#475569;line-height:1.6;background:#f8fafc;border-left:3px solid #dbeafe;border-radius:8px;padding:10px 13px;margin-bottom:10px;white-space:pre-wrap}
+    .existing-response{background:#ede9fe;border:1px solid #c4b5fd;border-radius:10px;padding:11px 14px;font-size:13px;color:#4c1d95;margin-bottom:12px;line-height:1.55}
+    .existing-response strong{display:block;font-size:10px;color:#7c3aed;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.6px}
+    .respond-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid #f1f5f9;padding-top:12px}
+    .respond-select{padding:8px 12px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;flex-shrink:0}
+    .respond-textarea{flex:1;min-width:220px;padding:9px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;resize:vertical;min-height:52px}
+    .respond-textarea:focus,.respond-select:focus{border-color:#93c5fd;background:#fff}
+    .btn-respond{padding:9px 20px;border:none;border-radius:9px;background:#6366f1;color:white;font-size:13px;font-weight:700;cursor:pointer;transition:0.2s;white-space:nowrap}
+    .btn-respond:hover{background:#4f46e5}
+    .pri-high{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .pri-medium{background:#fff7ed;color:#c2410c;border:1px solid #fdba74;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .pri-low{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .empty-state{text-align:center;padding:60px 40px;color:#94a3b8}
+    .empty-state i{font-size:48px;margin-bottom:16px;display:block}
+    .empty-state p{font-size:15px}
+    .bulk-bar{display:none;background:#1e3a8a;color:#fff;padding:10px 16px;border-radius:10px;margin-bottom:14px;align-items:center;gap:12px;flex-wrap:wrap}
+    .bulk-bar.visible{display:flex}
+    .bulk-count{font-size:13px;font-weight:600}
+    .bulk-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn-bulk-approve{background:#16a34a;color:#fff;border:none;padding:6px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
+    .btn-bulk-reject{background:#dc2626;color:#fff;border:none;padding:6px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
+    .btn-bulk-cancel{background:rgba(255,255,255,0.15);color:#fff;border:none;padding:6px 14px;border-radius:7px;font-size:13px;cursor:pointer}
+    .bulk-select-all{margin-left:auto;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer}
+    .bulk-chk{width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;margin-right:6px}
+
+    /* HOLIDAYS TAB */
+    .hol-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px}
+    .hol-header h2{font-size:18px;font-weight:800;color:#1e293b}
+    .hol-header p{font-size:13px;color:#64748b;margin-top:2px}
+    .year-nav{display:flex;align-items:center;gap:10px}
+    .year-nav a{padding:7px 14px;border-radius:9px;text-decoration:none;background:#dbeafe;color:#1e40af;font-weight:700;font-size:13px;transition:0.2s}
+    .year-nav a:hover{background:#bfdbfe}
+    .cur-year{font-size:20px;font-weight:900;color:#1e3a8a;min-width:60px;text-align:center}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+    .btn-import{padding:10px 20px;border:none;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:8px}
+    .btn-import:hover{background:linear-gradient(135deg,#d97706,#b45309);transform:translateY(-1px);box-shadow:0 6px 16px rgba(217,119,6,0.3)}
+    .btn-add-custom{padding:10px 20px;border:none;border-radius:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:8px}
+    .btn-add-custom:hover{background:linear-gradient(135deg,#16a34a,#15803d);transform:translateY(-1px)}
+    .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;align-items:center;font-size:12px;color:#475569}
+    .leg{display:flex;align-items:center;gap:6px}
+    .leg-dot{width:18px;height:18px;border-radius:5px;flex-shrink:0}
+    .leg-holiday{background:#fef3c7;border:1.5px solid #f59e0b}
+    .leg-sunday{background:#fee2e2;border:1.5px solid #fca5a5}
+    .leg-today{background:#dbeafe;border:1.5px solid #3b82f6}
+    .leg-normal{background:#fff;border:1.5px solid #e2e8f0}
+    .info-note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;font-size:12px;color:#92400e;margin-bottom:18px;display:flex;align-items:flex-start;gap:8px}
+    .month-nav-bar{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px}
+    .mnav-btn{padding:9px 22px;border:none;border-radius:10px;background:#dbeafe;color:#1e40af;font-size:14px;font-weight:700;cursor:pointer;transition:0.2s;display:flex;align-items:center;gap:6px}
+    .mnav-btn:hover{background:#bfdbfe;transform:translateY(-1px)}
+    .mnav-label{font-size:20px;font-weight:900;color:#1e3a8a;min-width:220px;text-align:center}
+    .cal-single-wrap{max-width:660px;margin:0 auto 28px;background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:20px 20px 14px;box-shadow:0 2px 8px rgba(30,58,138,0.06)}
+    .cal-month-panel{display:none}
+    .cal-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+    .cal-headers span{text-align:center;font-size:12px;font-weight:700;color:#94a3b8;padding:4px 0;letter-spacing:0.5px}
+    .cal-headers span:first-child{color:#ef4444}
+    .cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+    .cal-day{height:74px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10px;border-radius:9px;font-size:16px;font-weight:700;cursor:pointer;transition:0.15s;position:relative;color:#1e293b;border:1.5px solid transparent;overflow:hidden}
+    .cal-day:hover{transform:scale(1.07);z-index:2;box-shadow:0 4px 12px rgba(0,0,0,0.14)}
+    .cal-day.empty{cursor:default}.cal-day.empty:hover{transform:none;box-shadow:none}
+    .cal-day.day-sunday{background:#fee2e2;border-color:#fca5a5;color:#dc2626}
+    .cal-day.day-holiday{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+    .cal-day.day-today{background:#dbeafe;border-color:#3b82f6;color:#1e40af}
+    .cal-day.day-normal{background:#f8fafc;border-color:#e2e8f0}
+    .hol-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden;font-size:9px;font-weight:700;color:#92400e;line-height:1.2;width:100%;text-align:center;padding:0 3px;margin-top:3px}
+    .section{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:22px}
+    .section h3{font-size:15px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:#1e293b}
+    .table-wrap{overflow-x:auto;border-radius:10px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{background:#dbeafe;color:#1e3a8a;padding:10px 14px;text-align:left;font-weight:700;white-space:nowrap}
+    td{padding:9px 14px;border-bottom:1px solid #e2e8f0;color:#1e293b}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f0f9ff}
+    .badge-holiday{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#fef9c3;color:#92400e;border:1px solid #fde047}
+    .badge-leave{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd}
+    .empty-cell{text-align:center;padding:30px;color:#94a3b8}
+    .btn-del{padding:5px 12px;border:1px solid #fca5a5;border-radius:7px;background:#fee2e2;color:#dc2626;font-size:12px;cursor:pointer;transition:0.2s}
+    .btn-del:hover{background:#ef4444;color:#fff;border-color:#ef4444}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9999;align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal-box{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+    .modal-box h3{font-size:16px;font-weight:800;color:#1e293b;margin-bottom:18px}
+    .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+    .form-group label{font-size:12px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:0.4px}
+    .form-group input,.form-group select{padding:10px 13px;border:1px solid #dbeafe;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:14px;outline:none;transition:0.2s}
+    .form-group input:focus,.form-group select:focus{background:#fff;border-color:#93c5fd}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+    .btn-cancel{padding:9px 20px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#64748b;font-weight:600;cursor:pointer;font-size:13px}
+    .btn-save{padding:9px 20px;border:none;border-radius:9px;background:#22c55e;color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+
+    @media(max-width:768px){body{flex-direction:column}.sidebar{width:100%;height:auto}}
+
+    /* ── Dark mode ── */
+    body.dark-mode{background:#0d1117!important}
+    body.dark-mode .main{background:#0d1117!important}
+    body.dark-mode .topbar{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .topbar-heading h1{color:#cdd9e5!important}
+    body.dark-mode .topbar-heading .sub{color:#768390!important}
+    body.dark-mode .btn-leave-balance{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
+    body.dark-mode .module-tabs{border-color:#30363d!important}
+    body.dark-mode .mtab-btn{color:#768390!important}
+    body.dark-mode .mtab-btn:hover{color:#cdd9e5!important;background:#1c2128!important}
+    body.dark-mode .mtab-btn.active{color:#cdd9e5!important;border-color:#4d9de0!important}
+    body.dark-mode .module-panel{background:#0d1117!important}
+    body.dark-mode .flash-success{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
+    body.dark-mode .flash-error{background:#7f1d1d!important;border-color:#991b1b!important;color:#f87171!important}
+    body.dark-mode .flash-info{background:#713f12!important;border-color:#92400e!important;color:#fbbf24!important}
+    body.dark-mode .quota-bar{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .quota-bar span{color:#93c5fd!important}
+    body.dark-mode .quota-chip{background:#1e3a8a!important;border-color:#3b82f6!important;color:#93c5fd!important}
+    body.dark-mode .tab-nav{border-color:#30363d!important}
+    body.dark-mode .tab-btn{color:#768390!important}
+    body.dark-mode .tab-btn:hover{color:#cdd9e5!important}
+    body.dark-mode .tab-btn.active{color:#cdd9e5!important;border-color:#4d9de0!important}
+    body.dark-mode .req-card{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .emp-name{color:#cdd9e5!important}
+    body.dark-mode .card-meta{color:#768390!important}
+    body.dark-mode .reason-quote{background:#1c2128!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .notice-box{background:#3d2800!important;border-color:#92400e!important;color:#fbbf24!important}
+    body.dark-mode .btn-approve{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
+    body.dark-mode .btn-reject{background:#7f1d1d!important;border-color:#991b1b!important;color:#f87171!important}
+    body.dark-mode .btn-profile{background:#1c2128!important;border-color:#30363d!important;color:#94a3b8!important}
+    body.dark-mode .ticket-subject{color:#cdd9e5!important}
+    body.dark-mode .ticket-desc{background:#1c2128!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .existing-response{background:#1c1836!important;border-color:#4c1d95!important;color:#c4b5fd!important}
+    body.dark-mode .respond-row{border-color:#30363d!important}
+    body.dark-mode .respond-select,.dark-mode .respond-textarea{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .balance-row{color:#768390!important}
+    body.dark-mode .balance-row strong{color:#cdd9e5!important}
+    body.dark-mode .hol-header h2{color:#cdd9e5!important}
+    body.dark-mode .hol-header p{color:#768390!important}
+    body.dark-mode .year-nav a{background:#1e3a8a!important;color:#60a5fa!important}
+    body.dark-mode .cur-year{color:#cdd9e5!important}
+    body.dark-mode .legend{color:#768390!important}
+    body.dark-mode .info-note{background:#3d2800!important;border-color:#92400e!important;color:#fbbf24!important}
+    body.dark-mode .mnav-btn{background:#1e3a8a!important;color:#60a5fa!important}
+    body.dark-mode .mnav-label{color:#cdd9e5!important}
+    body.dark-mode .cal-single-wrap{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .cal-day.day-normal{background:#1c2128!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .section{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .section h3{color:#cdd9e5!important}
+    body.dark-mode th{background:#1e3a8a!important;color:#93c5fd!important}
+    body.dark-mode td{border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode tr:hover td{background:#1c2128!important}
+    body.dark-mode .modal-box{background:#161b22!important}
+    body.dark-mode .modal-box h3{color:#cdd9e5!important}
+    body.dark-mode .form-group label{color:#768390!important}
+    body.dark-mode .form-group input,.dark-mode .form-group select{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .btn-cancel{background:#1c2128!important;border-color:#30363d!important;color:#94a3b8!important}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item active" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep u-mt-12" />
+  <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-heading">
+      <div>
+        <h1><i class="ti ti-calendar-event u-c-6366f1"></i> Leaves &amp; Holidays</h1>
+        <div class="sub">Manage leave requests, tickets, resignations and public holidays</div>
+      </div>
+      <div class="topbar-actions">
+        <a href="/leave_balance" class="btn-leave-balance"><i class="ti ti-calendar-stats"></i> Leave Balance</a>
+        <a href="/leave_calendar" class="btn-leave-cal"><i class="ti ti-calendar-month"></i> Leave Calendar</a>
+      </div>
+    </div>
+    <div class="module-tabs">
+      <button class="mtab-btn {% if tab == 'leaves' %}active{% endif %}" onclick="switchModule('leaves')">
+        <i class="ti ti-ticket"></i> Leaves &amp; Tickets
+        {% set _tp = (pending_leaves|default(0))+(pending_tickets|default(0))+(pending_resignations|default(0)) %}
+        {% if _tp > 0 %}<span class="mtab-badge tb-pending">{{ _tp }} pending</span>{% endif %}
+      </button>
+      <button class="mtab-btn {% if tab == 'holidays' %}active{% endif %}" onclick="switchModule('holidays')">
+        <i class="ti ti-calendar-event"></i> Holidays
+      </button>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  <div class="u-p-0-28">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ 'success' if cat=='success' else ('error' if cat=='error' else 'info') }} u-mt-16">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <!-- ════════════ LEAVES & TICKETS PANEL ════════════ -->
+  <div id="panel-leaves" class="module-panel {% if tab == 'leaves' %}active{% endif %}">
+
+    {% if leave_types_list %}
+    <div class="quota-bar">
+      <span>Leave Quota (Annual):</span>
+      {% for lt_id, lt_name, lt_quota in leave_types_list %}
+      <span class="quota-chip">{{ lt_name }}: <strong>{{ lt_quota }} days</strong></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Inner tabs -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="showTab('leaves', this)">
+        <i class="ti ti-calendar-minus"></i> Leave Requests
+        {% if pending_leaves > 0 %}<span class="tab-badge tb-pending">{{ pending_leaves }} pending</span>{% endif %}
+      </button>
+      <button class="tab-btn" onclick="showTab('tickets', this)">
+        <i class="ti ti-help-circle"></i> Tickets
+        {% if pending_tickets > 0 %}<span class="tab-badge tb-open">{{ pending_tickets }} open</span>{% endif %}
+      </button>
+      <button class="tab-btn" onclick="showTab('resignations', this)">
+        <i class="ti ti-user-minus"></i> Resignations
+        {% if pending_resignations > 0 %}<span class="tab-badge tb-resign">{{ pending_resignations }}</span>{% endif %}
+      </button>
+    </div>
+
+    <!-- Leave Requests -->
+    <div id="tab-leaves" class="tab-pane active">
+      <div id="bulkBar" class="bulk-bar">
+        <span id="bulkCount" class="bulk-count">0 selected</span>
+        <form id="bulkForm" action="/bulk_leave_action" method="POST" class="bulk-form">
+          <div id="bulkIdInputs"></div>
+          <button type="submit" name="action" value="Approved" class="btn-bulk-approve">✓ Approve selected</button>
+          <button type="submit" name="action" value="Rejected" class="btn-bulk-reject">✗ Reject selected</button>
+          <button type="button" onclick="clearBulk()" class="btn-bulk-cancel">Cancel</button>
+        </form>
+        <label class="bulk-select-all">
+          <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" class="bulk-chk"> Select all pending
+        </label>
+      </div>
+      {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
+      {% if leaves %}
+        {% for row in leaves %}
+          {% set lid, emp_name, emp_id, leave_date, reason, status, created_at, leave_type_name, is_half_day, half_day_session = row %}
+          {% set _parts = emp_name.split() %}
+          {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
+          {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
+          {% set _used = leave_used.get(emp_id, 0) %}
+          <div class="req-card card-{{ status | lower }}" {% if status == 'Pending' %}data-lid="{{ lid }}"{% endif %}>
+            <div class="card-top">
+              <div class="avatar" style="background:{{ _color }};">{{ _initials }}</div>
+              <div class="card-info">
+                <div class="emp-name">{{ emp_name }}<span class="emp-id-tag">{{ emp_id }}</span></div>
+                <div class="card-meta">
+                  {{ leave_type_name }} &nbsp;·&nbsp; {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }} &nbsp;·&nbsp;
+                  {% if is_half_day %}
+                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
+                  {% else %}1 day{% endif %}
+                </div>
+              </div>
+              {% if status == 'Approved' %}<span class="status-badge sb-approved">Approved</span>
+              {% elif status == 'Rejected' %}<span class="status-badge sb-rejected">Rejected</span>
+              {% else %}<span class="status-badge sb-pending">Pending</span>{% endif %}
+            </div>
+            <div class="reason-quote">"{{ reason }}"</div>
+            <div class="balance-row"><strong>Used this year:</strong> {{ _used }} day{{ 's' if _used != 1 else '' }}<span class="dot-sep">·</span>Applied on {{ created_at.strftime('%d %b') if created_at else '—' }}</div>
+            <div class="card-actions">
+              {% if status == 'Pending' %}
+                <input type="checkbox" class="bulk-chk leave-chk" data-lid="{{ lid }}" onchange="updateBulk()" title="Select">
+                <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Approved"><button type="submit" class="btn-approve">✓ Approve</button></form>
+                <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Rejected"><button type="submit" class="btn-reject">✗ Reject</button></form>
+              {% else %}<span class="done-label">{{ status }}</span>{% endif %}
+              <a href="/employee_profile/{{ emp_id }}" class="btn-profile"><i class="ti ti-user u-fs-13"></i> View profile</a>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state"><i class="ti ti-calendar-off"></i><p>No leave requests yet.</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Tickets -->
+    <div id="tab-tickets" class="tab-pane">
+      {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
+      {% if all_tickets %}
+        {% for tk in all_tickets %}
+          {% set tid, t_emp_id, t_name, t_cat, t_subj, t_desc, t_pri, t_stat, t_resp, t_created, t_updated = tk %}
+          {% set _parts = t_name.split() %}
+          {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
+          {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
+          <div class="req-card {% if t_stat in ('Resolved','Closed') %}card-approved{% elif t_stat == 'Open' %}card-pending{% endif %}">
+            <div class="card-top">
+              <div class="avatar" style="background:{{ _color }};">{{ _initials }}</div>
+              <div class="card-info">
+                <div class="emp-name">{{ t_name }}<span class="emp-id-tag">{{ t_emp_id }}</span></div>
+                <div class="card-meta">{{ t_cat }} &nbsp;·&nbsp; {{ t_created.strftime('%d %b %Y') if t_created else '—' }}</div>
+              </div>
+              <div class="u-d-flex u-gap-6 u-ai-center u-fxs-0">
+                {% if t_pri == 'High' %}<span class="pri-high">High</span>{% elif t_pri == 'Medium' %}<span class="pri-medium">Medium</span>{% else %}<span class="pri-low">Low</span>{% endif %}
+                {% if t_stat == 'Open' %}<span class="status-badge sb-open">Open</span>{% elif t_stat == 'In Progress' %}<span class="status-badge sb-inprog">In Progress</span>{% else %}<span class="status-badge sb-resolved">{{ t_stat }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="ticket-subject">{{ t_subj }}</div>
+            <div class="ticket-desc">{{ t_desc }}</div>
+            {% if t_resp %}<div class="existing-response"><strong>Admin Response</strong>{{ t_resp }}</div>{% endif %}
+            <form action="/ticket_action/{{ tid }}" method="POST">
+              <div class="respond-row">
+                <select name="status" class="respond-select">
+                  <option value="Open" {% if t_stat=='Open' %}selected{% endif %}>Open</option>
+                  <option value="In Progress" {% if t_stat=='In Progress' %}selected{% endif %}>In Progress</option>
+                  <option value="Resolved" {% if t_stat=='Resolved' %}selected{% endif %}>Resolved</option>
+                  <option value="Closed" {% if t_stat=='Closed' %}selected{% endif %}>Closed</option>
+                </select>
+                <textarea name="admin_response" class="respond-textarea" placeholder="Type a response (optional)…"></textarea>
+                <button type="submit" class="btn-respond"><i class="ti ti-send u-fs-13"></i> Update</button>
+              </div>
+            </form>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state"><i class="ti ti-ticket-off"></i><p>No tickets raised yet.</p></div>
+      {% endif %}
+    </div>
+
+    <!-- Resignations -->
+    <div id="tab-resignations" class="tab-pane">
+      {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
+      {% if resignations %}
+        {% for row in resignations %}
+          {% set rid, r_name, r_emp_id, r_lwd, r_reason, r_status, r_created = row %}
+          {% set _parts = r_name.split() %}
+          {% set _initials = (_parts[0][0] + (_parts[1][0] if _parts|length > 1 else '')) | upper %}
+          {% set _color = av_colors[loop.index0 % (av_colors|length)] %}
+          {% set _days_left = (r_lwd - today).days if r_lwd else 0 %}
+          <div class="req-card card-resign">
+            <div class="card-top">
+              <div class="avatar" style="background:{{ _color }};">{{ _initials }}</div>
+              <div class="card-info">
+                <div class="emp-name">{{ r_name }}<span class="emp-id-tag">{{ r_emp_id }}</span></div>
+                <div class="card-meta">Resignation &nbsp;·&nbsp; Last working day: {{ r_lwd.strftime('%d %b %Y') if r_lwd else '—' }}</div>
+              </div>
+              {% if r_status == 'Accepted' %}<span class="status-badge sb-accepted">Accepted</span>
+              {% elif r_status == 'Declined' %}<span class="status-badge sb-declined">Declined</span>
+              {% else %}<span class="status-badge sb-resign">Resignation</span>{% endif %}
+            </div>
+            {% if _days_left > 0 %}
+            <div class="notice-box"><i class="ti ti-alert-triangle"></i><span><strong>{{ _days_left }} day{{ 's' if _days_left != 1 else '' }} notice period.</strong> Ensure handover plan and exit documents are prepared.</span></div>
+            {% elif _days_left == 0 %}
+            <div class="notice-box u-bg-fee2e2 u-bdc-fca5a5 u-c-dc2626"><i class="ti ti-alert-triangle u-c-dc2626"></i><span><strong>Last working day is today.</strong> Ensure all handover is complete.</span></div>
+            {% endif %}
+            <div class="reason-quote">"{{ r_reason }}"</div>
+            <div class="balance-row"><span class="dot-sep"></span>Submitted on {{ r_created.strftime('%d %b %Y') if r_created else '—' }}</div>
+            <div class="card-actions">
+              {% if r_status == 'Pending' %}
+                <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Accepted"><button type="submit" class="btn-approve">✓ Accept</button></form>
+                <form action="/resignation_action/{{ rid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Declined"><button type="submit" class="btn-reject">✗ Decline</button></form>
+              {% else %}<span class="done-label">{{ r_status }}</span>{% endif %}
+              <a href="/employee_profile/{{ r_emp_id }}" class="btn-profile"><i class="ti ti-user u-fs-13"></i> View profile</a>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state"><i class="ti ti-user-minus"></i><p>No resignation requests.</p></div>
+      {% endif %}
+    </div>
+
+  </div><!-- end leaves panel -->
+
+  <!-- ════════════ HOLIDAYS PANEL ════════════ -->
+  <div id="panel-holidays" class="module-panel {% if tab == 'holidays' %}active{% endif %}">
+
+    <div class="hol-header">
+      <div>
+        <h2>📅 Holiday Calendar</h2>
+        <p>Manage public holidays &amp; leaves. Sunday is the weekly off.</p>
+      </div>
+      <div class="year-nav">
+        <a href="/leave_holidays?tab=holidays&year={{ year - 1 }}">&#8592; {{ year - 1 }}</a>
+        <span class="cur-year">{{ year }}</span>
+        <a href="/leave_holidays?tab=holidays&year={{ year + 1 }}">{{ year + 1 }} &#8594;</a>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <form class="u-d-inline" action="/import_indian_holidays" method="POST">
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-import" onclick="return confirm('Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
+          🇮🇳 Import Indian Holidays for {{ year }}
+        </button>
+      </form>
+      <button class="btn-add-custom" onclick="openAddModal()">➕ Add Custom Holiday</button>
+    </div>
+
+    <div class="legend">
+      <div class="leg"><div class="leg-dot leg-holiday"></div>Public Holiday</div>
+      <div class="leg"><div class="leg-dot leg-sunday"></div>Sunday (Weekly Off)</div>
+      <div class="leg"><div class="leg-dot leg-today"></div>Today</div>
+      <div class="leg"><div class="leg-dot leg-normal"></div>Working Day</div>
+      <span class="u-fs-11 u-c-94a3b8">Click a working day to add holiday &bull; Click a holiday to remove it</span>
+    </div>
+
+    <div class="info-note">ℹ️ <span><strong>Saturday is a working day.</strong> Only Sunday is marked as weekly off. Holidays are paid days — they count toward salary calculation.</span></div>
+
+    <div class="month-nav-bar">
+      <button type="button" class="mnav-btn" onclick="changeMonth(-1)">&#8592; Prev</button>
+      <span class="mnav-label" id="mnav-label"></span>
+      <button type="button" class="mnav-btn" onclick="changeMonth(1)">Next &#8594;</button>
+    </div>
+
+    <div class="cal-single-wrap" id="cal-wrap" data-year="{{ year }}">
+      {% for m in cal_data %}
+      <div class="cal-month-panel" id="mpanel-{{ m.month_num }}" data-name="{{ m.month_name }}">
+        <div class="cal-headers"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div>
+        {% for week in m.weeks %}
+        <div class="cal-week">
+          {% for day in week %}
+            {% set col = loop.index0 %}
+            {% if day == 0 %}
+              <div class="cal-day empty"></div>
+            {% else %}
+              {% set is_sun = (col == 0) %}
+              {% set is_holiday = (day in m.holidays) %}
+              {% set is_today = (today.year == year and today.month == m.month_num and today.day == day) %}
+              {% set hol_name = m.holidays[day][1] if is_holiday else '' %}
+              {% set hol_id = m.holidays[day][0] if is_holiday else 0 %}
+              {% set date_str = '%d-%02d-%02d' | format(year, m.month_num, day) %}
+              <div class="cal-day {% if is_holiday %}day-holiday{% elif is_sun %}day-sunday{% elif is_today %}day-today{% else %}day-normal{% endif %}"
+                   title="{% if is_holiday %}{{ hol_name }}{% elif is_sun %}Sunday (Weekly Off){% else %}{{ m.month_name }} {{ day }}, {{ year }}{% endif %}"
+                   data-holiday="{{ is_holiday|tojson }}" data-hname="{{ hol_name|e }}" data-hid="{{ hol_id }}"
+                   data-date="{{ date_str }}" data-year="{{ year }}" onclick="dayClick(this)">
+                {{ day }}
+                {% if is_holiday %}<span class="hol-name">{{ hol_name }}</span>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="section">
+      <h3>📋 All Holidays &amp; Leaves ({{ year }})</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Action</th></tr></thead>
+          <tbody>
+            {% set ns = namespace(count=0) %}
+            {% for h in holidays %}
+              {% if h[1].year == year %}
+              {% set ns.count = ns.count + 1 %}
+              <tr>
+                <td>{{ ns.count }}</td>
+                <td>{{ h[1].strftime('%d %b %Y') }}</td>
+                <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
+                <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave">🌿 {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday">🎉 {{ h[2] }}</span>{% endif %}</td>
+                <td>
+                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return confirm('Delete this entry?');" class="form-inline">
+                    <input type="hidden" name="year" value="{{ year }}">
+                    <button type="submit" class="btn-del">🗑 Remove</button>
+                  </form>
+                </td>
+              </tr>
+              {% endif %}
+            {% else %}
+            <tr><td colspan="5" class="empty-cell">No holidays added for {{ year }}.</td></tr>
+            {% endfor %}
+            {% if ns.count == 0 %}
+            <tr><td colspan="5" class="empty-cell">No holidays added for {{ year }}. Use "Import Indian Holidays" to get started.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- end holidays panel -->
+
+</div><!-- end .main -->
+
+<!-- Add Holiday Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <h3>➕ Add Holiday / Leave</h3>
+    <form action="/add_holiday" method="POST">
+      <div class="form-group"><label>Date</label><input type="date" name="date" id="modalDate" required /></div>
+      <div class="form-group"><label>Type</label>
+        <select name="type"><option value="Holiday">🎉 Public Holiday</option><option value="Leave">🌿 Company Leave</option></select>
+      </div>
+      <div class="form-group"><label>Name / Description</label><input type="text" name="holiday_name" id="modalName" placeholder="e.g. Diwali, Dussehra…" required /></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+        <button type="submit" class="btn-save">Save Holiday</button>
+      </div>
+    </form>
+  </div>
+</div>
+<form class="u-d-none" id="delForm" method="POST"><input type="hidden" name="year" value="{{ year }}"></form>
+
+<script>
+// Module tab switching
+function switchModule(name) {
+  document.querySelectorAll('.mtab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.mtab-btn[onclick="switchModule('${name}')"]`).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  history.replaceState(null, '', '/leave_holidays?tab=' + name);
+}
+
+// Inner leave tabs
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Open inner tab from URL hash
+(function() {
+  var hash = location.hash.replace('#', '');
+  if (hash === 'tickets' || hash === 'resignations') {
+    var btn = document.querySelector('.tab-btn[onclick*="' + hash + '"]');
+    if (btn) showTab(hash, btn);
+  }
+})();
+
+// Bulk leave actions
+function updateBulk() {
+  var checked = document.querySelectorAll('.leave-chk:checked');
+  var bar = document.getElementById('bulkBar');
+  var inputs = document.getElementById('bulkIdInputs');
+  inputs.innerHTML = '';
+  checked.forEach(function(chk) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'leave_ids'; inp.value = chk.dataset.lid;
+    inputs.appendChild(inp);
+  });
+  if (checked.length > 0) {
+    bar.classList.add('visible');
+    document.getElementById('bulkCount').textContent = checked.length + ' selected';
+  } else {
+    bar.classList.remove('visible');
+    document.getElementById('selectAllChk').checked = false;
+  }
+}
+function toggleSelectAll(chk) { document.querySelectorAll('.leave-chk').forEach(c => c.checked = chk.checked); updateBulk(); }
+function clearBulk() { document.querySelectorAll('.leave-chk').forEach(c => c.checked = false); document.getElementById('selectAllChk').checked = false; document.getElementById('bulkBar').classList.remove('visible'); }
+
+// Holiday calendar
+var calYear = parseInt(document.getElementById('cal-wrap').dataset.year, 10);
+var _now = new Date();
+var currentMonth = (_now.getFullYear() === calYear) ? _now.getMonth() + 1 : 1;
+
+function showMonth(m) {
+  if (m < 1) m = 12; if (m > 12) m = 1;
+  document.querySelectorAll('.cal-month-panel').forEach(el => el.style.display = 'none');
+  var panel = document.getElementById('mpanel-' + m);
+  if (panel) { panel.style.display = 'block'; document.getElementById('mnav-label').textContent = panel.dataset.name + ' ' + calYear; }
+  currentMonth = m;
+}
+function changeMonth(dir) { showMonth(currentMonth + dir); }
+function openAddModal(dateStr) { document.getElementById('modalDate').value = dateStr || ''; document.getElementById('modalName').value = ''; document.getElementById('addModal').classList.add('open'); }
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
+document.getElementById('addModal').addEventListener('click', function(e) { if (e.target === this) closeAddModal(); });
+function dayClick(el) {
+  var isHoliday = el.dataset.holiday === 'true';
+  if (isHoliday) {
+    if (confirm('Remove "' + el.dataset.hname + '" from the holiday list?')) {
+      var f = document.getElementById('delForm'); f.action = '/delete_holiday/' + el.dataset.hid; f.submit();
+    }
+  } else { openAddModal(el.dataset.date); }
+}
+showMonth(currentMonth);
+</script>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

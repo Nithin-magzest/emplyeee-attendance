@@ -1,0 +1,523 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Salary Report</title>
+    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+      body { background: #eff6ff; min-height: 100vh; display: flex; }
+
+      .sidebar {
+        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        padding: 22px 14px; color: white;
+        display: flex; flex-direction: column; flex-shrink: 0;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+      }
+      .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
+      .brand-icon { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+      .brand     { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+      .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+      .nav-group-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin: 14px 0 4px; }
+      .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 500; transition: 0.18s; position: relative; }
+      .nav-item:hover  { background: rgba(255,255,255,0.1); color: #fff; }
+      .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+      .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
+      .nav-icon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); }
+      .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
+      .nav-item:hover .nav-icon  { background: rgba(255,255,255,0.12); }
+      .nav-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+      .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 6px rgba(239,68,68,0.4); }
+      .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
+
+      .main { flex: 1; padding: 28px; color: #1e293b; }
+      .page-header { margin-bottom: 22px; }
+      .page-header h1 { font-size: 24px; color: #1e293b; }
+      .page-header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+      .filter-bar { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px 22px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+      .filter-bar label { font-size: 14px; color: #475569; }
+      .filter-bar select { padding: 8px 12px; border-radius: 8px; border: 1px solid #dbeafe; background: #f8fafc; color: #1e293b; font-size: 14px; cursor: pointer; outline: none; }
+      .filter-bar select:focus { border-color: #93c5fd; }
+      .filter-bar button { padding: 9px 22px; border: none; border-radius: 8px; background: #22c55e; color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+      .filter-bar button:hover { background: #16a34a; }
+      .btn-action { padding: 9px 18px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+      .btn-print { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+      .btn-print:hover { background: #e2e8f0; }
+      .btn-export { background: #16a34a; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+      .btn-export:hover { background: #15803d; }
+      .btn-email-all { background: #6366f1; color: white; }
+      .btn-email-all:hover { background: #4f46e5; }
+      .btn-email-all:disabled { opacity: 0.45; cursor: not-allowed; }
+      .btn-setup-email { background: #f59e0b; color: white; text-decoration: none; padding: 9px 18px; border-radius: 8px; font-size: 14px; }
+
+      .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+      .sum-card { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px; text-align: center; }
+      .sum-card .num { font-size: 26px; font-weight: 700; }
+      .sum-card .lbl { font-size: 12px; color: #64748b; margin-top: 5px; }
+      .c-green .num { color: #16a34a; } .c-red .num { color: #dc2626; }
+      .c-yellow .num { color: #d97706; } .c-blue .num { color: #2563eb; }
+
+      .section { background: #ffffff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 22px; }
+      .section h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; color: #1e293b; }
+      .table-wrap { overflow-x: auto; border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 960px; }
+      th { background: #dbeafe; color: #1e3a8a; padding: 11px 14px; font-weight: 600; white-space: nowrap; text-align: right; }
+      th:first-child, th:nth-child(2) { text-align: left; }
+      th.group-head { text-align: center; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: #1e3a8a; border-bottom: 2px solid #dbeafe; }
+      td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; color: #1e293b; }
+      td:first-child, td:nth-child(2) { text-align: left; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #eff6ff; }
+      .total-row td { background: #dbeafe; font-weight: 700; border-top: 2px solid #93c5fd; color: #1e3a8a; }
+
+      .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
+      .amt-gross { color: #2563eb; } .amt-ded { color: #dc2626; }
+      .amt-net { color: #16a34a; font-weight: 700; } .amt-ded-zero { color: #94a3b8; }
+      .amt-late { color: #d97706; } .amt-late-total { color: #d97706; font-weight: 700; }
+      .emp-id { font-size: 11px; color: #94a3b8; }
+      .emp-email { font-size: 11px; color: #6366f1; }
+
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+      .b-green { background: #dcfce7; color: #15803d; }
+      .b-yellow { background: #fef9c3; color: #92400e; }
+      .b-red { background: #fee2e2; color: #dc2626; }
+
+      .rules-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; font-size: 12px; line-height: 2; color: #64748b; margin-top: 6px; }
+
+      /* Action buttons */
+      .action-col { display: flex; align-items: center; }
+      .btn-group {
+        display: inline-flex; border-radius: 8px; overflow: hidden;
+        border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      }
+      .btn-group a, .btn-group button {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 30px; border: none; border-right: 1px solid #e2e8f0;
+        background: #fff; cursor: pointer; text-decoration: none;
+        transition: background 0.14s, color 0.14s;
+      }
+      .btn-group a:last-child, .btn-group button:last-child { border-right: none; }
+      .btn-group i { font-size: 15px; }
+      .ag-view  { color: #1e3a8a; }
+      .ag-view:hover  { background: #1e3a8a; color: #fff !important; }
+      .ag-dl    { color: #0f766e; }
+      .ag-dl:hover    { background: #0f766e; color: #fff !important; }
+      .ag-send  { color: #6d28d9; }
+      .ag-send:hover  { background: #6d28d9; color: #fff !important; }
+      .ag-send:disabled { color: #cbd5e1; cursor: not-allowed; background: #fff; }
+      .no-email { font-size: 11px; color: #94a3b8; }
+
+      /* Toast notification */
+      #toast { position: fixed; bottom: 28px; right: 28px; padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; display: none; z-index: 9999; max-width: 360px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); }
+      #toast.success { background: #22c55e; }
+      #toast.error   { background: #ef4444; }
+      #toast.info    { background: #6366f1; }
+
+      @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; min-height: auto; } }
+      @media print {
+        .sidebar, .filter-bar, .btn-action, .btn-send-email, .btn-view-slip, #toast { display: none !important; }
+        body { background: white; color: black; }
+        .section { background: white; box-shadow: none; }
+        .main { padding: 0; }
+        .amt-net { color: #15803d; } .amt-ded { color: #dc2626; } .amt-gross { color: #1d4ed8; }
+      }
+
+      /* ── Dark mode ── */
+      body.dark-mode { background: #0d1117 !important; }
+      body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
+      body.dark-mode .page-header h1, body.dark-mode .page-header p { color: #cdd9e5 !important; }
+      body.dark-mode .page-header p { color: #768390 !important; }
+      body.dark-mode .filter-bar { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .filter-bar label { color: #768390 !important; }
+      body.dark-mode .filter-bar select { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode .btn-print { background: #1c2128 !important; border-color: #30363d !important; color: #94a3b8 !important; }
+      body.dark-mode .summary .sum-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .sum-card .lbl { color: #768390 !important; }
+      body.dark-mode .section { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .section h3 { color: #cdd9e5 !important; }
+      body.dark-mode .table-wrap { background: #161b22 !important; }
+      body.dark-mode .total-row td { background: #1e3a8a !important; color: #93c5fd !important; border-color: #30363d !important; }
+      body.dark-mode .rules-box { background: #1c2128 !important; border-color: #30363d !important; color: #768390 !important; }
+      body.dark-mode .emp-email { color: #818cf8 !important; }
+      body.dark-mode div[style*="background:#eff6ff"][style*="border:1px solid #bfdbfe"] { background: #0f1f3d !important; border-color: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode a[href*="payroll_settings"] { background: #162012 !important; border-color: #1a4731 !important; color: #4ade80 !important; }
+    </style>
+  <link rel="stylesheet" href="/static/shared.min.css" />
+  </head>
+  <body>
+    <!-- SIDEBAR -->
+            <div class="sidebar">
+      <div class="brand-wrap">
+        <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+        <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+</div>
+      <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+      <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+      <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+      <a class="nav-item active" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+      <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+      <hr class="nav-sep u-mt-12" />
+      <a class="nav-item" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+      <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+      <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>    
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+      <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+      
+      <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> Shift: {{ shift_start }} – {{ shift_end }}</div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-header u-d-flex u-ai-flex-end u-jc-space-between u-fxw-wrap u-gap-12">
+        <div>
+          <h1>💰 Salary Report — {{ month_name }}</h1>
+          <p>Deductions: Late Login = {{ late_rate }}% &nbsp;|&nbsp; Half Day = {{ half_rate }}% &nbsp;|&nbsp; Absent = 100%</p>
+        </div>
+        <div class="u-d-flex u-ai-center u-gap-10 u-mt-32 u-fxw-wrap">
+          <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-bbf7d0 u-br-9 u-tdec-none u-fs-13 u-fw-700" href="/payroll_settings">
+            <i class="ti ti-adjustments-horizontal"></i> Payroll Settings
+          </a>
+          <div class="u-pos-relative">
+            <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-c-3b82f6 u-pe-none"></i>
+            <input class="u-p-9-12-9-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-c-1e293b u-fs-13 u-out-none u-w-220 u-shad-0-2-10-rgba59_832e37 u-fw-500" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+              oninput="filterEmpTable(this.value)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTER -->
+      <form class="filter-bar" method="GET" action="/salary_report">
+        <label>Month</label>
+        <select name="month" title="Select month">
+          {% for m_num, m_name in months %}
+          <option value="{{ m_num }}" {% if m_num == month %}selected{% endif %}>{{ m_name }}</option>
+          {% endfor %}
+        </select>
+        <label>Year</label>
+        <select name="year" title="Select year">
+          {% for y in years %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Generate Report</button>
+        <button type="button" class="btn-action btn-print" onclick="window.print()">🖨️ Print</button>
+        <a href="/salary_report_export?year={{ year }}&month={{ month }}" class="btn-action btn-export">
+          📥 Export Excel
+        </a>
+        {% if email_configured %}
+        <button type="button" class="btn-action btn-email-all" id="sendAllBtn" onclick="sendAllEmails()">
+          📧 Send All Salary Slips
+        </button>
+        {% else %}
+        <a href="/email_config" class="btn-action btn-setup-email">⚠️ Setup Email First</a>
+        {% endif %}
+        {% if is_locked %}
+        <button class="u-p-8-14 u-bd-1-solid-fca5a5 u-br-9 u-bg-fee2e2 u-c-dc2626 u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="unlockPayroll()">
+          🔓 Unlock Payroll
+        </button>
+        {% else %}
+        <button class="u-p-8-14 u-bd-1-solid-bbf7d0 u-br-9 u-bg-dcfce7 u-c-15803d u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="lockPayroll()">
+          🔒 Lock Payroll
+        </button>
+        {% endif %}
+      </form>
+
+      {% if is_locked %}
+      <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-11-16 u-mb-16 u-d-flex u-ai-center u-gap-10 u-fs-13 u-c-1e40af">
+        🔒 <strong>Payroll locked</strong> — processed by <strong>{{ lock_info.by }}</strong>
+        on {{ lock_info.at.strftime('%d %b %Y at %H:%M') }}
+        ({{ lock_info.count }} payslip{{ 's' if lock_info.count != 1 else '' }} sent).
+        Re-sending will overwrite this record.
+      </div>
+      {% endif %}
+
+      <!-- SUMMARY TOTALS -->
+      {% set total_gross     = salary_data | sum(attribute='gross') %}
+      {% set total_ded       = salary_data | sum(attribute='deduction') %}
+      {% set total_net       = salary_data | sum(attribute='net') %}
+      {% set total_incentive = salary_data | map(attribute='incentive', default=0) | sum %}
+
+      <div class="summary">
+        <div class="sum-card c-blue">
+          <div class="num">{{ salary_data | length }}</div>
+          <div class="lbl">👥 Employees</div>
+        </div>
+        <div class="sum-card c-green">
+          <div class="num">₹{{ "%.0f" | format(total_gross) }}</div>
+          <div class="lbl">📦 Total Gross</div>
+        </div>
+        <div class="sum-card c-red">
+          <div class="num">₹{{ "%.0f" | format(total_ded) }}</div>
+          <div class="lbl">📉 Total Deductions</div>
+        </div>
+        {% if total_incentive > 0 %}
+        <div class="sum-card c-green">
+          <div class="num">₹{{ "%.0f" | format(total_incentive) }}</div>
+          <div class="lbl">🏆 Total Incentives</div>
+        </div>
+        {% endif %}
+        <div class="sum-card c-green">
+          <div class="num">₹{{ "%.0f" | format(total_net) }}</div>
+          <div class="lbl">✅ Total Net Payable</div>
+        </div>
+      </div>
+
+      <!-- SALARY TABLE -->
+      <div class="section">
+        <h3>
+          <span>Employee Salary Breakdown — {{ month_name }}</span>
+        </h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">Employee</th>
+                <th rowspan="2">Daily Rate</th>
+                <th rowspan="2">Work Days</th>
+                <th colspan="4" class="group-head">Attendance Days</th>
+                <th colspan="5" class="group-head">Earnings (₹)</th>
+                <th rowspan="2">Action</th>
+              </tr>
+              <tr>
+                <th>Full</th><th>Late</th><th>Half</th><th>Absent</th>
+                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a">🏆 Incentive</th><th>Net Payable</th>
+              </tr>
+            </thead>
+            <tbody id="salaryTbody">
+              {% for e in salary_data %}
+              <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }} {{ e.email }}">
+                <td>
+                  <a class="u-c-1d4ed8 u-fw-600 u-tdec-none" href="/employee_attendance_detail/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                     title="View day-by-day attendance">{{ e.name }}</a><br>
+                  <span class="emp-id">{{ e.emp_id }}</span><br>
+                  {% if e.email %}
+                  <span class="emp-email">✉ {{ e.email }}</span>
+                  {% else %}
+                  <span class="no-email">no email set</span>
+                  {% endif %}
+                </td>
+                <td>₹{{ "%.2f" | format(e.spd) }}</td>
+                <td>
+                  {{ e.billable }}
+                  {% if (e.holiday_days | default(0)) > 0 or (e.leave_days | default(0)) > 0 %}
+                  <br><span class="u-fs-11 u-c-64748b">
+                    {% if (e.holiday_days | default(0)) > 0 %}🎉 {{ e.holiday_days }}h{% endif %}
+                    {% if (e.leave_days | default(0)) > 0 %} 📋 {{ e.leave_days }}l{% endif %}
+                  </span>
+                  {% endif %}
+                </td>
+                <td><span class="badge b-green">{{ e.full_days }}</span></td>
+                <td><span class="badge b-yellow">{{ e.late_days }}</span></td>
+                <td><span class="badge b-yellow">{{ e.half_days }}</span></td>
+                <td>
+                  {% if e.absent > 0 %}<span class="badge b-red">{{ e.absent }}</span>
+                  {% else %}<span class="badge b-green">0</span>{% endif %}
+                </td>
+                <td class="amt-gross"
+                  title="{{ e.full_days }} days × ₹{{ '%.2f'|format(e.spd) }}">
+                  ₹{{ "%.2f" | format(e.full_earn) }}
+                </td>
+                <td class="amt-late"
+                  title="{{ e.late_days }} days × ₹{{ '%.2f'|format(e.spd) }} × 90%">
+                  ₹{{ "%.2f" | format(e.late_earn) }}
+                </td>
+                <td class="amt-late"
+                  title="{{ e.half_days }} days × ₹{{ '%.2f'|format(e.spd) }} × 50%">
+                  ₹{{ "%.2f" | format(e.half_earn) }}
+                </td>
+                {% if (e.incentive | default(0)) > 0 %}
+                <td class="u-c-16a34a u-fw-700" title="Incentive bonus for tasks/goals completed">+₹{{ "%.2f" | format(e.incentive) }}</td>
+                {% else %}
+                <td class="u-c-94a3b8">—</td>
+                {% endif %}
+                <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
+                <td>
+                  <div class="action-col">
+                    <div class="btn-group">
+                      <a class="ag-view"
+                         href="/view_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                         target="_blank" title="View Payslip">
+                        <i class="ti ti-eye"></i>
+                      </a>
+                      <a class="ag-dl"
+                         href="/download_payslip/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                         title="Download Payslip">
+                        <i class="ti ti-download"></i>
+                      </a>
+                      {% if email_configured and e.email %}
+                      <button class="ag-send" title="Send Payslip Email"
+                        onclick="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
+                        <i class="ti ti-send"></i>
+                      </button>
+                      {% elif not email_configured %}
+                      <button class="ag-send" title="Email not configured" disabled>
+                        <i class="ti ti-mail-x"></i>
+                      </button>
+                      {% else %}
+                      <button class="ag-send" title="No email for employee" disabled>
+                        <i class="ti ti-mail-off"></i>
+                      </button>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="12" class="empty-cell">
+                  No employees found. Please set daily salary for employees.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            {% if salary_data %}
+            {% set total_full_earn  = salary_data | sum(attribute='full_earn') %}
+            {% set total_late_earn  = salary_data | sum(attribute='late_earn') %}
+            {% set total_half_earn  = salary_data | sum(attribute='half_earn') %}
+            {% set total_incentive  = salary_data | map(attribute='incentive', default=0) | sum %}
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="7">TOTAL</td>
+                <td class="amt-gross">₹{{ "%.2f" | format(total_full_earn) }}</td>
+                <td class="amt-late-total">₹{{ "%.2f" | format(total_late_earn) }}</td>
+                <td class="amt-late-total">₹{{ "%.2f" | format(total_half_earn) }}</td>
+                <td class="u-c-16a34a u-fw-700">{% if total_incentive > 0 %}+₹{{ "%.2f" | format(total_incentive) }}{% else %}—{% endif %}</td>
+                <td class="amt-net">₹{{ "%.2f" | format(total_net) }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+            {% endif %}
+          </table>
+        </div>
+      </div>
+
+      <!-- DEDUCTION RULES -->
+      <div class="rules-box">
+        <strong>Salary Rules for {{ month_name }}:</strong><br>
+        ✅ <strong>Full Day</strong> — Login ≤ 9:00 AM + Logout ≥ 6:00 PM → No deduction (100% pay)<br>
+        ⚠️ <strong>Late – Full Day</strong> — Login 9:00 AM–1:00 PM + Logout ≥ 6:00 PM → {{ late_rate }}% deduction<br>
+        ⚠️ <strong>Half Day</strong> — Login after 1:00 PM OR Logout before 1:00 PM OR Logout 1:00–6:00 PM → {{ half_rate }}% deduction<br>
+        ❌ <strong>Absent</strong> — No attendance record → 100% deduction (no pay)<br>
+        🎉 <strong>Holiday</strong> — Public holiday → Paid as Full Day (no attendance required)<br>
+        📋 <strong>Leave (Approved)</strong> — Approved leave day → Not counted as a working day (no pay, no deduction)<br>
+        <em>Work Days column: 🎉 = holiday days included, 📋 = leave days excluded</em>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <script>
+      const YEAR  = {{ year }};
+      const MONTH = {{ month }};
+
+      function showToast(msg, type) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = type;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 4000);
+      }
+
+      function sendEmail(empId, empName, btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader u-anim-spin-1s-linear758a62"></i>';
+
+        const fd = new FormData();
+        fd.append('emp_id', empId);
+        fd.append('year',   YEAR);
+        fd.append('month',  MONTH);
+
+        fetch('/send_salary_email', { method: 'POST', body: fd })
+          .then(r => { if (r.status === 401) { window.location.href='/admin_login'; return null; } return r.json(); })
+          .then(data => {
+            if (!data) return;
+            if (data.ok) {
+              showToast('✅ ' + data.msg, 'success');
+              btn.innerHTML = '<i class="ti ti-check"></i>';
+            } else {
+              showToast('❌ ' + data.msg, 'error');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="ti ti-mail"></i>';
+            }
+          })
+          .catch(() => {
+            showToast('❌ Failed to reach server. Check your connection.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-mail"></i>';
+          });
+      }
+
+      function sendAllEmails() {
+        {% if is_locked %}
+        if (!confirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?')) return;
+        {% endif %}
+        const btn = document.getElementById('sendAllBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Sending all…';
+        showToast('📧 Sending salary slips to all employees…', 'info');
+
+        const fd = new FormData();
+        fd.append('year',  YEAR);
+        fd.append('month', MONTH);
+
+        fetch('/send_all_salary_emails', { method: 'POST', body: fd })
+          .then(r => { if (r.status === 401) { window.location.href='/admin_login'; return null; } return r.json(); })
+          .then(data => {
+            if (!data) return;
+            showToast((data.ok ? '✅ ' : '⚠️ ') + data.msg, data.ok ? 'success' : 'error');
+            btn.disabled = false;
+            btn.textContent = '📧 Send All Salary Slips';
+            if (data.locked) setTimeout(() => location.reload(), 1500);
+          })
+          .catch(() => {
+            showToast('❌ Failed to reach server. Check your connection.', 'error');
+            btn.disabled = false;
+            btn.textContent = '📧 Send All Salary Slips';
+          });
+      }
+
+      function lockPayroll() {
+        if (!confirm('Lock payroll for this month? You can unlock it later if needed.')) return;
+        const fd = new FormData();
+        fd.append('year', YEAR); fd.append('month', MONTH);
+        fetch('/lock_payroll', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
+      }
+
+      function unlockPayroll() {
+        if (!confirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.')) return;
+        const fd = new FormData();
+        fd.append('year', YEAR); fd.append('month', MONTH);
+        fetch('/unlock_payroll', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
+      }
+    </script>
+  <script>
+  function filterEmpTable(q) {
+    q = q.toLowerCase();
+    var rows = document.querySelectorAll('#salaryTbody tr');
+    var visible = 0;
+    rows.forEach(function(r) {
+      var show = (r.dataset.search || r.textContent).toLowerCase().includes(q);
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    var c = document.getElementById('empTableCount');
+    if (c) c.textContent = q ? visible + ' result' + (visible !== 1 ? 's' : '') : '';
+  }
+  </script>
+  <script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

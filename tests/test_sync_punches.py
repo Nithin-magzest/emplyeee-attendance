@@ -1,0 +1,127 @@
+"""Tests for /api/employee/sync_punches — offline punch batch submission,
+including the geo-fence enforcement added to match the live check-in route
+(see blueprints/employee_portal.py::api_employee_sync_punches)."""
+import datetime
+import pytest
+import utils.config as cfg
+
+
+@pytest.fixture(autouse=True)
+def _clean_attendance(seed_employee, db_engine):
+    """Each test punches TST001 for 'today' — without this, an earlier
+    test's login+logout leaks into the next test as a false 'day already
+    complete' duplicate rejection."""
+    cur = db_engine.cursor()
+    cur.execute("DELETE FROM attendance WHERE employee_id=%s", (seed_employee["employee_id"],))
+    db_engine.commit()
+    cur.close()
+    yield
+
+
+def _login(client, seed_employee):
+    r = client.post("/api/employee/login", json={
+        "employee_id": seed_employee["employee_id"],
+        "password": seed_employee["password"],
+    })
+    assert r.status_code == 200
+    return {"Authorization": f"Bearer {r.get_json()['token']}"}
+
+
+def _now_str():
+    return datetime.datetime.now().isoformat()
+
+
+class TestSyncPunchesGeofence:
+    def test_office_mode_punch_outside_range_rejected(self, client, seed_employee, db_engine):
+        auth = _login(client, seed_employee)
+        # Far from the default office coords (~hundreds of km away)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str(), "lat": 28.6139, "lon": 77.2090}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert len(results) == 1
+        assert results[0]["ok"] is False
+        assert "office" in results[0]["msg"].lower()
+
+    def test_office_mode_punch_inside_range_accepted(self, client, seed_employee, db_engine):
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str(),
+                         "lat": cfg.OFFICE_LAT, "lon": cfg.OFFICE_LON}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert len(results) == 1
+        assert results[0]["ok"] is True
+
+    def test_punch_without_coordinates_not_geofenced(self, client, seed_employee, db_engine):
+        """No lat/lon sent at all — matches the live check-in route's
+        behavior of only checking when coordinates are actually present."""
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str()}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert len(results) == 1
+        assert results[0]["ok"] is True
+
+    def test_wfh_employee_outside_home_location_rejected(self, client, seed_employee, db_engine):
+        cur = db_engine.cursor()
+        cur.execute(
+            "UPDATE employees SET work_mode='wfh', work_lat=%s, work_lon=%s WHERE employee_id=%s",
+            (12.9716, 77.5946, seed_employee["employee_id"]),
+        )
+        db_engine.commit()
+        cur.close()
+
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str(), "lat": 28.6139, "lon": 77.2090}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert results[0]["ok"] is False
+        assert "home" in results[0]["msg"].lower()
+
+    def test_wfh_employee_at_home_location_accepted(self, client, seed_employee, db_engine):
+        cur = db_engine.cursor()
+        cur.execute(
+            "UPDATE employees SET work_mode='wfh', work_lat=%s, work_lon=%s WHERE employee_id=%s",
+            (12.9716, 77.5946, seed_employee["employee_id"]),
+        )
+        db_engine.commit()
+        cur.close()
+
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str(), "lat": 12.9716, "lon": 77.5946}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert results[0]["ok"] is True
+
+    def test_invalid_lat_lon_values_rejected_not_crashed(self, client, seed_employee, db_engine):
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [{"id": "1", "punched_at": _now_str(), "lat": "not-a-number", "lon": "also-bad"}]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert results[0]["ok"] is False
+        assert "invalid" in results[0]["msg"].lower()
+
+    def test_mixed_batch_rejects_only_bad_punch(self, client, seed_employee, db_engine):
+        """One punch out of range shouldn't block the others in the same batch."""
+        auth = _login(client, seed_employee)
+        r = client.post("/api/employee/sync_punches", headers=auth, json={
+            "punches": [
+                {"id": "1", "punched_at": _now_str(), "lat": 28.6139, "lon": 77.2090},
+            ]
+        })
+        assert r.status_code == 200
+        results = r.get_json()["results"]
+        assert len(results) == 1
+        assert results[0]["id"] == "1"
+        assert results[0]["ok"] is False

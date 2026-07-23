@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup — Attendance System</title>
+    <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI",sans-serif; }
+    body { min-height:100vh; background:linear-gradient(135deg,#0f2460 0%,#1a3a8f 100%); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .box { background:#fff; border-radius:20px; padding:40px 44px; width:100%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+    .logo { text-align:center; margin-bottom:28px; }
+    .logo-icon { width:60px; height:60px; background:linear-gradient(135deg,#3b82f6,#6366f1); border-radius:16px; display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:12px; }
+    .logo h1 { font-size:22px; font-weight:800; color:#1e293b; }
+    .logo p { font-size:13px; color:#64748b; margin-top:4px; }
+    .step-badge { display:inline-block; background:#eff6ff; color:#2563eb; font-size:11px; font-weight:700; padding:4px 12px; border-radius:999px; margin-bottom:24px; }
+    h2 { font-size:16px; font-weight:700; color:#1e293b; margin-bottom:6px; }
+    .section-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin:22px 0 14px; padding-bottom:8px; border-bottom:1px solid #f1f5f9; }
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .field input { width:100%; padding:11px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; font-size:14px; outline:none; transition:0.2s; }
+    .field input:focus { border-color:#93c5fd; background:#fff; box-shadow:0 0 0 3px rgba(147,197,253,0.2); }
+    .field .hint { font-size:11px; color:#94a3b8; margin-top:5px; }
+    .error { background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:10px; padding:11px 14px; font-size:13px; font-weight:600; margin-bottom:18px; }
+    .btn { width:100%; padding:14px; border:none; border-radius:12px; background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#fff; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; transition:0.2s; }
+    .btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,0.35); }
+    .note { text-align:center; font-size:11px; color:#94a3b8; margin-top:18px; }
+    /* ── Dark mode ── */
+    body.dark-mode { background: #0d1117 !important; }
+    body.dark-mode .box { background: #161b22 !important; border: 1px solid #30363d; }
+    body.dark-mode .logo h1 { color: #cdd9e5 !important; }
+    body.dark-mode .logo p { color: #768390 !important; }
+    body.dark-mode .step-badge { background: #1e3a8a !important; color: #93c5fd !important; }
+    body.dark-mode h2 { color: #cdd9e5 !important; }
+    body.dark-mode .section-label { color: #768390 !important; border-color: #30363d !important; }
+    body.dark-mode .field label { color: #768390 !important; }
+    body.dark-mode .field input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+    body.dark-mode .field .hint { color: #768390 !important; }
+    body.dark-mode .error { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes waveHand {
+      0%, 100% { transform: rotate(0deg); }
+      20% { transform: rotate(16deg); }
+      40% { transform: rotate(-14deg); }
+      60% { transform: rotate(10deg); }
+      80% { transform: rotate(-8deg); }
+    }
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translateY(12px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+<link rel="stylesheet" href="/static/shared.min.css" />
+  </head>
+<body>
+  <div class="box" style="animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+    
+    <!-- Big Animated Welcome Banner -->
+    <div style="
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6, #6366f1, #1e40af);
+      background-size: 300% 300%;
+      animation: gradientMove 8s ease infinite;
+      border-radius: 18px;
+      padding: 22px 18px;
+      text-align: center;
+      color: #ffffff;
+      margin-bottom: 22px;
+      box-shadow: 0 12px 30px rgba(37,99,235,0.35);
+    ">
+      <div style="font-size: 36px; margin-bottom: 4px; display: inline-block; animation: waveHand 2.2s infinite ease-in-out;">✨</div>
+      <h1 style="font-size: 22px; font-weight: 900; color: #ffffff; margin-bottom: 6px; letter-spacing: -0.3px;">
+        Welcome to Enterprise HRMS!
+      </h1>
+      <p style="font-size: 13px; color: rgba(255,255,255,0.9); line-height: 1.4; margin: 0 auto; max-width: 360px;">
+        Welcome! Configure your company identity & master administrator account below to complete your initial installation.
+      </p>
+    </div>
+
+    <div class="step-badge">🚀 Initial Installation Wizard</div>
+
+    {% if error %}
+    <div class="error">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/setup">
+      <div class="section-label">Company Information</div>
+
+      <div class="field">
+        <label>Company Name *</label>
+        <input type="text" name="company_name" placeholder="e.g. Acme Technologies Pvt. Ltd." required autofocus />
+      </div>
+      <div class="field">
+        <label>Tagline <span class="u-fw-400 u-ttr-none u-c-94a3b8">(optional)</span></label>
+        <input type="text" name="company_tagline" placeholder="e.g. Employee Attendance Management" />
+      </div>
+      <div class="field">
+        <label>Primary Brand Theme Color</label>
+        <input type="color" name="brand_primary_color" value="#1e3a8a" style="height: 42px; padding: 4px; cursor: pointer;" />
+        <div class="hint">Injected globally across all portal themes without code recompilation.</div>
+      </div>
+      <div class="field">
+        <label>Currency Symbol</label>
+        <input class="u-maxw-100" type="text" name="currency_symbol" value="₹" maxlength="5" />
+        <div class="hint">Used in salary and payslip displays.</div>
+      </div>
+
+
+      <div class="section-label">Admin Account</div>
+
+      <div class="field">
+        <label>Admin Username *</label>
+        <input type="text" name="admin_username" placeholder="e.g. admin" required />
+      </div>
+      <div class="field">
+        <label>Admin Password * <span class="u-fw-400 u-ttr-none u-c-94a3b8">(min 6 characters)</span></label>
+        <input type="password" name="admin_password" placeholder="Choose a strong password" required minlength="6" />
+      </div>
+      <div class="field">
+        <label>Confirm Password *</label>
+        <input type="password" name="admin_password2" placeholder="Re-enter password" required />
+      </div>
+
+      <button type="submit" class="btn">✅ Complete Setup &amp; Launch</button>
+    </form>
+
+    <div class="note">This page will not appear again after setup is complete.</div>
+  </div>
+<script src="/static/darkmode.min.js"></script>
+</body>
+</html>

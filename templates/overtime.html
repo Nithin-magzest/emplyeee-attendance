@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>OT &amp; Comp-off — {{ co.company_name }}</title>
+  <link rel="stylesheet" href="/static/tabler-icons.min.css"/>
+  <link rel="stylesheet" href="/static/shared.min.css"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+    html,body{height:100%}
+    body{background:#eff6ff;display:flex;min-height:100vh}
+    .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:#fff;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,.18)}
+    .brand-wrap{display:flex;align-items:center;gap:11px;margin-bottom:28px;padding:0 4px}
+    .brand-icon{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+    .brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:1px 0;color:rgba(255,255,255,.75);text-decoration:none;border-radius:10px;font-size:13px;font-weight:500;transition:.18s;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:700}
+    .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:#60a5fa}
+    .nav-icon{width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+    .nav-item.active .nav-icon{background:rgba(96,165,250,.2)}
+    .nav-item:hover .nav-icon{background:rgba(255,255,255,.12)}
+    .nav-sep{border:none;border-top:1px solid rgba(255,255,255,.08);margin:8px 0}
+    .badge-count{margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700}
+    .sidebar-footer{margin-top:auto;font-size:11px;color:rgba(255,255,255,.4);padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:7px}
+    .dm-toggle{margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;width:100%;transition:.18s}
+    .dm-toggle:hover{background:rgba(255,255,255,.14)}
+    .main{flex:1;padding:28px 30px;overflow-y:auto;min-width:0}
+    .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+    .stat-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:16px 18px}
+    .stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:6px}
+    .stat-label{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .stat-val{font-size:26px;font-weight:800;color:#1e293b;line-height:1.1}
+    /* Tabs */
+    .tab-bar{display:flex;gap:0;border-bottom:2px solid #dbeafe;margin-bottom:20px}
+    .tab{padding:10px 22px;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s;display:flex;align-items:center;gap:6px}
+    .tab:hover{color:#1e3a8a}
+    .tab.active{color:#1e3a8a;border-bottom-color:#1e3a8a;background:#eff6ff;border-radius:8px 8px 0 0}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    /* Filter bar */
+    .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+    .filter-bar label{font-size:12px;font-weight:600;color:#64748b;white-space:nowrap}
+    .filter-bar select{padding:7px 11px;border:1px solid #dbeafe;border-radius:8px;background:#f8fafc;color:#1e293b;font-size:13px;outline:none;font-family:inherit}
+    /* Cards & tables */
+    .card{background:#fff;border:1px solid #dbeafe;border-radius:14px;overflow:hidden;margin-bottom:18px}
+    .card-pad{padding:20px}
+    table{width:100%;border-collapse:collapse}
+    th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;padding:9px 14px;text-align:left;border-bottom:2px solid #e2e8f0;background:#f8fafc}
+    td{padding:11px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#374151;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fafc}
+    .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+    .badge-pending{background:#fefce8;color:#ca8a04}
+    .badge-approved{background:#f0fdf4;color:#16a34a}
+    .badge-rejected{background:#fef2f2;color:#ef4444}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.18s;text-decoration:none}
+    .btn-primary{background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff}
+    .btn-sm{padding:5px 11px;font-size:12px;border-radius:7px}
+    .btn-approve{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+    .btn-approve:hover{background:#dcfce7}
+    .btn-reject{background:#fef2f2;color:#ef4444;border:1px solid #fecaca}
+    .btn-reject:hover{background:#fee2e2}
+    /* Flash */
+    .flash{padding:10px 16px;border-radius:10px;margin-bottom:18px;font-size:13px;font-weight:600}
+    .flash-success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+    .flash-danger{background:#fef2f2;color:#ef4444;border:1px solid #fecaca}
+    /* Empty state */
+    .empty-state{text-align:center;padding:48px;color:#94a3b8}
+    .empty-state i{font-size:48px;display:block;margin-bottom:12px}
+    /* Info box */
+    .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;font-size:13px;color:#1e3a8a;display:flex;gap:10px;align-items:flex-start;margin-bottom:16px}
+    /* Progress */
+    .prog-wrap{background:#e2e8f0;border-radius:20px;height:7px;overflow:hidden;min-width:80px}
+    .prog-fill{height:100%;border-radius:20px}
+    /* Settings form */
+    .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    .form-group label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px}
+    .form-group input{width:100%;padding:9px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:14px;outline:none;color:#1e293b;background:#f8fafc}
+    .form-group input:focus{border-color:#3b82f6}
+    .hint{font-size:11px;color:#94a3b8;margin-top:4px}
+    /* Search */
+    .search-wrap{position:relative;max-width:260px;margin-bottom:14px}
+    .search-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#3b82f6;font-size:14px;pointer-events:none}
+    .search-wrap input{padding:8px 12px 8px 32px;border:2px solid #bfdbfe;border-radius:9px;background:#f8fafc;font-size:13px;outline:none;color:#1e293b;width:100%}
+    .search-wrap input:focus{border-color:#3b82f6}
+    /* Dark mode */
+    body.dark-mode{background:#0d1117!important}
+    body.dark-mode .main{background:#0d1117!important;color:#cdd9e5!important}
+    body.dark-mode .page-hdr h1{color:#cdd9e5!important}
+    body.dark-mode .page-hdr p{color:#768390!important}
+    body.dark-mode .stat-card{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .card{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .stat-label{color:#768390!important}
+    body.dark-mode .stat-val{color:#cdd9e5!important}
+    body.dark-mode .filter-bar{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .filter-bar label{color:#768390!important}
+    body.dark-mode .filter-bar select{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode th{color:#768390!important;border-color:#30363d!important;background:#1c2128!important}
+    body.dark-mode td{color:#cdd9e5!important;border-color:#30363d!important}
+    body.dark-mode .tab{color:#768390!important}
+    body.dark-mode .tab.active{color:#93c5fd!important;background:#0f1f3d!important;border-color:#1e3a8a!important}
+    body.dark-mode .tab-bar{border-color:#30363d!important}
+    body.dark-mode .form-group label{color:#768390!important}
+    body.dark-mode .form-group input{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .search-wrap input{background:#0d1117!important;border-color:#30363d!important;color:#cdd9e5!important}
+    body.dark-mode .info-box{background:#0f1f3d!important;border-color:#1e3a8a!important;color:#93c5fd!important}
+    body.dark-mode .prog-wrap{background:#30363d!important}
+    body.dark-mode .flash-success{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
+    body.dark-mode .flash-danger{background:#7f1d1d!important;border-color:#991b1b!important;color:#fca5a5!important}
+  </style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="brand-wrap">
+    <div class="brand-icon"><i class="ti ti-layout-dashboard u-fs-18"></i></div>
+    <div><div class="brand">Admin Panel</div><div class="brand-sub">{{ co.company_name }}</div></div>
+
+  </div>
+  <a class="nav-item" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+  <a class="nav-item" href="/employees"><span class="nav-icon"><i class="ti ti-users"></i></span>Employees</a>
+
+  <a class="nav-item" href="/monthly_report"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+  <a class="nav-item" href="/salary_report"><span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips</a>
+  <a class="nav-item" href="/leave_holidays"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% set _tp=(pending_leaves|default(0))+(pending_resignations|default(0))+(pending_tickets|default(0)) %}{% if _tp>0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}</a>
+  <hr class="nav-sep u-mt-12"/>
+  <a class="nav-item active" href="/overtime"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off</a>
+  <a class="nav-item" href="/performance"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms</a>
+  <a class="nav-item" href="/onboarding"><span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}</a>
+  <a class="nav-item" href="/analytics"><span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics</a>
+  <a class="nav-item" href="/org_chart"><span class="nav-icon"><i class="ti ti-hierarchy"></i></span>Org Chart</a>
+  <a class="nav-item" href="/admin_tools"><span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools</a>
+  <a class="nav-item" href="/settings"><span class="nav-icon"><i class="ti ti-settings"></i></span>Settings</a>
+  <a class="nav-item" href="/logout"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</a>
+</nav>
+
+<div class="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="flash flash-{{ 'success' if cat == 'success' else 'danger' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="page-hdr">
+    <div>
+      <h1><i class="ti ti-clock-bolt u-c-3b82f6"></i> OT &amp; Comp-off</h1>
+      <p>Manage overtime records and compensatory leave balances</p>
+    </div>
+  </div>
+
+  <!-- Summary stats (always visible) -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-icon u-bg-eff6ff u-c-3b82f6"><i class="ti ti-clock"></i></div>
+      <div class="stat-label">OT Hours ({{ month_name }})</div>
+      <div class="stat-val">{{ total_ot_hours }}h</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-f0fdf4 u-c-22c55e"><i class="ti ti-coin"></i></div>
+      <div class="stat-label">OT Pay</div>
+      <div class="stat-val">₹{{ "%.0f"|format(total_ot_pay) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-fefce8 u-c-f59e0b"><i class="ti ti-hourglass"></i></div>
+      <div class="stat-label">Pending Approval</div>
+      <div class="stat-val">{{ pending_count }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon u-bg-fdf4ff u-c-a855f7"><i class="ti ti-replace"></i></div>
+      <div class="stat-label">Comp-off Available</div>
+      <div class="stat-val">{{ "%.1f"|format(compoff_balances|sum(attribute='avail_days')) }}</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <div class="tab {% if active_tab == 'ot' %}active{% endif %}" onclick="switchTab('ot',this)">
+      <i class="ti ti-clock-overtime"></i> OT Records
+      {% if pending_count > 0 %}<span class="u-bg-ef4444 u-c-fff u-br-20 u-p-1-7 u-fs-10 u-fw-700">{{ pending_count }}</span>{% endif %}
+    </div>
+    <div class="tab {% if active_tab == 'compoff' %}active{% endif %}" onclick="switchTab('compoff',this)">
+      <i class="ti ti-replace"></i> Comp-off Balances
+    </div>
+    <div class="tab {% if active_tab == 'settings' %}active{% endif %}" onclick="switchTab('settings',this)">
+      <i class="ti ti-adjustments-horizontal"></i> Settings
+    </div>
+  </div>
+
+  <!-- TAB: OT Records -->
+  <div class="tab-content {% if active_tab == 'ot' %}active{% endif %}" id="tab-ot">
+    <form class="filter-bar" method="GET" action="/overtime">
+      <input type="hidden" name="tab" value="ot"/>
+      <label>Month:</label>
+      <select name="month">
+        {% for m in range(1,13) %}
+        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1] }}</option>
+        {% endfor %}
+      </select>
+      <label>Year:</label>
+      <select name="year">
+        {% for y in range(2023, 2028) %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary"><i class="ti ti-search"></i> Filter</button>
+    </form>
+
+    <div class="card">
+      {% if records %}
+      <div class="u-ovx-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Date</th>
+              <th>Shift End</th>
+              <th>Actual Logout</th>
+              <th>OT Duration</th>
+              <th>OT Pay</th>
+              <th>Comp-off Credit</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            {% set ot_h = r[6] // 60 %}
+            {% set ot_m = r[6] % 60 %}
+            <tr>
+              <td>
+                <div class="u-fw-600">{{ r[2] }}</div>
+                <div class="u-fs-11 u-c-94a3b8">{{ r[1] }}</div>
+              </td>
+              <td class="u-ws-nowrap">{{ r[3].strftime('%d %b %Y') if r[3] else '—' }}</td>
+              <td class="u-c-64748b">
+                {% if r[4] %}{% set se=r[4] %}{% if se is string %}{{ se[:5] }}{% elif se.total_seconds is defined %}{{ "%02d:%02d"|format((se.total_seconds()//3600)|int,((se.total_seconds()%3600)//60)|int) }}{% else %}{{ se.strftime('%H:%M') }}{% endif %}{% else %}—{% endif %}
+              </td>
+              <td class="u-c-64748b">
+                {% if r[5] %}{% set al=r[5] %}{% if al is string %}{{ al[:5] }}{% elif al.total_seconds is defined %}{{ "%02d:%02d"|format((al.total_seconds()//3600)|int,((al.total_seconds()%3600)//60)|int) }}{% else %}{{ al.strftime('%H:%M') }}{% endif %}{% else %}—{% endif %}
+              </td>
+              <td class="u-fw-700 u-c-1e293b">
+                {% if ot_h > 0 %}{{ ot_h }}h {% endif %}{{ ot_m }}m
+              </td>
+              <td class="u-fw-700 u-c-16a34a">₹{{ "%.2f"|format(r[7]|float) }}</td>
+              <td>
+                {% if r[6] >= min_ot_minutes and r[8] == 'Approved' %}
+                <span class="u-c-16a34a u-fw-700 u-fs-12"><i class="ti ti-check"></i> +{{ "%.1f"|format(r[6]/minutes_per_day) }}d</span>
+                {% elif r[6] < min_ot_minutes %}
+                <span class="u-c-94a3b8 u-fs-11">Below threshold</span>
+                {% else %}
+                <span class="u-c-94a3b8 u-fs-11">Pending</span>
+                {% endif %}
+              </td>
+              <td><span class="badge badge-{{ r[8]|lower }}">{{ r[8] }}</span></td>
+              <td>
+                {% if r[8] == 'Pending' %}
+                <div class="u-d-flex u-gap-6">
+                  <form class="u-d-inline" action="/overtime_action/{{ r[0] }}" method="POST">
+                    <input type="hidden" name="action" value="approve"/>
+                    <button type="submit" class="btn btn-sm btn-approve"><i class="ti ti-check"></i> Approve</button>
+                  </form>
+                  <form class="u-d-inline" action="/overtime_action/{{ r[0] }}" method="POST">
+                    <input type="hidden" name="action" value="reject"/>
+                    <button type="submit" class="btn btn-sm btn-reject"><i class="ti ti-x"></i> Reject</button>
+                  </form>
+                </div>
+                {% else %}
+                <span class="u-fs-12 u-c-94a3b8">{{ r[9] or '—' }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="ti ti-clock-off"></i>
+        <div class="u-fs-15 u-fw-700 u-c-64748b u-mb-6">No overtime records</div>
+        <div class="u-fs-13">No overtime was recorded for {{ month_name }}.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- TAB: Comp-off Balances -->
+  <div class="tab-content {% if active_tab == 'compoff' %}active{% endif %}" id="tab-compoff">
+    <div class="info-box">
+      <i class="ti ti-info-circle u-fs-18 u-fxs-0"></i>
+      <span>OT ≥ <b>{{ min_ot_minutes }} mins</b> credits comp-off. Every <b>{{ minutes_per_day }} mins</b> ({{ "%.0f"|format(minutes_per_day/60) }} hrs) = 1 comp-off day. Approve OT in the <b>OT Records</b> tab to credit balance.</span>
+    </div>
+    <div class="card">
+      <div class="card-pad">
+        <div class="search-wrap">
+          <i class="ti ti-search"></i>
+          <input type="text" placeholder="Search employee…" oninput="filterTable('coTable',this.value)"/>
+        </div>
+      </div>
+      <div class="u-ovx-auto">
+        <table id="coTable">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Department</th>
+              <th>OT Earned (hrs)</th>
+              <th>Available Days</th>
+              <th>Used Days</th>
+              <th>Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in compoff_balances %}
+            <tr data-search="{{ b.name }} {{ b.dept }} {{ b.emp_id }}">
+              <td>
+                <div class="u-fw-700">{{ b.name }}</div>
+                <div class="u-fs-11 u-c-94a3b8">{{ b.emp_id }} · {{ b.role }}</div>
+              </td>
+              <td class="u-c-64748b">{{ b.dept or '—' }}</td>
+              <td>
+                <span class="u-fw-700 u-c-3b82f6">{{ "%.1f"|format(b.earned_min/60) }}</span>
+                <span class="u-fs-11 u-c-94a3b8"> ({{ b.earned_min }} min)</span>
+              </td>
+              <td>
+                <span style="font-size:20px;font-weight:800;color:{% if b.avail_days > 0 %}#16a34a{% else %}#94a3b8{% endif %};">{{ "%.1f"|format(b.avail_days) }}</span>
+                <span class="u-fs-11 u-c-94a3b8"> days</span>
+              </td>
+              <td class="u-c-f59e0b u-fw-700">{{ "%.1f"|format(b.used_days) }}</td>
+              <td>
+                {% if b.earned_days > 0 %}
+                <div class="prog-wrap">
+                  <div class="prog-fill" style="width:{{ [(b.used_days/b.earned_days*100)|int,100]|min }}%;background:#3b82f6;"></div>
+                </div>
+                <div class="u-fs-10 u-c-94a3b8 u-mt-2">{{ "%.0f"|format(b.used_days/b.earned_days*100 if b.earned_days else 0) }}% used</div>
+                {% else %}
+                <span class="u-c-94a3b8 u-fs-12">No balance</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Settings -->
+  <div class="tab-content {% if active_tab == 'settings' %}active{% endif %}" id="tab-settings">
+    <div class="card card-pad">
+      <div class="u-fs-12 u-fw-800 u-c-1e3a8a u-ttr-uppercase u-ls-d5 u-mb-14 u-d-flex u-ai-center u-gap-8">
+        <i class="ti ti-adjustments-horizontal"></i> Comp-off Settings
+      </div>
+      <div class="info-box">
+        <i class="ti ti-info-circle u-fs-18 u-fxs-0"></i>
+        <span>Set the minimum OT required to qualify for comp-off and how many OT minutes equal 1 comp-off day.</span>
+      </div>
+      <form method="POST" action="/compoff_settings">
+        <div class="settings-grid">
+          <div class="form-group">
+            <label>Minimum OT Minutes to Qualify</label>
+            <input type="number" name="min_ot_minutes" value="{{ min_ot_minutes }}" min="30" max="480" step="30"/>
+            <div class="hint">e.g. 120 = employee must work 2+ hrs OT to earn comp-off</div>
+          </div>
+          <div class="form-group">
+            <label>OT Minutes = 1 Comp-off Day</label>
+            <input type="number" name="minutes_per_day" value="{{ minutes_per_day }}" min="60" max="960" step="60"/>
+            <div class="hint">e.g. 480 = 8 hrs OT = 1 comp-off day (standard)</div>
+          </div>
+        </div>
+        <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-14-16 u-fs-13 u-c-15803d u-mb-16">
+          <b>Current rule:</b> ≥ {{ min_ot_minutes }} OT mins qualifies. Every {{ minutes_per_day }} mins ({{ "%.1f"|format(minutes_per_day/60) }} hrs) = 1 comp-off day.
+        </div>
+        <div class="u-ta-right">
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Save Settings</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+  // Update URL without reload
+  var url = new URL(window.location);
+  url.searchParams.set('tab', id);
+  window.history.replaceState(null, '', url);
+}
+function filterTable(tableId, q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(r) {
+    r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
+<script src="/static/darkmode.min.js"></script>
+
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+upstream app {
+    server app:5000;
+}
+
+# Removes the "Server: nginx/x.x.x" header (and the version string from
+# nginx's own generated error pages) — one less thing that hands an attacker
+# a precise CVE lookup for free. Belongs in the http{} context (this file is
+# included inside it by the base image's nginx.conf), same reasoning as the
+# limit_req_zone directives below.
+server_tokens off;
+
+# limit_req_zone/limit_conn_zone must live in the http context (this file is
+# included inside http{} by the base image's nginx.conf) — they were
+# previously declared inside the `server {}` block below, which is invalid
+# nginx syntax and would make `nginx -s reload`/startup fail outright.
+#
+# Two zones: a tight one for login/auth endpoints (defense-in-depth on top
+# of Flask-Limiter — this still holds even if the app-level lockout has a
+# gap, since nginx sees every request before it reaches gunicorn), and a
+# generous general one as a backstop for everything else, since Flask's
+# default limit (300/min, extensions.py) is otherwise the only thing
+# standing between the app and a request flood.
+limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=general:10m rate=20r/s;
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+
+# gzip must also live in the http{} context (same reasoning as the zones
+# above). This is what actually shrinks bytes over the wire for mobile
+# connections — minify_static.py already strips whitespace, but chart.umd.min.js
+# and tabler-icons.min.css are still 200KB+ each uncompressed, and every
+# proxied Flask HTML/JSON response goes out uncompressed without this.
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 256;
+gzip_types text/plain text/css application/json application/javascript text/javascript text/xml application/xml image/svg+xml;
+
+server {
+    # nginx runs unprivileged (nginxinc/nginx-unprivileged, cap_drop: ALL —
+    # see compose.yaml) and can't bind ports <1024. The host redirects
+    # public 80/443 -> 8080/8443 via iptables DNAT before packets reach
+    # this container (see deploy.sh's ufw before.rules block) — Let's
+    # Encrypt's HTTP-01 validation and every browser still just uses 80/443
+    # from the outside; only this listen directive needs to match what's
+    # actually bound.
+    listen 8080;
+    server_name YOUR_DOMAIN;
+
+    # Let's Encrypt HTTP-01 challenge — must stay reachable over plain HTTP
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 8443 ssl http2;
+    server_name YOUR_DOMAIN;
+
+    ssl_certificate     /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # Security headers are NOT set here at the server level on purpose.
+    # Flask's after_request hook (app.py:_security_headers) is the single
+    # source of truth for every response it serves — it computes a
+    # per-request CSP nonce and sha256-hashes inline event handlers, which
+    # nginx has no way to replicate. Duplicating headers here via add_header
+    # doesn't override Flask's copy, it ADDS a second, conflicting one
+    # alongside it (e.g. a stale Permissions-Policy that blocks the camera
+    # this app needs for face-recognition check-in). Browsers handle
+    # duplicate security headers inconsistently, so pick one layer and
+    # don't set the same header in both.
+    #
+    # The one exception is /static/ below, which nginx serves directly and
+    # Flask never sees — those responses would otherwise carry no security
+    # headers at all.
+
+    client_max_body_size 20M;
+    limit_conn perip 20;
+
+    location ~ ^/(admin_login|employee_login|api/login|api/employee/login) {
+        limit_req zone=login burst=10 nodelay;
+        proxy_pass         https://app;
+        proxy_ssl_verify   off;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 10s;
+    }
+
+    location /static/ {
+        alias /app/static/;
+        expires 7d;
+        add_header Cache-Control "public, immutable" always;
+        # Mirrors app.py's _security_headers values exactly, so a static
+        # asset requested directly gets the same posture as an app response.
+        # No Content-Security-Policy here — static files aren't HTML, so a
+        # page-level CSP doesn't apply, and nginx has no nonce to put in one.
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
+        # X-XSS-Protection is deliberately omitted: it's a legacy IE/old-Chrome
+        # heuristic filter, removed from every modern browser, and OWASP now
+        # recommends against re-enabling it (the filter itself had exploitable
+        # bugs) in favor of relying on CSP.
+    }
+
+    location / {
+        limit_req zone=general burst=40 nodelay;
+        proxy_pass         https://app;
+        proxy_ssl_verify   off;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+    }
+}
