@@ -6,7 +6,6 @@ No real Redis server is required for these — the reachable-Redis path is
 exercised with a fake client, and the unset/unreachable paths use real
 (non-)connections, matching the fail-open behavior the code implements."""
 import datetime
-import pytest
 import extensions as extensions_module
 import utils.waf as waf_module
 
@@ -14,6 +13,7 @@ import utils.waf as waf_module
 class FakeRedis:
     """Minimal stand-in for redis.Redis covering exactly what
     _init_redis_backend()/waf.py's breach counter call."""
+
     def __init__(self, host, port, password=None, socket_connect_timeout=None, socket_timeout=None):
         self.host, self.port = host, port
         self.store = {}
@@ -44,6 +44,7 @@ class MidCallFailureRedis:
     """Connects fine at startup (ping succeeds) but every subsequent call fails
     — simulates a Redis instance that goes away after the app has already
     started using it."""
+
     def ping(self):
         return True
 
@@ -101,7 +102,8 @@ class TestWafBreachCounterRedisDispatch:
         ip = "10.0.0.2"
         cur = db_engine.cursor()
         cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
         try:
             for _ in range(waf_module._BREACH_THRESHOLD):
                 waf_module.record_breach_and_maybe_ban(ip, "redis test breach")
@@ -119,7 +121,8 @@ class TestWafBreachCounterRedisDispatch:
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-            db_engine.commit(); cur.close()
+            db_engine.commit()
+            cur.close()
 
     def test_redis_failure_mid_call_falls_back_to_memory(self, monkeypatch):
         monkeypatch.setattr(waf_module, "redis_client", MidCallFailureRedis())

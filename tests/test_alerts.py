@@ -108,7 +108,7 @@ class TestMaskRawPayload:
 
     def test_nested_dict_masked_recursively(self):
         raw = {"request": {"headers": {"Authorization": "Bearer abc123secrettoken"},
-                            "body": {"employee_name": "Priya"}}}
+                           "body": {"employee_name": "Priya"}}}
         out = mask_raw_payload(raw)
         assert out["request"]["headers"]["Authorization"] == "[redacted]"
         assert out["request"]["body"]["employee_name"] == "Priya"

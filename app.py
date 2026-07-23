@@ -756,9 +756,26 @@ def _attach_updated_at_trigger(cursor, table):
 
 
 def init_db():
+    """Create/upgrade the schema, then seed defaults. Split into three
+    ordered phases — table creation, ALTER-TABLE migrations for existing
+    installs, and one-time seeding — so each phase is independently
+    readable/testable instead of one 1000+ line function; the phases must
+    still run in exactly this order (migrations assume their tables
+    already exist, seeding assumes its columns already exist)."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    _init_core_tables(cursor, db)
+    _run_schema_migrations(cursor, db)
+    _seed_defaults_and_admin(cursor, db)
+    cursor.close()
+    db.close()
 
+
+def _init_core_tables(cursor, db):
+    """Create every base table (and its triggers/seed rows) this app
+     needs, in dependency order — e.g. company_settings before the
+     migrations below that ALTER it. Idempotent: every statement is
+     CREATE TABLE IF NOT EXISTS, safe to re-run on every startup."""
     cursor.execute(_UPDATED_AT_TRIGGER_FN)
 
     cursor.execute("""
@@ -1441,6 +1458,24 @@ def init_db():
         except Exception:
             pass
 
+
+def _run_schema_migrations(cursor, db):
+    """ALTER existing installs' tables up to the current schema: new
+    columns, indexes, FK backstops, and one-time data migrations, split
+    into independently ordered phases so each stays small and readable.
+    Order matters: column ALTERs must precede everything that assumes
+    those columns exist (indexes, PII widening, FK backstops)."""
+    _run_column_migrations(cursor, db)
+    _run_password_migrations(cursor, db)
+    _run_index_migrations(cursor, db)
+    _run_data_integrity_migrations(cursor, db)
+
+
+def _run_column_migrations(cursor, db):
+    """Add every column an existing install might be missing —
+    idempotent (IF NOT EXISTS) and independently try/except-guarded per
+    statement so one unsupported ALTER on an older Postgres can't block
+    the rest."""
     # Migrations for existing installs
     for sql in [
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS logout_status VARCHAR(50) DEFAULT NULL",
@@ -1551,6 +1586,12 @@ def init_db():
         except psycopg2.Error:
             db.rollback()
 
+
+def _run_password_migrations(cursor, db):
+    """Back-fill a default PIN for employees with no password hash yet,
+    plus the two related one-time migrations tracked in
+    _applied_migrations (reset-to-default-PIN, and flagging accounts
+    still on that default PIN as needing a forced change)."""
     # Back-fill password for existing employees that have none (default PIN = 1234)
     cursor.execute("SELECT employee_id FROM employees WHERE password IS NULL")
     for (eid,) in cursor.fetchall():
@@ -1595,6 +1636,17 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_index_migrations(cursor, db):
+    """Three rounds of performance indexes added as real query-usage
+    audits found missing ones — each in its own function since they're
+    independent, one-time, _applied_migrations-tracked units."""
+    _run_index_migrations_v1(cursor, db)
+    _run_index_migrations_v2(cursor, db)
+    _run_index_migrations_v3(cursor, db)
+
+
+def _run_index_migrations_v1(cursor, db):
     # Performance indexes migration
     try:
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v1'")
@@ -1622,6 +1674,9 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_index_migrations_v2(cursor, db):
+    """High-traffic columns missing from v1."""
     # Performance indexes v2 — high-traffic columns missing from v1
     try:
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='perf_indexes_v2'")
@@ -1643,6 +1698,15 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_index_migrations_v3(cursor, db):
+    """Found via a real query-usage audit (grepped every WHERE/JOIN
+    against these columns before adding, not guessed):
+    offer_letters.response_token is looked up on EVERY candidate-facing
+    request (/offer_letter_pdf, /offer_letter_respond) with no index at
+    all — the highest-value one here. The rest cover employee-scoped
+    tables that were missing from v1/v2 despite the same WHERE
+    employee_id=%s pattern as the tables v1 already covers."""
     # Performance indexes v3 — found via a real query-usage audit (grepped
     # every WHERE/JOIN against these columns before adding, not guessed):
     # offer_letters.response_token is looked up on EVERY candidate-facing
@@ -1674,6 +1738,22 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_data_integrity_migrations(cursor, db):
+    """One-time migrations that harden data integrity — each in its own
+    function since they are independent, _applied_migrations-tracked
+    units: a unique constraint backing the bonus-award idempotency
+    check, widening Fernet-encrypted employee PII columns to TEXT so
+    ciphertext fits, and NOT VALID foreign-key backstops on every
+    employee_id/company_id column that was previously only enforced by
+    application code."""
+    _run_incentives_unique_constraint_migration(cursor, db)
+    _run_pii_widen_migration_v1(cursor, db)
+    _run_pii_widen_migration_v2(cursor, db)
+    _run_fk_backstop_migration(cursor, db)
+
+
+def _run_incentives_unique_constraint_migration(cursor, db):
     # Unique constraint backing award_performance_bonus's ON CONFLICT DO
     # NOTHING guard (blueprints/payroll.py) — without it, two concurrent
     # bonus-award requests for the same employee/goal/quarter could both
@@ -1696,6 +1776,8 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_pii_widen_migration_v1(cursor, db):
     # Widen employee PII columns to TEXT so they can hold Fernet-encrypted
     # values (utils/helpers.py's encrypt_pii) — a base64 Fernet token has
     # ~100+ chars of fixed IV/HMAC/timestamp overhead even for a 2-character
@@ -1732,6 +1814,17 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_pii_widen_migration_v2(cursor, db):
+    """v1 above widened 10 of the 15 Fernet-encrypted employee columns
+    to TEXT. These 5 were missed — encrypt_pii() output runs 100+
+    chars for any input, but aadhar_number/bank_ifsc stayed
+    VARCHAR(20) and bank_account/uan_number VARCHAR(30), so
+    registering an employee with any of these fields filled in
+    raised psycopg2.StringDataRightTruncation ('value too long for
+    type character varying(20)') — a real 500 on a standard field
+    for an Indian payroll system, found while verifying the
+    registration flow end-to-end rather than just reading the code."""
     # v1 above widened 10 of the 15 Fernet-encrypted employee columns to TEXT.
     # These 5 were missed — encrypt_pii() output runs 100+ chars for any
     # input, but aadhar_number/bank_ifsc stayed VARCHAR(20) and
@@ -1761,6 +1854,16 @@ def init_db():
     except Exception:
         pass
 
+
+def _run_fk_backstop_migration(cursor, db):
+    """Every employee_id/company_id column below was previously
+    enforced only by application code (each delete path manually
+    cleaning up related tables) with no FK constraint backing it, so a
+    bug or a crash mid-delete could silently orphan rows instead of
+    being caught or cascaded. Added NOT VALID so existing orphans (if
+    any) from before this migration don't block it — only rows
+    inserted/updated from now on are checked, closing the gap going
+    forward without a risky retroactive cleanup of historical data."""
     # Referential-integrity backstop. Every employee_id/company_id column
     # below was previously enforced only by application code (each delete
     # path manually cleaning up related tables) with no FK constraint
@@ -1809,6 +1912,11 @@ def init_db():
     except Exception:
         pass
 
+
+def _seed_defaults_and_admin(cursor, db):
+    """One-time seeding for a fresh install: the company_settings row,
+     the env-configured admin account, and marking existing installs
+     that already have an admin as setup-complete."""
     cursor.execute("SELECT COUNT(*) FROM company_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO company_settings (setup_done) VALUES (0)")
@@ -1834,9 +1942,6 @@ def init_db():
     if admin_count > 0:
         cursor.execute("UPDATE company_settings SET setup_done=1 WHERE setup_done=0")
         db.commit()
-
-    cursor.close()
-    db.close()
 
 
 # assign_leave_balances_for_employee moved to utils/leave_utils.py
@@ -2857,13 +2962,28 @@ if __name__ == "__main__":
     # hypothetical one.
     threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
     import os as _os
+    from werkzeug.serving import WSGIRequestHandler
+
+    class _QuietRequestHandler(WSGIRequestHandler):
+        """Werkzeug's dev server writes its own 'Server: Werkzeug/x.x Python/x.x'
+        header straight onto the socket (via BaseHTTPRequestHandler.send_response)
+        regardless of what _security_headers already set on the response object —
+        so the real fix has to happen here, not by adding another header.
+        Overriding version_string() replaces that raw value instead of leaking
+        the exact Werkzeug/Python versions (only relevant to `python app.py` dev/
+        kiosk runs; the gunicorn path in wsgi.py never uses this handler)."""
+
+        def version_string(self):
+            return "AttendanceApp"
+
     _cert = _os.environ.get("SSL_CERT_PATH") or _os.path.join(_os.path.dirname(__file__), "cert.pem")
     _key = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("🔒  SSL cert found — starting on https://0.0.0.0:5000")
         app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,  # nosec B104
-                ssl_context=(_cert, _key))
+                ssl_context=(_cert, _key), request_handler=_QuietRequestHandler)
     else:
         print("⚠   No cert.pem / key.pem — starting on http://0.0.0.0:5000")
         print("    Fingerprint / WebAuthn requires HTTPS. Run: python generate_cert.py")
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)  # nosec B104
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False,  # nosec B104
+                request_handler=_QuietRequestHandler)

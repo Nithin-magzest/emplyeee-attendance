@@ -27,7 +27,12 @@ try:
         from typing_extensions import Literal as _Literal
         _typing.Literal = _Literal
     import webauthn
-    from webauthn.helpers.structs import (
+    # Only COSEAlgorithmIdentifier is used in this file (below); the rest are
+    # re-exported for blueprints/auth.py's `from utils.webauthn_utils import
+    # AuthenticatorSelectionCriteria, ...` — flake8 can't see that cross-file
+    # usage, so don't "clean up" this import as dead code without checking
+    # blueprints/auth.py's registration-options construction first.
+    from webauthn.helpers.structs import (  # noqa: F401
         AuthenticatorSelectionCriteria, AuthenticatorAttachment, UserVerificationRequirement,
         ResidentKeyRequirement, PublicKeyCredentialDescriptor, AuthenticatorTransport,
         COSEAlgorithmIdentifier, AttestationConveyancePreference,

@@ -41,9 +41,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 AGENT_HOST = "127.0.0.1"   # loopback ONLY — binding 0.0.0.0 would let any
-                            # other host on the network query (or spoof)
-                            # this employee's device-risk data. Never widen
-                            # this without re-deriving the whole trust model.
+# other host on the network query (or spoof)
+# this employee's device-risk data. Never widen
+# this without re-deriving the whole trust model.
 AGENT_PORT = 47823          # matches AGENT_URL in employee_portal.html
 ALLOWED_ORIGIN = os.environ.get("PORTAL_ORIGIN", "https://localhost:5000")
 CACHE_TTL_SEC = 10           # avoid re-shelling out on every rapid poll/retry
@@ -107,7 +107,7 @@ def _score_encryption(authentication):
         return 65, ["weak_encryption:open"]        # alone crosses the 60 threshold
     if "wep" in a:
         return 55, ["weak_encryption:wep"]          # broken, but nominally encrypted — needs
-                                                       # one more mild signal to cross 60
+        # one more mild signal to cross 60
     if "wpa2" in a or "wpa3" in a:
         return 0, []
     if "wpa" in a:  # WPA1/TKIP without WPA2/3 in the string
@@ -179,7 +179,7 @@ def _save_trust_store(store):
             json.dump(store, f)
     except Exception:
         pass  # best-effort; a failed pin write degrades to "always trust on
-              # first sight next time" rather than crashing the agent
+        # first sight next time" rather than crashing the agent
 
 
 def _score_gateway(ssid, gateway_ip, gateway_mac):
@@ -199,8 +199,8 @@ def _score_gateway(ssid, gateway_ip, gateway_mac):
         return 0, []
     if pinned != gateway_mac:
         return 65, [f"arp_gateway_mac_changed:{pinned}->{gateway_mac}"]   # alone crosses 60 —
-                                                                            # this is the actual
-                                                                            # spoofing signature
+        # this is the actual
+        # spoofing signature
     return 0, []
 
 

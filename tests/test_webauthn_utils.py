@@ -100,7 +100,6 @@ class TestB64UrlHelpers:
 class TestWaFingerprintRecentlyVerified:
     def test_no_prior_verification_returns_false(self):
         with flask_app.test_request_context("/"):
-            from flask import session
             assert wa._wa_fingerprint_recently_verified("EMP1") is False
 
     def test_matching_recent_verification_returns_true(self):
@@ -286,6 +285,7 @@ class TestEnrollFingerprintFromForm:
 
     def test_calls_verify_and_flashes_on_failure(self, seed_employee, db_engine, monkeypatch):
         calls = []
+
         def _fake_verify(emp_id, credential, challenge_b64, cursor, db):
             calls.append((emp_id, credential, challenge_b64))
             return False, "simulated failure"

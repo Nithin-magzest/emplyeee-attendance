@@ -6,7 +6,6 @@ read paths correctly decrypt it back to the original value. Also covers the
 gender-distribution analytics query, which had to move from a SQL GROUP BY
 to Python-side aggregation since Fernet ciphertext is non-deterministic.
 """
-import pytest
 from utils.helpers import decrypt_pii
 
 

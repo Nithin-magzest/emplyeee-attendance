@@ -50,7 +50,7 @@ def _mock_face_match(monkeypatch, result):
     monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda p: "img")
     monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: ["enc"])
     monkeypatch.setattr(face_utils.face_recognition, "compare_faces",
-                         lambda known, test, tolerance=0.5: [result])
+                        lambda known, test, tolerance=0.5: [result])
 
 
 class TestRegistrationOptionsAuthorization:

@@ -42,6 +42,7 @@ def _install_fake_boto3(monkeypatch, secret_string=None, raise_error=None):
             return {"SecretString": secret_string}
 
     fake_boto3 = types.ModuleType("boto3")
+
     def _client(service_name, region_name=None):
         calls["region_name"] = region_name
         calls["service_name"] = service_name

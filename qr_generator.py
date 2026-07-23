@@ -1,6 +1,7 @@
 import qrcode
 import os
 
+
 def generate_qr(emp_id):
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "qrcodes")
 

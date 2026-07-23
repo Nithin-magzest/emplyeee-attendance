@@ -83,11 +83,10 @@ class TestAdminActionResetPassword:
     def test_unknown_employee(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/admin_action", data={"action": "reset_password", "emp_id": "GHOST_EMP"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"not found" in resp.data
 
     def test_known_employee_resets(self, client, seed_admin, seed_employee):
-        from utils.auth import check_password_hash
         _admin_session(client, seed_admin["username"])
         resp = client.post("/admin_action", data={
             "action": "reset_password", "emp_id": seed_employee["employee_id"]}, follow_redirects=True)
@@ -114,7 +113,7 @@ class TestAdminActionSalary:
             "action": "salary", "emp_id": seed_employee["employee_id"], "salary": "500"})
         cur = db_engine.cursor()
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
-                     (seed_employee["employee_id"],))
+                    (seed_employee["employee_id"],))
         assert float(cur.fetchone()[0]) == 500.0
         cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
@@ -122,12 +121,12 @@ class TestAdminActionSalary:
     def test_updates_existing_salary_config(self, client, seed_admin, seed_employee, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)",
-                     (seed_employee["employee_id"], 400))
+                    (seed_employee["employee_id"], 400))
         _admin_session(client, seed_admin["username"])
         client.post("/admin_action", data={
             "action": "salary", "emp_id": seed_employee["employee_id"], "salary": "700"})
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
-                     (seed_employee["employee_id"],))
+                    (seed_employee["employee_id"],))
         assert float(cur.fetchone()[0]) == 700.0
         cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
@@ -142,7 +141,7 @@ class TestDeleteEmployee:
     def test_known_employee_deleted(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO employees (employee_id, name) VALUES (%s,%s)",
-                     ("DELME1", "Delete Target"))
+                    ("DELME1", "Delete Target"))
         _admin_session(client, seed_admin["username"])
         resp = client.post("/delete_employee/DELME1", follow_redirects=True)
         assert b"deleted successfully" in resp.data
@@ -217,13 +216,13 @@ class TestAddEmployeePage:
     def test_invalid_emp_id_format_rejected(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/add_employee_page", data={"name": "X", "emp_id": "bad id!"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"may only contain" in resp.data
 
     def test_missing_photo_rejected(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/add_employee_page", data={"name": "NoPhoto Guy", "emp_id": "NOPHOTO1"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"photo is required" in resp.data
 
     def test_success_registers_employee(self, client, seed_admin, db_engine, cleanup_emp_files):
@@ -322,7 +321,7 @@ class TestUpdateEmployeePhoto:
     def test_no_file_provided(self, client, seed_admin, seed_employee):
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/update_employee_photo/{seed_employee['employee_id']}", data={},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"No photo file provided" in resp.data
 
     def test_success(self, client, seed_admin, seed_employee, cleanup_emp_files):
@@ -428,7 +427,7 @@ class TestApiEmployeesList:
     def test_returns_paginated_list(self, client, seed_admin, seed_employee):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.get("/api/employees?page=1&per_page=10",
-                           headers={"Authorization": f"Bearer {token}"})
+                          headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ok"] is True
@@ -439,7 +438,7 @@ class TestApiRegisterEmployee:
     def test_missing_fields_returns_400(self, client, seed_admin):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.post("/api/employees", data={"name": ""},
-                            headers={"Authorization": f"Bearer {token}"})
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 400
 
     def test_invalid_emp_id_format(self, client, seed_admin):
@@ -481,7 +480,7 @@ class TestApiEmployeeDetail:
     def test_found(self, client, seed_admin, seed_employee):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.get(f"/api/employees/{seed_employee['employee_id']}",
-                           headers={"Authorization": f"Bearer {token}"})
+                          headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         assert resp.get_json()["employee"]["employee_id"] == seed_employee["employee_id"]
 
@@ -490,7 +489,7 @@ class TestApiEditEmployee:
     def test_missing_name_returns_400(self, client, seed_admin, seed_employee):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.put(f"/api/employees/{seed_employee['employee_id']}", json={"name": ""},
-                           headers={"Authorization": f"Bearer {token}"})
+                          headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 400
 
     def test_success_updates_employee(self, client, seed_admin, seed_employee, db_engine):
@@ -514,7 +513,7 @@ class TestApiDeleteEmployee:
     def test_success(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO employees (employee_id, name) VALUES (%s,%s)",
-                     ("APIDEL1", "Api Delete Target"))
+                    ("APIDEL1", "Api Delete Target"))
         token = _admin_bearer_token(client, seed_admin)
         resp = client.delete("/api/employees/APIDEL1", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200

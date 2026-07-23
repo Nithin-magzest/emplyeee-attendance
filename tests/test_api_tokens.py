@@ -1,8 +1,6 @@
 """Tests for API token lifecycle: hashing, issuance, expiry, revocation."""
 import hashlib
 import secrets
-import time
-import pytest
 
 
 def _sha256(token: str) -> str:
@@ -145,7 +143,7 @@ class TestEmployeeApiToken:
     def test_employee_login_returns_token(self, client, seed_employee):
         resp = client.post("/api/employee/login", json={
             "employee_id": seed_employee["employee_id"],
-            "password":    seed_employee["password"],
+            "password": seed_employee["password"],
         })
         assert resp.status_code == 200
         data = resp.get_json()
@@ -155,7 +153,7 @@ class TestEmployeeApiToken:
     def test_employee_token_cannot_access_admin_endpoint(self, client, seed_employee):
         r1 = client.post("/api/employee/login", json={
             "employee_id": seed_employee["employee_id"],
-            "password":    seed_employee["password"],
+            "password": seed_employee["password"],
         })
         token = r1.get_json()["token"]
         # Admin-only endpoint

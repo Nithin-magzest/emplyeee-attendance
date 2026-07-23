@@ -4,7 +4,7 @@ import json
 import time
 import datetime
 import hashlib
-import urllib.request
+import urllib.request  # noqa: F401 — module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
 from functools import wraps
 from contextlib import contextmanager

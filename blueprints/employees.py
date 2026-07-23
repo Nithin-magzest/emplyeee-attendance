@@ -1439,12 +1439,12 @@ def _idc_footer_contact(draw, cw, ch, company_name, company_website, company_pho
     max_w = cw - 40
     if company_name and contact_parts:
         _idc_center_text(draw, _fit(company_name, _idc_font(11, bold=True), max_w),
-                          _idc_font(11, bold=True), cw, ch - 44, _IDC_WHITE)
+                         _idc_font(11, bold=True), cw, ch - 44, _IDC_WHITE)
         line2 = "  |  ".join(contact_parts)
         _idc_center_text(draw, _fit(line2, _idc_font(9), max_w), _idc_font(9), cw, ch - 26, (200, 210, 225))
     elif company_name:
         _idc_center_text(draw, _fit(company_name, _idc_font(12, bold=True), max_w),
-                          _idc_font(12, bold=True), cw, ch - 34, _IDC_WHITE)
+                         _idc_font(12, bold=True), cw, ch - 34, _IDC_WHITE)
     else:
         line = "  |  ".join(contact_parts)
         _idc_center_text(draw, _fit(line, _idc_font(10), max_w), _idc_font(10), cw, ch - 34, _IDC_WHITE)
@@ -1548,7 +1548,7 @@ def _idc_combine(front_img, back_img):
 
 
 def _render_default_front(emp_id, row, company_name=None, logo_path=None, company_address=None, department=None,
-                           company_website=None, company_phone=None):
+                          company_website=None, company_phone=None):
     """Today's fixed ID-card front layout, now showing the employee's company
     name/logo in the header when set (falls back to the generic subtitle for
     companies with no branding on file — no visual change for those)."""
@@ -1631,9 +1631,9 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
 
 
 def _render_default_back(emp_id, row, logo_path=None, emergency_name=None, emergency_phone=None,
-                          emergency_relation=None, company_name=None, manager_name=None,
-                          shift_start=None, shift_end=None, work_mode=None,
-                          company_website=None, company_phone=None):
+                         emergency_relation=None, company_name=None, manager_name=None,
+                         shift_start=None, shift_end=None, work_mode=None,
+                         company_website=None, company_phone=None):
     """Today's fixed ID-card back layout, now also showing the company logo
     and name in the header (matching the front) and the employee's emergency
     contact in place of the generic "return to HR" line when one is on file."""
@@ -1718,7 +1718,7 @@ _ID_CARD_TEXT_FIELDS = {
 
 
 def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, company_address=None,
-                         company_website=None, company_phone=None):
+                        company_website=None, company_phone=None):
     """Render one side of an admin-uploaded custom ID card template: opens
     the template image at its own native size and pastes/draws each
     admin-placed field (photo/logo/qr/text) at its saved normalized (0-1)
@@ -1890,18 +1890,18 @@ def _build_id_card_buf(emp_id):
 
     if front_image:
         front = _render_custom_side(front_image, fields, "front", emp_id, row, logo_path, company_address,
-                                     company_website, company_phone)
+                                    company_website, company_phone)
     else:
         front = _render_default_front(emp_id, row, company_name, logo_path, company_address, department,
-                                       company_website, company_phone)
+                                      company_website, company_phone)
 
     if back_image:
         back = _render_custom_side(back_image, fields, "back", emp_id, row, logo_path, company_address,
-                                    company_website, company_phone)
+                                   company_website, company_phone)
     else:
         back = _render_default_back(emp_id, row, logo_path, emergency_name, emergency_phone,
-                                     emergency_relation, company_name, manager_name,
-                                     shift_start, shift_end, work_mode, company_website, company_phone)
+                                    emergency_relation, company_name, manager_name,
+                                    shift_start, shift_end, work_mode, company_website, company_phone)
 
     total = _idc_combine(front, back)
     buf = _io2.BytesIO()

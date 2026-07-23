@@ -31,14 +31,16 @@ def soc_admin(seed_admin, db_engine):
     """A seeded admin promoted to soc_analyst with TOTP enrolled+enabled."""
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='soc_analyst' WHERE username=%s", (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
     secret, _ = totp_module.get_or_create_admin_totp_secret(seed_admin["username"])
     totp_module.mark_totp_enabled(seed_admin["username"])
     yield seed_admin["username"], secret
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='admin', totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                 (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 def _verify_stepup(client, secret):
@@ -173,7 +175,8 @@ class TestSocDashboardRoute:
             "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (sid) DO NOTHING",
             ("test-sid-soc-dash", "EMP999", "employee", 100, "compromised", "Wi-Fi risk score 90 exceeded 60"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         resp = client.get("/admin/security-dashboard")
         assert resp.status_code == 200
@@ -182,7 +185,8 @@ class TestSocDashboardRoute:
 
         cur = db_engine.cursor()
         cur.execute("DELETE FROM session_risk WHERE sid='test-sid-soc-dash'")
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_dashboard_shows_log_analysis_summary(self, client, soc_admin_verified, db_engine):
         cur = db_engine.cursor()
@@ -191,7 +195,8 @@ class TestSocDashboardRoute:
             "VALUES (%s,%s,%s,%s)",
             ("access.denied", "WARNING", "Test event for dashboard rendering", "PROBE_USER_XYZ"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         resp = client.get("/admin/security-dashboard")
         assert resp.status_code == 200
@@ -266,7 +271,8 @@ class TestSocEventsApi:
             "INSERT INTO security_events (event_type, level, message, identifier) VALUES (%s,%s,%s,%s)",
             ("test.events_api_level", "INFO", "an info event", "PROBE_LEVEL_FILTER"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         resp = client.get("/api/security/soc/events?identifier=PROBE_LEVEL_FILTER&level=ERROR")
         data = resp.get_json()
@@ -281,7 +287,8 @@ class TestSocEventsApi:
             "INSERT INTO security_events (event_type, level, message, identifier) VALUES (%s,%s,%s,%s)",
             ("test.events_api_q", "INFO", "a very unique needle phrase", "PROBE_Q_FILTER"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         resp = client.get("/api/security/soc/events?q=unique+needle")
         data = resp.get_json()

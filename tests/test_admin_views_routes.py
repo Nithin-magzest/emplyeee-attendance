@@ -43,7 +43,7 @@ class TestSaveDefaultOnboardingTemplate:
     def test_saves_and_redirects(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/save_default_onboarding_template",
-                            data={"default_onboarding_template_id": ""}, follow_redirects=False)
+                           data={"default_onboarding_template_id": ""}, follow_redirects=False)
         assert resp.status_code == 302
         assert "/onboarding" in resp.headers["Location"]
 
@@ -70,7 +70,7 @@ class TestSaveSalaryRules:
         # restore defaults so later tests relying on default config aren't affected
         cur = db_engine.cursor()
         cur.execute("UPDATE company_settings SET late_deduction_pct=10, half_day_deduction_pct=50, "
-                     "grace_minutes=15, holiday_pay='paid', leave_pay='exclude'")
+                    "grace_minutes=15, holiday_pay='paid', leave_pay='exclude'")
         cur.close()
 
     def test_valid_values_saved_scoped_to_company(self, client, seed_admin, temp_company, db_engine):
@@ -93,13 +93,13 @@ class TestToggleAuthMethod:
     def test_invalid_method_rejected(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/toggle_auth_method", data={"method": "bogus", "enabled": "1"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"Invalid authentication method" in resp.data
 
     def test_valid_method_toggled_globally(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/toggle_auth_method", data={"method": "qr", "enabled": "0"},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert resp.status_code == 302
         cur = db_engine.cursor()
         cur.execute("SELECT qr_enabled FROM company_settings LIMIT 1")
@@ -112,7 +112,7 @@ class TestToggleAuthMethod:
         with client.session_transaction() as sess:
             sess["active_company_id"] = temp_company
         resp = client.post("/toggle_auth_method", data={"method": "face", "enabled": "0"},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert resp.status_code == 302
         cur = db_engine.cursor()
         cur.execute("SELECT face_auth_enabled FROM company_feature_settings WHERE company_id=%s", (temp_company,))
@@ -239,7 +239,7 @@ class TestSwitchCompany:
         cur.close()
         _admin_session(client, seed_admin["username"])
         resp = client.post("/switch_company", data={"company_id": str(temp_company), "pin": "0000"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"Incorrect PIN" in resp.data
 
     def test_switch_with_correct_pin_succeeds(self, client, seed_admin, temp_company, db_engine):
@@ -248,7 +248,7 @@ class TestSwitchCompany:
         cur.close()
         _admin_session(client, seed_admin["username"])
         resp = client.post("/switch_company", data={"company_id": str(temp_company), "pin": "1234"},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert resp.status_code == 302
         with client.session_transaction() as sess:
             assert sess["active_company_id"] == temp_company
@@ -274,7 +274,7 @@ class TestSetCompanyPin:
     def test_sets_pin(self, client, seed_admin, temp_company, db_engine):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/set_company_pin", data={"company_id": str(temp_company), "pin": "5678"},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert resp.status_code == 302
         cur = db_engine.cursor()
         cur.execute("SELECT pin FROM companies WHERE id=%s", (temp_company,))
@@ -287,7 +287,7 @@ class TestSetCompanyPin:
         cur.close()
         _admin_session(client, seed_admin["username"])
         resp = client.post("/set_company_pin", data={"company_id": str(temp_company), "pin": ""},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert b"removed" in resp.data
 
 
@@ -412,7 +412,7 @@ class TestAnnouncementsAdmin:
         cur.execute("SELECT id FROM announcements WHERE title='Route Test Ann'")
         ann_id = cur.fetchone()[0]
         del_resp = client.post("/announcements", data={"action": "delete", "ann_id": str(ann_id)},
-                                follow_redirects=True)
+                               follow_redirects=True)
         assert b"Announcement deleted" in del_resp.data
         cur.execute("DELETE FROM notifications WHERE title LIKE '%Route Test Ann%'")
         cur.close()

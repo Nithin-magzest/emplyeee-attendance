@@ -8,7 +8,6 @@ reasoning as disabling flask-limiter, since most of the suite logs in admin
 sessions directly without an enrolled TOTP secret. Re-enabled locally here."""
 import pyotp
 import pytest
-import utils.totp as totp_module
 
 
 def _admin_session(client, username, role="admin"):
@@ -47,7 +46,8 @@ class TestMandatoryMfaGate:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_after_enrollment_admin_route_succeeds(self, client, seed_admin, mandatory_mfa_enabled, db_engine):
         _admin_session(client, seed_admin["username"])
@@ -62,7 +62,8 @@ class TestMandatoryMfaGate:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_employee_only_session_unaffected(self, client, seed_employee, mandatory_mfa_enabled):
         with client.session_transaction() as sess:

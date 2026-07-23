@@ -6,7 +6,6 @@ tests/test_admin_search.py for the incident this pattern guards against).
 """
 import io
 import hashlib
-import pytest
 from PIL import Image
 from werkzeug.datastructures import FileStorage
 from extensions import app as flask_app

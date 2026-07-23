@@ -58,7 +58,7 @@ class TestDeviceRiskEndpoint:
             sid = sess.setdefault("_sid", "test-sid-device-risk")
 
         resp = client.post("/api/employee/device_risk",
-                            json={"risk_score": 85, "threat_vectors": ["weak_encryption", "arp_spoof"]})
+                           json={"risk_score": 85, "threat_vectors": ["weak_encryption", "arp_spoof"]})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ok"] is True
@@ -105,5 +105,5 @@ class TestDeviceRiskEndpoint:
         with client.session_transaction() as sess:
             sess["employee_id"] = seed_employee["employee_id"]
         resp = client.post("/api/employee/device_risk",
-                            json={"risk_score": 20, "threat_vectors": "not-a-list"})
+                           json={"risk_score": 20, "threat_vectors": "not-a-list"})
         assert resp.status_code == 200

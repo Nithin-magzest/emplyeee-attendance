@@ -8,9 +8,7 @@ verification/registration/unenroll routes with the underlying crypto
 monkeypatched — those are exercised directly in tests/test_webauthn_utils.py.
 """
 import base64
-import time
 import datetime
-import pytest
 import blueprints.auth as auth_bp_module
 from utils.auth import _clear_login_failures, _record_login_failure, _LOGIN_MAX_ATTEMPTS
 from utils.async_writer import _write_queue
@@ -48,20 +46,20 @@ class TestSetupWizard:
 
     def test_redirects_when_already_done(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": True})
+                            lambda: {"setup_done": True})
         resp = client.get("/setup", follow_redirects=False)
         assert resp.status_code == 302
         assert "/admin_login" in resp.headers["Location"]
 
     def test_renders_form_when_not_done(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": False})
+                            lambda: {"setup_done": False})
         resp = client.get("/setup")
         assert resp.status_code == 200
 
     def test_missing_company_name_rejected(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": False})
+                            lambda: {"setup_done": False})
         resp = client.post("/setup", data={
             "company_name": "", "admin_username": "x",
             "admin_password": "longenough1", "admin_password2": "longenough1",
@@ -71,7 +69,7 @@ class TestSetupWizard:
 
     def test_missing_admin_username_rejected(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": False})
+                            lambda: {"setup_done": False})
         resp = client.post("/setup", data={
             "company_name": "Acme", "admin_username": "",
             "admin_password": "longenough1", "admin_password2": "longenough1",
@@ -80,7 +78,7 @@ class TestSetupWizard:
 
     def test_short_password_rejected(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": False})
+                            lambda: {"setup_done": False})
         resp = client.post("/setup", data={
             "company_name": "Acme", "admin_username": "x",
             "admin_password": "short", "admin_password2": "short",
@@ -89,7 +87,7 @@ class TestSetupWizard:
 
     def test_mismatched_passwords_rejected(self, client, monkeypatch):
         monkeypatch.setattr(auth_bp_module, "get_company_settings",
-                             lambda: {"setup_done": False})
+                            lambda: {"setup_done": False})
         resp = client.post("/setup", data={
             "company_name": "Acme", "admin_username": "x",
             "admin_password": "longenough1", "admin_password2": "different1",
@@ -174,7 +172,7 @@ class TestAdminLoginEdgeBranches:
     def test_employee_force_pin_change_redirects_to_force_change_pin(self, client, seed_employee, db_engine):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET force_pin_change=1 WHERE employee_id=%s",
-                     (seed_employee["employee_id"],))
+                    (seed_employee["employee_id"],))
         try:
             resp = client.post("/admin_login", data={
                 "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
@@ -182,7 +180,7 @@ class TestAdminLoginEdgeBranches:
             assert "/force_change_pin" in resp.headers["Location"]
         finally:
             cur.execute("UPDATE employees SET force_pin_change=0 WHERE employee_id=%s",
-                         (seed_employee["employee_id"],))
+                        (seed_employee["employee_id"],))
             cur.close()
 
     def test_employee_wrong_password_records_failure(self, client, seed_employee):
@@ -237,7 +235,7 @@ class TestAdminSetRecoveryEmail:
     def test_sets_email(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/admin_set_recovery_email", data={"recovery_email": "recover@test.local"},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert "email_ok=1" in resp.headers["Location"]
         cur = db_engine.cursor()
         cur.execute("SELECT email FROM admin_users WHERE username=%s", (seed_admin["username"],))
@@ -257,7 +255,7 @@ class TestAdminForgotPassword:
     def test_known_email_without_smtp_config_shows_error(self, client, seed_admin, db_engine, monkeypatch):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET email=%s WHERE username=%s",
-                     ("fp_admin@test.local", seed_admin["username"]))
+                    ("fp_admin@test.local", seed_admin["username"]))
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: None)
         try:
             resp = client.post("/admin_forgot_password", data={"email": "fp_admin@test.local"})
@@ -269,7 +267,7 @@ class TestAdminForgotPassword:
     def test_known_email_with_config_sends_and_confirms(self, client, seed_admin, db_engine, monkeypatch):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET email=%s WHERE username=%s",
-                     ("fp_admin2@test.local", seed_admin["username"]))
+                    ("fp_admin2@test.local", seed_admin["username"]))
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: {
             "host": "x", "port": 587, "user": "u", "password": "p", "from_name": "N", "from_email": "u@x.com"})
         sent = []
@@ -282,13 +280,13 @@ class TestAdminForgotPassword:
             assert cur.fetchone()[0] is not None
         finally:
             cur.execute("UPDATE admin_users SET email=NULL, reset_token=NULL, reset_token_expiry=NULL "
-                         "WHERE username=%s", (seed_admin["username"],))
+                        "WHERE username=%s", (seed_admin["username"],))
             cur.close()
 
     def test_send_failure_shows_error(self, client, seed_admin, db_engine, monkeypatch):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET email=%s WHERE username=%s",
-                     ("fp_admin3@test.local", seed_admin["username"]))
+                    ("fp_admin3@test.local", seed_admin["username"]))
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: {
             "host": "x", "port": 587, "user": "u", "password": "p", "from_name": "N", "from_email": "u@x.com"})
 
@@ -300,20 +298,21 @@ class TestAdminForgotPassword:
             assert b"Failed to send email" in resp.data
         finally:
             cur.execute("UPDATE admin_users SET email=NULL, reset_token=NULL, reset_token_expiry=NULL "
-                         "WHERE username=%s", (seed_admin["username"],))
+                        "WHERE username=%s", (seed_admin["username"],))
             cur.close()
 
 
 class TestAdminResetPassword:
     def _make_token(self, db_engine, seed_admin, expired=False):
-        import secrets, hashlib
+        import secrets
+        import hashlib
         token = secrets.token_hex(16)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         delta = datetime.timedelta(hours=-1) if expired else datetime.timedelta(hours=1)
         expiry = datetime.datetime.utcnow() + delta
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE username=%s",
-                     (token_hash, expiry, seed_admin["username"]))
+                    (token_hash, expiry, seed_admin["username"]))
         cur.close()
         return token
 
@@ -376,7 +375,7 @@ class TestEmployeeForgotPassword:
     def test_known_employee_with_email_no_config_shows_error(self, client, seed_employee, db_engine, monkeypatch):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET email=%s WHERE employee_id=%s",
-                     ("emp_fp@test.local", seed_employee["employee_id"]))
+                    ("emp_fp@test.local", seed_employee["employee_id"]))
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: None)
         try:
             resp = client.post("/employee_forgot_password", data={"employee_id": seed_employee["employee_id"]})
@@ -387,7 +386,7 @@ class TestEmployeeForgotPassword:
     def test_known_employee_with_config_queues_email(self, client, seed_employee, db_engine, monkeypatch):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET email=%s WHERE employee_id=%s",
-                     ("emp_fp2@test.local", seed_employee["employee_id"]))
+                    ("emp_fp2@test.local", seed_employee["employee_id"]))
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: {
             "host": "x", "port": 587, "user": "u", "password": "p", "from_name": "N", "from_email": "u@x.com"})
         queued = []
@@ -402,14 +401,15 @@ class TestEmployeeForgotPassword:
 
 class TestEmployeeResetPassword:
     def _make_token(self, db_engine, seed_employee, expired=False):
-        import secrets, hashlib
+        import secrets
+        import hashlib
         token = secrets.token_hex(16)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         delta = datetime.timedelta(hours=-1) if expired else datetime.timedelta(hours=1)
         expiry = datetime.datetime.utcnow() + delta
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
-                     (token_hash, expiry, seed_employee["employee_id"]))
+                    (token_hash, expiry, seed_employee["employee_id"]))
         cur.close()
         return token
 
@@ -570,7 +570,7 @@ class TestWebauthnVerifyChallenge:
             (base64.b64encode(b"fake-pubkey").decode(), emp_id),
         )
         monkeypatch.setattr(auth_bp_module.webauthn, "verify_authentication_response",
-                             lambda **kw: _FakeVerifiedAuth(new_sign_count=7))
+                            lambda **kw: _FakeVerifiedAuth(new_sign_count=7))
         with client.session_transaction() as sess:
             sess["wa_auth_challenge"] = "abc"
         try:
@@ -626,7 +626,7 @@ class TestWebauthnRegister:
     def test_successful_registration(self, client, seed_employee, monkeypatch):
         _employee_session(client, seed_employee["employee_id"])
         monkeypatch.setattr(auth_bp_module, "_wa_verify_and_store_registration",
-                             lambda *a, **k: (True, None))
+                            lambda *a, **k: (True, None))
         with client.session_transaction() as sess:
             sess["wa_reg_challenge"] = "abc"
         resp = client.post("/api/employee/webauthn-register", json={"credential": {"id": "x"}})
@@ -636,7 +636,7 @@ class TestWebauthnRegister:
     def test_failed_registration_returns_401(self, client, seed_employee, monkeypatch):
         _employee_session(client, seed_employee["employee_id"])
         monkeypatch.setattr(auth_bp_module, "_wa_verify_and_store_registration",
-                             lambda *a, **k: (False, "bad credential"))
+                            lambda *a, **k: (False, "bad credential"))
         with client.session_transaction() as sess:
             sess["wa_reg_challenge"] = "abc"
         resp = client.post("/api/employee/webauthn-register", json={"credential": {"id": "x"}})
@@ -663,7 +663,7 @@ class TestWebauthnUnenroll:
         emp_id = seed_employee["employee_id"]
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
-                     ("some-cred-id", emp_id))
+                    ("some-cred-id", emp_id))
         _employee_session(client, emp_id)
         resp = client.post("/api/employee/webauthn-unenroll")
         assert resp.status_code == 200
@@ -731,7 +731,7 @@ class TestWebauthnRegisterKiosk:
     def test_successful_kiosk_registration(self, client, seed_employee, monkeypatch):
         emp_id = seed_employee["employee_id"]
         monkeypatch.setattr(auth_bp_module, "_wa_verify_and_store_registration",
-                             lambda *a, **k: (True, None))
+                            lambda *a, **k: (True, None))
         with client.session_transaction() as sess:
             sess["wa_reg_challenge"] = "abc"
             sess["wa_reg_emp_id"] = emp_id
@@ -742,7 +742,7 @@ class TestWebauthnRegisterKiosk:
     def test_failed_kiosk_registration_returns_400(self, client, seed_employee, monkeypatch):
         emp_id = seed_employee["employee_id"]
         monkeypatch.setattr(auth_bp_module, "_wa_verify_and_store_registration",
-                             lambda *a, **k: (False, "bad cred"))
+                            lambda *a, **k: (False, "bad cred"))
         with client.session_transaction() as sess:
             sess["wa_reg_challenge"] = "abc"
             sess["wa_reg_emp_id"] = emp_id
@@ -769,7 +769,7 @@ class TestAdminResetEmployeeFingerprint:
         emp_id = seed_employee["employee_id"]
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET fingerprint_credential_id=%s WHERE employee_id=%s",
-                     ("some-cred", emp_id))
+                    ("some-cred", emp_id))
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/api/admin/employee/{emp_id}/reset-fingerprint")
         assert resp.status_code == 200
@@ -785,7 +785,7 @@ class TestAdminResetEmployeeFingerprint:
     def test_non_admin_role_rejected(self, client, seed_admin, seed_employee):
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.post(f"/api/admin/employee/{seed_employee['employee_id']}/reset-fingerprint",
-                            headers={"Accept": "application/json"})
+                           headers={"Accept": "application/json"})
         assert resp.status_code == 403
 
     def test_db_error_returns_500(self, client, seed_admin, seed_employee, monkeypatch):

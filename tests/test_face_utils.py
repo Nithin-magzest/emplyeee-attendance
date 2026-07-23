@@ -5,7 +5,6 @@ throughout: this module's own logic under test is the caching/invalidation
 behavior, not the third-party face-detection pipeline itself (that's
 exercised for real elsewhere via actual check-in flows, not unit tests)."""
 import os
-import time
 import pytest
 import utils.face_utils as face_utils
 
@@ -47,7 +46,7 @@ class TestGetKnownFaceEncoding:
     def test_second_call_with_unchanged_mtime_uses_cache(self, face_file, monkeypatch):
         calls = []
         monkeypatch.setattr(face_utils.face_recognition, "load_image_file",
-                             lambda path: calls.append(path) or "img")
+                            lambda path: calls.append(path) or "img")
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: ["encoding-1"])
 
         first = face_utils._get_known_face_encoding("EMP1", face_file)
@@ -60,7 +59,7 @@ class TestGetKnownFaceEncoding:
         encodings_returned = iter(["encoding-1", "encoding-2"])
         monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda path: "img")
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings",
-                             lambda img: [next(encodings_returned)])
+                            lambda img: [next(encodings_returned)])
 
         first = face_utils._get_known_face_encoding("EMP1", face_file)
         assert first == "encoding-1"
@@ -75,7 +74,7 @@ class TestGetKnownFaceEncoding:
     def test_no_face_detected_returns_none_and_caches_none(self, face_file, monkeypatch):
         calls = []
         monkeypatch.setattr(face_utils.face_recognition, "load_image_file",
-                             lambda path: calls.append(path) or "img")
+                            lambda path: calls.append(path) or "img")
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: [])
 
         result = face_utils._get_known_face_encoding("EMP1", face_file)
@@ -94,7 +93,7 @@ class TestGetKnownFaceEncoding:
         f2.write_bytes(b"b")
         monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda path: path)
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings",
-                             lambda img: [f"enc-for-{img}"])
+                            lambda img: [f"enc-for-{img}"])
 
         r1 = face_utils._get_known_face_encoding("EMP1", str(f1))
         r2 = face_utils._get_known_face_encoding("EMP2", str(f2))

@@ -160,7 +160,8 @@ def main():
     conn = db.get_db_connection()
     cur = conn.cursor()
     schemas = args.schema or _discover_schemas(cur)
-    cur.close(); conn.close()
+    cur.close()
+    conn.close()
 
     print(f"Target schemas: {schemas}")
     report = plan(schemas)

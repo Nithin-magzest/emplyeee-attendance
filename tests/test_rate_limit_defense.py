@@ -12,7 +12,8 @@ import utils.waf as waf_module
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 @pytest.fixture

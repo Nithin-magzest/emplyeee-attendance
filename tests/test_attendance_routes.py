@@ -113,7 +113,7 @@ class TestBulkAssignShift:
     def test_assign_by_department(self, client, seed_admin, seed_employee, temp_shift, db_engine):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET department='RouteDept' WHERE employee_id=%s",
-                     (seed_employee["employee_id"],))
+                    (seed_employee["employee_id"],))
         _admin_session(client, seed_admin["username"])
         resp = client.post("/bulk_assign_shift", data={
             "shift_id": str(temp_shift), "dept_filter": "RouteDept"}, follow_redirects=False)
@@ -155,7 +155,7 @@ class TestAssignShift:
 def second_employee(db_engine):
     cur = db_engine.cursor()
     cur.execute("INSERT INTO employees (employee_id, name) VALUES (%s,%s)",
-                 ("SWAPTGT1", "Swap Target"))
+                ("SWAPTGT1", "Swap Target"))
     try:
         yield "SWAPTGT1"
     finally:
@@ -189,14 +189,14 @@ class TestShiftSwapWorkflow:
             "target_id": second_employee, "reason": "test"}, follow_redirects=False)
         assert "swap_sent=1" in resp.headers["Location"]
         cur.execute("SELECT status FROM shift_swap_requests WHERE requester_id=%s AND target_id=%s",
-                     (seed_employee["employee_id"], second_employee))
+                    (seed_employee["employee_id"], second_employee))
         assert cur.fetchone()[0] == "Pending_Target"
         cur.close()
 
     def test_submit_rejects_same_target(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/submit_shift_swap", data={"target_id": seed_employee["employee_id"]},
-                            follow_redirects=False)
+                           follow_redirects=False)
         assert "swap_error=invalid_target" in resp.headers["Location"]
 
     def test_submit_rejects_no_shift(self, client, seed_employee, second_employee):
@@ -291,7 +291,7 @@ class TestUpdateBreak:
     def test_success_via_url_id(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) "
-                     "VALUES ('Old Break','12:00',15) RETURNING id")
+                    "VALUES ('Old Break','12:00',15) RETURNING id")
         bid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"])
         try:
@@ -310,7 +310,7 @@ class TestDeleteBreak:
     def test_success_via_url_id(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO break_config (break_name, break_time, duration_minutes) "
-                     "VALUES ('ToDelete','12:00',10) RETURNING id")
+                    "VALUES ('ToDelete','12:00',10) RETURNING id")
         bid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/delete_break/{bid}", follow_redirects=True)
@@ -340,7 +340,7 @@ class TestMonthlyReport:
             assert resp.status_code == 200
         finally:
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
     def test_scoped_to_active_company(self, client, seed_admin, db_engine):
@@ -395,10 +395,10 @@ class TestCorrectAttendance:
         assert resp.status_code == 302
         cur = db_engine.cursor()
         cur.execute("SELECT attendance_type FROM attendance WHERE employee_id=%s AND date=%s",
-                     (seed_employee["employee_id"], today))
+                    (seed_employee["employee_id"], today))
         assert cur.fetchone()[0] == "Full Day"
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                     (seed_employee["employee_id"], today))
+                    (seed_employee["employee_id"], today))
         cur.close()
 
     def test_updates_existing_record(self, client, seed_admin, seed_employee, db_engine):
@@ -416,11 +416,11 @@ class TestCorrectAttendance:
                 "attendance_type": "Half Day", "year": str(today.year), "month": str(today.month),
             })
             cur.execute("SELECT attendance_type, status FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             assert cur.fetchone() == ("Half Day", "Manual")
         finally:
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
 
@@ -451,13 +451,13 @@ class TestBulkMarkAttendance:
             assert b"Attendance saved" in resp.data
             cur = db_engine.cursor()
             cur.execute("SELECT attendance_type FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             assert cur.fetchone()[0] == "Full Day"
             cur.close()
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
 
@@ -515,13 +515,13 @@ class TestApiCheckin:
     def test_missing_emp_id_returns_400(self, client, seed_admin):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.post("/api/attendance/checkin", json={},
-                            headers={"Authorization": f"Bearer {token}"})
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 400
 
     def test_unknown_employee(self, client, seed_admin):
         token = _admin_bearer_token(client, seed_admin)
         resp = client.post("/api/attendance/checkin", json={"employee_id": "GHOST_EMP"},
-                            headers={"Authorization": f"Bearer {token}"})
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.get_json()["ok"] is False
 
     def test_first_call_of_day_logs_in(self, client, seed_admin, seed_employee, db_engine):
@@ -529,14 +529,14 @@ class TestApiCheckin:
         token = _admin_bearer_token(client, seed_admin)
         try:
             resp = client.post("/api/attendance/checkin", json={"employee_id": seed_employee["employee_id"]},
-                                headers={"Authorization": f"Bearer {token}"})
+                               headers={"Authorization": f"Bearer {token}"})
             data = resp.get_json()
             assert data["ok"] is True
             assert data["type"] == "login"
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
     def test_second_call_logs_out(self, client, seed_admin, seed_employee, db_engine):
@@ -544,16 +544,16 @@ class TestApiCheckin:
         token = _admin_bearer_token(client, seed_admin)
         try:
             client.post("/api/attendance/checkin", json={"employee_id": seed_employee["employee_id"]},
-                         headers={"Authorization": f"Bearer {token}"})
+                        headers={"Authorization": f"Bearer {token}"})
             resp = client.post("/api/attendance/checkin", json={"employee_id": seed_employee["employee_id"]},
-                                headers={"Authorization": f"Bearer {token}"})
+                               headers={"Authorization": f"Bearer {token}"})
             data = resp.get_json()
             assert data["ok"] is True
             assert data["type"] == "logout"
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
     def test_third_call_is_relogin(self, client, seed_admin, seed_employee, db_engine):
@@ -568,13 +568,13 @@ class TestApiCheckin:
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                         (seed_employee["employee_id"], today))
+                        (seed_employee["employee_id"], today))
             cur.close()
 
     def test_wfh_outside_registered_location_rejected(self, client, seed_admin, seed_employee, db_engine):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET work_mode='wfh', work_lat=12.9, work_lon=77.6 WHERE employee_id=%s",
-                     (seed_employee["employee_id"],))
+                    (seed_employee["employee_id"],))
         token = _admin_bearer_token(client, seed_admin)
         try:
             resp = client.post("/api/attendance/checkin", json={
@@ -583,7 +583,7 @@ class TestApiCheckin:
             assert resp.get_json()["ok"] is False
         finally:
             cur.execute("UPDATE employees SET work_mode='office', work_lat=NULL, work_lon=NULL WHERE employee_id=%s",
-                         (seed_employee["employee_id"],))
+                        (seed_employee["employee_id"],))
             cur.close()
 
 

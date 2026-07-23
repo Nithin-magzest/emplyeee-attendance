@@ -143,7 +143,8 @@ class TestEmailSettingsRoutes:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_2fa_setup_reports_already_enabled(self, client, enrolled_admin):
         username, _ = enrolled_admin
@@ -159,7 +160,8 @@ class TestEmailSettingsRoutes:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_enable_with_correct_code_succeeds(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin["username"])
@@ -172,7 +174,8 @@ class TestEmailSettingsRoutes:
         assert cur.fetchone()[0] == 1
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_enable_unlocks_immediately_without_separate_verify_call(self, client, seed_admin, seeded_email_config, db_engine):
         # Regression test: confirming enrollment must itself open the 2FA
@@ -192,7 +195,8 @@ class TestEmailSettingsRoutes:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                     (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_reset_requires_correct_password(self, client, enrolled_admin):
         username, _ = enrolled_admin

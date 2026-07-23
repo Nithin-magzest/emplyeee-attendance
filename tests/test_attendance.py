@@ -13,7 +13,6 @@ Run with:
     python -m pytest tests/test_attendance.py -v
 """
 import datetime
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +22,7 @@ import pytest
 def _admin_session(client, seed_admin):
     resp = client.post("/admin_login", data={
         "identifier": seed_admin["username"],
-        "password":   seed_admin["password"],
+        "password": seed_admin["password"],
     }, follow_redirects=True)
     assert resp.status_code == 200
     return resp

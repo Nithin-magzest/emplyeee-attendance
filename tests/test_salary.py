@@ -9,7 +9,7 @@ import datetime
 
 class TestClassifyByWorkedMinutes:
     S_START = datetime.time(9, 0)
-    S_END   = datetime.time(18, 0)   # 540-minute shift
+    S_END = datetime.time(18, 0)   # 540-minute shift
 
     def _classify(self, login_status, total_minutes):
         from utils.attendance_utils import classify_by_worked_minutes
@@ -72,4 +72,3 @@ class TestGetWorkingDays:
         from utils.attendance_utils import get_working_days
         days = get_working_days(2025, 3)
         assert all(d.month == 3 and d.year == 2025 for d in days)
-

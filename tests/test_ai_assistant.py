@@ -7,7 +7,6 @@ urllib.request layer) is monkeypatched in `ask_assistant` tests, and the
 route tests monkeypatch `ask_assistant` itself, matching the existing
 convention of not mocking the code under test but isolating the
 third-party network call (see tests/test_face_utils.py)."""
-import pytest
 import utils.ai_assistant as ai_assistant
 import blueprints.employee_portal as employee_portal_module
 from utils.ai_assistant import (
@@ -122,13 +121,13 @@ class TestAskAssistant:
         only urllib.request.urlopen — the actual network boundary — to prove
         the request is built correctly (headers, model, message shape)."""
         import json as _json
-        import io as _io
 
         captured = {}
 
         class _FakeResp:
             def __enter__(self): return self
             def __exit__(self, *a): return False
+
             def read(self):
                 return _json.dumps({"content": [{"type": "text", "text": "Hi there!"}]}).encode()
 

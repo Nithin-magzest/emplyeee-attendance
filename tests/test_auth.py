@@ -1,5 +1,4 @@
 """Tests for authentication flows: login, lockout, session, password hashing."""
-import pytest
 from utils.auth import (
     generate_password_hash,
     check_password_hash,
@@ -59,7 +58,7 @@ class TestAdminLogin:
     def test_valid_login_redirects_to_admin(self, client, seed_admin):
         resp = client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         }, follow_redirects=False)
         assert resp.status_code in (302, 200)
         if resp.status_code == 302:
@@ -68,7 +67,7 @@ class TestAdminLogin:
     def test_wrong_password_returns_error(self, client, seed_admin):
         resp = client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   "WrongPassword!",
+            "password": "WrongPassword!",
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert b"Invalid credentials" in resp.data
@@ -76,7 +75,7 @@ class TestAdminLogin:
     def test_unknown_user_returns_error(self, client):
         resp = client.post("/admin_login", data={
             "identifier": "no_such_user_xyz",
-            "password":   "doesntmatter",
+            "password": "doesntmatter",
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert b"Invalid credentials" in resp.data
@@ -153,7 +152,7 @@ class TestApiTokenAuth:
     def test_employee_token_flow(self, client, seed_employee):
         resp = client.post("/api/employee/login", json={
             "employee_id": seed_employee["employee_id"],
-            "password":    seed_employee["password"],
+            "password": seed_employee["password"],
         })
         assert resp.status_code == 200
         data = resp.get_json()

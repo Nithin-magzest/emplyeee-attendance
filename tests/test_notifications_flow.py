@@ -9,7 +9,7 @@ import pytest
 def _admin_session(client, seed_admin):
     resp = client.post("/admin_login", data={
         "identifier": seed_admin["username"],
-        "password":   seed_admin["password"],
+        "password": seed_admin["password"],
     }, follow_redirects=True)
     assert resp.status_code == 200
     return resp
@@ -27,7 +27,7 @@ def _admin_token(client, seed_admin):
 def _emp_token(client, seed_employee):
     resp = client.post("/api/employee/login", json={
         "employee_id": seed_employee["employee_id"],
-        "password":    seed_employee["password"],
+        "password": seed_employee["password"],
     })
     assert resp.status_code == 200
     return resp.get_json()["token"]
@@ -131,9 +131,9 @@ class TestTicketNotifications:
     def test_api_raise_ticket_notifies_admin(self, client, seed_employee, db_engine):
         token = _emp_token(client, seed_employee)
         resp = client.post("/api/employee/raise_ticket",
-                            headers={"Authorization": f"Bearer {token}"},
-                            json={"category": "HR", "subject": "Payslip query",
-                                  "description": "Missing bonus", "priority": "Medium"})
+                           headers={"Authorization": f"Bearer {token}"},
+                           json={"category": "HR", "subject": "Payslip query",
+                                 "description": "Missing bonus", "priority": "Medium"})
         assert resp.status_code == 200
 
         cur = db_engine.cursor()
@@ -183,8 +183,8 @@ class TestTicketNotifications:
 
         admin_token = _admin_token(client, seed_admin)
         resp = client.post(f"/api/tickets/{tid}/action",
-                            headers={"Authorization": f"Bearer {admin_token}"},
-                            json={"status": "In Progress", "admin_response": ""})
+                           headers={"Authorization": f"Bearer {admin_token}"},
+                           json={"status": "In Progress", "admin_response": ""})
         assert resp.status_code == 200
 
         cur = db_engine.cursor()

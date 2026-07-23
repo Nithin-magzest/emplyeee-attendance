@@ -196,7 +196,7 @@ class TestIdCardTemplateUpload:
     def test_upload_requires_at_least_one_image(self, client, seed_admin, temp_company):
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/companies/{temp_company}/id_card_template/upload",
-                            data={}, content_type="multipart/form-data", follow_redirects=True)
+                           data={}, content_type="multipart/form-data", follow_redirects=True)
         assert b"Upload at least a front or back" in resp.data
 
     def test_upload_rejects_non_image(self, client, seed_admin, temp_company):
@@ -247,7 +247,7 @@ class TestSavePositionsAndReset:
             "ignored_bad_key": {"side": "front", "x": 0.1, "y": 0.1, "w": 0.1, "h": 0.1},
         }
         resp = client.post(f"/companies/{temp_company}/id_card_template/save_positions",
-                            data={"positions_json": json.dumps(positions)}, follow_redirects=True)
+                           data={"positions_json": json.dumps(positions)}, follow_redirects=True)
         assert resp.status_code == 200
         cur = db_engine.cursor()
         cur.execute("SELECT fields FROM id_card_templates WHERE company_id=%s", (temp_company,))
@@ -412,7 +412,7 @@ class TestIdCardRendering:
         assert img.size == (300 + 40 + 250, 600 + 24)
 
     def test_front_only_template_falls_back_to_default_back(self, client, seed_admin, db_engine,
-                                                              company_employee, temp_company):
+                                                            company_employee, temp_company):
         _admin_session(client, seed_admin["username"])
         client.post(f"/companies/{temp_company}/id_card_template/upload", data={
             "front_image": (io.BytesIO(_png_bytes((320, 700))), "front.png"),
@@ -447,10 +447,10 @@ class TestIdCardRendering:
         assert img.format == "PNG"
 
     def test_date_of_joining_and_company_address_end_to_end(self, client, seed_admin, db_engine,
-                                                             company_employee, temp_company):
+                                                            company_employee, temp_company):
         _admin_session(client, seed_admin["username"])
         db_engine.cursor().execute("UPDATE companies SET address=%s WHERE id=%s",
-                                    ("42 Wallaby Way, Sydney", temp_company))
+                                   ("42 Wallaby Way, Sydney", temp_company))
         client.post(f"/companies/{temp_company}/id_card_template/upload", data={
             "front_image": (io.BytesIO(_png_bytes((300, 500))), "front.png"),
             "back_image": (io.BytesIO(_png_bytes((300, 500))), "back.png"),
@@ -479,7 +479,7 @@ class TestIdCardRendering:
         Image.new("RGB", (300, 300), (240, 240, 240)).save(abs_path, format="PNG")
         try:
             row_with_date = ("IDC001", "Card Holder", "Employee", "card@test.local", None,
-                              _dt.date(2022, 3, 15), None, "O+", "9999999999")
+                             _dt.date(2022, 3, 15), None, "O+", "9999999999")
             row_without_date = row_with_date[:5] + (None,) + row_with_date[6:]
             doj_fields = {"date_of_joining": {"side": "front", "x": 0.1, "y": 0.1, "w": 0.8, "h": 0.2, "font_size": 14}}
             img_with_date = _render_custom_side(rel_path, doj_fields, "front", "IDC001", row_with_date, None)
@@ -488,9 +488,9 @@ class TestIdCardRendering:
 
             addr_fields = {"company_address": {"side": "front", "x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2, "font_size": 12}}
             img_with_addr = _render_custom_side(rel_path, addr_fields, "front", "IDC001", row_with_date, None,
-                                                 company_address="42 Wallaby Way, Sydney")
+                                                company_address="42 Wallaby Way, Sydney")
             img_without_addr = _render_custom_side(rel_path, addr_fields, "front", "IDC001", row_with_date, None,
-                                                    company_address=None)
+                                                   company_address=None)
             assert img_with_addr.tobytes() != img_without_addr.tobytes()
 
             row_with_emergency = row_with_date + (None, None, "Aisha Begum", "+91 90000 11223", "Sister")
@@ -529,9 +529,9 @@ class TestIdCardRendering:
                 "company_phone": {"side": "front", "x": 0.1, "y": 0.3, "w": 0.8, "h": 0.1, "font_size": 12},
             }
             img_with_phone = _render_custom_side(rel_path, phone_fields, "front", "IDC001", row_with_date, None,
-                                                  company_phone="1800-123-4567")
+                                                 company_phone="1800-123-4567")
             img_without_phone = _render_custom_side(rel_path, phone_fields, "front", "IDC001", row_with_date, None,
-                                                     company_phone=None)
+                                                    company_phone=None)
             assert img_with_phone.tobytes() != img_without_phone.tobytes()
         finally:
             os.remove(abs_path)

@@ -27,7 +27,8 @@ def mfa_admin(seed_admin, db_engine):
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                 (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 class TestSecurityHubPage:
@@ -97,7 +98,8 @@ class TestSecuritySettingsRoutes:
         username, secret = mfa_admin
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='soc_analyst' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         _admin_session(client, username, role="soc_analyst")
         code = pyotp.TOTP(secret).now()
@@ -107,7 +109,8 @@ class TestSecuritySettingsRoutes:
 
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_session_timeout_save_without_stepup_is_403(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
@@ -130,7 +133,8 @@ class TestSecuritySettingsRoutes:
         # restore default
         cur = db_engine.cursor()
         cur.execute("UPDATE company_settings SET session_timeout=30")
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_session_timeout_rejects_out_of_range(self, client, mfa_admin):
         username, secret = mfa_admin
@@ -160,7 +164,8 @@ class TestSecuritySettingsRoutes:
         username, secret = mfa_admin
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         _admin_session(client, username, role="manager")
         code = pyotp.TOTP(secret).now()
@@ -172,7 +177,8 @@ class TestSecuritySettingsRoutes:
 
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_overview_shows_roster_for_admin_role(self, client, mfa_admin):
         username, secret = mfa_admin
@@ -193,34 +199,37 @@ class TestRoleManagement:
         client.post("/api/settings/security/verify-2fa", json={"code": code})
 
         resp = client.post("/api/settings/security/roles",
-                            json={"username": username, "role": "manager"})
+                           json={"username": username, "role": "manager"})
         assert resp.get_json()["ok"] is True
 
         cur = db_engine.cursor()
         cur.execute("SELECT role FROM admin_users WHERE username=%s", (username,))
         assert cur.fetchone()[0] == "manager"
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_role_change_by_non_admin_gets_404(self, client, mfa_admin, db_engine):
         username, secret = mfa_admin
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         _admin_session(client, username, role="manager")
         code = pyotp.TOTP(secret).now()
         client.post("/api/settings/security/verify-2fa", json={"code": code})
 
         resp = client.post("/api/settings/security/roles",
-                            json={"username": username, "role": "soc_analyst"})
+                           json={"username": username, "role": "soc_analyst"})
         assert resp.status_code == 404
 
         cur = db_engine.cursor()
         cur.execute("SELECT role FROM admin_users WHERE username=%s", (username,))
         assert cur.fetchone()[0] == "manager"  # unchanged — the attempted escalation did not land
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (username,))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_role_change_rejects_invalid_role_value(self, client, mfa_admin):
         username, secret = mfa_admin
@@ -229,11 +238,11 @@ class TestRoleManagement:
         client.post("/api/settings/security/verify-2fa", json={"code": code})
 
         resp = client.post("/api/settings/security/roles",
-                            json={"username": username, "role": "superadmin"})
+                           json={"username": username, "role": "superadmin"})
         assert resp.status_code == 400
 
     def test_role_change_requires_stepup(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="admin")
         resp = client.post("/api/settings/security/roles",
-                            json={"username": seed_admin["username"], "role": "manager"})
+                           json={"username": seed_admin["username"], "role": "manager"})
         assert resp.status_code == 403

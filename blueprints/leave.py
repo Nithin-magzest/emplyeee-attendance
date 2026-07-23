@@ -1135,7 +1135,7 @@ def api_employee_request_overtime():
         db.close()
         return jsonify({"ok": False, "msg": "An overtime record already exists for that date."}), 400
 
-    cursor.execute("SELECT shift_end FROM shifts s JOIN employees e ON e.shift_id=s.id WHERE e.employee_id=%s", (emp_id,))
+    cursor.execute("SELECT s.end_time FROM shifts s JOIN employees e ON e.shift_id=s.id WHERE e.employee_id=%s", (emp_id,))
     shift_row = cursor.fetchone()
     shift_end = shift_row[0] if shift_row else cfg.SHIFT_END
 
@@ -1149,8 +1149,8 @@ def api_employee_request_overtime():
     cursor.close()
     db.close()
     _audit("request_overtime", "overtime_records", emp_id, f"Employee requested OT for {ot_date}: {reason}")
-    _create_notification("admin", None, "Overtime Request",
-                         f"Employee {emp_id} has requested overtime on {ot_date}.", "/overtime")
+    _create_notification("admin", "Overtime Request",
+                         f"Employee {emp_id} has requested overtime on {ot_date}.")
     return jsonify({"ok": True, "msg": "Overtime request submitted.", "id": oid})
 
 

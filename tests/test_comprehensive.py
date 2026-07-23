@@ -9,12 +9,12 @@ Run with:
 """
 import datetime
 import hashlib
-import os
 import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sha256(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
@@ -34,7 +34,7 @@ def _emp_token(client, seed_employee):
     """Log in as employee via API and return a Bearer token."""
     resp = client.post("/api/employee/login", json={
         "employee_id": seed_employee["employee_id"],
-        "password":    seed_employee["password"],
+        "password": seed_employee["password"],
     })
     assert resp.status_code == 200
     return resp.get_json()["token"]
@@ -87,14 +87,14 @@ class TestAdminAuth:
             sess.clear()
         resp = client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         }, follow_redirects=True)
         assert resp.status_code == 200
 
     def test_wrong_password_stays_on_login(self, client, seed_admin):
         resp = client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   "BADPASSWORD!",
+            "password": "BADPASSWORD!",
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert b"Invalid credentials" in resp.data
@@ -102,7 +102,7 @@ class TestAdminAuth:
     def test_nonexistent_user_rejected(self, client):
         resp = client.post("/admin_login", data={
             "identifier": "ghost_user_xyz_404",
-            "password":   "whatever",
+            "password": "whatever",
         }, follow_redirects=True)
         assert b"Invalid credentials" in resp.data
 
@@ -113,7 +113,7 @@ class TestAdminAuth:
     def test_logout_clears_session(self, client, seed_admin):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/logout", follow_redirects=False)
         assert resp.status_code in (302, 200)
@@ -378,7 +378,7 @@ class TestEmployeePortalAPI:
     def test_employee_login_returns_token(self, client, seed_employee):
         resp = client.post("/api/employee/login", json={
             "employee_id": seed_employee["employee_id"],
-            "password":    seed_employee["password"],
+            "password": seed_employee["password"],
         })
         assert resp.status_code == 200
         data = resp.get_json()
@@ -445,7 +445,7 @@ class TestEmployeePortalAPI:
     def test_employee_wrong_password_rejected(self, client, seed_employee):
         resp = client.post("/api/employee/login", json={
             "employee_id": seed_employee["employee_id"],
-            "password":    "WrongPw@999!",
+            "password": "WrongPw@999!",
         })
         data = resp.get_json()
         assert not data.get("ok") or resp.status_code == 401
@@ -505,8 +505,8 @@ class TestShiftsAPI:
         resp = client.post("/api/shifts", json={
             "name": "Test Shift 09-18",
             "start_time": "09:00",
-            "end_time":   "18:00",
-            "half_time":  "13:00",
+            "end_time": "18:00",
+            "half_time": "13:00",
         }, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code in (200, 201)
         data = resp.get_json()
@@ -574,7 +574,7 @@ class TestSalaryConfigAPI:
 
 class TestClassifyByWorkedMinutes:
     S_START = datetime.time(9, 0)
-    S_END   = datetime.time(18, 0)   # 540 min shift
+    S_END = datetime.time(18, 0)   # 540 min shift
 
     def _classify(self, login_status, mins):
         from utils.attendance_utils import classify_by_worked_minutes
@@ -690,8 +690,8 @@ class TestLeaveRequestsAPI:
         resp = client.post("/api/employee/leave_request", json={
             "leave_type": "Casual Leave",
             "start_date": "2026-12-01",
-            "end_date":   "2026-12-01",
-            "reason":     "PersonalTestXYZ",
+            "end_date": "2026-12-01",
+            "reason": "PersonalTestXYZ",
         }, headers={"Authorization": f"Bearer {token}"})
         # 200/201 = created; 400 = leave_type not configured in test DB; both acceptable
         assert resp.status_code in (200, 201, 400)
@@ -755,7 +755,7 @@ class TestSecurityHeaders:
         # Need to be logged in for protected routes that set CSP
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/admin")
         csp = resp.headers.get("Content-Security-Policy", "")
@@ -805,7 +805,7 @@ class TestDashboardLiveAPI:
     def test_dashboard_live_after_login(self, client, seed_admin):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/api/dashboard_live")
         assert resp.status_code == 200
@@ -815,7 +815,7 @@ class TestDashboardLiveAPI:
     def test_attendance_chart_data_after_login(self, client, seed_admin):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/api/attendance_chart_data")
         assert resp.status_code == 200
@@ -834,7 +834,7 @@ class TestOrgChart:
         # /api/org_chart_data uses @admin_required (session-based), not Bearer token
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/api/org_chart_data")
         assert resp.status_code in (200, 302)  # 302 if no active company in session
@@ -875,7 +875,7 @@ class TestAdminPageSmoke:
     def _login(self, client, seed_admin):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
 
     def test_admin_dashboard(self, client):
@@ -949,7 +949,7 @@ class TestEmployeePortalPageSmoke:
         """Log in as employee via session-based login to access HTML pages."""
         # Try the employee web login route (form-based)
         resp = client.post("/", data={
-            "emp_id":   seed_employee["employee_id"],
+            "emp_id": seed_employee["employee_id"],
             "password": seed_employee["password"],
         }, follow_redirects=True)
         # If that doesn't work, manually set session
@@ -990,7 +990,7 @@ class TestInputValidation:
     def test_sql_injection_in_login_identifier(self, client):
         resp = client.post("/admin_login", data={
             "identifier": "' OR '1'='1",
-            "password":   "anything",
+            "password": "anything",
         }, follow_redirects=True)
         assert resp.status_code in (200, 400)
         assert b"Invalid credentials" in resp.data or b"error" in resp.data.lower()
@@ -998,7 +998,7 @@ class TestInputValidation:
     def test_xss_in_login_field(self, client):
         resp = client.post("/admin_login", data={
             "identifier": "<script>alert(1)</script>",
-            "password":   "pw",
+            "password": "pw",
         }, follow_redirects=True)
         assert b"<script>alert(1)</script>" not in resp.data
 
@@ -1095,7 +1095,7 @@ class TestIDCardRoute:
     def test_id_card_nonexistent_employee(self, client, seed_admin):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get("/admin_view_id_card/XXXXNOTFOUND")
         assert resp.status_code == 404
@@ -1103,7 +1103,7 @@ class TestIDCardRoute:
     def test_id_card_existing_employee(self, client, seed_admin, seed_employee):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get(f"/admin_view_id_card/{seed_employee['employee_id']}")
         assert resp.status_code == 200
@@ -1112,7 +1112,7 @@ class TestIDCardRoute:
     def test_id_card_download(self, client, seed_admin, seed_employee):
         client.post("/admin_login", data={
             "identifier": seed_admin["username"],
-            "password":   seed_admin["password"],
+            "password": seed_admin["password"],
         })
         resp = client.get(f"/admin_id_card/{seed_employee['employee_id']}")
         assert resp.status_code == 200

@@ -16,7 +16,7 @@ import blueprints.onboarding as onboarding_module
 def _admin_session(client, seed_admin):
     resp = client.post("/admin_login", data={
         "identifier": seed_admin["username"],
-        "password":   seed_admin["password"],
+        "password": seed_admin["password"],
     }, follow_redirects=True)
     assert resp.status_code == 200
     return resp
@@ -80,7 +80,7 @@ def _cleanup_onboarding(db_engine, template_id=None, ob_id=None):
         cur.execute("DELETE FROM employee_onboarding WHERE id=%s", (ob_id,))
     if template_id:
         cur.execute("DELETE FROM employee_onboarding_tasks WHERE template_task_id IN "
-                     "(SELECT id FROM onboarding_template_tasks WHERE template_id=%s)", (template_id,))
+                    "(SELECT id FROM onboarding_template_tasks WHERE template_id=%s)", (template_id,))
         cur.execute("DELETE FROM employee_onboarding WHERE template_id=%s", (template_id,))
         cur.execute("DELETE FROM onboarding_template_tasks WHERE template_id=%s", (template_id,))
         cur.execute("DELETE FROM onboarding_templates WHERE id=%s", (template_id,))
@@ -140,8 +140,8 @@ class TestTemplateCRUD:
     def test_create_then_update(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin)
         resp = client.post("/onboarding_template_save",
-                            data={"name": "CRUD Template", "description": "v1"},
-                            follow_redirects=False)
+                           data={"name": "CRUD Template", "description": "v1"},
+                           follow_redirects=False)
         assert resp.status_code in (301, 302)
         cur = db_engine.cursor()
         cur.execute("SELECT id, description FROM onboarding_templates WHERE name='CRUD Template'")
@@ -151,8 +151,8 @@ class TestTemplateCRUD:
         assert desc == "v1"
 
         resp = client.post("/onboarding_template_save",
-                            data={"template_id": tid, "name": "CRUD Template", "description": "v2"},
-                            follow_redirects=False)
+                           data={"template_id": tid, "name": "CRUD Template", "description": "v2"},
+                           follow_redirects=False)
         assert resp.status_code in (301, 302)
         cur.execute("SELECT description FROM onboarding_templates WHERE id=%s", (tid,))
         assert cur.fetchone()[0] == "v2"
@@ -165,7 +165,7 @@ class TestTemplateCRUD:
         resp = client.post("/onboarding_template_duplicate", data={"template_id": tid}, follow_redirects=False)
         assert resp.status_code in (301, 302)
         cur = db_engine.cursor()
-        cur.execute("SELECT id FROM onboarding_templates WHERE name=%s", (f"Copy of Test Onboarding Template",))
+        cur.execute("SELECT id FROM onboarding_templates WHERE name=%s", ("Copy of Test Onboarding Template",))
         new_row = cur.fetchone()
         assert new_row is not None
         new_id = new_row[0]
@@ -208,8 +208,8 @@ class TestTemplateTasks:
         tid, _ = template
         _admin_session(client, seed_admin)
         resp = client.post("/onboarding_task_save",
-                            data={"template_id": tid, "task_title": "  "},
-                            follow_redirects=True)
+                           data={"template_id": tid, "task_title": "  "},
+                           follow_redirects=True)
         assert resp.status_code == 200
         assert b"required" in resp.data.lower()
 
@@ -261,7 +261,7 @@ class TestAssignOnboarding:
 
         cur = db_engine.cursor()
         cur.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
-                     (seed_employee["employee_id"], tid))
+                    (seed_employee["employee_id"], tid))
         row = cur.fetchone()
         assert row is not None
         ob_id = row[0]
@@ -290,7 +290,7 @@ class TestAssignOnboarding:
 
         cur = db_engine.cursor()
         cur.execute("SELECT COUNT(*) FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
-                     (seed_employee["employee_id"], tid))
+                    (seed_employee["employee_id"], tid))
         assert cur.fetchone()[0] == 1
 
         # Second bulk assign to the same employee+template must be a no-op, not a duplicate row
@@ -299,11 +299,11 @@ class TestAssignOnboarding:
         }, follow_redirects=True)
         assert resp2.status_code == 200
         cur.execute("SELECT COUNT(*) FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
-                     (seed_employee["employee_id"], tid))
+                    (seed_employee["employee_id"], tid))
         assert cur.fetchone()[0] == 1
 
         cur.execute("SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
-                     (seed_employee["employee_id"], tid))
+                    (seed_employee["employee_id"], tid))
         ob_id = cur.fetchone()[0]
         cur.close()
         _cleanup_onboarding(db_engine, ob_id=ob_id)

@@ -40,7 +40,7 @@ class TestSecurityEventPersistence:
         identifier = "TEST_PERSIST_001"
         with client.application.test_request_context("/some/path"):
             log_security_event("test.event", "A test security event", level="WARNING",
-                                identifier=identifier)
+                               identifier=identifier)
 
         row = _wait_for_event(db_engine, identifier)
         assert row is not None
@@ -55,7 +55,7 @@ class TestSecurityEventPersistence:
         identifier = "TEST_PERSIST_002"
         with client.application.test_request_context("/some/path"):
             log_security_event("test.event2", "Another test event", level="INFO",
-                                identifier=identifier, custom_field="custom_value", score="42")
+                               identifier=identifier, custom_field="custom_value", score="42")
 
         row = _wait_for_event(db_engine, identifier)
         assert row is not None
@@ -79,7 +79,7 @@ class TestSecurityEventPersistence:
         identifier = "TEST_PERSIST_003"
         with client.application.test_request_context("/some/path"):
             log_security_event("test.error_event", "A test ERROR event", level="ERROR",
-                                identifier=identifier)
+                               identifier=identifier)
 
         row = _wait_for_event(db_engine, identifier)
         assert row is not None

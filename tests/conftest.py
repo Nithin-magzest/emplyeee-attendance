@@ -12,9 +12,9 @@ import pytest
 
 # Override BEFORE dotenv loads (setdefault wins only if var not already in env).
 # Force-set here so they take priority over any .env file values.
-os.environ["DB_NAME"]    = "att_test"
-os.environ["DB_HOST"]    = "localhost"
-os.environ["APP_ENV"]    = "development"   # avoids HTTPS-only cookies
+os.environ["DB_NAME"] = "att_test"
+os.environ["DB_HOST"] = "localhost"
+os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # utils/helpers.py's PII-encryption bootstrap hard-fails at import time if
 # this is missing, in every environment including tests — no dev/test
@@ -130,10 +130,10 @@ def _reset_login_attempts(db_engine, _init_test_db):
 
 @pytest.fixture
 def client():
-    flask_app.config["TESTING"]               = True   # disables CSRF check + rate limits
-    flask_app.config["WTF_CSRF_ENABLED"]      = False
+    flask_app.config["TESTING"] = True   # disables CSRF check + rate limits
+    flask_app.config["WTF_CSRF_ENABLED"] = False
     flask_app.config["SESSION_COOKIE_SECURE"] = False
-    flask_app.config["RATELIMIT_ENABLED"]     = False  # Flask-Limiter 3.x flag
+    flask_app.config["RATELIMIT_ENABLED"] = False  # Flask-Limiter 3.x flag
     with flask_app.test_client() as c:
         yield c
 

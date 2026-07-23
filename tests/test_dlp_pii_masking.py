@@ -52,11 +52,13 @@ def soc_role_admin(seed_admin, db_engine):
     """Promotes the seeded admin to soc_analyst for the duration of the test."""
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='soc_analyst' WHERE username=%s", (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
     yield seed_admin
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 class TestEmployeeDetailMasking:
@@ -71,7 +73,8 @@ class TestEmployeeDetailMasking:
     def test_manager_sees_masked_pii(self, client, seed_admin, db_engine, pii_employee):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.get(f"/employee_detail/{pii_employee}")
         assert resp.status_code == 200
@@ -81,7 +84,8 @@ class TestEmployeeDetailMasking:
         assert b"Restricted" in resp.data  # salary hidden message
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_soc_analyst_sees_masked_pii(self, client, soc_role_admin, pii_employee):
         _admin_session(client, soc_role_admin["username"], role="soc_analyst")
@@ -108,14 +112,16 @@ class TestEmployeeProfileMasking:
     def test_manager_sees_masked_salary(self, client, seed_admin, db_engine, pii_employee):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.get(f"/employee_profile/{pii_employee}")
         assert resp.status_code == 200
         assert b"Restricted" in resp.data
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
 
 class TestPayrollBulkRoutesAdminOnly:
@@ -126,13 +132,15 @@ class TestPayrollBulkRoutesAdminOnly:
     def test_manager_denied_view_salary(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.get("/view_salary")
         assert resp.status_code == 403
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_admin_allowed_view_salary(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="admin")
@@ -148,7 +156,8 @@ class TestApiRoleGapFix:
     def test_manager_token_denied_bulk_employees_api(self, client, seed_admin, db_engine):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
         resp = client.post("/api/login", json={
             "username": seed_admin["username"], "password": seed_admin["password"],
         })
@@ -157,7 +166,8 @@ class TestApiRoleGapFix:
         assert resp.status_code == 403
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
     def test_admin_token_allowed_bulk_employees_api(self, client, seed_admin):
         resp = client.post("/api/login", json={

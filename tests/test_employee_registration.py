@@ -9,7 +9,6 @@ pattern was hardened against in tests/test_admin_search.py).
 import io
 import os
 import datetime
-import pytest
 from PIL import Image
 
 import utils.face_utils as face_utils
@@ -29,13 +28,13 @@ def _fake_jpeg_bytes():
 def _mock_face_detected(monkeypatch, detected=True):
     monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda p: "img")
     monkeypatch.setattr(face_utils.face_recognition, "face_encodings",
-                         lambda img: ["enc"] if detected else [])
+                        lambda img: ["enc"] if detected else [])
 
 
 def _admin_session(client, seed_admin):
     resp = client.post("/admin_login", data={
         "identifier": seed_admin["username"],
-        "password":   seed_admin["password"],
+        "password": seed_admin["password"],
     }, follow_redirects=True)
     assert resp.status_code == 200
 

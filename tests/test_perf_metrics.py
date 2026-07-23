@@ -23,7 +23,8 @@ def mfa_admin(seed_admin, db_engine):
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                 (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 class TestPerfMetricsRecorder:

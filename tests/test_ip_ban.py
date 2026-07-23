@@ -13,7 +13,8 @@ def _drop_schema(db_engine, schema_name):
     cur = db_engine.cursor()
     cur.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
     cur.execute("DELETE FROM att_master.tenants WHERE db_name=%s", (schema_name,))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 @pytest.fixture
@@ -59,27 +60,31 @@ def _ban(db_engine, ip, reason="test", banned_by="tester", expires_at=None):
         "ON CONFLICT (ip) DO UPDATE SET reason=EXCLUDED.reason, expires_at=EXCLUDED.expires_at",
         (ip, reason, banned_by, expires_at),
     )
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 @pytest.fixture
 def soc_admin(seed_admin, db_engine):
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='soc_analyst' WHERE username=%s", (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
     secret, _ = totp_module.get_or_create_admin_totp_secret(seed_admin["username"])
     totp_module.mark_totp_enabled(seed_admin["username"])
     yield seed_admin["username"], secret
     cur = db_engine.cursor()
     cur.execute("UPDATE admin_users SET role='admin', totp_secret=NULL, totp_enabled=0 WHERE username=%s",
                 (seed_admin["username"],))
-    db_engine.commit(); cur.close()
+    db_engine.commit()
+    cur.close()
 
 
 @pytest.fixture
@@ -200,11 +205,12 @@ class TestMultiTenantIpBanScopesToCorrectSchema:
             f'INSERT INTO "{schema_name}".banned_ips (ip, reason, banned_by) VALUES (%s,%s,%s)',  # nosec B608 — schema_name comes from this test's own provisioning call above, not user input
             (banned_ip, "regression test", "tester"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         host = f"{subdomain}.example.com"
         resp = client.get("/admin_login", headers={"Host": host},
-                           environ_overrides={"REMOTE_ADDR": banned_ip})
+                          environ_overrides={"REMOTE_ADDR": banned_ip})
         assert resp.status_code == 403, (
             "IP banned in the tenant's own schema was not enforced — "
             "_enforce_ip_ban likely ran before _resolve_tenant and checked "
@@ -220,7 +226,8 @@ class TestMultiTenantIpBanScopesToCorrectSchema:
             f'INSERT INTO "{schema_name}".banned_ips (ip, reason, banned_by) VALUES (%s,%s,%s)',  # nosec B608 — same as above
             (banned_ip, "regression test", "tester"),
         )
-        db_engine.commit(); cur.close()
+        db_engine.commit()
+        cur.close()
 
         # No tenant-matching Host header this time — resolves to the default
         # "public" schema, which never got this ban row.
