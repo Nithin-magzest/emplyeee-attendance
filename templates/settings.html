@@ -993,7 +993,7 @@
                       <div class="edit-form" id="ef_{{ eid }}">
                         <form method="POST" action="/update_salary">
                           <input type="hidden" name="emp_id" value="{{ eid }}" />
-                          <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary_per_day" step="0.01" value="{{ spd }}" /></div>
+                          <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary" step="0.01" value="{{ spd }}" /></div>
                           <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" onclick="document.getElementById('ef_{{ eid }}').classList.remove('open')">Cancel</button></div>
                         </form>
                       </div>
