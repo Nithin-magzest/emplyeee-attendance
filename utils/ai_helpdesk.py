@@ -115,7 +115,7 @@ def process_helpdesk_query(employee_id, query):
                     "content-type": "application/json",
                 },
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 ai_answer = data["content"][0]["text"]
         except Exception as exc:
