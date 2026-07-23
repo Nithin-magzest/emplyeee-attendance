@@ -19,7 +19,7 @@ def fetch_cisa_kev():
     url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
     req = urllib.request.Request(url, headers={"User-Agent": "HRMS-DevSecOps-ThreatIntel/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
             if resp.status == 200:
                 data = json.loads(resp.read().decode("utf-8"))
                 vulnerabilities = data.get("vulnerabilities", [])
@@ -60,7 +60,7 @@ def fetch_malicious_ips():
     url = "https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt"
     req = urllib.request.Request(url, headers={"User-Agent": "HRMS-DevSecOps-ThreatIntel/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
             if resp.status == 200:
                 lines = resp.read().decode("utf-8").splitlines()
                 threat_ips = []

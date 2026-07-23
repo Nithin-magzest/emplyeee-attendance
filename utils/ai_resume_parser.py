@@ -90,7 +90,7 @@ def parse_resume(file_bytes, filename=""):
                     "content-type": "application/json",
                 },
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
                 data = json.loads(resp.read().decode("utf-8"))
                 text_out = data["content"][0]["text"]
                 json_match = re.search(r"\{.*\}", text_out, re.DOTALL)

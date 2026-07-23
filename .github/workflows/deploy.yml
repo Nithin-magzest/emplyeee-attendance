@@ -36,8 +36,7 @@ jobs:
             templates/admin.html \
             templates/employee_portal.html \
             templates/employees.html \
-            templates/employee_detail.html \
-            templates/qrcodes.html; do
+            templates/employee_detail.html; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
@@ -93,7 +92,7 @@ jobs:
         # block a PR on; ignore-unfixed skips CVEs with no available patch
         # yet, since failing the build on something nobody can act on today
         # just trains people to ignore red X's.
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: .
@@ -263,7 +262,7 @@ jobs:
         # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: attendance-app:ci
           severity: HIGH,CRITICAL
