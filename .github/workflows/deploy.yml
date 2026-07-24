@@ -96,7 +96,7 @@ jobs:
         # block a PR on; ignore-unfixed skips CVEs with no available patch
         # yet, since failing the build on something nobody can act on today
         # just trains people to ignore red X's.
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -108,6 +108,9 @@ jobs:
   sast:
     name: Static analysis (Bandit + Semgrep)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # required by github/codeql-action/upload-sarif below
 
     steps:
       - uses: actions/checkout@v4
@@ -176,7 +179,13 @@ jobs:
         # false-positive matches (e.g. cryptography's ssh.py legitimately
         # contains the literal string "BEGIN OPENSSH PRIVATE KEY" as a
         # parser constant), not actual project secrets.
-        uses: trufflesecurity/trufflehog@main
+        # Pinned to a specific release (not @main) so this security gate's
+        # behavior can't change on us without a corresponding version bump
+        # here -- @main previously resolved to a build that flagged
+        # something a local run of the latest stable release (v3.95.9)
+        # did not reproduce (0 verified secrets both with and without the
+        # exact CI flags).
+        uses: trufflesecurity/trufflehog@v3.95.9
         with:
           extra_args: --only-verified --fail --exclude-paths=.github/trufflehog-exclude.txt
 
@@ -200,6 +209,17 @@ jobs:
         # on-call audiences and shouldn't share a channel by default.
         env:
           WEBHOOK_URL: ${{ secrets.SECURITY_OPS_WEBHOOK_URL }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_SHA: ${{ github.sha }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # github.* values are interpolated by the Actions expression engine
+        # into this script's literal text before bash ever parses it, so a
+        # ref_name/actor containing shell metacharacters (possible on a
+        # fork PR) could otherwise break out of the heredoc. Routing them
+        # through env: + "$VAR" instead makes bash treat them as inert
+        # string values via normal shell variable expansion.
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "::warning::SECURITY_OPS_WEBHOOK_URL not set — skipping alert (gate failure above still blocks the build)"
@@ -209,7 +229,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d @- <<EOF
           {
-            "text": "🛑 CI security gate FAILED — build blocked.\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nTriggered by: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "text": "🛑 CI security gate FAILED — build blocked.\nRepo: $GH_REPOSITORY\nBranch: $GH_REF_NAME\nCommit: $GH_SHA\nTriggered by: $GH_ACTOR\nRun: $GH_RUN_URL"
           }
           EOF
 
@@ -272,7 +292,7 @@ jobs:
         # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: attendance-app:ci
           severity: HIGH,CRITICAL

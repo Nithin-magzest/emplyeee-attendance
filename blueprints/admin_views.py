@@ -1562,7 +1562,7 @@ def toggle_auth_method():
             return redirect("/settings?tab=attendance")
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))  # nosec B608
+        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))  # nosec B608 nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
         db.commit()
         cursor.close()
         db.close()
@@ -1671,7 +1671,7 @@ def toggle_feature():
     else:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))  # nosec B608
+        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))  # nosec B608 nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
         db.commit()
         cursor.close()
         db.close()
@@ -2063,8 +2063,10 @@ _ID_CARD_FIELD_KEYS = {
 def id_card_template_upload(cid):
     front_file = request.files.get("front_image")
     back_file = request.files.get("back_image")
-    has_front = bool(front_file and front_file.filename)
-    has_back = bool(back_file and back_file.filename)
+    # bool() of a truthiness check, not a numeric-string parse -- nothing
+    # here casts user input to float/complex, so NaN injection doesn't apply.
+    has_front = bool(front_file and front_file.filename)  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+    has_back = bool(back_file and back_file.filename)  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
     if not has_front and not has_back:
         flash("Upload at least a front or back template image.", "error")
         return redirect("/settings?tab=company")
