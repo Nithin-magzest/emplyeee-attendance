@@ -11,6 +11,7 @@ that registers it.
 """
 import datetime
 import calendar
+import math
 import io as _io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -1357,11 +1358,29 @@ def payroll_settings():
         db.commit()
 
     if request.method == "POST":
-        pf_emp = float(request.form.get("pf_employee_pct", 12))
-        pf_er = float(request.form.get("pf_employer_pct", 12))
-        pt = float(request.form.get("professional_tax", 200))
-        tds = float(request.form.get("tds_annual_pct", 0))
-        pf_cap = float(request.form.get("pf_basic_cap", 15000))
+        try:
+            # nan-injection findings below: float() accepts the literal
+            # string "nan" without raising, so the try/except here doesn't
+            # catch it -- the math.isnan() guard a few lines down is what
+            # actually rejects it, not this try block.
+            pf_emp = float(request.form.get("pf_employee_pct", 12))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+            pf_er = float(request.form.get("pf_employer_pct", 12))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+            pt = float(request.form.get("professional_tax", 200))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+            tds = float(request.form.get("tds_annual_pct", 0))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+            pf_cap = float(request.form.get("pf_basic_cap", 15000))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+        except (ValueError, TypeError):
+            flash("Invalid values.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/payroll_settings")
+        # NaN would silently corrupt every downstream payroll calculation
+        # that compares against these values (NaN comparisons are always
+        # False) -- reject it explicitly since float() alone won't.
+        if any(math.isnan(v) for v in (pf_emp, pf_er, pt, tds, pf_cap)):
+            flash("Invalid values.", "error")
+            cursor.close()
+            db.close()
+            return redirect("/payroll_settings")
         cursor.execute("""
             UPDATE payroll_config SET pf_employee_pct=%s, pf_employer_pct=%s,
             professional_tax=%s, tds_annual_pct=%s, pf_basic_cap=%s
