@@ -46,7 +46,7 @@ clamd>=1.0.2
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
 python-json-logger>=4.1.0
-setuptools>=78.1.1
+setuptools>=83.0.0
 typing-extensions>=4.7.0
 
 # ── AWS Secrets Manager (production secret loading — see utils/secrets_loader.py)
