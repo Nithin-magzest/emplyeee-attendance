@@ -479,3 +479,70 @@ def api_threat_intel_refresh():
         return jsonify({"ok": False, "msg": str(exc)}), 500
 
 
+@secops_bp.route("/api/secops/malware-analysis")
+def api_malware_analysis():
+    """API Endpoint: Malware Sandbox, File Hash Scanner & Virus Engine Telemetry."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_malware_analysis_telemetry
+    return jsonify({"ok": True, "telemetry": get_malware_analysis_telemetry()})
+
+
+@secops_bp.route("/api/secops/port-matrix")
+def api_port_matrix():
+    """API Endpoint: Enterprise 10-Port Matrix & Status Telemetry."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_extended_port_matrix, detect_nmap_scans
+    return jsonify({
+        "ok": True,
+        "ports": get_extended_port_matrix(),
+        "nmap_scans": detect_nmap_scans()
+    })
+
+
+@secops_bp.route("/api/secops/wifi-risk")
+def api_wifi_risk():
+    """API Endpoint: Wi-Fi Risk Meter & Network Shield State."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_wifi_risk_metrics
+    return jsonify({"ok": True, "wifi": get_wifi_risk_metrics()})
+
+
+@secops_bp.route("/api/secops/wifi-risk/toggle-shield", methods=["POST"])
+def api_wifi_risk_toggle_shield():
+    """API Endpoint: Toggle Wi-Fi Emergency Shielding Mode."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import toggle_wifi_shield, get_wifi_risk_metrics
+    data = request.get_json(silent=True) or {}
+    enable = bool(data.get("enable", True))
+    active = toggle_wifi_shield(enable)
+    log_security_event("secops.wifi_shield_toggled", f"Wi-Fi Emergency Site Shielding {'enabled' if active else 'disabled'}", level="WARNING", identifier=session.get("admin_username"), ip=request.remote_addr, path="/api/secops/wifi-risk/toggle-shield", method="POST")
+    return jsonify({"ok": True, "shield_active": active, "wifi": get_wifi_risk_metrics()})
+
+
+@secops_bp.route("/api/secops/wifi-risk/set-score", methods=["POST"])
+def api_wifi_risk_set_score():
+    """API Endpoint: Update Wi-Fi Risk Score (Simulation / Live Data)."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import set_wifi_risk_score, get_wifi_risk_metrics
+    data = request.get_json(silent=True) or {}
+    score = int(data.get("score", 18))
+    set_wifi_risk_score(score)
+    log_security_event("secops.wifi_risk_score_updated", f"Wi-Fi Risk score updated to {score}%", level="INFO", identifier=session.get("admin_username"), ip=request.remote_addr, path="/api/secops/wifi-risk/set-score", method="POST")
+    return jsonify({"ok": True, "wifi": get_wifi_risk_metrics()})
+
+
+@secops_bp.route("/api/secops/server-errors")
+def api_server_errors():
+    """API Endpoint: Stream HTTP 500 & System Exception Logs."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_server_error_logs
+    return jsonify({"ok": True, "errors": get_server_error_logs()})
+
+
+

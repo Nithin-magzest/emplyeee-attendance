@@ -276,6 +276,20 @@ def _enforce_ip_ban():
 
 
 @app.before_request
+def _enforce_wifi_risk_shield():
+    """Wi-Fi Risk Gate: If Wi-Fi Risk > 50% and shielding is active, suspend site access."""
+    if request.path.startswith("/static/") or request.path == "/healthz" or request.path.startswith("/api/secops") or request.path.startswith("/secops") or request.path.startswith("/sp_admin"):
+        return
+    try:
+        from utils.security_logs import get_wifi_risk_metrics
+        wifi = get_wifi_risk_metrics()
+        if wifi.get("is_high_risk") and wifi.get("shield_active"):
+            return render_template("wifi_risk_shield.html", wifi=wifi), 403
+    except Exception:
+        pass
+
+
+@app.before_request
 def _enforce_session_lifetime():
     """Expire sessions that are older than the absolute max age, regardless of activity."""
     if request.path.startswith("/static/") or request.path == "/healthz":

@@ -112,7 +112,7 @@ def admin_login():
         return redirect("/employee_portal")
     if request.method == "POST":
         login_type = request.form.get("login_type", "admin").strip()
-        identifier = request.form.get("identifier", "").strip()
+        identifier = (request.form.get("identifier") or request.form.get("username") or "").strip()
         if not identifier and login_type == "sp_admin":
             identifier = "sp_admin"
         password = request.form.get("password", "").strip()
@@ -174,7 +174,8 @@ def admin_login():
             ensure_session_id(session)
             if admin_row[2]:
                 notify_if_new_login_ip(identifier, "admin", request.remote_addr, identifier, admin_row[2])
-            if login_type == "sp_admin" or admin_row[1] in ("soc_analyst", "cybersecurity"):
+            if login_type == "sp_admin" or admin_row[1] in ("soc_analyst", "cybersecurity", "secops", "soc") or identifier.lower() in ("secops", "soc", "secops_admin"):
+                session["admin_role"] = "soc_analyst"
                 return redirect("/secops")
             return redirect("/admin")
 

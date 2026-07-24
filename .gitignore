@@ -15,3 +15,6 @@ pgdata/
 
 # OS files
 .DS_Store
+cookies.txt
+emp_cookies.txt
+
