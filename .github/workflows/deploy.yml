@@ -260,6 +260,17 @@ jobs:
       - name: Build Podman image
         run: podman build -t attendance-app:ci .
 
+      - name: Export image for scanning
+        # trivy-action's image-ref mode asks Docker/containerd/Podman's
+        # remote API for the image by name, but this runner has no live
+        # daemon exposing any of them (Docker never saw an image podman
+        # built; rootless Podman only exposes its API socket if
+        # `podman system service` is explicitly started, which it isn't
+        # here) -- every backend it tries fails and the scan never runs.
+        # Saving to a tarball and pointing Trivy at the file directly
+        # sidesteps needing any daemon/socket at all.
+        run: podman save -o "${{ github.workspace }}/attendance-app-ci.tar" attendance-app:ci
+
       - name: Scan built image for OS-level vulnerabilities (Trivy)
         # The fs scan in the security job checks Python/npm dependency
         # manifests; it can't see CVEs in the base image's own OS packages
@@ -267,9 +278,9 @@ jobs:
         # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: attendance-app:ci
+          input: ${{ github.workspace }}/attendance-app-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 0
