@@ -304,6 +304,61 @@ _WIFI_RISK_STATE = {
     "arp_spoof_detected": False,
 }
 
+_USER_WIFI_TELEMETRY = {
+    "EMP101": {
+        "username": "EMP101",
+        "name": "Sarah Connor",
+        "role": "employee",
+        "ssid": "Airport_Free_Public_WiFi",
+        "bssid": "aa:bb:cc:dd:ee:11",
+        "encryption": "OPEN (Unencrypted)",
+        "risk_score": 85,
+        "status": "HIGH RISK (>50%)",
+        "is_shielded": True,
+        "ip_address": "192.168.20.105",
+        "last_seen": "Just now"
+    },
+    "EMP102": {
+        "username": "EMP102",
+        "name": "Michael Scott",
+        "role": "employee",
+        "ssid": "Starbucks_Guest_Hotspot",
+        "bssid": "aa:bb:cc:dd:ee:22",
+        "encryption": "WEP (Legacy)",
+        "risk_score": 68,
+        "status": "HIGH RISK (>50%)",
+        "is_shielded": True,
+        "ip_address": "192.168.20.112",
+        "last_seen": "2 mins ago"
+    },
+    "admin": {
+        "username": "admin",
+        "name": "System Administrator",
+        "role": "admin",
+        "ssid": "Corporate-Internal-5G",
+        "bssid": "00:11:22:33:44:55",
+        "encryption": "WPA3-Enterprise",
+        "risk_score": 12,
+        "status": "SAFE (<50%)",
+        "is_shielded": False,
+        "ip_address": "192.168.20.129",
+        "last_seen": "Active Now"
+    },
+    "secops": {
+        "username": "secops",
+        "name": "SOC Lead Analyst",
+        "role": "soc_analyst",
+        "ssid": "SOC-Secure-VLAN-9",
+        "bssid": "00:11:22:33:44:99",
+        "encryption": "WPA3-Enterprise",
+        "risk_score": 5,
+        "status": "SAFE (<50%)",
+        "is_shielded": False,
+        "ip_address": "192.168.20.130",
+        "last_seen": "Active Now"
+    }
+}
+
 def get_wifi_risk_metrics():
     """Returns real-time Wi-Fi Risk Score and Network Security State."""
     score = _WIFI_RISK_STATE["risk_score"]
@@ -327,8 +382,65 @@ def get_wifi_risk_metrics():
         "arp_spoof_detected": _WIFI_RISK_STATE["arp_spoof_detected"],
     }
 
+def get_all_user_wifi_telemetry():
+    """Returns real-time Wi-Fi Risk Telemetry for all active employees and admins."""
+    telemetry_list = []
+    global_shield = _WIFI_RISK_STATE["shield_active"]
+    for uname, data in _USER_WIFI_TELEMETRY.items():
+        item = dict(data)
+        item["is_high_risk"] = item["risk_score"] > 50
+        item["is_shielded"] = bool(item["is_high_risk"] and global_shield)
+        item["status"] = "HIGH RISK (>50%)" if item["is_high_risk"] else "SAFE (<50%)"
+        telemetry_list.append(item)
+    return telemetry_list
+
+def get_user_wifi_risk(username):
+    """Get or compute specific user's Wi-Fi risk status."""
+    if not username:
+        return get_wifi_risk_metrics()
+    user_data = _USER_WIFI_TELEMETRY.get(username)
+    if not user_data:
+        # Default safe entry for unknown user
+        user_data = {
+            "username": username,
+            "name": username,
+            "role": "employee",
+            "ssid": "Corporate-WiFi",
+            "bssid": "00:11:22:33:44:00",
+            "encryption": "WPA3-Enterprise",
+            "risk_score": 15,
+            "status": "SAFE (<50%)",
+            "is_shielded": False,
+            "ip_address": "127.0.0.1",
+            "last_seen": "Active Now"
+        }
+        _USER_WIFI_TELEMETRY[username] = user_data
+
+    item = dict(user_data)
+    item["is_high_risk"] = item["risk_score"] > 50
+    item["shield_active"] = _WIFI_RISK_STATE["shield_active"]
+    item["is_shielded"] = bool(item["is_high_risk"] and item["shield_active"])
+    return item
+
+def update_user_wifi_telemetry(username, risk_score=None, ssid=None, encryption=None, force_shield=None):
+    """Update Wi-Fi risk telemetry for a specific employee or admin."""
+    user_data = get_user_wifi_risk(username)
+    if risk_score is not None:
+        user_data["risk_score"] = max(0, min(100, int(risk_score)))
+    if ssid:
+        user_data["ssid"] = ssid
+    if encryption:
+        user_data["encryption"] = encryption
+    if force_shield is not None:
+        user_data["is_shielded"] = bool(force_shield)
+    
+    user_data["is_high_risk"] = user_data["risk_score"] > 50
+    user_data["status"] = "HIGH RISK (>50%)" if user_data["is_high_risk"] else "SAFE (<50%)"
+    _USER_WIFI_TELEMETRY[username] = user_data
+    return user_data
+
 def set_wifi_risk_score(score, shield_active=None):
-    """Update simulated or live Wi-Fi Risk score for testing/telemetry."""
+    """Update simulated or live global Wi-Fi Risk score."""
     _WIFI_RISK_STATE["risk_score"] = max(0, min(100, int(score)))
     if shield_active is not None:
         _WIFI_RISK_STATE["shield_active"] = bool(shield_active)

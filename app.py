@@ -277,11 +277,20 @@ def _enforce_ip_ban():
 
 @app.before_request
 def _enforce_wifi_risk_shield():
-    """Wi-Fi Risk Gate: If Wi-Fi Risk > 50% and shielding is active, suspend site access."""
+    """Wi-Fi Risk Gate: If employee or admin Wi-Fi Risk > 50% and shielding is active, suspend site access."""
     if request.path.startswith("/static/") or request.path == "/healthz" or request.path.startswith("/api/secops") or request.path.startswith("/secops") or request.path.startswith("/sp_admin"):
         return
     try:
-        from utils.security_logs import get_wifi_risk_metrics
+        from utils.security_logs import get_wifi_risk_metrics, get_user_wifi_risk
+        username = session.get("admin_username") or session.get("employee_id") or session.get("user")
+        
+        # 1. Check user-specific Wi-Fi risk status
+        if username:
+            user_wifi = get_user_wifi_risk(username)
+            if user_wifi.get("is_shielded"):
+                return render_template("wifi_risk_shield.html", wifi=user_wifi), 403
+        
+        # 2. Global Wi-Fi safety valve fallback
         wifi = get_wifi_risk_metrics()
         if wifi.get("is_high_risk") and wifi.get("shield_active"):
             return render_template("wifi_risk_shield.html", wifi=wifi), 403

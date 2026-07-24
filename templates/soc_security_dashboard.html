@@ -281,6 +281,37 @@
       <button class="tab-btn" onclick="switchTab('smtp')"><i class="ti ti-mail-cog"></i> SMTP Settings</button>
       <button class="tab-btn" onclick="switchTab('health')"><i class="ti ti-heart-rate-monitor"></i> System Health</button>
       <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture &amp; Sessions</button>
+      <button class="tab-btn" onclick="switchTab('userwifi')"><i class="ti ti-wifi"></i> User Wi-Fi Risk Rates</button>
+    </div>
+
+    <!-- TAB: USER WI-FI RISK RATES -->
+    <div id="tab-userwifi" class="tab-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span><i class="ti ti-wifi"></i> Employee &amp; Admin Live Wi-Fi Risk Telemetry</span>
+          <button class="btn-primary" onclick="loadUserWifiTelemetry()"><i class="ti ti-refresh"></i> Refresh Telemetry</button>
+        </div>
+        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
+          Monitors connected employees and admins. Users on unencrypted or insecure Wi-Fi networks (Risk Rate &gt; 50%) are automatically shielded from accessing corporate resources.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>User / Employee ID</th>
+              <th>Role</th>
+              <th>Wi-Fi Network (SSID / BSSID)</th>
+              <th>Encryption</th>
+              <th>Risk Rate %</th>
+              <th>Access Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="user-wifi-tbody">
+            <tr><td colspan="7" style="text-align:center; color:#64748b;">Loading user Wi-Fi telemetry...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- TAB: THREAT INTEL FEED -->
@@ -1596,11 +1627,70 @@
           .catch(() => {});
       };
 
+      window.loadUserWifiTelemetry = function() {
+        fetch('/api/secops/user-wifi-telemetry')
+          .then(r => r.json())
+          .then(data => {
+            if (!data.ok || !data.users) return;
+            const tbody = document.getElementById('user-wifi-tbody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = data.users.map(u => {
+              const isHigh = u.risk_score > 50;
+              const statusBadge = u.is_shielded 
+                ? `<span class="badge-tag badge-error"><i class="ti ti-shield-x"></i> SHIELDED (&gt;50%)</span>`
+                : `<span class="badge-tag badge-success"><i class="ti ti-shield-check"></i> NORMAL ACCESS</span>`;
+              const scoreColor = isHigh ? '#f87171' : '#4ade80';
+              
+              return `
+                <tr>
+                  <td><strong>${u.name}</strong> <span style="font-size:11px; color:#94a3b8;">(${u.username})</span></td>
+                  <td><span class="badge-tag badge-info">${u.role.toUpperCase()}</span></td>
+                  <td><strong>${u.ssid}</strong><br/><span style="font-size:11px; color:#64748b;">${u.bssid}</span></td>
+                  <td><span style="color:${isHigh ? '#fca5a5' : '#86efac'}; font-weight:600;">${u.encryption}</span></td>
+                  <td>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <strong style="color:${scoreColor}; font-size:14px;">${u.risk_score}%</strong>
+                      <div style="width:70px; height:6px; background:#334155; border-radius:3px; overflow:hidden;">
+                        <div style="width:${u.risk_score}%; height:100%; background:${scoreColor};"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>${statusBadge}</td>
+                  <td>
+                    <div style="display:flex; gap:6px;">
+                      <button class="btn-primary" style="padding:4px 10px; font-size:11px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5;" onclick="updateUserWifiRisk('${u.username}', 85, '${u.ssid}', 'OPEN (Unencrypted)')"><i class="ti ti-alert-triangle"></i> Simulate High Risk (&gt;50%)</button>
+                      <button class="btn-primary" style="padding:4px 10px; font-size:11px; background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#86efac;" onclick="updateUserWifiRisk('${u.username}', 12, '${u.ssid}', 'WPA3-Enterprise')"><i class="ti ti-check"></i> Reset Safe</button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          })
+          .catch(() => {});
+      };
+
+      window.updateUserWifiRisk = function(username, score, ssid, encryption) {
+        fetch('/api/secops/user-wifi-telemetry/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, score: score, ssid: ssid, encryption: encryption })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            loadUserWifiTelemetry();
+            showToast(`📡 Updated Wi-Fi Risk for ${username} to ${score}%`);
+          }
+        });
+      };
+
       // Initial telemetry fetch
       document.addEventListener('DOMContentLoaded', () => {
         fetchWifiRisk();
         fetchPortMatrix();
         fetchServerErrors();
+        loadUserWifiTelemetry();
       });
     </script>
   </body>
