@@ -523,6 +523,36 @@ def api_wifi_risk_toggle_shield():
     return jsonify({"ok": True, "shield_active": active, "wifi": get_wifi_risk_metrics()})
 
 
+@secops_bp.route("/api/secops/user-wifi-telemetry")
+def api_user_wifi_telemetry():
+    """API Endpoint: Employee & Admin Live Wi-Fi Risk Telemetry List."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_all_user_wifi_telemetry
+    return jsonify({"ok": True, "users": get_all_user_wifi_telemetry()})
+
+
+@secops_bp.route("/api/secops/user-wifi-telemetry/update", methods=["POST"])
+def api_user_wifi_telemetry_update():
+    """API Endpoint: Update Wi-Fi Risk telemetry for a specific employee or admin."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import update_user_wifi_telemetry, get_all_user_wifi_telemetry
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    if not username:
+        return jsonify({"ok": False, "msg": "Username is required"}), 400
+    
+    score = data.get("score")
+    ssid = data.get("ssid")
+    encryption = data.get("encryption")
+    force_shield = data.get("force_shield")
+    
+    updated = update_user_wifi_telemetry(username, risk_score=score, ssid=ssid, encryption=encryption, force_shield=force_shield)
+    log_security_event("secops.user_wifi_updated", f"Wi-Fi Risk telemetry updated for user '{username}' (Risk Score: {updated['risk_score']}%)", level="WARNING" if updated['is_high_risk'] else "INFO", identifier=session.get("admin_username"), ip=request.remote_addr, path="/api/secops/user-wifi-telemetry/update", method="POST")
+    return jsonify({"ok": True, "user": updated, "users": get_all_user_wifi_telemetry()})
+
+
 @secops_bp.route("/api/secops/wifi-risk/set-score", methods=["POST"])
 def api_wifi_risk_set_score():
     """API Endpoint: Update Wi-Fi Risk Score (Simulation / Live Data)."""
