@@ -12,42 +12,17 @@
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #f1f5f9; min-height: 100vh; display: flex; }
 
-      /* ── TIME-OF-DAY THEME: the sun moving across the sidebar ──
-         Afternoon (12:00-17:00) is "full shine" — the default palette
-         below (unset vars) — bright, saturated sky blue + gold accent.
-         Morning is sunrise (indigo night sky breaking into warm coral/gold
-         near the horizon), evening is sunset (dusk purple into a burnt-
-         orange glow), night is calm dark navy. Overridden via
-         [data-time-theme] on <body>, set by /static/time-theme.min.js —
-         only applies when the user hasn't explicitly picked light/dark
-         mode (that always wins, see time-theme.min.js). Sidebar gradient +
-         active-nav accent + the sun-indicator emoji next to the logo. */
+      /* ── SIDEBAR ──
+         Fixed dark blue, matching admin_base.html's shared sidebar
+         (Employees, Attendance, etc.) instead of the old time-of-day
+         gradient that made this page's nav look different from every
+         other admin page depending on when you loaded it. */
       :root {
-        --brand-grad-1: #0c4a6e;
-        --brand-grad-2: #0ea5e9;
         --brand-accent: #fbbf24;
       }
-      body[data-time-theme="morning"] {
-        --brand-grad-1: #372f68;
-        --brand-grad-2: #e0793e;
-        --brand-accent: #fde68a;
-      }
-      body[data-time-theme="evening"] {
-        --brand-grad-1: #4c1d6b;
-        --brand-grad-2: #d2470f;
-        --brand-accent: #fdba74;
-      }
-      body[data-time-theme="night"] {
-        --brand-grad-1: #05070f;
-        --brand-grad-2: #151c33;
-        --brand-accent: #64748b;
-      }
-      #sun-indicator { font-size: 17px; line-height: 1; margin-left: auto; }
-
-      /* ── SIDEBAR ── */
       .sidebar {
         width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: linear-gradient(180deg, var(--brand-grad-1) 0%, var(--brand-grad-2) 100%);
+        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
         padding: 22px 14px; color: white;
         display: flex; flex-direction: column; flex-shrink: 0;
         box-shadow: 4px 0 20px rgba(0,0,0,0.18);
@@ -402,7 +377,6 @@
           <div class="brand">Admin Panel</div>
           <div class="brand-sub">{{ co.company_name }}</div>
         </div>
-        <span id="sun-indicator" title="Time-of-day theme" aria-hidden="true"></span>
       </div>
 
       <a class="nav-item active" href="/admin"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
@@ -1170,7 +1144,6 @@
       setInterval(loadCharts, 120000);
     </script>
   <script src="/static/darkmode.min.js"></script>
-  <script src="/static/time-theme.min.js"></script>
 
   <!-- ADMIN SEARCH -->
   <script>
