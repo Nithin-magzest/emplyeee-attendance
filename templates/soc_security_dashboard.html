@@ -246,6 +246,30 @@
       </div>
     </div>
 
+    <!-- Wi-Fi Risk Rate & Auto-Shutdown Safety Valve Banner -->
+    <div id="wifi-risk-banner" style="background: rgba(15,23,42,0.85); border: 1px solid #334155; border-radius: 16px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div id="wifi-risk-icon" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(59,130,246,0.15); border: 1px solid #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #60a5fa;">
+          <i class="ti ti-wifi"></i>
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+            <span style="font-size: 16px; font-weight: 800; color: #f8fafc;">Wi-Fi Risk Rate: <span id="wifi-score-val" style="color: #60a5fa;">18%</span></span>
+            <span id="wifi-risk-badge" class="badge-tag badge-info">SAFE NETWORK</span>
+          </div>
+          <div style="font-size: 12.5px; color: #94a3b8;">
+            SSID: <strong id="wifi-ssid" style="color: #cbd5e1;">Corporate-Internal-5G</strong> &nbsp;|&nbsp; BSSID: <span id="wifi-bssid">00:11:22:33:44:55</span> &nbsp;|&nbsp; Encryption: <span id="wifi-enc" style="color:#4ade80;">WPA3-Enterprise</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button class="btn-primary" onclick="testWifiRisk(65)" style="background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #fca5a5;"><i class="ti ti-alert-triangle"></i> Simulate High Risk (&gt;50%)</button>
+        <button class="btn-primary" onclick="testWifiRisk(18)"><i class="ti ti-check"></i> Reset Risk (18%)</button>
+        <button id="wifi-shield-toggle-btn" class="btn-primary" onclick="toggleWifiShield()"><i class="ti ti-shield-check"></i> Safety Valve Active</button>
+      </div>
+    </div>
+
     <!-- Navigation Tabs Bar -->
     <div class="tabs-bar">
       <button class="tab-btn active" onclick="switchTab('siem')"><i class="ti ti-terminal-2"></i> SIEM Log Engine</button>
@@ -1451,6 +1475,133 @@
         })
         .catch(() => { resEl.style.color = '#f87171'; resEl.textContent = 'Network error.'; });
       };
+
+      // ── EXTENDED SECOPS TELEMETRY FUNCTIONS ──
+
+      window.fetchWifiRisk = function() {
+        fetch('/api/secops/wifi-risk')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok || !d.wifi) return;
+            const w = d.wifi;
+            const scoreEl = document.getElementById('wifi-score-val');
+            const badgeEl = document.getElementById('wifi-risk-badge');
+            const iconEl  = document.getElementById('wifi-risk-icon');
+            if (scoreEl) scoreEl.textContent = w.risk_score + '%';
+            if (badgeEl) {
+              badgeEl.textContent = w.status;
+              badgeEl.className = 'badge-tag ' + (w.is_high_risk ? 'badge-error' : 'badge-info');
+            }
+            if (iconEl) {
+              iconEl.style.borderColor = w.is_high_risk ? '#ef4444' : '#3b82f6';
+              iconEl.style.color = w.is_high_risk ? '#fca5a5' : '#60a5fa';
+            }
+            const ssid = document.getElementById('wifi-ssid');
+            const bssid = document.getElementById('wifi-bssid');
+            const enc = document.getElementById('wifi-enc');
+            if (ssid) ssid.textContent = w.ssid;
+            if (bssid) bssid.textContent = w.bssid;
+            if (enc) enc.textContent = w.encryption;
+          })
+          .catch(() => {});
+      };
+
+      window.testWifiRisk = function(score) {
+        fetch('/api/secops/wifi-risk/set-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ score: score })
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) {
+            fetchWifiRisk();
+            showToast("⚠️ Wi-Fi Risk Score set to " + score + "%");
+          }
+        });
+      };
+
+      window.toggleWifiShield = function() {
+        const btn = document.getElementById('wifi-shield-toggle-btn');
+        const currentState = btn.textContent.includes('Active');
+        fetch('/api/secops/wifi-risk/toggle-shield', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enable: !currentState })
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) {
+            btn.innerHTML = d.shield_active ? '<i class="ti ti-shield-check"></i> Safety Valve Active' : '<i class="ti ti-shield-x"></i> Safety Valve Disabled';
+            showToast(d.shield_active ? '🛡️ Wi-Fi Emergency Safety Valve ENABLED' : '⚠️ Wi-Fi Emergency Safety Valve DISABLED');
+          }
+        });
+      };
+
+      window.fetchPortMatrix = function() {
+        fetch('/api/secops/port-matrix')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok) return;
+            const tbody = document.getElementById('port-matrix-tbody');
+            if (tbody && d.ports) {
+              tbody.innerHTML = d.ports.map(p => `
+                <tr>
+                  <td><strong style="color:#60a5fa;">Port ${p.port}</strong></td>
+                  <td>${p.service}</td>
+                  <td><span style="font-family:monospace; color:#cbd5e1;">${p.process}</span></td>
+                  <td><span class="badge-tag ${p.status === 'OPEN' ? 'badge-green' : (p.status === 'FILTERED' ? 'badge-info' : 'badge-error')}">${p.status}</span></td>
+                  <td>${p.is_open ? '<span style="color:#4ade80;">Active Listening</span>' : '<span style="color:#94a3b8;">Closed / Restricted</span>'}</td>
+                </tr>
+              `).join('');
+            }
+            const nmapTbody = document.getElementById('nmap-scans-tbody');
+            if (nmapTbody && d.nmap_scans) {
+              nmapTbody.innerHTML = d.nmap_scans.map(s => `
+                <tr>
+                  <td><strong style="color:#fca5a5;">${s.type}</strong></td>
+                  <td>${s.details}</td>
+                  <td><span style="font-family:monospace; color:#93c5fd;">${s.ip}</span></td>
+                  <td><span style="color:#64748b;">${s.timestamp}</span></td>
+                </tr>
+              `).join('');
+            }
+          })
+          .catch(() => {});
+      };
+
+      window.fetchServerErrors = function() {
+        fetch('/api/secops/server-errors')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.ok) return;
+            const tbody = document.getElementById('server-errors-tbody');
+            if (tbody && d.errors) {
+              if (d.errors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#4ade80;">✓ 0 Active Server Exceptions or 500 Errors Detected. System Healthy.</td></tr>';
+              } else {
+                tbody.innerHTML = d.errors.map(e => `
+                  <tr>
+                    <td><strong style="color:#fca5a5;">${e.event}</strong></td>
+                    <td style="color:#cbd5e1;">${e.message}</td>
+                    <td><span class="badge-tag badge-error">${e.level}</span></td>
+                    <td><span style="font-family:monospace; color:#93c5fd;">${e.ip}</span></td>
+                    <td><span style="font-family:monospace; color:#cbd5e1;">${e.path}</span></td>
+                    <td><span style="color:#64748b;">${e.timestamp}</span></td>
+                  </tr>
+                `).join('');
+              }
+            }
+          })
+          .catch(() => {});
+      };
+
+      // Initial telemetry fetch
+      document.addEventListener('DOMContentLoaded', () => {
+        fetchWifiRisk();
+        fetchPortMatrix();
+        fetchServerErrors();
+      });
     </script>
   </body>
 </html>

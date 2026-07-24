@@ -13,10 +13,11 @@ positive in every case here — the interpolated fragment is always one of:
 All actual values are always passed as %s-bound params, never interpolated.
 """
 import os
+import time
 import datetime
 import calendar
 from flask import (
-    Blueprint, request, session, redirect, jsonify, render_template, flash, abort,
+    Blueprint, request, session, redirect, jsonify, render_template, flash, abort, url_for
 )
 
 from database import get_db_connection, pool_stats, transaction
@@ -923,11 +924,9 @@ def api_reveal_email_password():
 # gate them exactly as if the route were listed on a public sitemap.
 def _soc_session_or_404():
     """Role-only guard, shared by the verify-2fa endpoint below and as the
-    first half of the dashboard/events routes' check (both also require a
-    live soc_step_up_valid() window on top of this). Must be an
+    first half of the dashboard/events routes' check. Must be an
     authenticated soc_analyst session. Returns (username, role) on success;
-    aborts 404 (never 401/403 — no acknowledgment this route exists to a
-    session that isn't entitled to it) otherwise."""
+    aborts 404 otherwise."""
     username = session.get("admin_username")
     role = session.get("admin_role")
     logged_in = bool(session.get("admin_logged_in") and username)
@@ -938,6 +937,19 @@ def _soc_session_or_404():
             if logged_in else "Unauthenticated request to SOC Analyst gate",
             level="ERROR" if logged_in else "INFO",
             identifier=username or "anonymous", attempted_role=role or "none",
+        )
+        abort(404)
+    return username, role
+
+
+def _soc_session_and_stepup_or_404():
+    """Full gate for the dashboard and its events API."""
+    username, role = _soc_session_or_404()
+    if not soc_step_up_valid():
+        log_security_event(
+            "access.escalation_attempt",
+            "Unauthorized Escalation Attempt: SOC Security Dashboard accessed without a valid step-up window",
+            level="ERROR", identifier=username, attempted_role=role,
         )
         abort(404)
     return username, role
@@ -1015,25 +1027,15 @@ def _security_events_summary(cursor):
     }
 
 
-def _soc_session_and_stepup_or_404():
-    """Full gate for the dashboard and its events API."""
-    username, role = _soc_session_or_404()
-    if not soc_step_up_valid():
-        log_security_event(
-            "access.escalation_attempt",
-            "Unauthorized Escalation Attempt: SOC Security Dashboard accessed without a valid step-up window",
-            level="ERROR", identifier=username, attempted_role=role,
-        )
-        abort(404)
-    return username, role
-
-
 @admin_views_bp.route("/secops")
 @admin_views_bp.route("/security_operations")
 @admin_views_bp.route("/admin/security-dashboard")
 def soc_security_dashboard():
     """Render the master SOC Security Dashboard for the cybersecurity analyst."""
-    username, role = _soc_session_and_stepup_or_404()
+    gate = _soc_session_and_stepup_or_404()
+    if not isinstance(gate, tuple):
+        return gate
+    username, role = gate
 
 
 
