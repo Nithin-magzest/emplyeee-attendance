@@ -10,6 +10,7 @@ jobs:
   lint:
     name: Syntax & structure check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +18,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies (for import checks)
-        run: pip install --no-cache-dir -r requirements.txt
+        # dlib (pulled in transitively by face-recognition) ships no
+        # prebuilt wheel for cp311, so a bare `pip install -r
+        # requirements.txt` compiles it from source here — 10-20+ min on
+        # this runner's 2 cores, sometimes longer. dlib-bin is the same
+        # `dlib` import, prebuilt as a wheel; installing face-recognition
+        # --no-deps on top of it stops pip from also fetching the real
+        # "dlib" package (name mismatch means pip can't tell dlib-bin
+        # already satisfies it). The Containerfile's production build is
+        # untouched — it deliberately compiles from source there.
+        run: |
+          pip install --no-cache-dir dlib-bin
+          pip install --no-cache-dir --no-deps face-recognition face-recognition-models
+          grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
+          pip install --no-cache-dir -r /tmp/ci-requirements.txt
 
       - name: Check Python syntax
         run: |
@@ -238,6 +253,7 @@ jobs:
     name: Pytest
     runs-on: ubuntu-latest
     needs: [lint, security, sast, secrets-scan]
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -260,9 +276,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
-        run: pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+        # See the lint job's "Install dependencies" step for why dlib-bin
+        # is used here instead of letting pip compile the real dlib from
+        # source (transitive dep of face-recognition, no cp311 wheel).
+        run: |
+          pip install --no-cache-dir dlib-bin
+          pip install --no-cache-dir --no-deps face-recognition face-recognition-models
+          grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
+          pip install --no-cache-dir -r /tmp/ci-requirements.txt -r requirements-dev.txt
 
       - name: Run pytest
         env:
@@ -286,6 +310,17 @@ jobs:
       - name: Build Podman image
         run: podman build -t attendance-app:ci .
 
+      - name: Export image for scanning
+        # trivy-action's image-ref mode asks Docker/containerd/Podman's
+        # remote API for the image by name, but this runner has no live
+        # daemon exposing any of them (Docker never saw an image podman
+        # built; rootless Podman only exposes its API socket if
+        # `podman system service` is explicitly started, which it isn't
+        # here) -- every backend it tries fails and the scan never runs.
+        # Saving to a tarball and pointing Trivy at the file directly
+        # sidesteps needing any daemon/socket at all.
+        run: podman save -o "${{ github.workspace }}/attendance-app-ci.tar" attendance-app:ci
+
       - name: Scan built image for OS-level vulnerabilities (Trivy)
         # The fs scan in the security job checks Python/npm dependency
         # manifests; it can't see CVEs in the base image's own OS packages
@@ -295,7 +330,7 @@ jobs:
         # the built image.
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: attendance-app:ci
+          input: ${{ github.workspace }}/attendance-app-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
