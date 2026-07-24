@@ -111,6 +111,16 @@ def _init_test_db(db_engine):
     # Clear transient state tables so stale data from prior runs doesn't bleed in
     cur = db_engine.cursor()
     cur.execute("DELETE FROM login_attempts WHERE 1=1")
+    # init_db() only marks setup_done=1 when ADMIN_PASSWORD is set in the
+    # environment (it seeds an admin from env, then marks setup complete
+    # since one now exists) -- CI's pytest job doesn't set that var, so on
+    # a fresh database setup_done stays 0 and every test that logs in via
+    # the real /admin_login POST route (rather than the session_transaction
+    # bypass some test files use) gets redirected to /setup before its
+    # credentials are even checked. Tests assume setup is already done
+    # (see test_auth_blueprint.py's test_get_when_setup_done_redirects_to_login),
+    # so make that true directly instead of depending on env-var seeding.
+    cur.execute("UPDATE company_settings SET setup_done=1 WHERE setup_done=0")
     cur.close()
 
 
