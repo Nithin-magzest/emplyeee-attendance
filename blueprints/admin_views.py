@@ -923,20 +923,19 @@ def api_reveal_email_password():
 # leaked internal doc) can still hit it, and the same role+TOTP checks still
 # gate them exactly as if the route were listed on a public sitemap.
 def _soc_session_or_404():
-    """Role-only guard, shared by the verify-2fa endpoint below and as the
-    first half of the dashboard/events routes' check. Must be an
-    authenticated soc_analyst session. Returns (username, role) on success;
-    aborts 404 otherwise."""
+    """Role guard for SOC Security Operations. Returns (username, role) on success;
+    redirects to login if unauthenticated."""
     username = session.get("admin_username")
     role = session.get("admin_role")
     logged_in = bool(session.get("admin_logged_in") and username)
-    if not logged_in or role not in (SOC_ANALYST_ROLE, "cybersecurity"):
+    if not logged_in:
+        return None, None
+    if role not in (SOC_ANALYST_ROLE, "cybersecurity", "admin"):
         log_security_event(
-            "access.escalation_attempt" if logged_in else "access.denied",
-            "Unauthorized Escalation Attempt: SOC Analyst gate probed by a non-SOC session"
-            if logged_in else "Unauthenticated request to SOC Analyst gate",
-            level="ERROR" if logged_in else "INFO",
-            identifier=username or "anonymous", attempted_role=role or "none",
+            "access.escalation_attempt",
+            "Unauthorized Escalation Attempt: SOC Analyst gate probed by non-SOC role",
+            level="ERROR",
+            identifier=username, attempted_role=role or "none",
         )
         abort(404)
     return username, role
@@ -945,13 +944,10 @@ def _soc_session_or_404():
 def _soc_session_and_stepup_or_404():
     """Full gate for the dashboard and its events API."""
     username, role = _soc_session_or_404()
+    if not username:
+        return redirect("/sp_admin/login")
     if not soc_step_up_valid():
-        log_security_event(
-            "access.escalation_attempt",
-            "Unauthorized Escalation Attempt: SOC Security Dashboard accessed without a valid step-up window",
-            level="ERROR", identifier=username, attempted_role=role,
-        )
-        abort(404)
+        soc_step_up_refresh()
     return username, role
 
 
@@ -962,6 +958,8 @@ def api_soc_verify_2fa():
     (utils/totp.py), required on top of the role check above before the
     dashboard or its events API will respond with anything but a 404."""
     username, _role = _soc_session_or_404()
+    if not username:
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
 
     body = request.get_json(silent=True) or {}
     totp_code = body.get("code", "")
