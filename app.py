@@ -332,7 +332,7 @@ def _enforce_idle_timeout():
     now = time.time()
     last_activity = session.get("_last_activity")
     if last_activity:
-        timeout_minutes = get_company_settings().get("session_timeout", 30)
+        timeout_minutes = get_company_settings().get("session_timeout", 720)
         if (now - last_activity) > timeout_minutes * 60:
             session.clear()
             if request.path.startswith("/api/"):

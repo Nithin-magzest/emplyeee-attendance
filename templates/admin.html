@@ -501,7 +501,7 @@
               System Active &amp; Protected
             </span>
           </div>
-          <h2 style="font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.4px; margin-bottom: 4px;">
+          <h2 id="welcome-greeting" style="font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.4px; margin-bottom: 4px;">
             Welcome back to {{ co.company_name }} Admin Portal!
           </h2>
           <div style="font-size: 13.5px; color: rgba(255,255,255,0.85); font-weight: 500;">
@@ -2206,7 +2206,30 @@
       .then(function() { loadAdminNotifications(); });
     }
 
-    document.addEventListener('DOMContentLoaded', loadAdminNotifications);
+    document.addEventListener('DOMContentLoaded', function() {
+      loadAdminNotifications();
+      
+      // Update dynamic welcome greeting based on time of day and admin username
+      const titleEl = document.getElementById("welcome-greeting");
+      if (titleEl) {
+        const hour = new Date().getHours();
+        let greeting = "Good morning";
+        let emoji = "🌅";
+        if (hour >= 12 && hour < 17) {
+          greeting = "Good afternoon";
+          emoji = "☀️";
+        } else if (hour >= 17 && hour < 22) {
+          greeting = "Good evening";
+          emoji = "🌆";
+        } else if (hour >= 22 || hour < 5) {
+          greeting = "Good night";
+          emoji = "🌃";
+        }
+        const username = "{{ session.get('admin_username') | title }}";
+        const companyName = "{{ co.company_name }}";
+        titleEl.innerHTML = emoji + " " + greeting + ", " + username + "! Welcome back to " + companyName + " Admin Portal.";
+      }
+    });
   </script>
 </body>
 </html>
