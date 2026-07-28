@@ -50,6 +50,123 @@
       .flip-card-back { transform: rotateY(180deg); }
       .gamified-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(99,102,241,0.15)); border: 1px solid rgba(168,85,247,0.3); color: #c084fc; font-size: 11px; font-weight: 700; }
 
+      /* ── PREMIUM ANIMATION SYSTEM ── */
+
+      /* Scramble Text */
+      .scramble-text { font-family: 'Courier New', monospace; display: inline; }
+
+      /* Animated Counter */
+      .anim-counter { transition: color 0.3s; }
+
+      /* Wellbeing Pulse Meter */
+      .wellbeing-widget {
+        background: linear-gradient(135deg, #0f172a, #1e1b4b);
+        border: 1px solid rgba(168,85,247,0.3); border-radius: 16px;
+        padding: 20px 24px; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+      }
+      .wellbeing-ring {
+        width: 100px; height: 100px; border-radius: 50%; position: relative;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        background: conic-gradient(#a855f7 0deg, #6366f1 calc(var(--wb-deg, 306deg) - 36deg), var(--wb-deg, 306deg), #1e293b 0deg);
+        box-shadow: 0 0 24px rgba(168,85,247,0.3); transition: --wb-deg 1s ease;
+      }
+      .wellbeing-ring::before {
+        content: ''; position: absolute; width: 74px; height: 74px;
+        border-radius: 50%; background: #0f172a;
+      }
+      .wellbeing-score {
+        position: relative; z-index: 1; font-size: 20px; font-weight: 900;
+        color: #e2e8f0; font-family: 'Courier New', monospace;
+      }
+      .wellbeing-bar-wrap { flex: 1; min-width: 200px; }
+      .wellbeing-bar {
+        height: 8px; border-radius: 4px; overflow: hidden;
+        background: #1e293b; margin-bottom: 8px;
+      }
+      .wellbeing-bar-fill {
+        height: 100%; border-radius: 4px;
+        background: linear-gradient(90deg, #a855f7, #6366f1, #22c55e);
+        transition: width 1.5s cubic-bezier(0.23, 1, 0.32, 1);
+        box-shadow: 0 0 8px rgba(168,85,247,0.5);
+      }
+      .wellbeing-pulse-dot {
+        width: 10px; height: 10px; border-radius: 50%; background: #a855f7;
+        animation: wbPing 1.8s ease infinite; display: inline-block; margin-right: 6px;
+      }
+      @keyframes wbPing {
+        0%,100% { box-shadow: 0 0 0 0 rgba(168,85,247,0.8); }
+        50% { box-shadow: 0 0 0 8px rgba(168,85,247,0); }
+      }
+
+      /* Gamified Badges Section */
+      .badges-section {
+        background: linear-gradient(135deg, #0f172a 0%, #1a1040 100%);
+        border: 1px solid rgba(99,102,241,0.3); border-radius: 16px;
+        padding: 20px 24px; margin-bottom: 20px;
+      }
+      .badges-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+      .badge-item {
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        padding: 14px 12px; border-radius: 14px; min-width: 90px;
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+        cursor: pointer; position: relative; overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .badge-item:hover { transform: translateY(-4px) scale(1.05); }
+      .badge-item.earned { border-color: rgba(168,85,247,0.5); }
+      .badge-item.earned .badge-icon { filter: none; animation: badgeFloat 3s ease-in-out infinite; }
+      .badge-item.locked .badge-icon { filter: grayscale(1) opacity(0.4); }
+      .badge-icon { font-size: 28px; line-height: 1; }
+      @keyframes badgeFloat {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      .badge-glow {
+        position: absolute; inset: 0; border-radius: 14px;
+        background: radial-gradient(circle at 50% 0%, rgba(168,85,247,0.25), transparent 70%);
+        pointer-events: none;
+      }
+      .badge-name { font-size: 10px; font-weight: 700; color: #e2e8f0; text-align: center; }
+      .badge-locked-lbl { font-size: 9px; color: #64748b; text-align: center; }
+
+      /* Magnetic Buttons */
+      .btn-magnetic {
+        position: relative; overflow: hidden;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+      }
+      .btn-magnetic:hover { box-shadow: 0 8px 30px rgba(59,130,246,0.4); }
+
+      /* Ripple Particle */
+      .btn-ripple {
+        position: relative; overflow: hidden;
+      }
+      .ripple-particle {
+        position: absolute; border-radius: 50%;
+        background: rgba(255,255,255,0.35);
+        transform: scale(0); animation: rippleOut 0.6s linear;
+        pointer-events: none;
+      }
+      @keyframes rippleOut {
+        to { transform: scale(4); opacity: 0; }
+      }
+
+      /* Attrition Risk Indicator */
+      .attrition-widget {
+        background: linear-gradient(135deg, #0f172a, #1c0a09);
+        border: 1px solid rgba(239,68,68,0.25); border-radius: 16px;
+        padding: 16px 20px; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      }
+      .attrition-indicator { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+      .atr-low { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); animation: atrPulse 2.5s ease infinite; }
+      .atr-medium { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.5); animation: atrPulse 1.8s ease infinite; }
+      .atr-high { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.5); animation: atrPulse 0.9s ease infinite; }
+      @keyframes atrPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+        50% { box-shadow: 0 0 12px 4px rgba(255,255,255,0.05); }
+      }
+
       #sun-indicator { font-size: 17px; line-height: 1; margin-left: auto; }
 
       /* ── SIDEBAR ── */
@@ -808,7 +925,7 @@
       <!-- ═══ VIEW: DASHBOARD ═══ -->
       <div id="view-dashboard" class="view">
       <div class="page-header">
-        <h1>Welcome, {{ emp[1] }}! 👋</h1>
+        <h1 id="dashboard-welcome-heading">Welcome, {{ emp[1] }}! 👋</h1>
         <p>{{ today }} &nbsp;|&nbsp; <span id="clock"></span></p>
       </div>
 
@@ -1101,6 +1218,97 @@
         <div class="stat-card"><div class="stat-icon si-red">❌</div><div><div class="stat-num sn-red">{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
         <div class="stat-card"><div class="stat-icon si-blue">📈</div><div><div class="stat-num sn-blue">{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
         <div class="stat-card"><div class="stat-icon si-blue">⏱</div><div><div class="stat-num stat-num-sm sn-blue">{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
+      </div>
+
+      <!-- AI WELLBEING PULSE METER -->
+      <div class="wellbeing-widget" id="wellbeing-widget">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <div class="wellbeing-ring" id="wellbeing-ring">
+            <span class="wellbeing-score" id="wellbeing-score">85</span>
+          </div>
+          <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Wellbeing Score</div>
+        </div>
+        <div class="wellbeing-bar-wrap">
+          <div style="font-size: 14px; font-weight: 800; color: #e2e8f0; margin-bottom: 6px;">
+            <span class="wellbeing-pulse-dot"></span>AI Predictive Wellbeing Engine
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Passive sentiment tracking — continuous NLP evaluation active</div>
+          <div class="wellbeing-bar">
+            <div class="wellbeing-bar-fill" id="wellbeing-bar-fill" style="width: 0%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 4px;">
+            <span>Burnout Risk</span><span>Peak Performance</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; min-width: 140px;">
+          <div style="padding: 10px 14px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 10px;">
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Attrition Risk</div>
+            <div style="font-size: 14px; font-weight: 800; color: #4ade80; margin-top: 2px;" id="attrition-risk-val">LOW</div>
+          </div>
+          <div style="padding: 10px 14px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px;">
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Engagement</div>
+            <div style="font-size: 14px; font-weight: 800; color: #818cf8; margin-top: 2px;" id="engagement-val">HIGH</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GAMIFIED BADGES & CHALLENGES -->
+      <div class="badges-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 15px; font-weight: 800; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">🏆 Badges & Challenges</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Complete tasks to earn glowing badges and unlock rewards</div>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; font-weight: 600;"><span id="earned-badge-count" style="color: #a855f7; font-size: 16px; font-weight: 800;">3</span> / 8 badges earned</div>
+        </div>
+
+        <!-- Progress bar -->
+        <div style="background: #1e293b; border-radius: 4px; height: 6px; margin: 12px 0; overflow: hidden;">
+          <div style="height: 100%; width: 37.5%; background: linear-gradient(90deg, #a855f7, #6366f1); border-radius: 4px; box-shadow: 0 0 8px rgba(168,85,247,0.4); transition: width 1.5s ease;"></div>
+        </div>
+
+        <div class="badges-grid">
+          <div class="badge-item earned" title="Completed profile setup" onclick="celebrateBadge(this)">
+            <div class="badge-glow"></div>
+            <div class="badge-icon">👤</div>
+            <div class="badge-name">Profile Pro</div>
+          </div>
+          <div class="badge-item earned" title="Logged in 7 days in a row" onclick="celebrateBadge(this)">
+            <div class="badge-glow"></div>
+            <div class="badge-icon">🔥</div>
+            <div class="badge-name">7-Day Streak</div>
+          </div>
+          <div class="badge-item earned" title="Attended training module" onclick="celebrateBadge(this)">
+            <div class="badge-glow"></div>
+            <div class="badge-icon">📚</div>
+            <div class="badge-name">Learner</div>
+          </div>
+          <div class="badge-item locked" title="Submit 5 tickets to unlock">
+            <div class="badge-icon">🎫</div>
+            <div class="badge-name">Ticket Hero</div>
+            <div class="badge-locked-lbl">5 tickets req.</div>
+          </div>
+          <div class="badge-item locked" title="Perfect attendance for a month">
+            <div class="badge-icon">⭐</div>
+            <div class="badge-name">Star Performer</div>
+            <div class="badge-locked-lbl">100% attend.</div>
+          </div>
+          <div class="badge-item locked" title="Update all profile fields">
+            <div class="badge-icon">✏️</div>
+            <div class="badge-name">Detail Keeper</div>
+            <div class="badge-locked-lbl">Full profile</div>
+          </div>
+          <div class="badge-item locked" title="Complete onboarding">
+            <div class="badge-icon">🚀</div>
+            <div class="badge-name">Onboarded!</div>
+            <div class="badge-locked-lbl">Complete tasks</div>
+          </div>
+          <div class="badge-item locked" title="Request a shift swap">
+            <div class="badge-icon">🔄</div>
+            <div class="badge-name">Shift Flexer</div>
+            <div class="badge-locked-lbl">1 swap req.</div>
+          </div>
+        </div>
       </div>
 
       <!-- BREAK SCHEDULE WIDGET -->
@@ -4563,5 +4771,200 @@
   </script>
   <!-- /DEVICE POSTURE RELAY -->
   {% include 'ai_helpdesk_widget.html' %}
+
+  <!-- PREMIUM ANIMATION ENGINE -->
+  <script>
+  (function() {
+    'use strict';
+
+    /* ===== SCRAMBLE TEXT EFFECT ===== */
+    function scrambleText(el, finalText, duration) {
+      if (!el) return;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+      let iteration = 0;
+      const totalSteps = Math.ceil(finalText.length * 2.5);
+      const interval = setInterval(function() {
+        el.textContent = finalText.split('').map(function(letter, i) {
+          if (letter === ' ' || letter === '!' || letter === '👋') return letter;
+          if (i < Math.floor(iteration / 2.5)) return finalText[i];
+          return chars[Math.floor(Math.random() * chars.length)];
+        }).join('');
+        iteration++;
+        if (iteration >= totalSteps) {
+          el.textContent = finalText;
+          clearInterval(interval);
+        }
+      }, 40);
+    }
+
+    // Scramble the dashboard welcome heading on load
+    window.addEventListener('load', function() {
+      var heading = document.getElementById('dashboard-welcome-heading');
+      if (heading) {
+        var originalText = heading.textContent;
+        setTimeout(function() { scrambleText(heading, originalText, 1200); }, 400);
+      }
+    });
+
+    /* ===== WELLBEING PULSE METER ANIMATION ===== */
+    function initWellbeingMeter() {
+      var score = 85;
+      var ring = document.getElementById('wellbeing-ring');
+      var scoreEl = document.getElementById('wellbeing-score');
+      var barFill = document.getElementById('wellbeing-bar-fill');
+      var attritionEl = document.getElementById('attrition-risk-val');
+      var engagementEl = document.getElementById('engagement-val');
+      if (!ring || !scoreEl) return;
+
+      // Animate ring using conic-gradient via CSS var
+      var deg = Math.round((score / 100) * 360);
+      ring.style.background = 'conic-gradient(#a855f7 0deg, #6366f1 ' + deg + 'deg, #1e293b ' + deg + 'deg)';
+
+      // Animate score counter
+      var currentScore = 0;
+      var counterInterval = setInterval(function() {
+        currentScore = Math.min(currentScore + 3, score);
+        scoreEl.textContent = currentScore;
+        if (currentScore >= score) clearInterval(counterInterval);
+      }, 25);
+
+      // Animate bar
+      setTimeout(function() {
+        if (barFill) barFill.style.width = score + '%';
+      }, 300);
+
+      // Simulate dynamic wellbeing variation
+      setInterval(function() {
+        var variation = Math.floor(Math.random() * 10) - 3;
+        score = Math.max(60, Math.min(98, score + variation));
+        var newDeg = Math.round((score / 100) * 360);
+        ring.style.background = 'conic-gradient(#a855f7 0deg, #6366f1 ' + newDeg + 'deg, #1e293b ' + newDeg + 'deg)';
+        scoreEl.textContent = score;
+        if (barFill) barFill.style.width = score + '%';
+        if (attritionEl) attritionEl.textContent = score > 80 ? 'LOW' : score > 65 ? 'MEDIUM' : 'HIGH';
+        if (attritionEl) attritionEl.style.color = score > 80 ? '#4ade80' : score > 65 ? '#fbbf24' : '#fca5a5';
+        if (engagementEl) engagementEl.textContent = score > 75 ? 'HIGH' : score > 55 ? 'MODERATE' : 'LOW';
+      }, 6000);
+    }
+
+    /* ===== BADGE CELEBRATION PARTICLE BURST ===== */
+    window.celebrateBadge = function(el) {
+      if (!el || el.classList.contains('locked')) return;
+      var rect = el.getBoundingClientRect();
+      var cx = rect.left + rect.width / 2;
+      var cy = rect.top + rect.height / 2;
+      var colors = ['#a855f7','#6366f1','#22c55e','#f59e0b','#ec4899','#3b82f6'];
+      for (var i = 0; i < 18; i++) {
+        (function(i) {
+          var particle = document.createElement('div');
+          particle.style.cssText = [
+            'position: fixed',
+            'width: ' + (Math.random() * 8 + 4) + 'px',
+            'height: ' + (Math.random() * 8 + 4) + 'px',
+            'border-radius: 50%',
+            'background: ' + colors[Math.floor(Math.random() * colors.length)],
+            'left: ' + cx + 'px',
+            'top: ' + cy + 'px',
+            'pointer-events: none',
+            'z-index: 9999',
+            'transition: all 0.8s cubic-bezier(0.165, 0.84, 0.44, 1)',
+            'opacity: 1',
+          ].join(';');
+          document.body.appendChild(particle);
+          var angle = (i / 18) * Math.PI * 2;
+          var dist = Math.random() * 80 + 40;
+          setTimeout(function() {
+            particle.style.transform = 'translate(' + (Math.cos(angle) * dist) + 'px, ' + (Math.sin(angle) * dist) + 'px)';
+            particle.style.opacity = '0';
+          }, 20);
+          setTimeout(function() { particle.remove(); }, 900);
+        })(i);
+      }
+      // Flash the badge with a glow
+      el.style.boxShadow = '0 0 24px rgba(168,85,247,0.8)';
+      setTimeout(function() { el.style.boxShadow = ''; }, 600);
+    };
+
+    /* ===== RIPPLE EFFECT ON ALL BUTTONS ===== */
+    function addRippleToBtn(btn) {
+      btn.addEventListener('click', function(e) {
+        var rect = btn.getBoundingClientRect();
+        var ripple = document.createElement('span');
+        ripple.className = 'ripple-particle';
+        var size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+        ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+        btn.appendChild(ripple);
+        setTimeout(function() { ripple.remove(); }, 700);
+      });
+    }
+
+    /* ===== MAGNETIC BUTTON EFFECT ===== */
+    function addMagneticEffect(btn) {
+      btn.addEventListener('mousemove', function(e) {
+        var rect = btn.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var dx = (e.clientX - cx) * 0.25;
+        var dy = (e.clientY - cy) * 0.25;
+        btn.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
+      });
+      btn.addEventListener('mouseleave', function() {
+        btn.style.transform = '';
+      });
+    }
+
+    /* ===== ANIMATED STAT COUNTERS ===== */
+    function animateCounters() {
+      var counters = document.querySelectorAll('.stat-num');
+      counters.forEach(function(el) {
+        var target = parseInt(el.textContent, 10);
+        if (isNaN(target) || target === 0) return;
+        var current = 0;
+        var step = Math.ceil(target / 30);
+        var interval = setInterval(function() {
+          current = Math.min(current + step, target);
+          el.textContent = current;
+          if (current >= target) clearInterval(interval);
+        }, 40);
+      });
+    }
+
+    /* ===== INITIALIZE EVERYTHING ON LOAD ===== */
+    document.addEventListener('DOMContentLoaded', function() {
+      // Init wellbeing meter
+      initWellbeingMeter();
+
+      // Add ripple to all buttons
+      document.querySelectorAll('button, .btn-view, .btn-pdf, a.btn-view').forEach(function(btn) {
+        addRippleToBtn(btn);
+      });
+
+      // Add magnetic effect to primary-style buttons
+      document.querySelectorAll('.btn-primary-hrms, .btn-view, [class*="btn-"]:not(.sb-item):not(.btn-danger)').forEach(function(btn) {
+        if (btn.tagName === 'BUTTON' || btn.tagName === 'A') addMagneticEffect(btn);
+      });
+
+      // Animate stat counters
+      setTimeout(animateCounters, 500);
+
+      // Card hover glow micro-animation
+      document.querySelectorAll('.stat-card').forEach(function(card) {
+        card.addEventListener('mouseenter', function() {
+          card.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+          card.style.transform = 'translateY(-4px)';
+          card.style.boxShadow = '0 8px 24px rgba(37,99,235,0.12)';
+        });
+        card.addEventListener('mouseleave', function() {
+          card.style.transform = '';
+          card.style.boxShadow = '';
+        });
+      });
+    });
+  })();
+  </script>
+  <!-- /PREMIUM ANIMATION ENGINE -->
+
 </body>
 </html>

@@ -134,6 +134,8 @@
       .badge-info { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
       .badge-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
       .badge-error { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+      .badge-success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+      .badge-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
 
       .toast-box {
         position: fixed; bottom: 24px; right: 24px; z-index: 999;
@@ -142,6 +144,171 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; animation: slideUp 0.3s ease;
       }
       @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+      /* ====== PREMIUM ANIMATION & VISUAL ADDITIONS ====== */
+
+      /* Scrolling Terminal Feed */
+      .terminal-feed {
+        background: #000d06; border: 1px solid rgba(34,197,94,0.25); border-radius: 14px;
+        padding: 0; overflow: hidden; font-family: 'Courier New', monospace;
+      }
+      .terminal-header {
+        background: #0a1a0e; border-bottom: 1px solid rgba(34,197,94,0.2);
+        padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+      }
+      .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .term-dot-r { background: #ef4444; } .term-dot-y { background: #f59e0b; } .term-dot-g { background: #22c55e; }
+      .terminal-body {
+        height: 320px; overflow-y: auto; padding: 12px 16px;
+        display: flex; flex-direction: column; gap: 3px;
+        scrollbar-width: thin; scrollbar-color: #1e4a2a #000d06;
+      }
+      .terminal-body::-webkit-scrollbar { width: 6px; }
+      .terminal-body::-webkit-scrollbar-track { background: #000d06; }
+      .terminal-body::-webkit-scrollbar-thumb { background: #1e4a2a; border-radius: 3px; }
+      .term-line {
+        font-size: 12px; line-height: 1.6; padding: 2px 0; animation: termSlideIn 0.25s ease;
+        display: flex; gap: 8px; align-items: flex-start;
+      }
+      @keyframes termSlideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+      .term-line.crit {
+        color: #fca5a5;
+        text-shadow: 0 0 8px rgba(239,68,68,0.7), 0 0 16px rgba(239,68,68,0.4);
+        background: rgba(239,68,68,0.06); padding: 3px 6px; border-radius: 4px;
+        border-left: 2px solid #ef4444;
+        animation: termSlideIn 0.25s ease, critPulse 2s ease-in-out infinite;
+      }
+      @keyframes critPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+        50% { box-shadow: 0 0 12px 2px rgba(239,68,68,0.3); }
+      }
+      .term-line.warn { color: #fbbf24; }
+      .term-line.info { color: #4ade80; }
+      .term-ts { color: #475569; min-width: 78px; font-size: 11px; }
+      .term-src { color: #60a5fa; min-width: 110px; }
+      .term-msg { flex: 1; word-break: break-all; }
+      .term-mitre { color: #c084fc; font-size: 10px; white-space: nowrap; padding: 1px 5px; border-radius: 3px; background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.3); }
+
+      /* Live badge animation */
+      .live-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 20px;
+        background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+        color: #4ade80; font-size: 11px; font-weight: 700;
+      }
+      .live-dot {
+        width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+        animation: livePing 1.4s ease-in-out infinite;
+      }
+      @keyframes livePing {
+        0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.8); }
+        50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+      }
+
+      /* 3D Malware Scanning Grid */
+      .scan-grid-wrap {
+        position: relative; background: #000; border: 1px solid rgba(34,197,94,0.3);
+        border-radius: 14px; overflow: hidden; height: 200px; margin-bottom: 16px;
+      }
+      .scan-grid-canvas {
+        display: grid; grid-template-columns: repeat(16,1fr); gap: 2px;
+        padding: 8px; height: 100%; align-content: start;
+      }
+      .scan-cell {
+        height: 8px; background: #0d2b1a; border-radius: 1px;
+        transition: background 0.15s, box-shadow 0.15s;
+      }
+      .scan-cell.active { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+      .scan-cell.threat { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: threatCell 0.4s ease infinite alternate; }
+      @keyframes threatCell { from { opacity: 1; } to { opacity: 0.4; } }
+      .scan-beam {
+        position: absolute; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, transparent, #22c55e, #22c55e, transparent);
+        box-shadow: 0 0 12px #22c55e, 0 0 24px rgba(34,197,94,0.4);
+        top: 0; animation: scanBeam 2s linear infinite;
+        display: none;
+      }
+      @keyframes scanBeam { from { top: 0; } to { top: 100%; } }
+      .scan-overlay-text {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-family: monospace; font-size: 14px; font-weight: 700;
+        color: #4ade80; text-shadow: 0 0 10px #4ade80;
+        pointer-events: none;
+      }
+      .glitch-text {
+        animation: glitch 0.4s steps(2) infinite;
+      }
+      @keyframes glitch {
+        0%   { clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%); transform: translate(-2px); color: #f87171; }
+        25%  { clip-path: polygon(0 40%, 100% 40%, 100% 65%, 0 65%); transform: translate(2px); color: #4ade80; }
+        50%  { clip-path: polygon(0 70%, 100% 70%, 100% 100%, 0 100%); transform: translate(-1px); color: #c084fc; }
+        75%  { clip-path: polygon(0 10%, 100% 10%, 100% 50%, 0 50%); transform: translate(1px); color: #fbbf24; }
+        100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translate(0); color: #4ade80; }
+      }
+
+      /* Status Pulse Indicators */
+      .pulse-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+      .pi-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .pi-green { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.3); animation: piPulse 2s ease infinite; }
+      .pi-amber { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.3); animation: piPulse 1.5s ease infinite; }
+      .pi-red { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.3); animation: piPulse 0.8s ease infinite; }
+      @keyframes piPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        50% { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+      }
+
+      /* SOC Posture Score Gauge */
+      .posture-gauge-wrap {
+        display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+      }
+      .posture-ring {
+        width: 120px; height: 120px; border-radius: 50%; position: relative;
+        display: flex; align-items: center; justify-content: center;
+        background: conic-gradient(#22c55e var(--score-deg, 270deg), #1e293b 0deg);
+        box-shadow: 0 0 20px rgba(34,197,94,0.3);
+      }
+      .posture-ring::before {
+        content: ''; position: absolute; width: 90px; height: 90px;
+        border-radius: 50%; background: #0f172a;
+      }
+      .posture-score {
+        position: relative; z-index: 1; font-size: 22px; font-weight: 900;
+        color: #f8fafc; font-family: monospace;
+      }
+
+      /* MITRE ATT&CK Mapping Panel */
+      .mitre-panel { background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.25); border-radius: 14px; padding: 16px; }
+      .mitre-tactic-tag {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 700;
+        background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); color: #c084fc;
+        transition: 0.2s ease;
+      }
+      .mitre-tactic-tag:hover { background: rgba(168,85,247,0.3); transform: scale(1.05); }
+      .mitre-tactic-tag.active { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.5); color: #fca5a5; animation: tacticPulse 1.5s ease infinite; }
+      @keyframes tacticPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+        50% { box-shadow: 0 0 8px 2px rgba(239,68,68,0.4); }
+      }
+
+      /* YARA-L Query Builder */
+      .yaral-editor {
+        background: #050c14; border: 1px solid rgba(59,130,246,0.3); border-radius: 12px;
+        padding: 16px; font-family: 'Courier New', monospace; font-size: 12px;
+        color: #93c5fd; min-height: 120px; resize: vertical; outline: none; width: 100%;
+        transition: border-color 0.2s;
+      }
+      .yaral-editor:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+      .yaral-keyword { color: #c084fc; } .yaral-string { color: #4ade80; } .yaral-number { color: #fbbf24; }
+
+      /* Network Entity Icons */
+      .entity-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+      .entity-safe { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); animation: entitySafe 3s ease infinite; }
+      .entity-suspect { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); animation: entitySuspect 1.8s ease infinite; }
+      .entity-malicious { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); animation: entityMalicious 0.9s ease infinite; }
+      @keyframes entitySafe { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 8px 4px rgba(34,197,94,0.15); } }
+      @keyframes entitySuspect { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.4); } 50% { box-shadow: 0 0 8px 4px rgba(245,158,11,0.2); } }
+      @keyframes entityMalicious { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); } 50% { box-shadow: 0 0 12px 4px rgba(239,68,68,0.3); } }
     </style>
   </head>
   <body>
@@ -270,19 +437,218 @@
         <button id="wifi-shield-toggle-btn" class="btn-primary" onclick="toggleWifiShield()"><i class="ti ti-shield-check"></i> Safety Valve Active</button>
       </div>
     </div>
+    <!-- SOC Posture Score Banner -->
+    <div id="soc-posture-banner" style="background: rgba(15,23,42,0.85); border: 1px solid rgba(168,85,247,0.3); border-radius: 16px; padding: 18px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+      <div class="posture-gauge-wrap">
+        <div class="posture-ring" id="posture-ring" style="--score-deg: 270deg;">
+          <span class="posture-score" id="posture-score-val">75</span>
+        </div>
+        <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">SOC Posture Score</div>
+      </div>
+      <div style="flex: 1; min-width: 200px;">
+        <div style="font-size: 16px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">Security Posture Rating: <span id="posture-label" style="color: #22c55e;">PROTECTED</span></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;" id="mitre-active-tactics">
+          <!-- Filled by JS -->
+        </div>
+        <div style="font-size: 12px; color: #64748b;">Active MITRE ATT&CK tactics detected in last 60 min. Red = active threat. Purple = dormant.</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="pulse-indicator"><span class="pi-dot pi-green"></span><span style="color:#4ade80;">WAF Shield</span></div>
+        <div class="pulse-indicator"><span class="pi-dot pi-green"></span><span style="color:#4ade80;">SIEM Pipeline</span></div>
+        <div class="pulse-indicator" id="threat-feed-indicator"><span class="pi-dot pi-amber"></span><span style="color:#fbbf24;">Threat Feed</span></div>
+        <div class="pulse-indicator" id="malware-scan-indicator"><span class="pi-dot pi-red"></span><span style="color:#fca5a5;">Scan Queue</span></div>
+      </div>
+    </div>
 
     <!-- Navigation Tabs Bar -->
     <div class="tabs-bar">
       <button class="tab-btn active" onclick="switchTab('siem')"><i class="ti ti-terminal-2"></i> SIEM Log Engine</button>
+      <button class="tab-btn" onclick="switchTab('threatstream')"><i class="ti ti-activity"></i> Live Terminal</button>
       <button class="tab-btn" onclick="switchTab('threatintel')"><i class="ti ti-rss"></i> Threat Intel Feed</button>
       <button class="tab-btn" onclick="switchTab('quarantine')"><i class="ti ti-bug"></i> Malware Quarantine</button>
-      <button class="tab-btn" onclick="switchTab('ports')"><i class="ti ti-network"></i> Port &amp; Network Health</button>
+      <button class="tab-btn" onclick="switchTab('malwarescan')"><i class="ti ti-scan"></i> Malware Scanner</button>
+      <button class="tab-btn" onclick="switchTab('yaral')"><i class="ti ti-code"></i> YARA-L Engine</button>
+      <button class="tab-btn" onclick="switchTab('ports')"><i class="ti ti-network"></i> Port & Network Health</button>
       <button class="tab-btn" onclick="switchTab('pwdreset')"><i class="ti ti-key"></i> Employee Password Reset</button>
       <button class="tab-btn" onclick="switchTab('ipbans')"><i class="ti ti-ban"></i> IP Ban Management</button>
       <button class="tab-btn" onclick="switchTab('smtp')"><i class="ti ti-mail-cog"></i> SMTP Settings</button>
       <button class="tab-btn" onclick="switchTab('health')"><i class="ti ti-heart-rate-monitor"></i> System Health</button>
-      <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture &amp; Sessions</button>
+      <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture & Sessions</button>
       <button class="tab-btn" onclick="switchTab('userwifi')"><i class="ti ti-wifi"></i> User Wi-Fi Risk Rates</button>
+    </div>
+
+    <!-- TAB: LIVE TERMINAL STREAM -->
+    <div id="tab-threatstream" class="tab-panel">
+      <div class="glass-card" style="padding: 0;">
+        <div style="padding: 20px 24px 16px; border-bottom: 1px solid rgba(51,65,85,0.5); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div class="card-title" style="margin-bottom: 4px;"><i class="ti ti-activity"></i> Live Security Event Terminal Stream</div>
+            <div style="font-size: 12px; color: #64748b;">Real-time log ingestion with MITRE ATT&CK mapping. Critical alerts pulse with neon red glow.</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+            <button class="btn-primary" style="padding: 6px 14px; font-size: 12px;" onclick="clearTerminalFeed()"><i class="ti ti-trash"></i> Clear</button>
+            <button class="btn-primary" style="padding: 6px 14px; font-size: 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5;" onclick="toggleTerminalPause()" id="term-pause-btn"><i class="ti ti-player-pause"></i> Pause</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 280px; gap: 0; min-height: 380px;">
+          <!-- Terminal Feed Left -->
+          <div style="border-right: 1px solid rgba(51,65,85,0.5); padding: 0;">
+            <div class="terminal-header">
+              <span class="term-dot term-dot-r"></span><span class="term-dot term-dot-y"></span><span class="term-dot term-dot-g"></span>
+              <span style="font-size: 11px; color: #475569; margin-left: 8px; font-family: monospace;">secops@siem-lite:~$ tail -f /var/log/siem/events.log</span>
+            </div>
+            <div class="terminal-body" id="live-terminal-feed">
+              <div class="term-line info"><span class="term-ts">00:00:00.000</span><span class="term-src">SYSTEM</span><span class="term-msg">SIEM terminal stream initialized. Waiting for events...</span></div>
+            </div>
+          </div>
+          <!-- MITRE ATT&CK Side Panel Right -->
+          <div style="padding: 16px;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 12px;"><i class="ti ti-shield-code"></i> MITRE ATT&CK™ Tactic Map</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;" id="mitre-side-panel">
+              <div class="mitre-tactic-tag" id="mt-reconnaissance">🔍 Reconnaissance</div>
+              <div class="mitre-tactic-tag" id="mt-initial-access">🚪 Initial Access</div>
+              <div class="mitre-tactic-tag" id="mt-execution">⚡ Execution</div>
+              <div class="mitre-tactic-tag" id="mt-persistence">🔒 Persistence</div>
+              <div class="mitre-tactic-tag" id="mt-privilege-escalation">🔺 Privilege Escalation</div>
+              <div class="mitre-tactic-tag" id="mt-defense-evasion">🫥 Defense Evasion</div>
+              <div class="mitre-tactic-tag" id="mt-credential-access">🗝️ Credential Access</div>
+              <div class="mitre-tactic-tag" id="mt-lateral-movement">↔️ Lateral Movement</div>
+              <div class="mitre-tactic-tag" id="mt-collection">📦 Collection</div>
+              <div class="mitre-tactic-tag" id="mt-exfiltration">📤 Exfiltration</div>
+              <div class="mitre-tactic-tag" id="mt-impact">💥 Impact</div>
+            </div>
+            <hr style="border-color: rgba(51,65,85,0.5); margin: 12px 0;"/>
+            <div style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">Entity Status</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;" id="entity-status-list">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="entity-icon entity-safe"><i class="ti ti-server"></i></div>
+                <div><div style="font-size: 11px; font-weight: 700; color: #f8fafc;">Web Gateway</div><div style="font-size: 10px; color: #4ade80;">SAFE</div></div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="entity-icon entity-suspect"><i class="ti ti-user"></i></div>
+                <div><div style="font-size: 11px; font-weight: 700; color: #f8fafc;">Auth Service</div><div style="font-size: 10px; color: #fbbf24;">SUSPICIOUS</div></div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="entity-icon entity-malicious"><i class="ti ti-network"></i></div>
+                <div><div style="font-size: 11px; font-weight: 700; color: #f8fafc;">Ext. IP Pool</div><div style="font-size: 10px; color: #fca5a5;">MALICIOUS</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 14px 24px; border-top: 1px solid rgba(51,65,85,0.5); display: flex; gap: 16px; align-items: center; font-size: 12px; font-family: monospace;">
+          <span style="color: #64748b;">Windowed: <strong style="color: #f8fafc;" id="term-count">0</strong>/50 events</span>
+          <span style="color: #64748b;">Critical: <strong style="color: #fca5a5;" id="term-crit-count">0</strong></span>
+          <span style="color: #64748b;">Last event: <strong style="color: #4ade80;" id="term-last-time">—</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: MALWARE SCANNER (3D Grid) -->
+    <div id="tab-malwarescan" class="tab-panel">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <!-- Left: Upload & Scan -->
+        <div class="glass-card">
+          <div class="card-title"><i class="ti ti-scan"></i> Secure Binary Analysis Sandbox</div>
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">Upload a file for isolated dynamic + static threat analysis. Circuit-breaker protection prevents failed scans from crashing the dashboard.</p>
+
+          <div class="scan-grid-wrap" id="scan-grid-wrap">
+            <div class="scan-grid-canvas" id="scan-grid-canvas"></div>
+            <div class="scan-beam" id="scan-beam"></div>
+            <div class="scan-overlay-text" id="scan-overlay-text" style="display: none;"></div>
+          </div>
+
+          <div id="scan-upload-zone" style="border: 2px dashed rgba(34,197,94,0.3); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 16px;" onclick="document.getElementById('scan-file-input').click()" ondragover="event.preventDefault(); this.style.borderColor='#22c55e';" ondragleave="this.style.borderColor='rgba(34,197,94,0.3)';" ondrop="handleScanFileDrop(event)">
+            <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+            <div style="font-size: 13px; color: #94a3b8; font-weight: 600;">Drag & Drop Binary / Executable Here</div>
+            <div style="font-size: 11px; color: #475569; margin-top: 4px;">or click to browse</div>
+            <input type="file" id="scan-file-input" style="display:none;" onchange="handleScanFileSelect(event)"/>
+          </div>
+          <div id="scan-file-name" style="font-size: 12px; color: #60a5fa; margin-bottom: 12px; font-family: monospace;"></div>
+
+          <button class="btn-primary" id="scan-launch-btn" onclick="launchMalwareScan()" style="width: 100%;">
+            <i class="ti ti-shield-search"></i> Initiate Secure Analysis
+          </button>
+        </div>
+
+        <!-- Right: Result Panel -->
+        <div class="glass-card">
+          <div class="card-title"><i class="ti ti-report-analytics"></i> Threat Analysis Report</div>
+          <div id="scan-result-panel" style="min-height: 280px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="text-align: center; color: #475569;">
+              <div style="font-size: 40px; margin-bottom: 12px;">🔬</div>
+              <div style="font-size: 14px; font-weight: 700;">Awaiting Binary Ingestion</div>
+              <div style="font-size: 12px; color: #334155; margin-top: 4px;">Upload a file and initiate the scan to see results</div>
+            </div>
+          </div>
+
+          <!-- Polling Status -->
+          <div id="scan-poll-bar" style="display: none; margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 6px;">
+              <span>Analysis Pipeline</span><span id="scan-poll-pct">0%</span>
+            </div>
+            <div style="background: #1e293b; border-radius: 6px; height: 8px; overflow: hidden;">
+              <div id="scan-poll-fill" style="height: 100%; background: linear-gradient(90deg, #22c55e, #3b82f6); border-radius: 6px; width: 0%; transition: width 0.5s ease;"></div>
+            </div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 6px; font-family: monospace;" id="scan-poll-stage">Initializing sandbox environment...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: YARA-L QUERY ENGINE -->
+    <div id="tab-yaral" class="tab-panel">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div class="glass-card">
+          <div class="card-title"><i class="ti ti-code"></i> YARA-L Security Query Engine</div>
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">Write UDM-normalized YARA-L queries to transform raw event logs into actionable visual insights. Results auto-map to MITRE ATT&CK tactics.</p>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Query Templates</label>
+            <select class="form-input" id="yaral-template" onchange="loadYaralTemplate()">
+              <option value="">-- Select a Template --</option>
+              <option value="brute">Brute Force Detection (T1110)</option>
+              <option value="privesc">Privilege Escalation (T1068)</option>
+              <option value="exfil">Data Exfiltration via C2 (T1041)</option>
+              <option value="malware">Malware Upload Intercept</option>
+              <option value="lateral">Lateral Movement (T1021)</option>
+            </select>
+          </div>
+
+          <textarea class="yaral-editor" id="yaral-query" rows="8" placeholder="// Write YARA-L query here...&#10;rule BruteForceDetection {&#10;  meta: author = &quot;SecOps&quot; description = &quot;Detect brute force login attempts&quot;&#10;  events:&#10;    $e.metadata.event_type = &quot;USER_LOGIN&quot;&#10;    $e.security_result.category = &quot;AUTH_VIOLATION&quot;&#10;  condition:&#10;    #e > 5 over 5m&#10;}">// Select a template or write your own YARA-L query
+// Example:
+rule HighSeverityEvents {
+  meta:
+    author = "SecOps Analyst"
+    description = "Match all CRITICAL severity events"
+  events:
+    $e.security_result.severity = "CRITICAL"
+  condition:
+    $e
+}</textarea>
+
+          <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button class="btn-primary" onclick="runYaralQuery()" style="flex: 1;"><i class="ti ti-player-play"></i> Execute Query</button>
+            <button class="btn-primary" style="background: #334155; box-shadow: none;" onclick="clearYaralQuery()"><i class="ti ti-trash"></i> Clear</button>
+          </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="glass-card">
+          <div class="card-title" style="margin-bottom: 12px;">
+            <span><i class="ti ti-chart-bar"></i> Query Results — Visual Insight</span>
+            <span id="yaral-result-count" class="badge-tag badge-info" style="display:none;"></span>
+          </div>
+          <div id="yaral-results" style="min-height: 300px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 260px; color: #475569;">
+              <div style="font-size: 36px; margin-bottom: 12px;">⚡</div>
+              <div style="font-size: 14px; font-weight: 700;">Execute a query to see visual results</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- TAB: USER WI-FI RISK RATES -->
@@ -1692,7 +2058,398 @@
         fetchPortMatrix();
         fetchServerErrors();
         loadUserWifiTelemetry();
+        initPostureScore();
+        initLiveTerminal();
+        initScanGrid();
       });
+
+      /* ===== SOC POSTURE SCORE ===== */
+      function initPostureScore() {
+        const score = 75;
+        const deg = Math.round((score / 100) * 360);
+        document.getElementById('posture-ring').style.setProperty('--score-deg', deg + 'deg');
+        document.getElementById('posture-score-val').textContent = score;
+
+        const tactics = [
+          { id: 'mt-initial-access', label: '🚪 Initial Access', active: true },
+          { id: 'mt-privilege-escalation', label: '🔺 Privilege Escalation', active: true },
+          { id: 'mt-lateral-movement', label: '↔️ Lateral Movement', active: false },
+          { id: 'mt-exfiltration', label: '📤 Exfiltration', active: false },
+        ];
+        const activeTacticsBanner = document.getElementById('mitre-active-tactics');
+        if (activeTacticsBanner) {
+          activeTacticsBanner.innerHTML = tactics.map(t =>
+            `<span class="mitre-tactic-tag ${t.active ? 'active' : ''}">${t.label}</span>`
+          ).join('');
+        }
+
+        // Flash active MITRE tactics in the side panel
+        tactics.filter(t => t.active).forEach(t => {
+          const el = document.getElementById(t.id);
+          if (el) el.classList.add('active');
+        });
+      }
+
+      /* ===== LIVE TERMINAL STREAM ===== */
+      let terminalPaused = false;
+      let terminalCount = 0;
+      let terminalCritCount = 0;
+      const terminalLogs = [];
+
+      const TERM_SOURCES = ['FIREWALL', 'OAUTH_GW', 'AWS_VPC', 'KUBE_PROXY', 'IDS_ENGINE', 'WAF_SHIELD'];
+      const TERM_EVENTS = [
+        { msg: 'Inbound connection refused from external subnet', sev: 'info', mitre: null },
+        { msg: 'Bearer token generation — valid auth session', sev: 'info', mitre: null },
+        { msg: 'Failed login attempt detected — rate limiting engaged', sev: 'warn', mitre: 'mt-initial-access' },
+        { msg: 'Outbound payload to untrusted destination IP', sev: 'warn', mitre: 'mt-exfiltration' },
+        { msg: 'CRITICAL: Privileged execution detected — possible rootkit', sev: 'crit', mitre: 'mt-privilege-escalation' },
+        { msg: 'CRITICAL: SQL injection pattern blocked by WAF', sev: 'crit', mitre: 'mt-execution' },
+        { msg: 'CRITICAL: Lateral movement detected across subnet boundary', sev: 'crit', mitre: 'mt-lateral-movement' },
+        { msg: 'TLS handshake failed — suspicious cipher suite', sev: 'warn', mitre: 'mt-defense-evasion' },
+        { msg: 'CRITICAL: Credential stuffing attack — 47 failed logins/min', sev: 'crit', mitre: 'mt-credential-access' },
+        { msg: 'Health check OK — all services nominal', sev: 'info', mitre: null },
+      ];
+
+      function initLiveTerminal() {
+        setInterval(() => {
+          if (terminalPaused) return;
+          const isLiveTab = document.getElementById('tab-threatstream').classList.contains('active');
+          if (!isLiveTab) { generateTerminalEvent(); return; }
+          generateTerminalEvent();
+          renderTerminalFeed();
+        }, 1200);
+      }
+
+      function generateTerminalEvent() {
+        const now = new Date();
+        const ts = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3,'0');
+        const event = TERM_EVENTS[Math.floor(Math.random() * TERM_EVENTS.length)];
+        const src = TERM_SOURCES[Math.floor(Math.random() * TERM_SOURCES.length)];
+        const entry = { ts, src, ...event };
+        terminalLogs.push(entry);
+        if (terminalLogs.length > 50) terminalLogs.shift();
+        terminalCount = Math.min(terminalCount + 1, 50);
+        if (entry.sev === 'crit') {
+          terminalCritCount++;
+          if (entry.mitre) {
+            const el = document.getElementById(entry.mitre);
+            if (el) {
+              el.classList.add('active');
+              setTimeout(() => el.classList.remove('active'), 8000);
+            }
+          }
+        }
+        document.getElementById('term-last-time').textContent = ts;
+        document.getElementById('term-count').textContent = terminalLogs.length;
+        document.getElementById('term-crit-count').textContent = terminalCritCount;
+      }
+
+      function renderTerminalFeed() {
+        const feed = document.getElementById('live-terminal-feed');
+        if (!feed) return;
+        feed.innerHTML = terminalLogs.map(e => `
+          <div class="term-line ${e.sev}">
+            <span class="term-ts">${e.ts}</span>
+            <span class="term-src">${e.src}</span>
+            <span class="term-msg">${e.msg}</span>
+            ${e.mitre ? `<span class="term-mitre">MITRE:${e.mitre.replace('mt-','').replace(/-/g,' ').toUpperCase()}</span>` : ''}
+          </div>
+        `).join('');
+        feed.scrollTop = feed.scrollHeight;
+      }
+
+      window.clearTerminalFeed = function() {
+        terminalLogs.length = 0;
+        terminalCount = 0;
+        terminalCritCount = 0;
+        const feed = document.getElementById('live-terminal-feed');
+        if (feed) feed.innerHTML = '<div class="term-line info"><span class="term-ts">00:00:00.000</span><span class="term-src">SYSTEM</span><span class="term-msg">Terminal cleared.</span></div>';
+        document.getElementById('term-count').textContent = '0';
+        document.getElementById('term-crit-count').textContent = '0';
+      };
+      window.toggleTerminalPause = function() {
+        terminalPaused = !terminalPaused;
+        const btn = document.getElementById('term-pause-btn');
+        btn.innerHTML = terminalPaused
+          ? '<i class="ti ti-player-play"></i> Resume'
+          : '<i class="ti ti-player-pause"></i> Pause';
+        btn.style.background = terminalPaused ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)';
+        btn.style.color = terminalPaused ? '#4ade80' : '#fca5a5';
+        btn.style.borderColor = terminalPaused ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)';
+      };
+
+      /* ===== MALWARE SCAN GRID ===== */
+      let scanFile = null;
+      let scanPollTimer = null;
+
+      function initScanGrid() {
+        const canvas = document.getElementById('scan-grid-canvas');
+        if (!canvas) return;
+        for (let i = 0; i < 16 * 12; i++) {
+          const cell = document.createElement('div');
+          cell.className = 'scan-cell';
+          canvas.appendChild(cell);
+        }
+      }
+
+      function animateScanGrid(threatLevel) {
+        const cells = document.querySelectorAll('.scan-cell');
+        const beam = document.getElementById('scan-beam');
+        const overlay = document.getElementById('scan-overlay-text');
+        beam.style.display = 'block';
+        overlay.style.display = 'flex';
+
+        let phase = 0;
+        const glitchChars = '01アイウ#@%&!█▓░';
+        const glitchInterval = setInterval(() => {
+          overlay.textContent = [...Array(14)].map(() => glitchChars[Math.floor(Math.random() * glitchChars.length)]).join('');
+          overlay.className = 'scan-overlay-text glitch-text';
+        }, 80);
+
+        cells.forEach((cell, idx) => {
+          const delay = idx * 8;
+          setTimeout(() => {
+            cell.classList.add('active');
+            if (threatLevel > 0.5 && Math.random() > 0.7) {
+              cell.classList.add('threat');
+            }
+          }, delay);
+        });
+
+        setTimeout(() => {
+          clearInterval(glitchInterval);
+          beam.style.display = 'none';
+          overlay.className = 'scan-overlay-text';
+          if (threatLevel > 0.5) {
+            overlay.textContent = '⚠ THREAT DETECTED';
+            overlay.style.color = '#ef4444';
+            overlay.style.textShadow = '0 0 20px #ef4444, 0 0 40px rgba(239,68,68,0.5)';
+          } else {
+            overlay.textContent = '✓ CLEAN';
+            overlay.style.color = '#22c55e';
+            overlay.style.textShadow = '0 0 20px #22c55e';
+          }
+        }, 2800);
+      }
+
+      function resetScanGrid() {
+        const cells = document.querySelectorAll('.scan-cell');
+        const beam = document.getElementById('scan-beam');
+        const overlay = document.getElementById('scan-overlay-text');
+        cells.forEach(c => c.className = 'scan-cell');
+        beam.style.display = 'none';
+        overlay.style.display = 'none';
+        overlay.textContent = '';
+      }
+
+      window.handleScanFileDrop = function(event) {
+        event.preventDefault();
+        const file = event.dataTransfer.files[0];
+        if (file) setScannedFile(file);
+        event.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)';
+      };
+      window.handleScanFileSelect = function(event) {
+        const file = event.target.files[0];
+        if (file) setScannedFile(file);
+      };
+      function setScannedFile(file) {
+        scanFile = file;
+        document.getElementById('scan-file-name').textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        resetScanGrid();
+      }
+      window.launchMalwareScan = function() {
+        if (!scanFile) { showToast('❌ Please upload a file first.'); return; }
+        const btn = document.getElementById('scan-launch-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader"></i> Analyzing...';
+        const pollBar = document.getElementById('scan-poll-bar');
+        const pollFill = document.getElementById('scan-poll-fill');
+        const pollPct = document.getElementById('scan-poll-pct');
+        const pollStage = document.getElementById('scan-poll-stage');
+        pollBar.style.display = 'block';
+        const stages = [
+          'Initializing sandbox environment...',
+          'Extracting binary metadata & hashes...',
+          'Running static analysis engine...',
+          'Executing in isolated VM (dynamic analysis)...',
+          'Correlating IOCs against threat feeds...',
+          'Generating threat verdict...'
+        ];
+        let pct = 0;
+        let stageIdx = 0;
+        animateScanGrid(Math.random()); // random threat level for demo
+        const pollInterval = setInterval(() => {
+          pct += Math.random() * 18;
+          stageIdx = Math.min(Math.floor(pct / 18), stages.length - 1);
+          if (pct >= 100) { pct = 100; clearInterval(pollInterval); completeScan(); }
+          pollFill.style.width = pct + '%';
+          pollPct.textContent = Math.round(pct) + '%';
+          pollStage.textContent = stages[stageIdx];
+        }, 500);
+        function completeScan() {
+          const isMalicious = Math.random() > 0.55;
+          const panel = document.getElementById('scan-result-panel');
+          const sha256 = [...Array(64)].map(() => '0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+          panel.innerHTML = isMalicious ? `
+            <div style="width: 100%;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px;">
+                <div style="font-size: 36px;">🚨</div>
+                <div><div style="font-size: 18px; font-weight: 900; color: #fca5a5;">MALICIOUS — THREAT DETECTED</div><div style="font-size: 12px; color: #94a3b8;">File quarantined. Analyst alert triggered.</div></div>
+              </div>
+              <table style="width:100%;">
+                <tr><td style="color:#64748b; font-size:12px;">File</td><td style="font-family:monospace; color:#f8fafc;">${scanFile.name}</td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">SHA-256</td><td style="font-family:monospace; font-size:10px; color:#94a3b8;">${sha256}</td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">Verdict</td><td><span class="badge-tag badge-error">TROJAN / DROPPER</span></td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">MITRE Tactic</td><td><span class="mitre-tactic-tag active">💥 Impact / Execution</span></td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">Confidence</td><td style="color:#fca5a5; font-weight:700;">94.7%</td></tr>
+              </table>
+            </div>
+          ` : `
+            <div style="width: 100%;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 16px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px;">
+                <div style="font-size: 36px;">✅</div>
+                <div><div style="font-size: 18px; font-weight: 900; color: #4ade80;">CLEAN — NO THREATS FOUND</div><div style="font-size: 12px; color: #94a3b8;">File passed all analysis stages.</div></div>
+              </div>
+              <table style="width:100%;">
+                <tr><td style="color:#64748b; font-size:12px;">File</td><td style="font-family:monospace; color:#f8fafc;">${scanFile.name}</td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">SHA-256</td><td style="font-family:monospace; font-size:10px; color:#94a3b8;">${sha256}</td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">Verdict</td><td><span class="badge-tag badge-success">BENIGN</span></td></tr>
+                <tr><td style="color:#64748b; font-size:12px;">Confidence</td><td style="color:#4ade80; font-weight:700;">98.2%</td></tr>
+              </table>
+            </div>
+          `;
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ti ti-shield-search"></i> Initiate Secure Analysis';
+          showToast(isMalicious ? '🚨 MALICIOUS file detected! Review threat report.' : '✅ File is clean — no threats found.');
+        }
+      };
+
+      /* ===== YARA-L QUERY ENGINE ===== */
+      const yaralTemplates = {
+        brute: `rule BruteForceDetection {
+  meta:
+    author = "SecOps Analyst"
+    description = "Detect brute force login attempts (T1110)"
+    mitre_tactic = "Credential Access"
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.security_result.category = "AUTH_VIOLATION"
+    $e.principal.ip = $ip
+  condition:
+    #e > 5 over 5m
+}`,
+        privesc: `rule PrivilegeEscalation {
+  meta:
+    author = "SecOps Analyst"
+    description = "Detect privilege escalation attempts (T1068)"
+    mitre_tactic = "Privilege Escalation"
+  events:
+    $e.target.resource.name = "admin_panel"
+    $e.principal.user.account_type = "STANDARD_USER"
+    $e.security_result.summary = /escalat|sudo|SYSTEM|root/i
+  condition:
+    $e
+}`,
+        exfil: `rule DataExfiltrationC2 {
+  meta:
+    author = "SecOps Analyst"
+    description = "Detect data exfiltration over C2 channel (T1041)"
+    mitre_tactic = "Exfiltration"
+  events:
+    $e.network.direction = "OUTBOUND"
+    $e.network.sent_bytes > 500000
+    not net.ip_in_range($e.principal.ip, "10.0.0.0/8")
+  condition:
+    $e
+}`,
+        malware: `rule MalwareUploadIntercept {
+  meta:
+    author = "SecOps Analyst"
+    description = "Detect malicious file uploads to the HRMS document portal"
+    mitre_tactic = "Initial Access"
+  events:
+    $e.metadata.event_type = "FILE_UPLOAD"
+    $e.target.file.mime_type = /exe|dll|bat|ps1|sh/i
+    $e.security_result.summary = /quarantine|malware|trojan/i
+  condition:
+    $e
+}`,
+        lateral: `rule LateralMovement {
+  meta:
+    author = "SecOps Analyst"
+    description = "Detect lateral movement across network segments (T1021)"
+    mitre_tactic = "Lateral Movement"
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $src.ip != $dst.ip
+    $e.network.ip_protocol = "TCP"
+    $e.target.port in [22, 445, 3389, 5985]
+  match:
+    $src.ip over 10m
+  condition:
+    #e > 3
+}`
+      };
+
+      window.loadYaralTemplate = function() {
+        const key = document.getElementById('yaral-template').value;
+        if (key && yaralTemplates[key]) {
+          document.getElementById('yaral-query').value = yaralTemplates[key];
+        }
+      };
+
+      window.runYaralQuery = function() {
+        const query = document.getElementById('yaral-query').value.trim();
+        if (!query) { showToast('❌ Please enter a YARA-L query first.'); return; }
+        const results = document.getElementById('yaral-results');
+        const countBadge = document.getElementById('yaral-result-count');
+        results.innerHTML = '<div style="text-align:center; padding: 40px; color: #94a3b8;"><div style="font-size:28px; margin-bottom:8px;">⏳</div>Running query against SIEM logs...</div>';
+
+        setTimeout(() => {
+          // Simulate query results
+          const matchCount = Math.floor(Math.random() * 24) + 1;
+          const severities = ['CRITICAL','WARN','INFO'];
+          const tactics = ['Initial Access','Lateral Movement','Exfiltration','Credential Access','Execution'];
+          const bars = Array.from({length: Math.min(matchCount, 8)}, (_, i) => ({
+            sev: severities[Math.floor(Math.random() * severities.length)],
+            tactic: tactics[Math.floor(Math.random() * tactics.length)],
+            count: Math.floor(Math.random() * 15) + 1,
+          }));
+          const maxCount = Math.max(...bars.map(b => b.count));
+
+          countBadge.style.display = 'inline-block';
+          countBadge.textContent = matchCount + ' matches';
+          results.innerHTML = `
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px; font-family: monospace;">// Query executed in 0.${Math.floor(Math.random()*900)+100}ms against ${Math.floor(Math.random()*5000)+1000} events</div>
+              ${bars.map(b => `
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                  <div style="width: 100px; font-size: 10px; color: #94a3b8; text-align: right;">${b.tactic.substring(0,10)}</div>
+                  <div style="flex: 1; background: #1e293b; border-radius: 4px; height: 20px; overflow: hidden;">
+                    <div style="height: 100%; width: ${Math.round(b.count/maxCount*100)}%; background: ${
+                      b.sev === 'CRITICAL' ? 'linear-gradient(90deg, #ef4444, #dc2626)' :
+                      b.sev === 'WARN' ? 'linear-gradient(90deg, #f59e0b, #d97706)' :
+                      'linear-gradient(90deg, #3b82f6, #2563eb)'}; border-radius: 4px; transition: width 0.8s ease;"></div>
+                  </div>
+                  <div style="width: 30px; font-size: 11px; font-weight: 700; color: #f8fafc; font-family: monospace;">${b.count}</div>
+                  <span class="badge-tag ${ b.sev === 'CRITICAL' ? 'badge-error' : b.sev === 'WARN' ? 'badge-warn' : 'badge-info' }">${b.sev}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div style="padding: 10px 14px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; font-size: 12px; color: #93c5fd; font-family: monospace;">
+              MITRE ATT&CK correlation: ${tactics[Math.floor(Math.random()*tactics.length)]} — Results exportable as IOC feed
+            </div>
+          `;
+          showToast(`✅ YARA-L query returned ${matchCount} matching events.`);
+        }, 1200);
+      };
+
+      window.clearYaralQuery = function() {
+        document.getElementById('yaral-query').value = '';
+        document.getElementById('yaral-template').value = '';
+        document.getElementById('yaral-results').innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 260px; color: #475569;"><div style="font-size: 36px; margin-bottom: 12px;">⚡</div><div style="font-size: 14px; font-weight: 700;">Execute a query to see visual results</div></div>';
+        document.getElementById('yaral-result-count').style.display = 'none';
+      };
     </script>
   </body>
 </html>
