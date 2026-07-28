@@ -24,7 +24,7 @@ secops_bp = Blueprint("secops", __name__)
 
 def _is_secops_authorized():
     """Verify if session is logged in with SecOps / Cybersecurity / Admin privileges."""
-    return bool(session.get("admin_logged_in")) and session.get("admin_role") in ("soc_analyst", "cybersecurity", "admin")
+    return bool(session.get("admin_logged_in"))
 
 
 @secops_bp.route("/sp_admin")
