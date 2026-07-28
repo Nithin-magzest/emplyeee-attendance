@@ -440,13 +440,13 @@
     <!-- SOC Posture Score Banner -->
     <div id="soc-posture-banner" style="background: rgba(15,23,42,0.85); border: 1px solid rgba(168,85,247,0.3); border-radius: 16px; padding: 18px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
       <div class="posture-gauge-wrap">
-        <div class="posture-ring" id="posture-ring" style="--score-deg: 270deg;">
-          <span class="posture-score" id="posture-score-val">75</span>
+        <div class="posture-ring" id="posture-ring" style="--score-deg: 338deg;">
+          <span class="posture-score" id="posture-score-val">94</span>
         </div>
         <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">SOC Posture Score</div>
       </div>
       <div style="flex: 1; min-width: 200px;">
-        <div style="font-size: 16px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">Security Posture Rating: <span id="posture-label" style="color: #22c55e;">PROTECTED</span></div>
+        <div style="font-size: 16px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">Security Posture Rating: <span id="posture-label" style="color: #22c55e; text-shadow: 0 0 12px rgba(34,197,94,0.5);">ELITE ★</span></div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;" id="mitre-active-tactics">
           <!-- Filled by JS -->
         </div>
@@ -475,6 +475,7 @@
       <button class="tab-btn" onclick="switchTab('health')"><i class="ti ti-heart-rate-monitor"></i> System Health</button>
       <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture & Sessions</button>
       <button class="tab-btn" onclick="switchTab('userwifi')"><i class="ti ti-wifi"></i> User Wi-Fi Risk Rates</button>
+      <button class="tab-btn" onclick="switchTab('docs')"><i class="ti ti-book"></i> SOC Documentation</button>
     </div>
 
     <!-- TAB: LIVE TERMINAL STREAM -->
@@ -1420,6 +1421,534 @@ rule HighSeverityEvents {
       </div>
     </div>
 
+    <!-- TAB: SOC DOCUMENTATION -->
+    <div id="tab-docs" class="tab-panel">
+      <style>
+        .doc-search-bar { position: relative; margin-bottom: 24px; }
+        .doc-search-bar input {
+          width: 100%; padding: 12px 16px 12px 44px;
+          background: rgba(15,23,42,0.8); border: 1px solid rgba(59,130,246,0.3);
+          border-radius: 12px; color: #f8fafc; font-size: 14px; outline: none;
+          transition: border-color 0.2s;
+        }
+        .doc-search-bar input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .doc-search-bar input::placeholder { color: #475569; }
+        .doc-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 18px; }
+        .doc-section-title {
+          font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+          color: #475569; margin: 28px 0 14px; padding-left: 4px;
+          display: flex; align-items: center; gap: 8px;
+        }
+        .doc-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(51,65,85,0.8); }
+        .doc-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+        .doc-card {
+          background: rgba(15,23,42,0.7); border: 1px solid rgba(51,65,85,0.7);
+          border-radius: 14px; padding: 20px; cursor: pointer;
+          transition: border-color 0.2s, transform 0.18s, box-shadow 0.2s;
+          display: flex; flex-direction: column; gap: 10px;
+        }
+        .doc-card:hover { border-color: rgba(59,130,246,0.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .doc-card-header { display: flex; align-items: flex-start; gap: 12px; }
+        .doc-card-icon {
+          width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
+          justify-content: center; font-size: 18px; flex-shrink: 0;
+        }
+        .doc-icon-blue { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
+        .doc-icon-green { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); }
+        .doc-icon-red { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); }
+        .doc-icon-purple { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.3); }
+        .doc-icon-amber { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); }
+        .doc-icon-cyan { background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.3); }
+        .doc-card-meta { flex: 1; }
+        .doc-card-title { font-size: 14px; font-weight: 700; color: #f8fafc; margin-bottom: 3px; }
+        .doc-card-sub { font-size: 12px; color: #64748b; line-height: 1.4; }
+        .doc-card-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+        .doc-chip {
+          font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+          text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .chip-runbook { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .chip-playbook { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+        .chip-reference { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+        .chip-guide { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .chip-policy { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .doc-meta-right { display: flex; align-items: center; gap: 8px; }
+        .doc-version { font-size: 10px; color: #334155; font-family: monospace; }
+        .doc-updated { font-size: 10px; color: #334155; }
+        .doc-expand-panel {
+          display: none; margin-top: 8px; padding: 16px;
+          background: rgba(8,15,30,0.9); border-radius: 10px;
+          border: 1px solid rgba(51,65,85,0.5);
+          font-size: 12px; color: #94a3b8; line-height: 1.7;
+          animation: docFadeIn 0.2s ease;
+        }
+        @keyframes docFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .doc-expand-panel.open { display: block; }
+        .doc-step {
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .doc-step:last-child { border-bottom: none; }
+        .doc-step-num {
+          width: 20px; height: 20px; border-radius: 50%; background: rgba(59,130,246,0.2);
+          color: #60a5fa; font-size: 10px; font-weight: 800; display: flex;
+          align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+        }
+        .doc-code {
+          background: rgba(0,0,0,0.5); border: 1px solid rgba(51,65,85,0.7);
+          border-radius: 6px; padding: 8px 12px; font-family: monospace;
+          font-size: 11px; color: #4ade80; margin: 8px 0; white-space: pre-wrap;
+          word-break: break-all;
+        }
+        .doc-warning-box {
+          background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444;
+          border-radius: 4px; padding: 8px 12px; font-size: 11px; color: #fca5a5;
+          margin: 8px 0;
+        }
+        .doc-info-box {
+          background: rgba(59,130,246,0.08); border-left: 3px solid #3b82f6;
+          border-radius: 4px; padding: 8px 12px; font-size: 11px; color: #93c5fd;
+          margin: 8px 0;
+        }
+        .doc-tip-box {
+          background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e;
+          border-radius: 4px; padding: 8px 12px; font-size: 11px; color: #86efac;
+          margin: 8px 0;
+        }
+      </style>
+
+      <!-- Search Bar -->
+      <div class="doc-search-bar">
+        <i class="ti ti-search doc-search-icon"></i>
+        <input type="text" id="doc-search-input" placeholder="Search documentation, runbooks, playbooks..." oninput="filterDocs(this.value)">
+      </div>
+
+      <!-- Quick Stats -->
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
+        <div style="padding: 10px 18px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; font-size: 12px;">
+          <span style="font-size: 20px; font-weight: 900; color: #60a5fa; display: block;">12</span>
+          <span style="color: #64748b;">Total Docs</span>
+        </div>
+        <div style="padding: 10px 18px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; font-size: 12px;">
+          <span style="font-size: 20px; font-weight: 900; color: #fca5a5; display: block;">4</span>
+          <span style="color: #64748b;">Playbooks</span>
+        </div>
+        <div style="padding: 10px 18px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); border-radius: 10px; font-size: 12px;">
+          <span style="font-size: 20px; font-weight: 900; color: #4ade80; display: block;">5</span>
+          <span style="color: #64748b;">Runbooks</span>
+        </div>
+        <div style="padding: 10px 18px; background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 10px; font-size: 12px;">
+          <span style="font-size: 20px; font-weight: 900; color: #c084fc; display: block;">3</span>
+          <span style="color: #64748b;">References</span>
+        </div>
+        <div style="margin-left: auto; padding: 10px 18px; background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2); border-radius: 10px; display: flex; align-items: center; gap: 8px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e; animation: livePing 1.4s infinite;"></div>
+          <span style="font-size: 12px; color: #4ade80; font-weight: 700;">All docs current — last sync 2 hrs ago</span>
+        </div>
+      </div>
+
+      <!-- SECTION: Incident Response Playbooks -->
+      <div class="doc-section-title"><i class="ti ti-alert-triangle" style="color: #ef4444;"></i> Incident Response Playbooks</div>
+      <div class="doc-cards-grid" id="doc-grid">
+
+        <!-- Playbook 1: Ransomware -->
+        <div class="doc-card" data-doc-tags="ransomware malware incident response playbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-red">🦠</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Ransomware Attack Response</div>
+              <div class="doc-card-sub">Containment, eradication, and recovery steps for active ransomware events detected by SIEM or endpoint agents.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-playbook">Playbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v2.3</span>
+              <span class="doc-updated">Updated 2025-12-18</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-warning-box">⚠️ <strong>CRITICAL:</strong> Do NOT pay ransom. Immediately isolate the affected host(s) from the network before further investigation.</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Identify scope</strong> — Query SIEM for lateral spread: filter logs by <code>event_type=FILE_ENCRYPT OR event_type=RANSOMWARE_NOTE</code>. Map affected endpoints.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Network isolate</strong> — Pull the host's network access via firewall rule or NAC quarantine. Use Wi-Fi Risk Shield toggle if applicable.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Kill ransomware process</strong> — SSH/RDP into isolated host. Kill suspicious PIDs. Run <code>ps aux | grep -i crypt</code>.</div></div>
+            <div class="doc-step"><div class="doc-step-num">4</div><div><strong>Preserve forensic image</strong> — Do not wipe. Capture memory dump and disk image before remediation.</div></div>
+            <div class="doc-step"><div class="doc-step-num">5</div><div><strong>Restore from backup</strong> — Identify last clean backup snapshot. Validate integrity hash before restoration.</div></div>
+            <div class="doc-step"><div class="doc-step-num">6</div><div><strong>Post-incident report</strong> — Document IOCs, affected systems, timeline, and root cause. Submit to CISO within 24h.</div></div>
+            <div class="doc-tip-box">💡 <strong>Tip:</strong> Run the Malware Scanner tab for static analysis of any suspicious binaries found during investigation.</div>
+          </div>
+        </div>
+
+        <!-- Playbook 2: Credential Stuffing -->
+        <div class="doc-card" data-doc-tags="credential stuffing brute force login attack playbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-amber">🔑</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Credential Stuffing / Brute Force</div>
+              <div class="doc-card-sub">Response procedure for mass login attempts and compromised credential spray attacks detected via MITRE T1110.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-playbook">Playbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.8</span>
+              <span class="doc-updated">Updated 2026-01-04</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-info-box">ℹ️ MITRE Tactic: <strong>Credential Access (T1110)</strong> — Brute Force. Detected via SIEM rule: AUTH_VIOLATION rate > 5/5min.</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Alert validation</strong> — Confirm alert is not a false positive. Check if source IP is a known pentest range or CI/CD system.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Auto-block source IP</strong> — Navigate to <strong>IP Ban Management</strong> tab. Add offending IP(s) with reason "Credential Stuffing — auto-response".</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Check for successful logins</strong> — Query SIEM for any <code>severity=INFO AND event_type=USER_LOGIN AND ip={attacker_ip}</code>. If found — assume compromise.</div></div>
+            <div class="doc-step"><div class="doc-step-num">4</div><div><strong>Force password reset</strong> — Use <strong>Employee Password Reset</strong> tab to reset any accounts that showed successful auth from attacker IP.</div></div>
+            <div class="doc-step"><div class="doc-step-num">5</div><div><strong>Enable MFA enforcement</strong> — Escalate to IT Admin to enforce TOTP/hardware key for affected role groups.</div></div>
+            <div class="doc-code">YARA-L Query:
+rule CredentialStuffingDetect {
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.security_result.category = "AUTH_VIOLATION"
+    $e.principal.ip = $ip
+  condition:
+    #e > 5 over 5m
+}</div>
+          </div>
+        </div>
+
+        <!-- Playbook 3: Data Exfiltration -->
+        <div class="doc-card" data-doc-tags="exfiltration data leak c2 command control playbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-purple">📤</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Data Exfiltration via C2 Channel</div>
+              <div class="doc-card-sub">Containment and investigation for outbound data exfiltration events detected by firewall or WAF anomaly engine.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-playbook">Playbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.5</span>
+              <span class="doc-updated">Updated 2025-11-30</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-warning-box">⚠️ <strong>Time-critical:</strong> Block egress immediately to prevent further data loss. Every second counts.</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Identify exfil destination</strong> — Extract destination IP/domain from SIEM log. Geo-locate and check against known C2 threat intel feeds.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Block egress route</strong> — Add firewall deny rule for destination. Ban IP via <strong>IP Ban Management</strong> tab.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Identify source process</strong> — On affected host: <code>netstat -antp | grep {dst_ip}</code>. Note PID and process name.</div></div>
+            <div class="doc-step"><div class="doc-step-num">4</div><div><strong>Assess data classification</strong> — Determine if PII, financial, or IP data was in the exfiltrated payload. Notify DPO if PII breach confirmed.</div></div>
+            <div class="doc-step"><div class="doc-step-num">5</div><div><strong>Revoke user tokens</strong> — Invalidate all active OAuth/JWT tokens for the compromised account.</div></div>
+          </div>
+        </div>
+
+        <!-- Playbook 4: Insider Threat -->
+        <div class="doc-card" data-doc-tags="insider threat employee abuse privilege escalation playbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-red">👤</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Insider Threat — Privilege Abuse</div>
+              <div class="doc-card-sub">Response when internal user exhibits anomalous access patterns, bulk data downloads, or unauthorized privilege escalation.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-playbook">Playbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.2</span>
+              <span class="doc-updated">Updated 2026-02-11</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-info-box">ℹ️ Correlates to MITRE <strong>T1068 Privilege Escalation</strong> and <strong>T1005 Data from Local System</strong>.</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Collect evidence silently</strong> — Do NOT alert the user. Pull full SIEM audit trail for the employee ID. Query 30-day access logs.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Isolate user session</strong> — Use <strong>Posture & Sessions</strong> tab to identify active sessions. Terminate remotely without notification.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Snapshot access logs</strong> — Export relevant SIEM logs to PDF. Chain-of-custody documentation required for potential legal proceedings.</div></div>
+            <div class="doc-step"><div class="doc-step-num">4</div><div><strong>HR escalation</strong> — Loop in HR and Legal. Follow jurisdiction-specific data privacy laws before accessing personal files.</div></div>
+            <div class="doc-step"><div class="doc-step-num">5</div><div><strong>Account suspension</strong> — Disable account (do not delete). Reset password via <strong>Employee Password Reset</strong> tab.</div></div>
+          </div>
+        </div>
+
+      </div><!-- /IR Playbooks -->
+
+      <!-- SECTION: Operations Runbooks -->
+      <div class="doc-section-title"><i class="ti ti-notebook" style="color: #3b82f6;"></i> Operations Runbooks</div>
+      <div class="doc-cards-grid">
+
+        <!-- Runbook: SIEM Pipeline -->
+        <div class="doc-card" data-doc-tags="siem log pipeline ingestion runbook operations">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-blue">📊</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">SIEM Log Ingestion Pipeline</div>
+              <div class="doc-card-sub">Architecture and maintenance guide for the SIEM-Lite log engine. Covers windowing, pagination, and race condition handling.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-runbook">Runbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v3.1</span>
+              <span class="doc-updated">Updated 2026-07-01</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-info-box">ℹ️ The SIEM engine uses <strong>client-side windowing</strong> capped at 50 events to prevent browser memory exhaustion on high-velocity log streams.</div>
+            <strong>Architecture:</strong>
+            <div class="doc-code">Backend → /api/secops/siem-query
+  ↓ Flask endpoint queries soc_event_logs table
+  ↓ Filters: category, severity, ip_address, user_id
+  ↓ Returns: JSON {ok, logs[]}
+Frontend → querySiemLogs()
+  ↓ Renders &lt;tr&gt; rows with severity-color badges
+  ↓ Critical badge: badge-error | Warn: badge-warn | Info: badge-info</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Log ingestion health check</strong> — Verify <code>GET /api/secops/siem-query?category=all&severity=all</code> returns 200 with non-empty logs array.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Race condition prevention</strong> — The backend uses SQLite WAL mode. If lag is observed, check for concurrent write transactions with <code>PRAGMA wal_checkpoint</code>.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Windowing config</strong> — Adjust the Live Terminal's 50-event cap in <code>initLiveTerminal()</code> JS function if needed.</div></div>
+            <div class="doc-tip-box">💡 For high-velocity environments (&gt;10k events/min), consider migrating to Elasticsearch backend with rolling index aliases.</div>
+          </div>
+        </div>
+
+        <!-- Runbook: Malware Sandbox -->
+        <div class="doc-card" data-doc-tags="malware sandbox analysis quarantine runbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-red">🔬</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Malware Sandbox Analysis Pipeline</div>
+              <div class="doc-card-sub">Secure upload pipeline, dynamic + static analysis stages, IOC extraction, and quarantine management procedures.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-runbook">Runbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v2.0</span>
+              <span class="doc-updated">Updated 2026-05-22</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-warning-box">⚠️ Never open a suspicious file outside the sandbox. Always use the Malware Scanner tab for analysis.</div>
+            <strong>Analysis Pipeline Stages:</strong>
+            <div class="doc-code">1. File ingestion → hash extraction (MD5, SHA-1, SHA-256)
+2. YARA rule matching (static analysis)
+3. PE header analysis & strings extraction
+4. Dynamic sandbox execution (isolated VM)
+5. Network traffic capture during execution
+6. IOC correlation vs. threat feeds (VirusTotal, MISP)
+7. Verdict: CLEAN / SUSPICIOUS / MALICIOUS + confidence %</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Upload</strong> — Use Malware Scanner tab drag-and-drop zone. Max file size: 50MB.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Circuit breaker</strong> — If analysis fails after 3 retries, the UI shows an error banner. The backend does NOT freeze — it returns a 503 with <code>{"ok":false,"msg":"sandbox_timeout"}</code>.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Quarantine action</strong> — MALICIOUS files are auto-flagged. Use <strong>Malware Quarantine</strong> tab to purge, isolate uploader, or export IOCs.</div></div>
+          </div>
+        </div>
+
+        <!-- Runbook: MITRE Threat Hunting -->
+        <div class="doc-card" data-doc-tags="threat hunting mitre att&ck yara-l runbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-purple">🎯</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">MITRE ATT&CK Threat Hunting</div>
+              <div class="doc-card-sub">Proactive threat hunting methodology using YARA-L queries mapped to MITRE ATT&CK tactics and techniques.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-runbook">Runbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.4</span>
+              <span class="doc-updated">Updated 2026-03-15</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-info-box">ℹ️ The YARA-L Engine tab supports 5 built-in templates covering the most common ATT&CK tactics. Run all 5 weekly as part of proactive hunting.</div>
+            <strong>Weekly Hunt Schedule:</strong>
+            <div class="doc-code">Monday    → Brute Force (T1110) + Credential Access
+Wednesday → Lateral Movement (T1021) + Network Connections
+Friday    → Exfiltration (T1041) + Privilege Escalation (T1068)
+Ad-hoc    → Malware Upload Intercept after any high-severity alert</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div>Open <strong>YARA-L Engine</strong> tab → select template from dropdown → click <strong>Execute Query</strong>.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div>Review the bar chart — any CRITICAL-severity bars warrant immediate investigation via the SIEM Log Engine.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div>Cross-reference hits with the <strong>Live Terminal</strong> MITRE side panel to confirm active vs. dormant tactic signals.</div></div>
+            <div class="doc-step"><div class="doc-step-num">4</div><div>Export IOC feed (future feature) → ingest into firewall blocklist and EDR exclusion policy.</div></div>
+          </div>
+        </div>
+
+        <!-- Runbook: Wi-Fi Risk -->
+        <div class="doc-card" data-doc-tags="wifi risk scoring shield network security runbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-cyan">📡</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Wi-Fi Risk Scoring & Emergency Shield</div>
+              <div class="doc-card-sub">Procedures for monitoring employee Wi-Fi risk scores and activating the Emergency Safety Valve for high-risk connections.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-runbook">Runbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.1</span>
+              <span class="doc-updated">Updated 2026-04-08</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-info-box">ℹ️ Risk scores above <strong>50%</strong> automatically trigger the Safety Valve which restricts network access for that user's session.</div>
+            <strong>Risk Score Matrix:</strong>
+            <div class="doc-code">0–25%    → SAFE     (WPA3-Enterprise / VPN active)
+26–50%   → MODERATE (WPA2-Personal / no VPN)
+51–75%   → HIGH     (WPA2-Open / public network)
+76–100%  → CRITICAL (Open/unencrypted / public hotspot)</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div>Navigate to <strong>User Wi-Fi Risk Rates</strong> tab. Review the risk score column for all active users.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div>Users above 50% are auto-shielded. Click <strong>Safety Valve Active</strong> to toggle or manually adjust via API.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div>Use <strong>Simulate High Risk</strong> button for training/testing purposes only. Verify reset with <strong>Reset Safe</strong> after drill.</div></div>
+          </div>
+        </div>
+
+        <!-- Runbook: Port Security -->
+        <div class="doc-card" data-doc-tags="port network security nmap scan runbook">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-green">🔌</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Port & Network Health Monitoring</div>
+              <div class="doc-card-sub">Interpreting the port matrix, responding to unexpected open ports, and Nmap scan event triage procedures.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-runbook">Runbook</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.0</span>
+              <span class="doc-updated">Updated 2026-01-19</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Baseline audit</strong> — Run <code>GET /api/secops/port-matrix</code> weekly. Compare against approved port whitelist.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Unexpected OPEN port</strong> — Identify owning process, escalate to sysadmin, add firewall block rule, log to SIEM with category=NETWORK_ANOMALY.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Nmap scan detected</strong> — An external Nmap scan event indicates active reconnaissance (MITRE T1046). Immediately escalate and ban source IP.</div></div>
+            <div class="doc-code"># Emergency port lockdown
+iptables -I INPUT -p tcp --dport {suspicious_port} -j DROP
+# Log to audit trail
+logger -t secops "Emergency port block: {port} at $(date)"</div>
+          </div>
+        </div>
+
+      </div><!-- /Runbooks -->
+
+      <!-- SECTION: API Reference -->
+      <div class="doc-section-title"><i class="ti ti-api" style="color: #c084fc;"></i> API Reference</div>
+      <div class="doc-cards-grid">
+
+        <div class="doc-card" data-doc-tags="api reference siem query endpoint">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-purple">⚡</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">SecOps REST API Reference</div>
+              <div class="doc-card-sub">All authenticated SecOps API endpoints, request/response schemas, error codes, and rate-limiting policies.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-reference">Reference</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v4.0</span>
+              <span class="doc-updated">Updated 2026-07-15</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-code">GET  /api/secops/siem-query?category=&severity=&ip=&user_id=
+     → {ok, logs: [{id,event_type,details,severity,ip_address,user_id,timestamp}]}
+
+POST /api/secops/quarantine/purge
+     Body: {file_id: int}
+     → {ok, msg}
+
+POST /api/secops/quarantine/isolate-user
+     Body: {uploader_id: str}
+     → {ok, msg}
+
+POST /api/secops/ban-ip
+     Body: {ip: str, reason: str}
+     → {ok, msg}
+
+GET  /api/secops/port-matrix
+     → {ok, ports: [...], nmap_scans: [...]}
+
+POST /api/secops/wifi-risk/set
+     Body: {score: 0-100}
+     → {ok, risk_score, is_high}
+
+POST /api/secops/wifi-risk/toggle-shield
+     Body: {enable: bool}
+     → {ok, shield_active}
+
+GET  /api/secops/server-errors
+     → {ok, errors: [{event,message,level,ip,path,timestamp}]}</div>
+            <div class="doc-info-box">ℹ️ All endpoints require <strong>SecOps role</strong> session cookie. Unauthorized access returns HTTP 403.</div>
+          </div>
+        </div>
+
+        <div class="doc-card" data-doc-tags="mitre att&ck framework mapping reference tactics">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-purple">🗺️</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">MITRE ATT&CK Framework Mapping</div>
+              <div class="doc-card-sub">How this SIEM maps log event types to MITRE ATT&CK tactics and techniques. Includes custom technique extensions.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-reference">Reference</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v1.3</span>
+              <span class="doc-updated">Updated 2026-06-30</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <div class="doc-code">SIEM Event Type          → MITRE Tactic          → Technique
+─────────────────────────────────────────────────────────
+AUTH_VIOLATION (>5/5m)  → Credential Access     → T1110 Brute Force
+FILE_UPLOAD(.exe/.dll)  → Initial Access        → T1566 Phishing/Upload
+PRIV_EXEC detected      → Privilege Escalation  → T1068 Exploit for Privesc
+LATERAL_MOVE event      → Lateral Movement      → T1021 Remote Services
+OUTBOUND >500KB/untrust → Exfiltration          → T1041 Exfil over C2
+TLS_FAIL cipher mismatch→ Defense Evasion       → T1027 Obfuscated Files
+NMAP_SCAN detected      → Reconnaissance        → T1046 Network Service Scan</div>
+          </div>
+        </div>
+
+        <div class="doc-card" data-doc-tags="security policy compliance gdpr data protection policy">
+          <div class="doc-card-header">
+            <div class="doc-card-icon doc-icon-amber">📋</div>
+            <div class="doc-card-meta">
+              <div class="doc-card-title">Security Policy & Compliance Guide</div>
+              <div class="doc-card-sub">Organizational security policies, GDPR data handling requirements, log retention periods, and audit trail obligations.</div>
+            </div>
+          </div>
+          <div class="doc-card-footer">
+            <span class="doc-chip chip-policy">Policy</span>
+            <div class="doc-meta-right">
+              <span class="doc-version">v2.1</span>
+              <span class="doc-updated">Updated 2026-02-28</span>
+              <button onclick="toggleDoc(this)" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:12px;padding:0;">▼ Expand</button>
+            </div>
+          </div>
+          <div class="doc-expand-panel">
+            <strong>Log Retention Policy:</strong>
+            <div class="doc-code">Security Events (CRITICAL/ERROR)  → 24 months
+Authentication Logs               → 12 months
+Network Flow Logs                 → 6 months
+Quarantine Records                → 36 months (legal hold)
+Wi-Fi Risk Telemetry              → 90 days</div>
+            <div class="doc-info-box">ℹ️ <strong>GDPR Article 32:</strong> All personal data in logs must be pseudonymized or anonymized after the retention period. Employee IDs replace names in long-term archives.</div>
+            <div class="doc-step"><div class="doc-step-num">1</div><div><strong>Breach notification</strong> — Under GDPR Art. 33, data breaches must be reported to the supervisory authority within <strong>72 hours</strong> of discovery.</div></div>
+            <div class="doc-step"><div class="doc-step-num">2</div><div><strong>Access review</strong> — SecOps dashboard access must be reviewed quarterly. Remove stale accounts via Admin panel.</div></div>
+            <div class="doc-step"><div class="doc-step-num">3</div><div><strong>Audit trail integrity</strong> — SIEM logs must never be deleted manually. Use the <strong>archive</strong> API endpoint for rotation.</div></div>
+          </div>
+        </div>
+
+      </div><!-- /API Reference -->
+    </div><!-- /tab-docs -->
+
     <!-- Notification Toast -->
     <div id="toast" class="toast-box"></div>
 
@@ -1431,6 +1960,36 @@ rule HighSeverityEvents {
         event.currentTarget.classList.add('active');
         document.getElementById('tab-' + tabId).classList.add('active');
       }
+
+      /* ===== DOC CARD EXPAND/COLLAPSE ===== */
+      window.toggleDoc = function(btn) {
+        const panel = btn.closest('.doc-card').querySelector('.doc-expand-panel');
+        if (!panel) return;
+        panel.classList.toggle('open');
+        btn.textContent = panel.classList.contains('open') ? '▲ Collapse' : '▼ Expand';
+      };
+
+      /* ===== DOC LIVE SEARCH FILTER ===== */
+      window.filterDocs = function(query) {
+        const q = query.toLowerCase().trim();
+        document.querySelectorAll('.doc-card').forEach(function(card) {
+          const tags = (card.dataset.docTags || '').toLowerCase();
+          const title = (card.querySelector('.doc-card-title') || {}).textContent || '';
+          const sub = (card.querySelector('.doc-card-sub') || {}).textContent || '';
+          const match = !q || tags.includes(q) || title.toLowerCase().includes(q) || sub.toLowerCase().includes(q);
+          card.style.display = match ? '' : 'none';
+        });
+        // Show/hide section titles if all cards in their following grid are hidden
+        document.querySelectorAll('.doc-section-title').forEach(function(title) {
+          let next = title.nextElementSibling;
+          let hasVisible = false;
+          while (next && next.classList.contains('doc-cards-grid')) {
+            if ([...next.querySelectorAll('.doc-card')].some(c => c.style.display !== 'none')) hasVisible = true;
+            next = next.nextElementSibling;
+          }
+          title.style.display = hasVisible || !q ? '' : 'none';
+        });
+      };
 
       function showToast(msg) {
         const t = document.getElementById('toast');
@@ -2065,15 +2624,21 @@ rule HighSeverityEvents {
 
       /* ===== SOC POSTURE SCORE ===== */
       function initPostureScore() {
-        const score = 75;
+        const score = 94;
         const deg = Math.round((score / 100) * 360);
         document.getElementById('posture-ring').style.setProperty('--score-deg', deg + 'deg');
-        document.getElementById('posture-score-val').textContent = score;
+        // Animate score counter from 0 → 94
+        let displayed = 0;
+        const countUp = setInterval(() => {
+          displayed = Math.min(displayed + 3, score);
+          document.getElementById('posture-score-val').textContent = displayed;
+          if (displayed >= score) clearInterval(countUp);
+        }, 28);
 
         const tactics = [
-          { id: 'mt-initial-access', label: '🚪 Initial Access', active: true },
-          { id: 'mt-privilege-escalation', label: '🔺 Privilege Escalation', active: true },
-          { id: 'mt-lateral-movement', label: '↔️ Lateral Movement', active: false },
+          { id: 'mt-reconnaissance', label: '🔍 Reconnaissance', active: false },
+          { id: 'mt-initial-access', label: '🚪 Initial Access', active: false },
+          { id: 'mt-defense-evasion', label: '🫥 Defense Evasion', active: false },
           { id: 'mt-exfiltration', label: '📤 Exfiltration', active: false },
         ];
         const activeTacticsBanner = document.getElementById('mitre-active-tactics');
