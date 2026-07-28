@@ -930,7 +930,7 @@ def _soc_session_or_404():
     username = session.get("admin_username")
     role = session.get("admin_role")
     logged_in = bool(session.get("admin_logged_in") and username)
-    if not logged_in or role not in (SOC_ANALYST_ROLE, "cybersecurity"):
+    if not logged_in or role not in (SOC_ANALYST_ROLE, "cybersecurity", "admin"):
         log_security_event(
             "access.escalation_attempt" if logged_in else "access.denied",
             "Unauthorized Escalation Attempt: SOC Analyst gate probed by a non-SOC session"

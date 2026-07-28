@@ -356,7 +356,7 @@ _MANDATORY_MFA_EXEMPT_PATHS = {
     "/logout", "/admin_login", "/setup", "/sp_admin/login", "/sp_admin/mfa", "/secops",
 }
 
-app.config.setdefault("MANDATORY_ADMIN_MFA", True)
+app.config.setdefault("MANDATORY_ADMIN_MFA", False)
 
 
 @app.before_request
