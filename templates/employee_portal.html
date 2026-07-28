@@ -8,6 +8,22 @@
     <title>My Portal — {{ emp[1] }}</title>
     <script src="/static/jsQR.min.js"></script>
     <style>
+      /* Premium Flipping/Rotating Animations for Buttons and Texts */
+      .sb-item, .btn, .btn-primary, .btn-checkin, .action-btn {
+        perspective: 1000px;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      }
+      .sb-item:hover, .btn:hover, .btn-primary:hover, .btn-checkin:hover, .action-btn:hover {
+        transform: scale(1.05) translateY(-2px) !important;
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.25) !important;
+      }
+      .sb-item i, .btn i, .btn-primary i, .btn-checkin i, .action-btn i, .sb-icon i {
+        display: inline-block;
+        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      }
+      .sb-item:hover i, .btn:hover i, .btn-primary:hover i, .btn-checkin:hover i, .action-btn:hover i, .sb-icon:hover i {
+        transform: rotateY(180deg) rotate(360deg) !important;
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       html, body { height: 100%; }
       body { background: #f1f5f9; display: flex; flex-direction: row; min-height: 100dvh; }

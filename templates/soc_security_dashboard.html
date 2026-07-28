@@ -7,6 +7,37 @@
     <link rel="stylesheet" href="/static/shared.min.css" />
     <link rel="stylesheet" href="/static/tabler-icons.min.css" />
     <style>
+      /* Premium Flipping/Rotating Animations for Buttons and Texts */
+      .tab-btn, .btn-primary, .btn-nav, .btn-secops, .remediate-btn, .playbook-btn {
+        perspective: 1000px;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      }
+      .tab-btn:hover, .btn-primary:hover, .btn-nav:hover, .btn-secops:hover, .remediate-btn:hover, .playbook-btn:hover {
+        transform: scale(1.05) translateY(-2px) !important;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5) !important;
+        border-color: rgba(59, 130, 246, 0.8) !important;
+      }
+      .tab-btn i, .btn-primary i, .btn-nav i, .btn-secops i, .remediate-btn i, .playbook-btn i {
+        display: inline-block;
+        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      }
+      .tab-btn:hover i, .btn-primary:hover i, .btn-nav:hover i, .btn-secops:hover i, .remediate-btn:hover i, .playbook-btn:hover i {
+        transform: rotateY(180deg) rotate(360deg) !important;
+      }
+      .sec-logo:hover, .card-title i:hover {
+        animation: logoFlip 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes logoFlip {
+        0% { transform: rotateY(0deg); }
+        100% { transform: rotateY(360deg); }
+      }
+      .pulsing-alert {
+        animation: neonPulse 1.5s infinite alternate;
+      }
+      @keyframes neonPulse {
+        from { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+        to { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
       body {
         background: radial-gradient(circle at 50% 10%, #0f172a, #020617);
