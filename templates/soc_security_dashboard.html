@@ -476,6 +476,9 @@
       <button class="tab-btn" onclick="switchTab('posture')"><i class="ti ti-shield-check"></i> Posture & Sessions</button>
       <button class="tab-btn" onclick="switchTab('userwifi')"><i class="ti ti-wifi"></i> User Wi-Fi Risk Rates</button>
       <button class="tab-btn" onclick="switchTab('docs')"><i class="ti ti-book"></i> SOC Documentation</button>
+      <button class="tab-btn" onclick="switchTab('playbooks')"><i class="ti ti-rotate"></i> SOAR Playbooks</button>
+      <button class="tab-btn" onclick="switchTab('shadowit')"><i class="ti ti-cloud-off"></i> Shadow IT Detection</button>
+      <button class="tab-btn" onclick="switchTab('ransomware')"><i class="ti ti-shield-alert"></i> Ransomware Recovery</button>
     </div>
 
     <!-- TAB: LIVE TERMINAL STREAM -->
@@ -1421,6 +1424,172 @@ rule HighSeverityEvents {
       </div>
     </div>
 
+    <!-- TAB: SOAR PLAYBOOKS -->
+    <div id="tab-playbooks" class="tab-panel">
+      <div class="mod-title">🔄 SOAR Playbooks &amp; Automation Hub <span>Monitor and execute automated security workflows</span></div>
+      
+      <style>
+        .soar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .soar-card { background: rgba(15,23,42,0.85); border: 1px solid rgba(59,130,246,0.3); border-radius: 16px; padding: 20px; }
+        .status-dot-active { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; animation: livePing 1.4s infinite; }
+        .execution-log { background: #050c14; border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 14px; font-family: monospace; font-size: 11px; height: 160px; overflow-y: auto; color: #60a5fa; }
+      </style>
+
+      <div class="soar-grid">
+        <div class="soar-card">
+          <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <span>Active Automated Playbooks</span>
+            <span style="font-size: 11px; color: #64748b;">3 Running</span>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 700; color: #f8fafc;">Brute Force Auto-Ban IP</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Triggers on 5+ login failures</div>
+              </div>
+              <div class="status-dot-active"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 700; color: #f8fafc;">Phishing File Quarantine</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Automated malware scan sandbox block</div>
+              </div>
+              <div class="status-dot-active"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 700; color: #f8fafc;">Exfil Session Teardown</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Auto-revokes user credentials on huge egress</div>
+              </div>
+              <div style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 8px #f59e0b;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="soar-card">
+          <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 12px;">Interactive Playbook Simulator</div>
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Trigger a mock dry-run of a SOAR response orchestration workflow:</div>
+          
+          <div class="execution-log" id="soar-exec-log">
+            [SYS] Ready to simulate playbook execution. Click trigger button...
+          </div>
+          
+          <button type="button" class="btn-magnetic" style="width: 100%; margin-top: 12px; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;" onclick="runSoarSimulation()">
+            🚀 Execute Attack Response Playbook
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: SHADOW IT DETECTION -->
+    <div id="tab-shadowit" class="tab-panel">
+      <div class="mod-title">☁️ Multi-Cloud Shadow IT Visibility <span>Detect unauthorized services and storage misconfigurations</span></div>
+      
+      <style>
+        .shadow-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px; }
+        @media (max-width: 768px) { .shadow-grid { grid-template-columns: 1fr; } }
+        .shadow-card { background: rgba(15,23,42,0.85); border: 1px solid rgba(59,130,246,0.3); border-radius: 16px; padding: 20px; }
+        .alert-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; margin-bottom: 10px; }
+      </style>
+
+      <div class="shadow-grid">
+        <div class="shadow-card">
+          <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 14px;">Detected Violations &amp; Exposed Buckets</div>
+          
+          <div class="alert-row" id="shadow-row-s3">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #fca5a5;">⚠ AWS S3 Bucket Exposed (public-read)</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Bucket: <code>production-backups-unencrypted</code> is fully accessible online</div>
+            </div>
+            <button type="button" style="padding: 6px 12px; background: #ef4444; border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="fixShadowIt('s3')">Remediate Bucket</button>
+          </div>
+
+          <div class="alert-row" style="background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2);" id="shadow-row-dropbox">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #fde047;">⚠ Shadow Dropbox Access Detected</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">User <code>emp_104</code> uploaded 4.2GB of archive data to personal account</div>
+            </div>
+            <button type="button" style="padding: 6px 12px; background: #fbbf24; border: none; border-radius: 6px; color: #000; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="fixShadowIt('dropbox')">Block Service</button>
+          </div>
+
+          <div class="alert-row" style="background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.2);" id="shadow-row-webhook">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #93c5fd;">⚠ Exposed Webhook Endpoint</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">GitHub public repo leaked slack integration webhook token</div>
+            </div>
+            <button type="button" style="padding: 6px 12px; background: #3b82f6; border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="fixShadowIt('webhook')">Revoke Token</button>
+          </div>
+        </div>
+
+        <div class="shadow-card" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">Multi-Cloud Coverage</div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">Active monitoring agents:</div>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+              <div style="display:flex; justify-content:space-between;"><span>Amazon Web Services (AWS)</span><span style="color:#22c55e;">CONNECTED</span></div>
+              <div style="display:flex; justify-content:space-between;"><span>Google Cloud Platform (GCP)</span><span style="color:#22c55e;">CONNECTED</span></div>
+              <div style="display:flex; justify-content:space-between;"><span>Microsoft Azure Storage</span><span style="color:#22c55e;">CONNECTED</span></div>
+            </div>
+          </div>
+          
+          <div style="padding: 12px; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; font-size: 11px; color: #93c5fd; margin-top: 14px;">
+            ℹ Continuous cloud asset polling runs every 15 minutes.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: RANSOMWARE RECOVERY -->
+    <div id="tab-ransomware" class="tab-panel">
+      <div class="mod-title">🛡️ Ransomware Resilience &amp; Instant Recovery <span>Restore systems to pre-infected states via immutable backup layers</span></div>
+      
+      <div class="soar-grid">
+        <div class="soar-card">
+          <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Immutable Backup Restore Points</span>
+            <span style="color: #22c55e; font-weight: bold; font-size: 12px;">98% Preparedness</span>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+              <span>VSS Shadow Copy Snapshot</span>
+              <span style="font-family: monospace;">1 hr ago</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+              <span>Off-site Immutable Azure Vault</span>
+              <span style="font-family: monospace;">4 hrs ago</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+              <span>Full Local System NAS Clone</span>
+              <span style="font-family: monospace;">12 hrs ago</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="soar-card">
+          <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">Restoration Simulation &amp; Recovery Drill</div>
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">Simulate backup spin-up in sandbox environment:</div>
+          
+          <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+              <span>Drill Progress</span><span id="drill-pct">0%</span>
+            </div>
+            <div style="height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden;">
+              <div id="drill-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.4s;"></div>
+            </div>
+          </div>
+          
+          <div id="drill-status" style="font-size: 11px; color: #94a3b8; font-family: monospace; min-height: 16px;">System status: Standby</div>
+          
+          <button type="button" class="btn-magnetic" style="width: 100%; margin-top: 14px; padding: 10px; border: none; border-radius: 8px; background: #22c55e; color: #000; font-size: 12px; font-weight: 800; cursor: pointer;" onclick="runRansomwareDrill()">
+            ⚡ Trigger Restoration Drill
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: SOC DOCUMENTATION -->
     <div id="tab-docs" class="tab-panel">
       <style>
@@ -1957,9 +2126,81 @@ Wi-Fi Risk Telemetry              → 90 days</div>
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
         
-        event.currentTarget.classList.add('active');
+        // Find button that triggered
+        const btn = [...document.querySelectorAll('.tab-btn')].find(b => b.getAttribute('onclick').includes(`'${tabId}'`));
+        if (btn) btn.classList.add('active');
         document.getElementById('tab-' + tabId).classList.add('active');
       }
+
+      /* ===== SOAR PLAYBOOK SIMULATOR ===== */
+      window.runSoarSimulation = function() {
+        const log = document.getElementById('soar-exec-log');
+        log.innerHTML = "";
+        
+        const steps = [
+          "[INFO] Initializing playbook: T1110_BRUTE_FORCE_BAN...",
+          "[PROCESS] Parsing source logs. Correlating anomalous events...",
+          "[MATCH] Source IP 184.22.99.102 detected performing spray attack.",
+          "[SOAR] Invoking auto-deny route API on Security Gateway...",
+          "[API] Relaying IP ban transaction context...",
+          "[GATEWAY] IP 184.22.99.102 banned successfully! TTL: 24h",
+          "[SOAR] Raising high-priority analyst notification card...",
+          "[SUCCESS] Playbook completed. Threat isolated. Duration: 12.4s"
+        ];
+        
+        steps.forEach((step, idx) => {
+          setTimeout(() => {
+            const el = document.createElement('div');
+            el.textContent = step;
+            if (step.includes('CRITICAL') || step.includes('FAIL') || step.includes('banned')) el.style.color = '#ef4444';
+            if (step.includes('SUCCESS') || step.includes('completed')) el.style.color = '#22c55e';
+            log.appendChild(el);
+            log.scrollTop = log.scrollHeight;
+          }, idx * 600);
+        });
+      };
+
+      /* ===== SHADOW IT REMEDIATION ===== */
+      window.fixShadowIt = function(type) {
+        const row = document.getElementById('shadow-row-' + type);
+        if (!row) return;
+        const btn = row.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = 'Remediating...';
+        btn.style.background = '#475569';
+        
+        setTimeout(() => {
+          row.style.opacity = '0.4';
+          row.style.borderLeft = '3px solid #22c55e';
+          btn.textContent = 'Remediated';
+          showToast('Shadow IT vulnerability fixed successfully!');
+        }, 1500);
+      };
+
+      /* ===== RANSOMWARE DRILL SIMULATOR ===== */
+      window.runRansomwareDrill = function() {
+        const bar = document.getElementById('drill-progress-bar');
+        const pct = document.getElementById('drill-pct');
+        const status = document.getElementById('drill-status');
+        
+        let progress = 0;
+        status.textContent = "Decrypting snapshot metadata...";
+        
+        const interval = setInterval(() => {
+          progress += 5;
+          bar.style.width = progress + '%';
+          pct.textContent = progress + '%';
+          
+          if (progress === 30) status.textContent = "Spinning up isolated VM sandbox container...";
+          if (progress === 60) status.textContent = "Running checksum and backup integrity tests...";
+          if (progress === 85) status.textContent = "Testing network gateway bypass block...";
+          if (progress >= 100) {
+            clearInterval(interval);
+            status.textContent = "✅ Sandbox drill successful! All backup endpoints authenticated & ready.";
+            pct.style.color = "#22c55e";
+          }
+        }, 150);
+      };
 
       /* ===== DOC CARD EXPAND/COLLAPSE ===== */
       window.toggleDoc = function(btn) {
