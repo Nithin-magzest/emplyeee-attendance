@@ -1,0 +1,92 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum SSOProvider {
+  GOOGLE_WORKSPACE
+  AZURE_AD
+  OKTA
+  EMAIL_PASS
+}
+
+enum MdmPolicy {
+  MACOS_ENFORCED
+  WINDOWS_ENFORCED
+  DUAL
+}
+
+enum UserRole {
+  TENANT_ADMIN
+  SECOPS_OFFICER
+  EMPLOYEE
+}
+
+model Tenant {
+  id             String                @id @default(uuid())
+  companyName    String
+  subdomain      String                @unique
+  companySize    String                @default("50-500")
+  setupCompleted Boolean               @default(false)
+  createdAt      DateTime              @default(now())
+
+  // Multi-Tenant Relations
+  branding       TenantBranding?
+  secopsConfig   SecOpsConfig?
+  itRule         ITProvisioningRule?
+  users          User[]
+}
+
+model TenantBranding {
+  id                 String   @id @default(uuid())
+  tenantId           String   @unique
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryColor       String   @default("#6366f1")
+  secondaryColor     String   @default("#ec4899")
+  logoUrl            String?
+  kudosMonthlyBudget Int      @default(100)
+  companyValues      String[] @default(["Customer Obsession", "Ownership", "Zero-to-One"])
+  updatedAt          DateTime @updatedAt
+}
+
+model ITProvisioningRule {
+  id               String      @id @default(uuid())
+  tenantId         String      @unique
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ssoProvider      SSOProvider @default(GOOGLE_WORKSPACE)
+  autoSlack        Boolean     @default(true)
+  autoGithub       Boolean     @default(true)
+  autoZoom         Boolean     @default(true)
+  autoFigma        Boolean     @default(false)
+  defaultMdmPolicy MdmPolicy   @default(MACOS_ENFORCED)
+  updatedAt        DateTime    @updatedAt
+}
+
+model SecOpsConfig {
+  id                 String   @id @default(uuid())
+  tenantId           String   @unique
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  secopsEnabled      Boolean  @default(true)
+  mfaEnforced        Boolean  @default(true)
+  gdprRetentionYears Int      @default(7)
+  ipWhitelistRange   String?
+  updatedAt          DateTime @updatedAt
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole @default(EMPLOYEE)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, role])
+}

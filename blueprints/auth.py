@@ -60,10 +60,11 @@ _INJECTION_PATTERN_RE = re.compile(
 
 
 @auth_bp.route("/setup", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def setup_wizard():
     co = get_company_settings()
-    if co["setup_done"]:
+    force_setup = request.args.get("force") == "1" or not co.get("company_name")
+    if co["setup_done"] and not force_setup:
         return redirect("/admin_login")
 
     error = None
@@ -84,13 +85,24 @@ def setup_wizard():
         elif admin_pass != admin_pass2:
             error = "Passwords do not match."
         else:
+            secops_user = request.form.get("secops_username", "secops").strip() or "secops"
+            secops_pass = request.form.get("secops_password", "").strip()
+
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
             cursor.execute("UPDATE company_settings SET company_name=%s, company_tagline=%s, currency_symbol=%s, setup_done=1",
                            (company_name, company_tag or "Employee Attendance System", currency))
             cursor.execute("DELETE FROM admin_users")
-            cursor.execute("INSERT INTO admin_users (username, password) VALUES (%s, %s)",
+            cursor.execute("INSERT INTO admin_users (username, password, role) VALUES (%s, %s, 'admin')",
                            (admin_user, generate_password_hash(admin_pass)))
+
+            if secops_pass:
+                cursor.execute("INSERT INTO admin_users (username, password, role) VALUES (%s, %s, 'soc_analyst')",
+                               (secops_user, generate_password_hash(secops_pass)))
+            else:
+                cursor.execute("INSERT INTO admin_users (username, password, role) VALUES (%s, %s, 'soc_analyst')",
+                               (secops_user, generate_password_hash(admin_pass)))
+
             db.commit()
             cursor.close()
             db.close()

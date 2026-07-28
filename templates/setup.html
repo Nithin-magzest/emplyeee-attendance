@@ -124,7 +124,19 @@
         <input type="password" name="admin_password2" placeholder="Re-enter password" required />
       </div>
 
-      <button type="submit" class="btn">✅ Complete Setup &amp; Launch</button>
+      <div class="section-label">SecOps &amp; Cybersecurity Account</div>
+
+      <div class="field">
+        <label>SecOps Username</label>
+        <input type="text" name="secops_username" placeholder="e.g. secops" value="secops" />
+        <div class="hint">Dedicated analyst login for the Security Center (/sp_admin).</div>
+      </div>
+      <div class="field">
+        <label>SecOps Password <span class="u-fw-400 u-ttr-none u-c-94a3b8">(optional, defaults to Admin password)</span></label>
+        <input type="password" name="secops_password" placeholder="Custom password or leave blank for same as admin" />
+      </div>
+
+      <button type="submit" class="btn">✅ Complete Setup &amp; Launch Portal</button>
     </form>
 
     <div class="note">This page will not appear again after setup is complete.</div>
