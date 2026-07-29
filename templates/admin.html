@@ -1,16 +1,18 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <!-- Redirect raw-IP loopback → localhost so WebAuthn rpId matches origin -->
     <script>if(location.hostname==="127.0.0.1"||location.hostname==="::1"){location.replace(location.href.replace(location.hostname,"localhost"));}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Dashboard</title>
+    <title>MagHR Premier — Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/tabler-icons.min.css" />
     <script src="/static/chart.umd.min.js"></script>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #f1f5f9; min-height: 100vh; display: flex; }
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; }
+      body { background: #f0f4ff; min-height: 100vh; display: flex; }
 
       /* ── SIDEBAR ──
          Fixed dark blue, matching admin_base.html's shared sidebar
@@ -19,13 +21,18 @@
          other admin page depending on when you loaded it. */
       :root {
         --brand-accent: #fbbf24;
+        --indigo: #4f46e5;
+        --indigo-light: #6366f1;
+        --sky: #0ea5e9;
+        --slate-900: #0f172a;
       }
       .sidebar {
-        width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-        background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
+        width: 248px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+        background: linear-gradient(180deg, #0a0f2c 0%, #0f2460 60%, #1a3a8f 100%);
         padding: 22px 14px; color: white;
         display: flex; flex-direction: column; flex-shrink: 0;
-        box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.22);
+        scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent;
       }
       .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
       .brand-icon {
@@ -177,38 +184,56 @@
       @media (max-width: 900px) { .admin-search-wrap { order: 3; max-width: 100%; flex-basis: 100%; } }
 
       /* ── STAT CARDS ── */
-      .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 24px; }
+      .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 24px; }
       .stat-card {
-        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-        padding: 18px 20px; display: flex; align-items: center; gap: 16px;
-        text-decoration: none; color: #0f172a; transition: 0.2s;
+        background: #fff; border: 1px solid #e8edf8;
+        border-radius: 16px;
+        padding: 18px 18px 16px; display: flex; align-items: center; gap: 14px;
+        text-decoration: none; color: #0f172a; transition: all 0.2s;
+        box-shadow: 0 1px 4px rgba(15,23,42,0.06);
+        position: relative; overflow: hidden;
       }
-      .stat-card:hover { border-color: #93c5fd; box-shadow: 0 4px 16px rgba(30,58,138,0.1); transform: translateY(-2px); }
+      .stat-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        border-radius: 16px 16px 0 0;
+        opacity: 0; transition: opacity .2s;
+      }
+      .stat-card.sc-blue::before  { background: linear-gradient(90deg,#2563eb,#60a5fa); }
+      .stat-card.sc-green::before { background: linear-gradient(90deg,#16a34a,#4ade80); }
+      .stat-card.sc-red::before   { background: linear-gradient(90deg,#dc2626,#f87171); }
+      .stat-card.sc-yellow::before{ background: linear-gradient(90deg,#d97706,#fbbf24); }
+      .stat-card.sc-orange::before{ background: linear-gradient(90deg,#ea580c,#fb923c); }
+      .stat-card:hover { border-color: transparent; box-shadow: 0 8px 24px rgba(30,58,138,0.12); transform: translateY(-3px); }
+      .stat-card:hover::before { opacity: 1; }
       .stat-icon {
-        width: 52px; height: 52px; border-radius: 14px;
+        width: 50px; height: 50px; border-radius: 14px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 24px; flex-shrink: 0;
+        font-size: 22px; flex-shrink: 0;
       }
-      .si-blue   { background: #dbeafe; }
-      .si-green  { background: #dcfce7; }
-      .si-red    { background: #fee2e2; }
-      .si-yellow { background: #fef9c3; }
-      .stat-num  { font-size: 32px; font-weight: 800; line-height: 1; }
-      .stat-lbl  { font-size: 12px; color: #64748b; margin-top: 3px; font-weight: 500; }
+      .si-blue   { background: linear-gradient(135deg,#dbeafe,#bfdbfe); }
+      .si-green  { background: linear-gradient(135deg,#dcfce7,#bbf7d0); }
+      .si-red    { background: linear-gradient(135deg,#fee2e2,#fecaca); }
+      .si-yellow { background: linear-gradient(135deg,#fef9c3,#fde68a); }
+      .si-orange { background: linear-gradient(135deg,#fff7ed,#fed7aa); }
+      .stat-num  { font-size: 30px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+      .stat-lbl  { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
       .sn-blue   { color: #2563eb; }
       .sn-green  { color: #16a34a; }
       .sn-red    { color: #dc2626; }
       .sn-yellow { color: #d97706; }
+      .sn-orange { color: #ea580c; }
 
       /* ── SECTION ── */
       .section {
-        background: #fff; border: 1px solid #e2e8f0;
-        border-radius: 16px; padding: 22px 24px; margin-bottom: 20px;
+        background: #fff; border: 1px solid #e8edf8;
+        border-radius: 18px; padding: 22px 24px; margin-bottom: 20px;
         color: #0f172a;
+        box-shadow: 0 1px 6px rgba(15,23,42,0.05);
       }
       .section-title {
-        font-size: 15px; font-weight: 700; color: #0f172a;
+        font-size: 14px; font-weight: 800; color: #0f172a;
         display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+        text-transform: uppercase; letter-spacing: 0.4px;
       }
       .section-title span.live-dot {
         width: 8px; height: 8px; border-radius: 50%; background: #16a34a;
@@ -244,27 +269,28 @@
       /* ── QUICK ACTION CARDS ── */
       .action-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
       .action-card {
-        background: #f8fafc; border: 1px solid #e2e8f0;
-        border-radius: 12px; padding: 18px; display: flex; flex-direction: column;
-        transition: 0.2s;
+        background: linear-gradient(145deg, #f8fafc, #f0f4ff);
+        border: 1px solid #e8edf8;
+        border-radius: 14px; padding: 18px; display: flex; flex-direction: column;
+        transition: all 0.2s; box-shadow: 0 1px 4px rgba(15,23,42,0.04);
       }
-      .action-card:hover { border-color: #bfdbfe; box-shadow: 0 2px 10px rgba(30,58,138,0.07); }
+      .action-card:hover { border-color: #c7d2fe; box-shadow: 0 6px 16px rgba(79,70,229,0.1); transform: translateY(-2px); }
       .ac-icon {
-        width: 40px; height: 40px; border-radius: 10px;
+        width: 42px; height: 42px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 18px; margin-bottom: 10px; flex-shrink: 0;
+        font-size: 20px; margin-bottom: 10px; flex-shrink: 0;
       }
       .action-card h4   { font-size: 13px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
       .action-card .sub { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
       .action-card form { flex: 1; display: flex; flex-direction: column; }
       .action-card input {
         width: 100%; padding: 8px 11px;
-        border: 1px solid #dbeafe; border-radius: 8px;
+        border: 1px solid #e2e8f0; border-radius: 8px;
         background: #fff; color: #0f172a; font-size: 13px;
-        margin-bottom: 7px; outline: none; transition: 0.2s;
+        margin-bottom: 7px; outline: none; transition: 0.2s; font-family: inherit;
       }
       .action-card input::placeholder { color: #94a3b8; }
-      .action-card input:focus { border-color: #93c5fd; }
+      .action-card input:focus { border-color: #a5b4fc; box-shadow: 0 0 0 3px rgba(165,180,252,0.2); }
       .action-card .btn { margin-top: auto; }
 
       /* ── REGISTER FORM ── */
@@ -285,13 +311,13 @@
       .field textarea { resize: vertical; min-height: 70px; }
 
       /* ── BUTTONS ── */
-      .btn { width: 100%; padding: 11px; border: none; border-radius: 9px; cursor: pointer; font-weight: 700; font-size: 14px; transition: 0.2s; }
-      .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
-      .btn-navy   { background: #1e3a8a; color: white; }
-      .btn-green  { background: #16a34a; color: white; }
-      .btn-amber  { background: #d97706; color: white; }
-      .btn-indigo { background: #6366f1; color: white; }
-      .btn-blue   { background: #2563eb; color: white; }
+      .btn { width: 100%; padding: 11px; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; transition: 0.2s; font-family: inherit; letter-spacing: 0.2px; }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+      .btn-navy   { background: linear-gradient(135deg,#1e3a8a,#1d4ed8); color: white; }
+      .btn-green  { background: linear-gradient(135deg,#16a34a,#15803d); color: white; }
+      .btn-amber  { background: linear-gradient(135deg,#d97706,#b45309); color: white; }
+      .btn-indigo { background: linear-gradient(135deg,#6366f1,#4f46e5); color: white; }
+      .btn-blue   { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: white; }
 
       /* ── CHANGE PASSWORD ── */
       .pwd-form .field input[type="password"] { letter-spacing: 1px; }
@@ -456,38 +482,38 @@
 
       <!-- STAT CARDS -->
       <div class="stats">
-        <a class="stat-card" href="/employees">
+        <a class="stat-card sc-blue" href="/employees">
           <div class="stat-icon si-blue">👥</div>
           <div>
             <div class="stat-num sn-blue" id="statTotal">{{ total }}</div>
             <div class="stat-lbl">Total Employees</div>
           </div>
         </a>
-        <a class="stat-card" href="/today_present">
+        <a class="stat-card sc-green" href="/today_present">
           <div class="stat-icon si-green">✅</div>
           <div>
             <div class="stat-num sn-green" id="statPresent">{{ present }}</div>
             <div class="stat-lbl">Present Today</div>
           </div>
         </a>
-        <a class="stat-card" href="/today_absent">
+        <a class="stat-card sc-red" href="/today_absent">
           <div class="stat-icon si-red">❌</div>
           <div>
             <div class="stat-num sn-red" id="statAbsent">{{ absent }}</div>
             <div class="stat-lbl">Absent Today</div>
           </div>
         </a>
-        <a class="stat-card" href="/today_late">
+        <a class="stat-card sc-yellow" href="/today_late">
           <div class="stat-icon si-yellow">⚠️</div>
           <div>
             <div class="stat-num sn-yellow" id="statLate">{{ late }}</div>
             <div class="stat-lbl">Late Logins</div>
           </div>
         </a>
-        <a class="stat-card" href="/overtime" style="border-color:{% if pending_ot|default(0) > 0 %}#fca5a5{% endif %};">
-          <div class="stat-icon u-bg-fff7ed"><i class="ti ti-clock-bolt u-fs-24 u-c-ea580c"></i></div>
+        <a class="stat-card sc-orange" href="/overtime">
+          <div class="stat-icon si-orange">⏱️</div>
           <div>
-            <div class="stat-num u-c-ea580c">{{ pending_ot|default(0) }}</div>
+            <div class="stat-num sn-orange">{{ pending_ot|default(0) }}</div>
             <div class="stat-lbl">OT Pending</div>
           </div>
         </a>
@@ -557,11 +583,12 @@
             </div>
           </a>
 
+          <a class="u-tdec-none" href="/settings">
             <div class="u-bg-faf5ff u-bd-1d5-solid-d8b4fe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-              <div class="u-w-46 u-h-46 u-bg-ede9fe u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">⏱️</div>
+              <div class="u-w-46 u-h-46 u-bg-ede9fe u-br-12 u-d-flex u-ai-center u-jc-center u-fs-22 u-fxs-0">⚙️</div>
               <div>
-                <div class="u-fs-13 u-fw-800 u-c-7c3aed">Shifts &amp; Breaks</div>
-                <div class="u-fs-11 u-c-64748b u-mt-2">Create Shifts · Assign · Break Config</div>
+                <div class="u-fs-13 u-fw-800 u-c-7c3aed">Shifts &amp; Settings</div>
+                <div class="u-fs-11 u-c-64748b u-mt-2">Shifts · Breaks · Company Config</div>
               </div>
             </div>
           </a>
@@ -671,76 +698,42 @@
         </div>
       </div>
 
-      <!-- PASSWORD MANAGEMENT -->
+      <!-- PASSWORD MANAGEMENT — moved to Settings; just show a shortcut card here -->
       <div class="section">
-        <div class="section-title">🔐 Password Management</div>
+        <div class="section-title">🔐 Security &amp; Account</div>
+        <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14">
 
-        {% if request.args.get('pwd_ok') %}
-          <div class="flash flash-success u-maxw-420">✅ Password updated successfully.</div>
-        {% elif request.args.get('pwd_error') == 'wrong' %}
-          <div class="flash flash-error u-maxw-420">❌ Current password is incorrect.</div>
-        {% elif request.args.get('pwd_error') == 'mismatch' %}
-          <div class="flash flash-error u-maxw-420">❌ New passwords do not match.</div>
-        {% endif %}
-
-        <div class="u-d-grid u-gtc-1fr-1fr u-gap-24 u-ai-start">
-
-          <!-- Change Admin Password -->
-          <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
-            <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-16">🔒 Change Admin Password</div>
-            <form action="/change_admin_password" method="POST" class="pwd-form">
-              <input type="hidden" autocomplete="username" value="admin" />
-              <div class="field">
-                <label>Current Password</label>
-                <input type="password" name="current_password" placeholder="Enter current password" autocomplete="current-password" required />
+          <a class="u-tdec-none" href="/settings#security">
+            <div style="background:linear-gradient(145deg,#f8faff,#eff6ff);border:1.5px solid #bfdbfe;border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;transition:all .2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(37,99,235,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div style="width:46px;height:46px;background:#dbeafe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🔒</div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#1e40af">Change Password</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">Update your admin credentials</div>
               </div>
-              <div class="field">
-                <label>New Password</label>
-                <input type="password" name="new_password" placeholder="Enter new password" autocomplete="new-password" required />
-              </div>
-              <div class="field">
-                <label>Confirm New Password</label>
-                <input type="password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password" required />
-              </div>
-              <button type="submit" class="btn btn-navy u-maxw-200">🔒 Update Password</button>
-            </form>
-          </div>
-
-          <!-- Reset Employee Password -->
-          <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
-            <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4">🔑 Reset Employee Password</div>
-            <div class="u-fs-12 u-c-94a3b8 u-mb-18">Resets the employee's PIN back to their Employee ID</div>
-            <form action="/admin_action" method="POST">
-              <input type="hidden" name="action" value="reset_password" />
-              <div class="field">
-                <label>Employee ID</label>
-                <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
-              </div>
-              <button type="submit" class="btn btn-amber u-maxw-200"
-                onclick="return confirm('Reset this employee\'s password to their Employee ID?')">
-                🔑 Reset Password
-              </button>
-            </form>
-          </div>
-
-        </div>
-
-        <!-- Set Admin Recovery Email -->
-        <div class="u-mt-20 u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-14 u-p-22">
-          <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-4">📧 Admin Recovery Email</div>
-          <div class="u-fs-12 u-c-64748b u-mb-16">Set the email address used to receive password reset links when you forget your admin password.</div>
-          <form class="u-d-flex u-ai-flex-end u-gap-12 u-fxw-wrap" action="/admin_set_recovery_email" method="POST">
-            <div class="field u-fx-1 u-minw-200 u-mb-0">
-              <label>Recovery Email</label>
-              <input type="email" name="recovery_email" placeholder="admin@example.com" required />
             </div>
-            <button type="submit" class="btn btn-navy u-maxw-180 u-mb-0">💾 Save Email</button>
-          </form>
-          {% if request.args.get('email_ok') %}
-            <div class="u-mt-12 u-c-15803d u-fs-13">✅ Recovery email saved successfully.</div>
-          {% endif %}
-        </div>
+          </a>
 
+          <a class="u-tdec-none" href="/settings">
+            <div style="background:linear-gradient(145deg,#fffbeb,#fef9c3);border:1.5px solid #fde68a;border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;transition:all .2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(217,119,6,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div style="width:46px;height:46px;background:#fef3c7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🔑</div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#92400e">Employee PIN Reset</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">Reset employee passwords</div>
+              </div>
+            </div>
+          </a>
+
+          <a class="u-tdec-none" href="/secops">
+            <div style="background:linear-gradient(145deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px;transition:all .2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+              <div style="width:46px;height:46px;background:#ddd6fe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px">🛡</div>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#6d28d9">Security Center</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">MFA · Audit · Threat Logs</div>
+              </div>
+            </div>
+          </a>
+
+        </div>
       </div>
 
     </div><!-- /main -->
