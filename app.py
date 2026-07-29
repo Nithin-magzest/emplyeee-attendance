@@ -2859,9 +2859,10 @@ if "core.home" not in app.view_functions:
     from blueprints.ai_hrms import ai_hrms_bp
     from blueprints.secops import secops_bp
     from blueprints.compliance import compliance_bp
+    from blueprints.automation import automation_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
-                documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp, ai_hrms_bp, secops_bp, compliance_bp):
+                documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp, ai_hrms_bp, secops_bp, compliance_bp, automation_bp):
         app.register_blueprint(_bp)
 
 _register_api_v1_aliases()
