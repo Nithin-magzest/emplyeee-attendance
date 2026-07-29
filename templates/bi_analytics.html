@@ -1,0 +1,110 @@
+{% extends "admin_base.html" %}
+{% set active_nav = "analytics" %}
+{% block title %}Executive BI Analytics — MagHR Premier{% endblock %}
+
+{% block page_css %}
+<style>
+  body { background: #070b19 !important; color: #e2e8f0 !important; }
+  .bi-card {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 18px; padding: 22px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .bi-glow-card {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(79, 70, 229, 0.2));
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 18px; padding: 22px;
+  }
+  .bi-metric { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: #38bdf8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="u-p-24">
+  <div class="u-d-flex u-ai-center u-jc-space-between u-mb-24">
+    <div>
+      <h1 class="u-fs-24 u-fw-900 u-c-fff">📊 Executive BI Analytics & Report Builder</h1>
+      <p class="u-fs-13 u-c-94a3b8 u-mt-4">High-density workforce intelligence, retention forecasting, and custom report builder.</p>
+    </div>
+    <button class="u-p-10-18 u-bg-linear-gradiene4b3b9 u-c-fff u-bd-none u-br-10 u-fs-13 u-fw-700 u-cur-pointer" onclick="createBiReport()">
+      + Build Custom BI Report
+    </button>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="u-d-grid u-gtc-repeat4_1fr u-gap-16 u-mb-24">
+    <div class="bi-card">
+      <div class="u-fs-11 u-fw-700 u-c-94a3b8 u-tt-uppercase u-ls-0d5">Employee Retention</div>
+      <div class="bi-metric">94.8%</div>
+      <div class="u-fs-12 u-c-4ade80 u-mt-4">↑ +2.3% vs Q2 benchmark</div>
+    </div>
+    <div class="bi-card">
+      <div class="u-fs-11 u-fw-700 u-c-94a3b8 u-tt-uppercase u-ls-0d5">Avg Cost / Hire</div>
+      <div class="bi-metric" style="color:#a78bfa">₹42,500</div>
+      <div class="u-fs-12 u-c-a78bfa u-mt-4">↓ -12% screening efficiency</div>
+    </div>
+    <div class="bi-card">
+      <div class="u-fs-11 u-fw-700 u-c-94a3b8 u-tt-uppercase u-ls-0d5">Overtime Spend</div>
+      <div class="bi-metric" style="color:#fbbf24">₹1,84,200</div>
+      <div class="u-fs-12 u-c-fbbf24 u-mt-4">⚡ 18 active comp-off claims</div>
+    </div>
+    <div class="bi-card">
+      <div class="u-fs-11 u-fw-700 u-c-94a3b8 u-tt-uppercase u-ls-0d5">Attendance Ratio</div>
+      <div class="bi-metric" style="color:#4ade80">98.2%</div>
+      <div class="u-fs-12 u-c-4ade80 u-mt-4">✅ Zero anomalies today</div>
+    </div>
+  </div>
+
+  <!-- REPORTS LIST -->
+  <div class="bi-glow-card">
+    <div class="u-fs-15 u-fw-800 u-c-fff u-mb-16 u-tt-uppercase u-ls-0d5">Custom Executive Reports</div>
+    <div class="table-wrap">
+      <table style="color:#e2e8f0">
+        <thead>
+          <tr style="background:rgba(30,58,138,0.6)">
+            <th>ID</th>
+            <th>Report Title</th>
+            <th>Type</th>
+            <th>Created By</th>
+            <th>Timestamp</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if reports %}
+            {% for r in reports %}
+            <tr style="border-color:rgba(255,255,255,0.06)">
+              <td>#{{ r[0] }}</td>
+              <td class="u-fw-700 u-c-60a5fa">{{ r[1] }}</td>
+              <td><span class="badge b-blue">{{ r[2] }}</span></td>
+              <td>{{ r[4] }}</td>
+              <td class="u-fs-12 u-c-94a3b8">{{ r[5] }}</td>
+              <td><button class="u-p-4-10 u-bg-1e40af u-c-fff u-bd-none u-br-6 u-fs-11 u-cur-pointer">📥 Download PDF</button></td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="empty-cell" style="color:#94a3b8">No custom reports generated yet. Click "+ Build Custom BI Report" above.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+async function createBiReport() {
+  const title = prompt("Enter Report Title:", "Q3 Executive Headcount & Turnover Analysis");
+  if (!title) return;
+  const res = await fetch("/api/bi/generate_report", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({title, report_type: "turnover_headcount"})
+  });
+  const data = await res.json();
+  alert(data.msg);
+  if (data.ok) location.reload();
+}
+</script>
+{% endblock %}

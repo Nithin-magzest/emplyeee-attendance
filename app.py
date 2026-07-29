@@ -3007,10 +3007,16 @@ if "core.home" not in app.view_functions:
     from blueprints.email_blast import email_blast_bp
     from blueprints.workflow_automation import workflow_bp
     from blueprints.ewa import ewa_bp
+    from blueprints.bi_analytics import bi_bp
+    from blueprints.integrations import integrations_bp
+    from blueprints.whitelabel import whitelabel_bp
+    from blueprints.compliance import compliance_bp
+    from blueprints.presence_org import presence_org_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
-                ai_hrms_bp, secops_bp, email_blast_bp, workflow_bp, ewa_bp):
+                ai_hrms_bp, secops_bp, email_blast_bp, workflow_bp, ewa_bp,
+                bi_bp, integrations_bp, whitelabel_bp, compliance_bp, presence_org_bp):
         app.register_blueprint(_bp)
 
 _register_api_v1_aliases()
