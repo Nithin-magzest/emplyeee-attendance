@@ -1,0 +1,1 @@
+/usr/lib/postgresql/18/bin/postgres "-D" "/home/kali/.gemini/antigravity/scratch/employee-attendance-system/pgdata" "-k" "/tmp"
