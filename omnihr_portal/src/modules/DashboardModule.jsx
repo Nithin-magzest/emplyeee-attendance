@@ -11,7 +11,7 @@ export const DashboardModule = () => {
       <div className="flex justify-between items-center pb-4 border-b border-slate-800">
         <div>
           <span className="text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-2.5 py-0.5 rounded-full uppercase">
-            OmniHR Premier Global Control Tower
+            MagHR Premier Global Control Tower
           </span>
           <h2 className="text-2xl font-black text-white tracking-tight mt-1">Executive Headcount &amp; Operations</h2>
         </div>

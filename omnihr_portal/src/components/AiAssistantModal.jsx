@@ -12,7 +12,7 @@ export const AiAssistantModal = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       sender: 'ai',
-      text: 'Hello Dr. Evelyn Vance! I am OmniAI, your 24/7 HR & SecOps assistant. How can I help you with workforce queries, PTO balances, or IT device provisioning today?',
+      text: 'Hello Dr. Evelyn Vance! I am MagAI, your 24/7 HR & SecOps assistant. How can I help you with workforce queries, PTO balances, or IT device provisioning today?',
       time: 'Just now'
     }
   ]);
@@ -62,7 +62,7 @@ export const AiAssistantModal = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                OmniAI HR &amp; Workforce Assistant
+                MagAI HR &amp; Workforce Assistant
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               </h3>
               <p className="text-[11px] text-slate-400">Continuous NLP Telemetry &amp; Policy Automation Engine</p>

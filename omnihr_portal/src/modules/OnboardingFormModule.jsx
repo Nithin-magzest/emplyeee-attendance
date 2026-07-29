@@ -36,7 +36,7 @@ export const OnboardingFormModule = () => {
     visaType: 'US Citizen / Permanent Resident',
     // 3. Contact Details
     personalEmail: 'evelyn.vance.private@gmail.com',
-    workEmail: 'evelyn.vance@omnihr.com',
+    workEmail: 'evelyn.vance@maghr.com',
     phone: '+1 (555) 234-5678',
     address: '742 Evergreen Terrace, New York, NY 10001',
     emergencyContact: 'Marcus Vance (Spouse) · +1 (555) 987-6543',

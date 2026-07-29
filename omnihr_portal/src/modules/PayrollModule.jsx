@@ -132,10 +132,10 @@ export const PayrollModule = () => {
             <div className="flex justify-between items-center pb-4 border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center font-mono">
-                  OH
+                  MH
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">OmniHR Premier — Executive Paystub</h3>
+                  <h3 className="text-base font-bold text-white">MagHR Premier — Executive Paystub</h3>
                   <p className="text-xs text-slate-400">July 01 – July 31, 2026</p>
                 </div>
               </div>

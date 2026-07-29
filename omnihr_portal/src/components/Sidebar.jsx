@@ -34,11 +34,11 @@ export const Sidebar = ({ activeModule, setActiveModule, onOpenMobileSim, onOpen
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white font-bold flex items-center justify-center font-mono text-lg shadow-lg shadow-indigo-500/20">
-              OH
+              MH
             </div>
             <div>
               <h1 className="text-base font-black text-white tracking-tight flex items-center gap-1.5">
-                OmniHR <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.2 rounded uppercase">Premier</span>
+                MagHR <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.2 rounded uppercase">Premier</span>
               </h1>
               <p className="text-[11px] text-slate-400 font-mono">60,000+ Scale HRMS</p>
             </div>
@@ -83,7 +83,7 @@ export const Sidebar = ({ activeModule, setActiveModule, onOpenMobileSim, onOpen
           onClick={onOpenAiBot}
           className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-xs font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all"
         >
-          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> OmniAI HR Bot
+          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> MagAI HR Bot
         </button>
 
         <button
