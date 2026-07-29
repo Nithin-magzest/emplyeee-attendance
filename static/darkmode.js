@@ -192,25 +192,26 @@
   var saved  = localStorage.getItem(KEY);
   var isDark = saved === '1' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+  window.toggleDarkMode = function (on) {
+    if (typeof on !== 'boolean') {
+      isDark = !document.body.classList.contains('dark-mode');
+    } else {
+      isDark = on;
+    }
+    localStorage.setItem(KEY, isDark ? '1' : '0');
+    apply(isDark);
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     apply(isDark);
 
-    /* dm-toggle buttons (sidebar) */
     document.querySelectorAll('.dm-toggle').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        isDark = !isDark;
-        localStorage.setItem(KEY, isDark ? '1' : '0');
-        apply(isDark);
+      btn.addEventListener('click', function (e) {
+        if (e.target.hasAttribute('onclick') || btn.hasAttribute('onclick')) return;
+        window.toggleDarkMode();
       });
     });
   });
-
-  /* expose for Settings page toggle switch */
-  window.toggleDarkMode = function (on) {
-    isDark = on;
-    localStorage.setItem(KEY, on ? '1' : '0');
-    apply(on);
-  };
 })();
 
 /* Live clock in the sidebar footer (.sb-live-clock), used across
