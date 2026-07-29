@@ -6,6 +6,7 @@ import { AiAssistantModal } from './components/AiAssistantModal';
 import { NotificationCenter } from './components/NotificationCenter';
 
 import { DashboardModule } from './modules/DashboardModule';
+import { OnboardingFormModule } from './modules/OnboardingFormModule';
 import { CoreHrModule } from './modules/CoreHrModule';
 import { PayrollModule } from './modules/PayrollModule';
 import { AttendanceModule } from './modules/AttendanceModule';
@@ -25,6 +26,8 @@ export function App() {
     switch (activeModule) {
       case 'dashboard':
         return <DashboardModule />;
+      case 'onboarding_form':
+        return <OnboardingFormModule />;
       case 'corehr':
         return <CoreHrModule />;
       case 'payroll':

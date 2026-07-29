@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  UserCheck,
   Users,
   DollarSign,
   Clock,
@@ -16,6 +17,7 @@ import {
 export const Sidebar = ({ activeModule, setActiveModule, onOpenMobileSim, onOpenAiBot }) => {
   const modules = [
     { id: 'dashboard', label: 'Executive Tower', icon: LayoutDashboard, badge: 'Live' },
+    { id: 'onboarding_form', label: '9-Module Intake Form', icon: UserCheck, badge: 'Schema' },
     { id: 'corehr', label: 'Core HR & Org Tree', icon: Users, badge: 'Rippling' },
     { id: 'payroll', label: 'Global Payroll & EWA', icon: DollarSign, badge: 'Gusto/Deel' },
     { id: 'attendance', label: 'Time & Attendance', icon: Clock, badge: 'Biometric' },
