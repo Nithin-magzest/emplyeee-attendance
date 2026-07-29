@@ -51,6 +51,36 @@ def api_screen_candidate():
             return jsonify({"ok": False, "msg": "Candidate profile or resume text required."}), 400
 
     match_result = match_candidate_job(parsed_candidate, job_description)
+    score = match_result.get("match_score", 0.0)
+
+    # Persist to database
+    try:
+        from database import get_db_connection
+        import json
+        db = get_db_connection()
+        cur = db.cursor()
+        cur.execute(
+            """INSERT INTO ats_parsed_candidates 
+               (candidate_name, email, phone, job_id, skills, experience_years, education_level, parsed_json, match_score)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                parsed_candidate.get("name", "Applicant"),
+                parsed_candidate.get("email", ""),
+                parsed_candidate.get("phone", ""),
+                data.get("job_id", "JOB-001"),
+                ", ".join(parsed_candidate.get("skills", [])),
+                parsed_candidate.get("experience_years", 0),
+                parsed_candidate.get("education", ""),
+                json.dumps(parsed_candidate),
+                score
+            )
+        )
+        db.commit()
+        cur.close()
+        db.close()
+    except Exception as ex:
+        pass
+
     return jsonify({
         "ok": True,
         "parsed_profile": parsed_candidate,

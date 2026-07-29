@@ -1,0 +1,143 @@
+{% extends "admin_base.html" %}
+{% set active_nav = "admin_tools" %}
+{% block title %}AI Workflow Automation Builder — MagHR Premier{% endblock %}
+
+{% block content %}
+<div class="u-p-24">
+  <div class="u-d-flex u-ai-center u-jc-space-between u-mb-24">
+    <div>
+      <h1 class="u-fs-22 u-fw-800 u-c-0f172a">🤖 AI Workflow Automation Builder</h1>
+      <p class="u-fs-13 u-c-64748b u-mt-4">Configure trigger-action rules for employee lifecycle, IT provisioning, and celebratory milestones.</p>
+    </div>
+    <button class="u-p-10-18 u-bg-1e3a8a u-c-fff u-bd-none u-br-10 u-fs-13 u-fw-700 u-cur-pointer" onclick="document.getElementById('newRuleModal').style.display='flex'">
+      + Create Workflow Rule
+    </button>
+  </div>
+
+  <!-- RULES TABLE -->
+  <div class="u-bg-fff u-bd-1-solid-e8edf8 u-br-16 u-p-20 u-mb-24 u-shad-0-1-6-rgba15_23_42_05">
+    <div class="u-fs-14 u-fw-800 u-c-0f172a u-mb-16 u-tt-uppercase u-ls-0d4">Active Automation Rules</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Rule Name</th>
+            <th>Trigger Event</th>
+            <th>Configured Actions</th>
+            <th>Status</th>
+            <th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if rules %}
+            {% for r in rules %}
+            <tr>
+              <td>#{{ r[0] }}</td>
+              <td class="u-fw-700 u-c-1e40af">{{ r[1] }}</td>
+              <td><span class="badge b-blue">{{ r[2] }}</span></td>
+              <td class="u-fs-12 u-c-64748b">{{ r[4] }}</td>
+              <td><span class="badge {{ 'b-green' if r[5] else 'b-gray' }}">{{ 'Active' if r[5] else 'Inactive' }}</span></td>
+              <td class="u-fs-12 u-c-94a3b8">{{ r[6] }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="empty-cell">No workflow rules configured yet. Click "+ Create Workflow Rule" to add one.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EXECUTION LOGS -->
+  <div class="u-bg-fff u-bd-1-solid-e8edf8 u-br-16 u-p-20 u-shad-0-1-6-rgba15_23_42_05">
+    <div class="u-fs-14 u-fw-800 u-c-0f172a u-mb-16 u-tt-uppercase u-ls-0d4">Recent Execution Logs</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Rule Name</th>
+            <th>Entity / Target</th>
+            <th>Execution Status</th>
+            <th>Log Message</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if logs %}
+            {% for l in logs %}
+            <tr>
+              <td>#{{ l[0] }}</td>
+              <td class="u-fw-600">{{ l[1] or 'System Trigger' }}</td>
+              <td><code>{{ l[2] }}</code></td>
+              <td><span class="badge {{ 'b-green' if l[3]=='SUCCESS' else 'b-red' }}">{{ l[3] }}</span></td>
+              <td class="u-fs-12 u-c-64748b">{{ l[4] }}</td>
+              <td class="u-fs-12 u-c-94a3b8">{{ l[5] }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="empty-cell">No execution logs recorded yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE RULE MODAL -->
+<div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d55 u-zi-1000 u-ai-center u-jc-center" id="newRuleModal">
+  <div class="u-bg-fff u-br-18 u-p-28 u-w-100pct u-maxw-480 u-c-0f172a u-shad-0-24-60-rgba0_0_0_0d2">
+    <div class="u-d-flex u-ai-center u-jc-space-between u-mb-18">
+      <h3 class="u-fs-16 u-fw-800">⚡ New Workflow Rule</h3>
+      <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-30 u-h-30 u-cur-pointer" onclick="document.getElementById('newRuleModal').style.display='none'">✕</button>
+    </div>
+    <form onsubmit="saveRule(event)">
+      <div class="u-mb-14">
+        <label class="u-d-block u-fs-11 u-fw-700 u-c-64748b u-tt-uppercase u-mb-4">Rule Name</label>
+        <input class="u-w-100pct u-p-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13" id="r_name" placeholder="e.g. Hired Candidate Contract & IT Provisioning" required />
+      </div>
+      <div class="u-mb-14">
+        <label class="u-d-block u-fs-11 u-fw-700 u-c-64748b u-tt-uppercase u-mb-4">Trigger Event</label>
+        <select class="u-w-100pct u-p-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13" id="r_event" required>
+          <option value="candidate_hired">Candidate Hired (ATS)</option>
+          <option value="work_anniversary">Work Anniversary Milestone</option>
+          <option value="birthday">Employee Birthday</option>
+          <option value="probation_complete">Probation Completion</option>
+          <option value="resignation_approved">Resignation Approved (Offboarding)</option>
+        </select>
+      </div>
+      <div class="u-mb-18">
+        <label class="u-d-block u-fs-11 u-fw-700 u-c-64748b u-tt-uppercase u-mb-4">Automated Actions</label>
+        <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10 u-p-12 u-fs-12 u-c-64748b">
+          <label class="u-d-flex u-ai-center u-gap-8 u-mb-8"><input type="checkbox" id="act_email" checked /> 📧 Send Automated Email Notification</label>
+          <label class="u-d-flex u-ai-center u-gap-8 u-mb-8"><input type="checkbox" id="act_it" checked /> 💻 Trigger IT Account Provisioning / Revocation</label>
+          <label class="u-d-flex u-ai-center u-gap-8"><input type="checkbox" id="act_webhook" /> 🌐 Dispatch Webhook Payload</label>
+        </div>
+      </div>
+      <button class="u-w-100pct u-p-11 u-bg-1e3a8a u-c-fff u-bd-none u-br-9 u-fs-13 u-fw-700 u-cur-pointer" type="submit">Save & Activate Rule</button>
+    </form>
+  </div>
+</div>
+
+<script>
+async function saveRule(e) {
+  e.preventDefault();
+  const name = document.getElementById("r_name").value;
+  const trigger_event = document.getElementById("r_event").value;
+  const actions = [];
+  if (document.getElementById("act_email").checked) actions.push({type: "email", subject: "HR Workflow Notification", body: "Automated alert for {employee_id}"});
+  if (document.getElementById("act_it").checked) actions.push({type: trigger_event === "resignation_approved" ? "it_revoke" : "it_provision"});
+  if (document.getElementById("act_webhook").checked) actions.push({type: "webhook", url: "https://api.magzest.in/webhooks/hrms"});
+
+  const res = await fetch("/api/workflows/rules", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({name, trigger_event, actions})
+  });
+  const data = await res.json();
+  alert(data.msg);
+  if (data.ok) location.reload();
+}
+</script>
+{% endblock %}

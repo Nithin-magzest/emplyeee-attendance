@@ -101,6 +101,8 @@ from blueprints.core import core_bp
 from blueprints.ai_hrms import ai_hrms_bp
 from blueprints.secops import secops_bp
 from blueprints.email_blast import email_blast_bp
+from blueprints.workflow_automation import workflow_bp
+from blueprints.ewa import ewa_bp
 
 app.register_blueprint(health_bp)
 app.register_blueprint(notifications_bp)
@@ -120,6 +122,8 @@ app.register_blueprint(core_bp)
 app.register_blueprint(ai_hrms_bp)
 app.register_blueprint(secops_bp)
 app.register_blueprint(email_blast_bp)
+app.register_blueprint(workflow_bp)
+app.register_blueprint(ewa_bp)
 
 # ── app.py: shared setup only (init_db, error handlers, before/after_request
 #    hooks, template filters) — no route handlers remain, but it still needs
