@@ -879,4 +879,166 @@ def api_server_errors():
     return jsonify({"ok": True, "errors": get_server_error_logs()})
 
 
+@secops_bp.route("/api/secops/dashboard-stats")
+def api_secops_dashboard_stats():
+    """API: Real-time dashboard KPI stats — event counts by severity, malware hits, lockouts, etc."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
+    try:
+        cur.execute("SELECT COUNT(*) FROM security_events")
+        total_events = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE level='CRITICAL'")
+        critical = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE level='ERROR'")
+        errors = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE level='WARNING'")
+        warnings = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE event_type ILIKE '%malware%' OR event_type ILIKE '%ransomware%' OR event_type ILIKE '%trojan%' OR event_type ILIKE '%miner%'")
+        malware_hits = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM quarantined_files WHERE status='QUARANTINED'")
+        quarantine_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM login_attempts WHERE locked_until IS NOT NULL AND locked_until > NOW()")
+        active_lockouts = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
+        banned_ips = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE created_at >= NOW() - INTERVAL '24 hours'")
+        events_24h = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE event_type ILIKE '%brute%' OR event_type ILIKE '%injection%' OR event_type ILIKE '%credential%'")
+        auth_attacks = cur.fetchone()[0]
+        # Threat trend last 7 days by day
+        cur.execute("""
+            SELECT DATE(created_at), level, COUNT(*) 
+            FROM security_events 
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+            GROUP BY DATE(created_at), level
+            ORDER BY DATE(created_at)
+        """)
+        trend_raw = cur.fetchall()
+        trend = {}
+        for date, level, count in trend_raw:
+            d = str(date)
+            if d not in trend:
+                trend[d] = {"ERROR": 0, "WARNING": 0, "CRITICAL": 0, "INFO": 0}
+            trend[d][level] = count
+        cur.execute("SELECT event_type, COUNT(*) c FROM security_events GROUP BY event_type ORDER BY c DESC LIMIT 6")
+        top_threats = [{"type": r[0], "count": r[1]} for r in cur.fetchall()]
+    finally:
+        cur.close()
+        db.close()
+    return jsonify({
+        "ok": True,
+        "stats": {
+            "total_events": total_events, "critical": critical, "errors": errors,
+            "warnings": warnings, "malware_hits": malware_hits, "quarantine_count": quarantine_count,
+            "active_lockouts": active_lockouts, "banned_ips": banned_ips,
+            "events_24h": events_24h, "auth_attacks": auth_attacks,
+            "threat_trend": trend, "top_threats": top_threats,
+        }
+    })
+
+
+@secops_bp.route("/api/secops/malware-logs")
+def api_secops_malware_logs():
+    """API: Filtered malware & threat detection events directly from DB."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
+    try:
+        cur.execute("""
+            SELECT id, event_type, level, message, identifier, ip, path, extra_json, created_at
+            FROM security_events
+            WHERE event_type ILIKE '%malware%' OR event_type ILIKE '%ransomware%'
+               OR event_type ILIKE '%trojan%' OR event_type ILIKE '%miner%'
+               OR event_type ILIKE '%webshell%' OR event_type ILIKE '%virus%'
+               OR message ILIKE '%malware%' OR message ILIKE '%ransomware%'
+               OR message ILIKE '%trojan%' OR message ILIKE '%virus%'
+               OR message ILIKE '%quarantine%' OR message ILIKE '%EICAR%'
+            ORDER BY created_at DESC LIMIT 50
+        """)
+        rows = cur.fetchall()
+        import json as _json
+        logs = []
+        for r in rows:
+            extra = {}
+            if r[7]:
+                try:
+                    extra = _json.loads(r[7]) if isinstance(r[7], str) else dict(r[7])
+                except Exception:
+                    pass
+            logs.append({
+                "id": r[0], "event_type": r[1], "severity": r[2], "details": r[3],
+                "user_id": r[4] or "unknown", "ip_address": r[5] or "N/A",
+                "path": r[6] or "/", "extra": extra,
+                "timestamp": r[8].strftime("%Y-%m-%d %H:%M:%S") if r[8] else "N/A"
+            })
+    finally:
+        cur.close()
+        db.close()
+    return jsonify({"ok": True, "logs": logs, "count": len(logs)})
+
+
+@secops_bp.route("/api/secops/quarantine-list")
+def api_secops_quarantine_list():
+    """API: Real quarantine list from DB with action buttons."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    from utils.security_logs import get_quarantined_files
+    files = get_quarantined_files()
+    return jsonify({"ok": True, "files": files, "count": len(files)})
+
+
+@secops_bp.route("/api/secops/attack-timeline")
+def api_secops_attack_timeline():
+    """API: Recent security attack events in chronological timeline format."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
+    try:
+        cur.execute("""
+            SELECT event_type, level, message, identifier, ip, created_at
+            FROM security_events
+            WHERE level IN ('ERROR', 'CRITICAL', 'WARNING')
+            ORDER BY created_at DESC LIMIT 20
+        """)
+        events = []
+        for r in cur.fetchall():
+            events.append({
+                "event_type": r[0], "level": r[1], "message": r[2],
+                "identifier": r[3], "ip": r[4],
+                "timestamp": r[5].strftime("%Y-%m-%d %H:%M:%S") if r[5] else "N/A"
+            })
+    finally:
+        cur.close()
+        db.close()
+    return jsonify({"ok": True, "events": events})
+
+
+@secops_bp.route("/api/secops/audit-trail")
+def api_secops_audit_trail():
+    """API: Admin and SecOps action audit trail from DB."""
+    if not _is_secops_authorized():
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    db = get_db_connection()
+    cur = db.cursor(buffered=True)
+    try:
+        cur.execute("""
+            SELECT actor, actor_type, action, detail, ip_address, target_table, target_id, created_at
+            FROM audit_logs ORDER BY created_at DESC LIMIT 50
+        """)
+        logs = []
+        for r in cur.fetchall():
+            logs.append({
+                "actor": r[0], "actor_type": r[1], "action": r[2],
+                "detail": r[3], "ip": r[4], "table": r[5], "target_id": r[6],
+                "timestamp": r[7].strftime("%Y-%m-%d %H:%M:%S") if r[7] else "N/A"
+            })
+    finally:
+        cur.close()
+        db.close()
+    return jsonify({"ok": True, "logs": logs, "count": len(logs)})
+
 

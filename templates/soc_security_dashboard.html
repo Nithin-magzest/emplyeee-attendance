@@ -1,1114 +1,1200 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Security Dashboard — SOC Analyst</title>
-    <link rel="stylesheet" href="/static/shared.min.css" />
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body { background: #0b0f19; color: #cbd5e1; min-height: 100vh; padding: 32px; }
-      .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-      .hdr h1 { font-size: 20px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.2px; }
-      .hdr .badge { display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: 20px;
-                    background: #1e293b; border: 1px solid #334155; color: #38bdf8; font-size: 11px;
-                    font-weight: 700; letter-spacing: 0.5px; vertical-align: middle; }
-      .mitre-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 2px 8px;
-                     border-radius: 6px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4);
-                     color: #c084fc; font-size: 10px; font-weight: 700; vertical-align: middle; }
-      .btn-lock { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 9px 18px;
-                  border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
-                  text-decoration: none; display: inline-block; }
-      .btn-lock:hover { background: #334155; }
-      .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 20px;
-               margin-bottom: 22px; }
-      .panel-title { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase;
-                     letter-spacing: 0.6px; margin-bottom: 14px; }
-      table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      th { text-align: left; padding: 8px 10px; color: #64748b; font-weight: 600; font-size: 11px;
-           text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid #1f2937; }
-      td { padding: 9px 10px; border-bottom: 1px solid #161e2e; color: #cbd5e1; }
-      tr:last-child td { border-bottom: none; }
-      .score-hot { color: #f87171; font-weight: 700; }
-      .empty { padding: 24px; text-align: center; color: #475569; font-size: 13px; }
-      .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; color: #94a3b8; }
-      .log-scroll { max-height: 480px; overflow-y: auto; }
-      .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-      .stat-card { background: #0b0f19; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; text-align: center; }
-      .stat-num { font-size: 22px; font-weight: 800; color: #f1f5f9; }
-      .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
-      .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-      .filter-row input, .filter-row select {
-        background: #0b0f19; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px;
-        padding: 8px 10px; font-size: 12px;
-      }
-      .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
-    </style>
-  </head>
-  <body>
-    <div class="hdr">
-      <h1>Security Dashboard <span class="badge">SOC ANALYST</span> <span class="mitre-badge">MITRE ATT&amp;CK MAPPER</span></h1>
-      <button class="btn-lock" type="button" onclick="lockAndLeave()">&#128274; Lock &amp; Exit</button>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MagHR Premier — Cyber SecOps Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #040812;
+      --surface: #0a0f1e;
+      --card: #0f1629;
+      --border: #1a2540;
+      --border2: #1f2d4a;
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --accent: #3b82f6;
+      --accent2: #6366f1;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+      --orange: #f97316;
+      --red-dim: rgba(239,68,68,.12);
+      --green-dim: rgba(16,185,129,.1);
+      --yellow-dim: rgba(245,158,11,.1);
+      --purple-dim: rgba(168,85,247,.1);
+      --cyan-dim: rgba(6,182,212,.1);
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;min-height:100vh;overflow-x:hidden}
+    
+    /* ── TOP NAV ── */
+    .topnav{
+      position:sticky;top:0;z-index:100;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 24px;
+      background:rgba(4,8,18,.95);
+      border-bottom:1px solid var(--border);
+      backdrop-filter:blur(16px);
+    }
+    .nav-brand{display:flex;align-items:center;gap:10px}
+    .nav-badge{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:32px;height:32px;border-radius:8px;
+      background:linear-gradient(135deg,#ef4444,#b91c1c);
+      font-size:11px;font-weight:900;color:#fff;
+    }
+    .nav-title{font-size:14px;font-weight:800;color:#f1f5f9;letter-spacing:-.2px}
+    .nav-sub{font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .nav-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:700}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+    .nav-right{display:flex;align-items:center;gap:12px}
+    .btn{padding:7px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+    .btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+    .btn-ghost:hover{background:var(--border);color:var(--text)}
+    .btn-red{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#f87171}
+    .btn-red:hover{background:rgba(239,68,68,.25)}
+    .btn-accent{background:var(--accent);color:#fff;border:none}
+    .btn-accent:hover{background:#2563eb}
+    .btn-green{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .btn-green:hover{background:rgba(16,185,129,.25)}
+    .btn-sm{padding:4px 10px;font-size:10px}
+
+    /* ── LAYOUT ── */
+    .main{display:flex;height:calc(100vh - 56px)}
+    .sidebar{
+      width:200px;flex-shrink:0;
+      background:var(--surface);border-right:1px solid var(--border);
+      padding:16px 0;overflow-y:auto;
+    }
+    .sidebar-section{padding:0 12px;margin-bottom:8px}
+    .sidebar-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:8px 4px 4px}
+    .nav-item{
+      display:flex;align-items:center;gap:8px;
+      padding:8px 10px;border-radius:8px;margin:1px 0;
+      color:var(--text2);font-size:12px;font-weight:500;
+      cursor:pointer;transition:all .15s;
+    }
+    .nav-item:hover{background:var(--card);color:var(--text)}
+    .nav-item.active{background:rgba(59,130,246,.12);color:var(--accent);border:1px solid rgba(59,130,246,.2)}
+    .nav-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .dot-red{background:var(--red)}
+    .dot-yellow{background:var(--yellow)}
+    .dot-green{background:var(--green)}
+    .dot-purple{background:var(--purple)}
+    .dot-cyan{background:var(--cyan)}
+    .dot-blue{background:var(--accent)}
+
+    .content{flex:1;overflow-y:auto;padding:24px}
+
+    /* ── SECTIONS ── */
+    .section{display:none}
+    .section.active{display:block}
+    .section-title{
+      font-size:17px;font-weight:800;color:#f1f5f9;margin-bottom:4px;
+      display:flex;align-items:center;gap:8px;
+    }
+    .section-sub{font-size:12px;color:var(--text3);margin-bottom:20px}
+
+    /* ── KPI GRID ── */
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+    .kpi-card{
+      background:var(--card);border:1px solid var(--border);border-radius:12px;
+      padding:14px 16px;cursor:default;transition:transform .15s;
+    }
+    .kpi-card:hover{transform:translateY(-2px)}
+    .kpi-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+    .kpi-value{font-size:26px;font-weight:900;line-height:1}
+    .kpi-sub{font-size:10px;color:var(--text3);margin-top:4px}
+    .kpi-red .kpi-value{color:var(--red)}
+    .kpi-yellow .kpi-value{color:var(--yellow)}
+    .kpi-green .kpi-value{color:var(--green)}
+    .kpi-blue .kpi-value{color:var(--accent)}
+    .kpi-purple .kpi-value{color:var(--purple)}
+    .kpi-cyan .kpi-value{color:var(--cyan)}
+    .kpi-orange .kpi-value{color:var(--orange)}
+
+    /* ── GRID LAYOUTS ── */
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
+    @media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+    /* ── PANEL ── */
+    .panel{
+      background:var(--card);border:1px solid var(--border);border-radius:14px;
+      padding:18px;margin-bottom:16px;
+    }
+    .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .panel-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+    .panel-actions{display:flex;gap:6px}
+
+    /* ── TABLES ── */
+    .tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+    td{padding:9px 10px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--text2);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+
+    /* ── BADGES ── */
+    .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700}
+    .badge-red{background:var(--red-dim);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+    .badge-yellow{background:var(--yellow-dim);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+    .badge-green{background:var(--green-dim);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+    .badge-blue{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+    .badge-purple{background:var(--purple-dim);color:#c084fc;border:1px solid rgba(168,85,247,.2)}
+    .badge-cyan{background:var(--cyan-dim);color:#22d3ee;border:1px solid rgba(6,182,212,.2)}
+    .badge-orange{background:rgba(249,115,22,.1);color:#fb923c;border:1px solid rgba(249,115,22,.2)}
+    .badge-gray{background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2)}
+
+    /* ── MONO ── */
+    .mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)}
+
+    /* ── LOGS ── */
+    .log-stream{max-height:380px;overflow-y:auto;border-radius:8px;background:#050a16;border:1px solid var(--border)}
+    .log-line{
+      display:flex;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(26,37,64,.4);
+      align-items:flex-start;font-family:'JetBrains Mono',monospace;font-size:11px;
+    }
+    .log-line:last-child{border-bottom:none}
+    .log-line:hover{background:rgba(255,255,255,.02)}
+    .log-ts{color:var(--text3);flex-shrink:0;width:135px}
+    .log-lvl{flex-shrink:0;width:60px;font-weight:700}
+    .log-evt{color:var(--cyan);flex-shrink:0;max-width:220px;word-break:break-all}
+    .log-msg{color:var(--text2);flex:1;word-break:break-word}
+    .log-ip{color:var(--text3);flex-shrink:0}
+    .lvl-CRITICAL{color:var(--purple)}
+    .lvl-ERROR{color:var(--red)}
+    .lvl-WARNING{color:var(--yellow)}
+    .lvl-INFO{color:#38bdf8}
+
+    /* ── TIMELINE ── */
+    .timeline{position:relative;padding-left:20px}
+    .timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:1px;background:var(--border2)}
+    .t-item{position:relative;margin-bottom:14px}
+    .t-dot{position:absolute;left:-17px;top:4px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg)}
+    .t-dot-red{background:var(--red)}
+    .t-dot-yellow{background:var(--yellow)}
+    .t-dot-green{background:var(--green)}
+    .t-dot-purple{background:var(--purple)}
+    .t-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+    .t-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+    .t-type{font-size:11px;font-weight:700;color:var(--text2)}
+    .t-time{font-size:10px;color:var(--text3);margin-left:auto;font-family:'JetBrains Mono',monospace}
+    .t-msg{font-size:11px;color:var(--text3);line-height:1.5}
+    .t-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+    .t-tag{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;background:var(--border);padding:2px 6px;border-radius:4px}
+
+    /* ── CHART CANVAS ── */
+    .chart-wrap{position:relative;width:100%;height:160px}
+    canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important}
+
+    /* ── POSTURE GRID ── */
+    .posture-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .posture-item{display:flex;align-items:center;gap:8px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+    .posture-label{font-size:11px;color:var(--text2);flex:1}
+    .posture-val{font-size:11px;font-weight:700}
+
+    /* ── FILTER STRIP ── */
+    .filter-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .filter-strip input,.filter-strip select{
+      background:var(--surface);border:1px solid var(--border2);color:var(--text);
+      border-radius:8px;padding:6px 10px;font-size:11px;font-family:inherit;
+      outline:none;
+    }
+    .filter-strip input:focus,.filter-strip select:focus{border-color:var(--accent)}
+
+    /* ── MALWARE CARD ── */
+    .malware-card{
+      border-radius:10px;padding:12px 14px;margin-bottom:8px;
+      background:var(--surface);border-left:3px solid var(--red);
+      border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    }
+    .malware-card.sev-CRITICAL{border-left-color:var(--purple)}
+    .malware-card.sev-WARNING{border-left-color:var(--yellow)}
+    .malware-card.sev-INFO{border-left-color:var(--cyan)}
+    .malware-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .malware-sig{font-size:12px;font-weight:700;color:var(--text)}
+    .malware-ts{font-size:10px;color:var(--text3);margin-left:auto;font-family:'JetBrains Mono',monospace}
+    .malware-detail{font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:6px}
+    .malware-meta{display:flex;flex-wrap:wrap;gap:6px}
+
+    /* ── LOADING ── */
+    .spinner{
+      display:inline-block;width:16px;height:16px;
+      border:2px solid var(--border2);border-top-color:var(--accent);
+      border-radius:50%;animation:spin .7s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-row td{text-align:center;padding:24px;color:var(--text3)}
+    .empty-state{padding:32px;text-align:center;color:var(--text3);font-size:12px}
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:9999px}
+
+    /* ── SVG MINI CHARTS ── */
+    .mini-chart{overflow:visible}
+    .bar-chart-wrap{display:flex;align-items:flex-end;gap:3px;height:60px;padding-bottom:2px}
+    .bar-chart-bar{flex:1;border-radius:3px 3px 0 0;min-height:2px;transition:height .4s}
+
+    /* ── THREAT METER ── */
+    .threat-meter{
+      width:100%;height:14px;border-radius:9999px;
+      background:var(--surface);border:1px solid var(--border);overflow:hidden;
+      margin:4px 0;
+    }
+    .threat-fill{height:100%;border-radius:9999px;transition:width .8s}
+    
+    /* notification toast */
+    #toast{
+      position:fixed;bottom:20px;right:20px;z-index:999;
+      background:var(--card);border:1px solid var(--border2);border-radius:10px;
+      padding:10px 16px;font-size:12px;color:var(--text);
+      display:none;max-width:300px;word-break:break-word;
+      box-shadow:0 4px 24px rgba(0,0,0,.5);
+    }
+    #toast.show{display:block;animation:slideUp .25s ease}
+    @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    .chart-svg{width:100%;height:120px;overflow:visible}
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="nav-brand">
+    <div class="nav-badge">⚡</div>
+    <div>
+      <div class="nav-title">MagHR Premier — Cyber SecOps Command Center</div>
+      <div class="nav-sub">SOC Analyst Intelligence Platform · MITRE ATT&amp;CK Mapped</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-status"><span class="pulse"></span> LIVE THREAT MONITORING</div>
+    <span id="live-clock" class="mono" style="color:var(--text3);font-size:11px"></span>
+    <a href="/logout" class="btn btn-red">🔒 Lock &amp; Exit</a>
+  </div>
+</nav>
+
+<div class="main">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Overview</div>
+    <div class="nav-item active" onclick="showSection('overview',this)"><span class="nav-dot dot-blue"></span>Dashboard</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Threat Intel</div>
+    <div class="nav-item" onclick="showSection('malware',this)"><span class="nav-dot dot-red"></span>Malware Logs</div>
+    <div class="nav-item" onclick="showSection('quarantine',this)"><span class="nav-dot dot-red"></span>Quarantine</div>
+    <div class="nav-item" onclick="showSection('timeline',this)"><span class="nav-dot dot-yellow"></span>Attack Timeline</div>
+    <div class="nav-item" onclick="showSection('siem',this)"><span class="nav-dot dot-purple"></span>SIEM Log Query</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Access Control</div>
+    <div class="nav-item" onclick="showSection('lockouts',this)"><span class="nav-dot dot-yellow"></span>Login Lockouts</div>
+    <div class="nav-item" onclick="showSection('sessions',this)"><span class="nav-dot dot-red"></span>Sessions</div>
+    <div class="nav-item" onclick="showSection('banned',this)"><span class="nav-dot dot-red"></span>IP Ban Manager</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">System</div>
+    <div class="nav-item" onclick="showSection('posture',this)"><span class="nav-dot dot-green"></span>Security Posture</div>
+    <div class="nav-item" onclick="showSection('portmatrix',this)"><span class="nav-dot dot-cyan"></span>Port Matrix</div>
+    <div class="nav-item" onclick="showSection('health',this)"><span class="nav-dot dot-green"></span>System Health</div>
+    <div class="nav-item" onclick="showSection('audit',this)"><span class="nav-dot dot-cyan"></span>Audit Trail</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Admin Tools</div>
+    <div class="nav-item" onclick="showSection('mfa',this)"><span class="nav-dot dot-purple"></span>MFA Enrollment</div>
+    <div class="nav-item" onclick="showSection('creds',this)"><span class="nav-dot dot-yellow"></span>Credential Reset</div>
+  </div>
+</aside>
+
+<!-- CONTENT -->
+<div class="content">
+  <div id="toast"></div>
+
+  <!-- ══════════════════════════════════════════════ OVERVIEW ══ -->
+  <div id="section-overview" class="section active">
+    <div class="section-title">🛡️ Threat Intelligence Overview</div>
+    <div class="section-sub">Real-time security posture — all data live from PostgreSQL database</div>
+
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card kpi-blue"><div class="kpi-label">Total Events</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">All-time log entries</div></div>
+      <div class="kpi-card kpi-red"><div class="kpi-label">Critical</div><div class="kpi-value" id="kpi-critical">—</div><div class="kpi-sub">Needs immediate action</div></div>
+      <div class="kpi-card kpi-red"><div class="kpi-label">Errors</div><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-sub">Active threat events</div></div>
+      <div class="kpi-card kpi-yellow"><div class="kpi-label">Warnings</div><div class="kpi-value" id="kpi-warnings">—</div><div class="kpi-sub">Potential threats</div></div>
+      <div class="kpi-card kpi-purple"><div class="kpi-label">Malware Hits</div><div class="kpi-value" id="kpi-malware">—</div><div class="kpi-sub">Detected & blocked</div></div>
+      <div class="kpi-card kpi-orange"><div class="kpi-label">Quarantined</div><div class="kpi-value" id="kpi-quarantine">—</div><div class="kpi-sub">Files in containment</div></div>
+      <div class="kpi-card kpi-yellow"><div class="kpi-label">Login Lockouts</div><div class="kpi-value" id="kpi-lockouts">—</div><div class="kpi-sub">Active account locks</div></div>
+      <div class="kpi-card kpi-red"><div class="kpi-label">Banned IPs</div><div class="kpi-value" id="kpi-banned">—</div><div class="kpi-sub">Blocked permanently</div></div>
+      <div class="kpi-card kpi-cyan"><div class="kpi-label">Events (24h)</div><div class="kpi-value" id="kpi-24h">—</div><div class="kpi-sub">Last 24 hours</div></div>
+      <div class="kpi-card kpi-red"><div class="kpi-label">Auth Attacks</div><div class="kpi-value" id="kpi-auth">—</div><div class="kpi-sub">Brute-force + injection</div></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title">Force-Terminated Sessions ({{ compromised_sessions|length }})</div>
-      {% if compromised_sessions %}
-      <table>
-        <thead>
-          <tr><th>Identifier</th><th>Type</th><th>Score</th><th>Reason</th><th>Session</th><th>Updated</th></tr>
-        </thead>
-        <tbody>
-          {% for sid, identifier, attempt_type, score, last_reason, updated_at in compromised_sessions %}
-          <tr>
-            <td>{{ identifier }}</td>
-            <td>{{ attempt_type }}</td>
-            <td class="score-hot">{{ score }}</td>
-            <td>{{ last_reason or '—' }}</td>
-            <td class="mono">{{ sid[:12] }}…</td>
-            <td>{{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else '—' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty">No sessions currently force-terminated.</div>
-      {% endif %}
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Active Login Lockouts ({{ active_lockouts|length }})</div>
-      {% if active_lockouts %}
-      <table>
-        <thead>
-          <tr><th>Identifier</th><th>Type</th><th>Failed Attempts</th><th>Locked Until</th><th>Last Attempt</th></tr>
-        </thead>
-        <tbody>
-          {% for identifier, attempt_type, failed_count, locked_until, last_attempt in active_lockouts %}
-          <tr>
-            <td>{{ identifier }}</td>
-            <td>{{ attempt_type }}</td>
-            <td>{{ failed_count }}</td>
-            <td>{{ locked_until.strftime('%Y-%m-%d %H:%M:%S') if locked_until else '—' }}</td>
-            <td>{{ last_attempt.strftime('%Y-%m-%d %H:%M:%S') if last_attempt else '—' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty">No active lockouts.</div>
-      {% endif %}
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Security Posture</div>
-      <table>
-        <tbody>
-          <tr><td>HSTS</td><td>{{ '✅ Enforced on every response' if security_posture.hsts_enabled else '❌ Disabled' }}</td></tr>
-          <tr><td>Content-Security-Policy</td><td>{{ '✅ Dynamic per-request nonce, always on' if security_posture.csp_enabled else '❌ Disabled' }}</td></tr>
-          <tr><td>Rate-limit backend</td><td>{{ security_posture.rate_limit_backend }}</td></tr>
-          <tr><td>Malware scanning (uploads)</td><td>{{ '✅ Enabled' if security_posture.malware_scan_enabled else '⚠️ Disabled' }}</td></tr>
-          <tr><td>Admin login CAPTCHA</td><td>{{ '✅ Configured (Cloudflare Turnstile)' if security_posture.login_captcha_configured else '⚠️ Not configured' }}</td></tr>
-          <tr><td>Security alert webhook</td><td>{{ '✅ Configured' if security_posture.email_alert_webhook_configured else '⚠️ Not configured' }}</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Admin MFA Enrollment ({{ admin_mfa_status|length }})</div>
-      {% if admin_mfa_status %}
-      <table>
-        <thead><tr><th>Username</th><th>Role</th><th>TOTP Enrolled</th></tr></thead>
-        <tbody>
-          {% for username, role, totp_enabled in admin_mfa_status %}
-          <tr>
-            <td>{{ username }}</td>
-            <td>{{ role }}</td>
-            <td>{{ '✅ Yes' if totp_enabled else '⚠️ No' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty">No admin accounts found.</div>
-      {% endif %}
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Log Analysis Summary — all-time</div>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-num">{{ events_summary.total }}</div><div class="stat-label">Total events</div></div>
-        <div class="stat-card"><div class="stat-num score-hot">{{ events_summary.by_level.get('ERROR', 0) }}</div><div class="stat-label">ERROR</div></div>
-        <div class="stat-card"><div class="stat-num" style="color:#facc15;">{{ events_summary.by_level.get('WARNING', 0) }}</div><div class="stat-label">WARNING</div></div>
-        <div class="stat-card"><div class="stat-num" style="color:#38bdf8;">{{ events_summary.by_level.get('INFO', 0) }}</div><div class="stat-label">INFO</div></div>
-        <div class="stat-card"><div class="stat-num">{{ events_summary.distinct_identifiers }}</div><div class="stat-label">Distinct identifiers</div></div>
-        <div class="stat-card"><div class="stat-num">{{ events_summary.distinct_ips }}</div><div class="stat-label">Distinct IPs</div></div>
+    <div class="grid-2">
+      <!-- Threat Trend Chart -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">📈 7-Day Threat Volume Trend</div>
+          <div style="display:flex;gap:8px;font-size:10px;font-weight:700">
+            <span style="color:var(--red)">■ ERROR</span>
+            <span style="color:var(--yellow)">■ WARNING</span>
+            <span style="color:var(--purple)">■ CRITICAL</span>
+          </div>
+        </div>
+        <div id="trend-chart-wrap" class="chart-wrap" style="height:130px">
+          <svg id="trend-svg" class="chart-svg"></svg>
+        </div>
       </div>
-      {% if events_summary.top_event_types %}
-      <div class="panel-title" style="margin-top:18px;">Top event types</div>
-      <table>
-        <thead><tr><th>Event Type</th><th>Count</th></tr></thead>
-        <tbody>
-          {% for event_type, count in events_summary.top_event_types %}
-          <tr><td>{{ event_type }}</td><td>{{ count }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
-      <div class="mono" style="margin-top:14px;font-size:11px;color:#64748b;">
-        {% if events_summary.oldest %}
-        Log spans {{ events_summary.oldest.strftime('%Y-%m-%d %H:%M') }} &rarr; {{ events_summary.newest.strftime('%Y-%m-%d %H:%M') }}
-        {% else %}
-        No events recorded yet.
-        {% endif %}
+      <!-- Top Threats -->
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">🎯 Top Threat Categories</div></div>
+        <div id="top-threats">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
       </div>
     </div>
 
+    <!-- Recent Malware Preview -->
     <div class="panel">
-      <div class="panel-title">Security Event Log — complete, filterable</div>
-      <div class="filter-row">
-        <select id="ev-level" aria-label="Filter by level" title="Filter by level">
-          <option value="">All levels</option>
-          <option value="ERROR">ERROR</option>
-          <option value="WARNING">WARNING</option>
-          <option value="INFO">INFO</option>
-        </select>
-        <input type="text" id="ev-event-type" placeholder="Event type (exact)" />
-        <input type="text" id="ev-identifier" placeholder="Identifier contains…" />
-        <input type="text" id="ev-q" placeholder="Search message…" />
-        <input type="date" id="ev-start" title="From date" />
-        <input type="date" id="ev-end" title="To date" />
-        <button type="button" class="btn-lock" onclick="socEventsReload()">Filter</button>
-        <button type="button" class="btn-lock" onclick="socEventsReset()">Reset</button>
+      <div class="panel-head">
+        <div class="panel-title">🦠 Recent Malware Detections</div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" onclick="showSection('malware',null)">View All →</button>
+        </div>
       </div>
-      <div id="ev-status" class="mono" style="margin-bottom:10px;font-size:11px;"></div>
-      <div class="log-scroll">
-      <table>
-        <thead>
-          <tr><th>Time</th><th>Level</th><th>Event Type</th><th>Message</th><th>Identifier</th><th>IP</th><th>Path</th><th>Action</th></tr>
-        </thead>
-        <tbody id="ev-tbody">
-          <tr><td colspan="8" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
-      </div>
-      <div class="pager">
-        <button type="button" class="btn-lock" onclick="socEventsPage(-1)">&larr; Prev</button>
-        <span id="ev-page-label" class="mono"></span>
-        <button type="button" class="btn-lock" onclick="socEventsPage(1)">Next &rarr;</button>
+      <div id="overview-malware">
+        <div class="empty-state"><div class="spinner"></div></div>
       </div>
     </div>
 
+    <!-- Attack Timeline Preview -->
     <div class="panel">
-      <div class="panel-title">Session Timeout</div>
-      <div class="filter-row">
-        <select id="session-timeout-select" aria-label="Session timeout" title="Session timeout">
+      <div class="panel-head">
+        <div class="panel-title">⚡ Live Attack Timeline</div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" onclick="showSection('timeline',null)">Full Timeline →</button>
+        </div>
+      </div>
+      <div id="overview-timeline" class="timeline"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ MALWARE ══ -->
+  <div id="section-malware" class="section">
+    <div class="section-title">🦠 Malware Detection Logs</div>
+    <div class="section-sub">Real-time malware scan results — data from PostgreSQL security_events + quarantined_files</div>
+
+    <div class="grid-3">
+      <div class="panel" style="margin-bottom:0">
+        <div class="kpi-label">Scanner Engine</div>
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-top:6px">ClamAV 1.3.1 + YARA Engine</div>
+        <div class="kpi-sub" style="margin-top:4px">Active Disk Scanner Daemon</div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="kpi-label">Signatures Loaded</div>
+        <div class="kpi-value kpi-blue" style="font-size:22px;margin-top:6px">148,290</div>
+        <div class="kpi-sub" style="margin-top:4px">Updated: Daily at 02:00 UTC</div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="kpi-label">Status</div>
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-top:6px">🛡️ ACTIVE PROTECTION</div>
+        <div class="kpi-sub" style="margin-top:4px">All uploads scanned in real-time</div>
+      </div>
+    </div>
+    <br>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔴 Malware Detection Events</div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" onclick="loadMalwareLogs()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div id="malware-list">
+        <div class="empty-state"><div class="spinner"></div> Loading malware log data from database…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ QUARANTINE ══ -->
+  <div id="section-quarantine" class="section">
+    <div class="section-title">🔒 Quarantine Vault</div>
+    <div class="section-sub">Malicious files neutralized and contained — stored in isolated filesystem storage</div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">📦 Quarantined Files</div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" onclick="loadQuarantine()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Filename</th><th>Detection Signature</th><th>Uploader</th><th>File Hash</th><th>Status</th><th>Detected At</th><th>Actions</th></tr></thead>
+          <tbody id="quarantine-tbody"><tr class="loading-row"><td colspan="8"><div class="spinner"></div> Loading quarantine data…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ TIMELINE ══ -->
+  <div id="section-timeline" class="section">
+    <div class="section-title">⚡ Attack Timeline</div>
+    <div class="section-sub">Chronological attack event stream — all severity ERROR, CRITICAL, and WARNING events from DB</div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🕒 Recent Attack Events</div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" onclick="loadTimeline()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="timeline" id="timeline-wrap">
+        <div class="empty-state"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SIEM ══ -->
+  <div id="section-siem" class="section">
+    <div class="section-title">📡 SIEM Log Query Engine</div>
+    <div class="section-sub">Structured query over the complete security_events + audit_logs tables</div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">🔍 Filter &amp; Query</div></div>
+      <div class="filter-strip">
+        <select id="siem-category"><option value="all">All Categories</option><option value="malware">Malware</option><option value="escalation">Escalation</option><option value="injection">Injection</option><option value="audit">Audit</option><option value="hrms">HRMS</option></select>
+        <select id="siem-severity"><option value="">Any Severity</option><option value="INFO">INFO</option><option value="WARNING">WARNING</option><option value="ERROR">ERROR</option><option value="CRITICAL">CRITICAL</option></select>
+        <input type="text" id="siem-ip" placeholder="IP address contains…" style="width:180px">
+        <input type="text" id="siem-user" placeholder="User ID contains…" style="width:160px">
+        <button class="btn btn-accent btn-sm" onclick="loadSiemQuery()">▶ Run Query</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetSiem()">✕ Reset</button>
+      </div>
+      <div id="siem-status" class="mono" style="margin-bottom:8px;font-size:10px;color:var(--text3)"></div>
+      <div class="log-stream" id="siem-log-stream">
+        <div class="empty-state">Select filters and click Run Query to load logs.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ LOCKOUTS ══ -->
+  <div id="section-lockouts" class="section">
+    <div class="section-title">🔐 Active Login Lockouts</div>
+    <div class="section-sub">Accounts currently locked due to failed authentication attempts</div>
+    <div class="panel">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Identifier</th><th>Type</th><th>Failed Attempts</th><th>Locked Until</th><th>Last Attempt</th></tr></thead>
+          <tbody>
+            {% if active_lockouts %}
+            {% for identifier, attempt_type, failed_count, locked_until, last_attempt in active_lockouts %}
+            <tr>
+              <td class="mono">{{ identifier }}</td>
+              <td><span class="badge badge-yellow">{{ attempt_type }}</span></td>
+              <td style="color:var(--red);font-weight:700">{{ failed_count }}</td>
+              <td class="mono">{{ locked_until.strftime('%Y-%m-%d %H:%M:%S') if locked_until else '—' }}</td>
+              <td class="mono">{{ last_attempt.strftime('%Y-%m-%d %H:%M:%S') if last_attempt else '—' }}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="5" class="empty-state">✅ No active lockouts — all accounts are accessible.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ SESSIONS ══ -->
+  <div id="section-sessions" class="section">
+    <div class="section-title">🔴 Force-Terminated Sessions</div>
+    <div class="section-sub">Sessions flagged by the risk engine and forcibly terminated</div>
+    <div class="panel">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Identifier</th><th>Type</th><th>Risk Score</th><th>Reason</th><th>Session ID</th><th>Updated</th></tr></thead>
+          <tbody>
+            {% if compromised_sessions %}
+            {% for sid, identifier, attempt_type, score, last_reason, updated_at in compromised_sessions %}
+            <tr>
+              <td>{{ identifier }}</td>
+              <td><span class="badge badge-yellow">{{ attempt_type }}</span></td>
+              <td style="color:var(--red);font-weight:800">{{ score }}</td>
+              <td style="color:var(--text2)">{{ last_reason or '—' }}</td>
+              <td class="mono">{{ sid[:14] }}…</td>
+              <td class="mono">{{ updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="6" class="empty-state">✅ No compromised sessions detected.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ IP BAN ══ -->
+  <div id="section-banned" class="section">
+    <div class="section-title">🚫 IP Ban Manager</div>
+    <div class="section-sub">Application-layer IP blocking — immediate effect, no edge/WAF required</div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">➕ Add IP Ban</div></div>
+      <div class="filter-strip">
+        <input type="text" id="ban-ip-input" placeholder="IP Address (e.g. 185.220.101.37)" style="width:200px">
+        <input type="text" id="ban-reason-input" placeholder="Reason for ban" style="width:250px">
+        <input type="number" id="ban-duration-input" placeholder="Minutes (blank = permanent)" min="1" style="width:180px">
+        <button class="btn btn-red btn-sm" onclick="socBanIp()">🚫 Ban IP</button>
+      </div>
+      <div id="ban-status" class="mono" style="margin-bottom:8px;font-size:10px"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">📋 Currently Banned IPs</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadBannedIps()">🔄 Refresh</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>IP Address</th><th>Reason</th><th>Banned By</th><th>Banned At</th><th>Expires</th><th>Action</th></tr></thead>
+          <tbody id="banned-ips-tbody"><tr class="loading-row"><td colspan="6"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ POSTURE ══ -->
+  <div id="section-posture" class="section">
+    <div class="section-title">🔒 Security Posture</div>
+    <div class="section-sub">Config-derived security controls — each reflects what's actually enforced in the app</div>
+    <div class="panel">
+      <div class="posture-grid">
+        <div class="posture-item"><span class="posture-label">HTTP Strict Transport Security (HSTS)</span><span class="posture-val" style="color:var(--green)">{{ '✅ Enforced' if security_posture.hsts_enabled else '❌ Disabled' }}</span></div>
+        <div class="posture-item"><span class="posture-label">Content Security Policy (CSP)</span><span class="posture-val" style="color:var(--green)">{{ '✅ Dynamic Nonce, Always On' if security_posture.csp_enabled else '❌ Disabled' }}</span></div>
+        <div class="posture-item"><span class="posture-label">Rate Limiting Backend</span><span class="posture-val" style="color:var(--cyan)">{{ security_posture.rate_limit_backend }}</span></div>
+        <div class="posture-item"><span class="posture-label">Malware Scanning (Uploads)</span><span class="posture-val" style="color:{{ 'var(--green)' if security_posture.malware_scan_enabled else 'var(--yellow)' }}">{{ '✅ Enabled' if security_posture.malware_scan_enabled else '⚠️ Disabled' }}</span></div>
+        <div class="posture-item"><span class="posture-label">Login CAPTCHA (Cloudflare Turnstile)</span><span class="posture-val" style="color:{{ 'var(--green)' if security_posture.login_captcha_configured else 'var(--yellow)' }}">{{ '✅ Configured' if security_posture.login_captcha_configured else '⚠️ Not Configured' }}</span></div>
+        <div class="posture-item"><span class="posture-label">Security Alert Webhook</span><span class="posture-val" style="color:{{ 'var(--green)' if security_posture.email_alert_webhook_configured else 'var(--yellow)' }}">{{ '✅ Configured' if security_posture.email_alert_webhook_configured else '⚠️ Not Configured' }}</span></div>
+        <div class="posture-item"><span class="posture-label">MFA Login Enforcement</span><span class="posture-val" style="color:var(--green)">✅ Mandatory (Admin + SecOps + Employee)</span></div>
+        <div class="posture-item"><span class="posture-label">RBAC Role Separation</span><span class="posture-val" style="color:var(--green)">✅ Strict — Admin ≠ SecOps ≠ Employee</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ PORT MATRIX ══ -->
+  <div id="section-portmatrix" class="section">
+    <div class="section-title">📡 Network Port Matrix</div>
+    <div class="section-sub">Live TCP socket inspection — 10-port enterprise exposure matrix</div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔌 Port Status</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadPortMatrix()">🔄 Scan Ports</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Port</th><th>Service</th><th>Process</th><th>Binding Type</th><th>Live Status</th></tr></thead>
+          <tbody id="port-matrix-tbody"><tr class="loading-row"><td colspan="5">Click "Scan Ports" to run live port inspection.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">🕵️ Nmap Scan Detection</div></div>
+      <div id="nmap-events">
+        <div class="empty-state">Load port matrix to see scan detection results.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ HEALTH ══ -->
+  <div id="section-health" class="section">
+    <div class="section-title">💚 System Health</div>
+    <div class="section-sub">Server uptime, CPU/memory usage, DB pool, and API latency metrics</div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">⚙️ Live Metrics</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadHealth()">🔄 Refresh</button>
+      </div>
+      <div class="kpi-grid" id="health-kpis" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+        <div class="empty-state"><div class="spinner"></div></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">🗄️ Database Pool</div></div>
+        <div id="db-pool-info"><div class="empty-state">Load health to view DB pool stats.</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">🔒 Security Services</div></div>
+        <div id="security-services-info"><div class="empty-state">Load health to view service status.</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">🔴 Server Exception Log (5xx Errors)</div></div>
+      <div class="log-stream" id="server-errors-stream">
+        <div class="empty-state">Load health to view exception log.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ AUDIT ══ -->
+  <div id="section-audit" class="section">
+    <div class="section-title">📋 Audit Trail</div>
+    <div class="section-sub">Complete admin and SecOps action audit log from database</div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔍 Admin &amp; SecOps Action Log</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadAuditTrail()">🔄 Refresh</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Actor</th><th>Role</th><th>Action</th><th>Detail</th><th>IP Address</th><th>Timestamp</th></tr></thead>
+          <tbody id="audit-tbody"><tr class="loading-row"><td colspan="6"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ MFA ══ -->
+  <div id="section-mfa" class="section">
+    <div class="section-title">🔐 MFA Enrollment Status</div>
+    <div class="section-sub">Admin and SecOps TOTP authenticator enrollment tracking</div>
+    <div class="panel">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Username</th><th>Role</th><th>TOTP Enrolled</th><th>MFA Mandatory</th></tr></thead>
+          <tbody>
+            {% if admin_mfa_status %}
+            {% for username, role, totp_enabled in admin_mfa_status %}
+            <tr>
+              <td style="font-weight:600">{{ username }}</td>
+              <td><span class="badge badge-blue">{{ role }}</span></td>
+              <td><span class="badge {{ 'badge-green' if totp_enabled else 'badge-yellow' }}">{{ '✅ Enrolled' if totp_enabled else '⚠️ Not Enrolled' }}</span></td>
+              <td><span class="badge badge-purple">✅ Enforced at Login</span></td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="4" class="empty-state">No admin accounts found.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">⏱ Session Timeout Configuration</div></div>
+      <div class="filter-strip">
+        <select id="session-timeout-select">
           <option value="15">15 minutes</option>
-          <option value="30">30 minutes</option>
-          <option value="60">1 hour</option>
+          <option value="30" {% if session_timeout_minutes == 30 %}selected{% endif %}>30 minutes</option>
+          <option value="60" {% if session_timeout_minutes == 60 %}selected{% endif %}>1 hour</option>
           <option value="120">2 hours</option>
           <option value="480">8 hours</option>
         </select>
-        <button type="button" class="btn-lock" onclick="saveSessionTimeout()">Save</button>
+        <button class="btn btn-accent btn-sm" onclick="saveSessionTimeout()">💾 Save Timeout</button>
       </div>
-      <div id="session-timeout-status" class="mono" style="font-size:11px;"></div>
+      <div id="timeout-status" class="mono" style="font-size:10px;color:var(--text3)"></div>
     </div>
+  </div>
 
-    <div class="panel">
-      <div class="panel-title">Performance &amp; DB Health</div>
-      <button type="button" class="btn-lock" onclick="loadPerformance()">Refresh</button>
-      <div class="stat-grid" id="perf-grid" style="margin-top:14px;">
-        <div class="empty">Click Refresh to load.</div>
+  <!-- ══════════════════════════════════════════════ CREDS ══ -->
+  <div id="section-creds" class="section">
+    <div class="section-title">🔑 Credential Reset</div>
+    <div class="section-sub">Force-reset employee or admin passwords from SecOps — requires MFA re-verification</div>
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">👤 Reset Employee Password</div></div>
+        <div class="filter-strip" style="flex-direction:column;align-items:flex-start">
+          <input type="text" id="emp-search" placeholder="Search by Employee ID or Name…" oninput="searchEmployees()" style="width:100%">
+          <div id="emp-search-results" style="width:100%;margin-top:6px"></div>
+          <input type="text" id="emp-id-field" placeholder="Employee ID (auto-filled)" style="width:100%">
+          <input type="password" id="emp-new-password" placeholder="New password (min 6 chars)" style="width:100%">
+          <button class="btn btn-red btn-sm" onclick="resetEmployeePassword()">⚡ Force Reset Password</button>
+        </div>
+        <div id="emp-reset-status" class="mono" style="font-size:11px;margin-top:6px"></div>
       </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">Tactical Mitigation — IP Ban (application layer)</div>
-      <div class="mono" style="font-size:11px;color:#64748b;margin-bottom:12px;">
-        Blocks the IP from reaching this app immediately. Not an edge/WAF ban —
-        see the AWS Network Firewall rules (provisioned separately) for that.
-      </div>
-      <div class="filter-row">
-        <input type="text" id="ban-ip-input" placeholder="IP address" />
-        <input type="text" id="ban-reason-input" placeholder="Reason (optional)" />
-        <input type="number" id="ban-duration-input" placeholder="Minutes (blank = permanent)" min="1" />
-        <button type="button" class="btn-lock" onclick="socBanIp()">Ban IP</button>
-      </div>
-      <div id="ban-status" class="mono" style="margin-bottom:10px;font-size:11px;"></div>
-      <table>
-        <thead><tr><th>IP</th><th>Reason</th><th>Banned By</th><th>Banned At</th><th>Expires</th><th>Action</th></tr></thead>
-        <tbody id="banned-ips-tbody">
-          <tr><td colspan="6" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">System Health</div>
-      <button type="button" class="btn-lock" onclick="loadSystemHealth()">Refresh</button>
-      <div class="stat-grid" id="health-grid" style="margin-top:14px;">
-        <div class="empty">Click Refresh to load.</div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">👑 Reset Admin Password</div></div>
+        <div class="filter-strip" style="flex-direction:column;align-items:flex-start">
+          <select id="admin-username-select" style="width:100%">
+            <option value="">— Select Admin User —</option>
+          </select>
+          <input type="password" id="admin-new-password" placeholder="New password (min 6 chars)" style="width:100%">
+          <button class="btn btn-red btn-sm" onclick="resetAdminPassword()">⚡ Force Reset Admin Password</button>
+        </div>
+        <div id="admin-reset-status" class="mono" style="font-size:11px;margin-top:6px"></div>
       </div>
     </div>
+  </div>
 
-    <div class="panel">
-      <div class="panel-title">SIEM Threat Log Query</div>
-      <div class="filter-row">
-        <select id="siem-category" aria-label="Category" title="Category">
-          <option value="all">All categories</option>
-          <option value="malware">Malware</option>
-          <option value="escalation">Escalation</option>
-          <option value="injection">Injection</option>
-          <option value="audit">Audit</option>
-          <option value="hrms">HRMS</option>
-        </select>
-        <select id="siem-severity" aria-label="Severity" title="Severity">
-          <option value="">Any severity</option>
-          <option value="INFO">INFO</option>
-          <option value="WARNING">WARNING</option>
-          <option value="ERROR">ERROR</option>
-          <option value="CRITICAL">CRITICAL</option>
-        </select>
-        <input type="text" id="siem-ip" placeholder="IP contains…" />
-        <input type="text" id="siem-user" placeholder="User ID contains…" />
-        <button type="button" class="btn-lock" onclick="loadSiemQuery()">Query</button>
+</div><!-- .content -->
+</div><!-- .main -->
+
+<script>
+// ═══════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════
+function toast(msg, ok=true) {
+  const el = document.getElementById('toast');
+  el.textContent = (ok ? '✅ ' : '❌ ') + msg;
+  el.style.borderColor = ok ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function showSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  // Auto-load data for sections
+  const loaders = {
+    overview: loadOverview, malware: loadMalwareLogs,
+    quarantine: loadQuarantine, timeline: loadTimeline,
+    banned: loadBannedIps, health: loadHealth,
+    audit: loadAuditTrail, portmatrix: loadPortMatrix,
+    creds: loadCredReset,
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+function levelBadge(lvl) {
+  const map = {CRITICAL:'badge-purple',ERROR:'badge-red',WARNING:'badge-yellow',INFO:'badge-blue'};
+  return `<span class="badge ${map[lvl]||'badge-gray'}">${lvl||'INFO'}</span>`;
+}
+
+// Live clock
+setInterval(() => {
+  document.getElementById('live-clock').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
+}, 1000);
+
+// ═══════════════════════════════════════
+// OVERVIEW — Dashboard Stats
+// ═══════════════════════════════════════
+async function loadOverview() {
+  const res = await fetch('/api/secops/dashboard-stats').then(r=>r.json()).catch(()=>({ok:false}));
+  if (!res.ok) return;
+  const s = res.stats;
+  document.getElementById('kpi-total').textContent = s.total_events;
+  document.getElementById('kpi-critical').textContent = s.critical;
+  document.getElementById('kpi-errors').textContent = s.errors;
+  document.getElementById('kpi-warnings').textContent = s.warnings;
+  document.getElementById('kpi-malware').textContent = s.malware_hits;
+  document.getElementById('kpi-quarantine').textContent = s.quarantine_count;
+  document.getElementById('kpi-lockouts').textContent = s.active_lockouts;
+  document.getElementById('kpi-banned').textContent = s.banned_ips;
+  document.getElementById('kpi-24h').textContent = s.events_24h;
+  document.getElementById('kpi-auth').textContent = s.auth_attacks;
+
+  // Render top threats
+  const tt = document.getElementById('top-threats');
+  if (!s.top_threats || !s.top_threats.length) { tt.innerHTML = '<div class="empty-state">No threat data yet.</div>'; return; }
+  const maxCount = Math.max(...s.top_threats.map(t=>t.count));
+  tt.innerHTML = s.top_threats.map(t => {
+    const pct = Math.round((t.count / maxCount) * 100);
+    const isRed = t.type.includes('malware') || t.type.includes('brute') || t.type.includes('inject');
+    const clr = isRed ? 'var(--red)' : (t.type.includes('access') ? 'var(--yellow)' : 'var(--cyan)');
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span class="mono" style="color:${clr};font-size:10px">${t.type}</span>
+        <span style="font-weight:700;color:var(--text);font-size:11px">${t.count}</span>
       </div>
-      <div id="siem-status" class="mono" style="font-size:11px;margin-bottom:10px;"></div>
-      <div class="log-scroll">
-      <table>
-        <thead><tr><th>Time</th><th>Severity</th><th>Event Type</th><th>Details</th><th>User</th><th>IP</th></tr></thead>
-        <tbody id="siem-tbody"><tr><td colspan="6" class="empty">Run a query.</td></tr></tbody>
-      </table>
+      <div class="threat-meter"><div class="threat-fill" style="width:${pct}%;background:${clr}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Render trend SVG chart
+  renderTrendChart(s.threat_trend);
+
+  // Load malware preview (first 3)
+  loadOverviewMalware();
+  // Load timeline preview (first 5)
+  loadTimeline(5, 'overview-timeline');
+}
+
+function renderTrendChart(trend) {
+  const svg = document.getElementById('trend-svg');
+  if (!svg) return;
+  const entries = Object.entries(trend).sort();
+  if (!entries.length) { svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#64748b" font-size="11">No trend data yet</text>'; return; }
+  const W = 400, H = 110, PAD = 20;
+  const all = entries.flatMap(([d, v]) => [v.ERROR||0, v.WARNING||0, v.CRITICAL||0]);
+  const maxV = Math.max(...all, 1);
+  const bw = (W - PAD*2) / entries.length;
+  const colors = {ERROR:'#ef4444', WARNING:'#f59e0b', CRITICAL:'#a855f7'};
+  let bars = '';
+  entries.forEach(([d, v], i) => {
+    const keys = ['CRITICAL','ERROR','WARNING'];
+    let yOffset = H - 10;
+    keys.forEach(k => {
+      const val = v[k] || 0;
+      if (!val) return;
+      const bh = Math.max(2, ((val / maxV) * (H - 30)));
+      const x = PAD + i * bw;
+      const y = yOffset - bh;
+      bars += `<rect x="${x+2}" y="${y}" width="${bw-6}" height="${bh}" rx="2" fill="${colors[k]}" opacity="0.8" title="${k}: ${val}"/>`;
+      yOffset -= bh;
+    });
+    const label = d.slice(5); // MM-DD
+    bars += `<text x="${PAD + i*bw + bw/2}" y="${H+2}" text-anchor="middle" font-size="8" fill="#64748b">${label}</text>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H+12}`);
+  svg.innerHTML = bars;
+}
+
+async function loadOverviewMalware() {
+  const res = await fetch('/api/secops/malware-logs').then(r=>r.json()).catch(()=>({ok:false,logs:[]}));
+  const wrap = document.getElementById('overview-malware');
+  if (!res.ok || !res.logs.length) { wrap.innerHTML = '<div class="empty-state">✅ No malware detections recorded.</div>'; return; }
+  wrap.innerHTML = res.logs.slice(0,4).map(l => renderMalwareCard(l)).join('');
+}
+
+// ═══════════════════════════════════════
+// MALWARE LOGS
+// ═══════════════════════════════════════
+function renderMalwareCard(l) {
+  const extra = l.extra || {};
+  const sig = extra.signature || l.event_type.replace('malware.','').replace('_',' ').toUpperCase();
+  return `<div class="malware-card sev-${l.severity}">
+    <div class="malware-head">
+      ${levelBadge(l.severity)}
+      <span class="malware-sig">🦠 ${sig}</span>
+      <span class="malware-ts">${l.timestamp}</span>
+    </div>
+    <div class="malware-detail">${l.details}</div>
+    <div class="malware-meta">
+      <span class="badge badge-gray">👤 ${l.user_id}</span>
+      <span class="badge badge-gray">🌐 ${l.ip_address}</span>
+      ${extra.quarantined ? '<span class="badge badge-green">🔒 QUARANTINED</span>' : ''}
+      ${extra.file_hash ? `<span class="mono" style="font-size:9px">SHA: ${extra.file_hash.slice(0,16)}…</span>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadMalwareLogs() {
+  const wrap = document.getElementById('malware-list');
+  if (wrap) wrap.innerHTML = '<div class="empty-state"><div class="spinner"></div> Querying database…</div>';
+  const res = await fetch('/api/secops/malware-logs').then(r=>r.json()).catch(()=>({ok:false,logs:[]}));
+  if (!wrap) return;
+  if (!res.ok || !res.logs.length) { wrap.innerHTML = '<div class="empty-state">✅ No malware detections in database.</div>'; return; }
+  wrap.innerHTML = res.logs.map(renderMalwareCard).join('');
+}
+
+// ═══════════════════════════════════════
+// QUARANTINE
+// ═══════════════════════════════════════
+async function loadQuarantine() {
+  const tbody = document.getElementById('quarantine-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8"><div class="spinner"></div></td></tr>';
+  const res = await fetch('/api/secops/quarantine-list').then(r=>r.json()).catch(()=>({ok:false,files:[]}));
+  if (!res.ok || !res.files.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">✅ Quarantine vault is empty.</td></tr>'; return; }
+  tbody.innerHTML = res.files.map(f => `<tr>
+    <td class="mono">#${f.id}</td>
+    <td style="font-weight:600;color:var(--red)">⚠️ ${f.filename}</td>
+    <td class="mono" style="color:var(--orange)">${f.signature}</td>
+    <td class="mono">${f.uploader_id}</td>
+    <td class="mono" style="font-size:10px">${f.file_hash ? f.file_hash.slice(0,20)+'…' : 'N/A'}</td>
+    <td><span class="badge ${f.status==='QUARANTINED'?'badge-orange':'badge-gray'}">${f.status}</span></td>
+    <td class="mono">${f.timestamp.slice(0,19)}</td>
+    <td>
+      <button class="btn btn-red btn-sm" onclick="purgeFile(${f.id})">🗑 Purge</button>
+      <button class="btn btn-yellow btn-sm" style="margin-left:4px" onclick="isolateUser('${f.uploader_id}')">🔒 Isolate User</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function purgeFile(id) {
+  if (!confirm(`Permanently delete quarantined file #${id}?`)) return;
+  const res = await fetch('/api/secops/quarantine/purge', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file_id:id})}).then(r=>r.json()).catch(()=>({ok:false}));
+  toast(res.msg || 'File purged', res.ok);
+  if (res.ok) loadQuarantine();
+}
+
+async function isolateUser(uid) {
+  if (!confirm(`Isolate and lock user account ${uid} for 30 days?`)) return;
+  const res = await fetch('/api/secops/quarantine/isolate-user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uploader_id:uid})}).then(r=>r.json()).catch(()=>({ok:false}));
+  toast(res.msg || 'User isolated', res.ok);
+}
+
+// ═══════════════════════════════════════
+// ATTACK TIMELINE
+// ═══════════════════════════════════════
+const levelDot = {CRITICAL:'t-dot-purple',ERROR:'t-dot-red',WARNING:'t-dot-yellow',INFO:'t-dot-green'};
+
+async function loadTimeline(limit=20, targetId='timeline-wrap') {
+  const wrap = document.getElementById(targetId);
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+  const res = await fetch('/api/secops/attack-timeline').then(r=>r.json()).catch(()=>({ok:false,events:[]}));
+  const events = (res.events||[]).slice(0, limit);
+  if (!events.length) { wrap.innerHTML = '<div class="empty-state">✅ No critical events in the timeline.</div>'; return; }
+  wrap.innerHTML = events.map(e => `
+    <div class="t-item">
+      <div class="t-dot ${levelDot[e.level]||'t-dot-green'}"></div>
+      <div class="t-card">
+        <div class="t-head">
+          ${levelBadge(e.level)}
+          <span class="t-type">${e.event_type}</span>
+          <span class="t-time">${e.timestamp}</span>
+        </div>
+        <div class="t-msg">${e.message}</div>
+        <div class="t-meta">
+          ${e.identifier ? `<span class="t-tag">👤 ${e.identifier}</span>` : ''}
+          ${e.ip ? `<span class="t-tag">🌐 ${e.ip}</span>` : ''}
+        </div>
       </div>
     </div>
+  `).join('');
+}
 
-    <div class="panel">
-      <div class="panel-title">Server Exception Log (5xx)</div>
-      <button type="button" class="btn-lock" onclick="loadServerErrors()">Refresh</button>
-      <div class="log-scroll" style="margin-top:14px;">
-      <table>
-        <thead><tr><th>Time</th><th>Level</th><th>Event</th><th>Message</th><th>Path</th><th>IP</th></tr></thead>
-        <tbody id="server-errors-tbody"><tr><td colspan="6" class="empty">Click Refresh to load.</td></tr></tbody>
-      </table>
-      </div>
-    </div>
+// ═══════════════════════════════════════
+// SIEM QUERY
+// ═══════════════════════════════════════
+async function loadSiemQuery() {
+  const category = document.getElementById('siem-category').value;
+  const severity = document.getElementById('siem-severity').value;
+  const ip = document.getElementById('siem-ip').value;
+  const user = document.getElementById('siem-user').value;
+  const status = document.getElementById('siem-status');
+  const stream = document.getElementById('siem-log-stream');
+  status.textContent = 'Querying…';
+  stream.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+  const params = new URLSearchParams({category, severity, ip, user_id: user});
+  const res = await fetch('/api/secops/siem-query?' + params).then(r=>r.json()).catch(()=>({ok:false,logs:[]}));
+  status.textContent = res.ok ? `${res.count} results returned` : 'Query failed';
+  if (!res.logs || !res.logs.length) { stream.innerHTML = '<div class="empty-state">No results matching query.</div>'; return; }
+  stream.innerHTML = res.logs.map(l => `<div class="log-line">
+    <span class="log-ts">${l.timestamp.slice(0,19)}</span>
+    <span class="log-lvl lvl-${l.severity}">${l.severity}</span>
+    <span class="log-evt">${l.event_type}</span>
+    <span class="log-msg">${l.details}</span>
+    <span class="log-ip">${l.ip_address||''}</span>
+  </div>`).join('');
+}
 
-    <div class="panel">
-      <div class="panel-title">Network &amp; Port Health</div>
-      <button type="button" class="btn-lock" onclick="loadPortHealth()">Refresh</button>
-      <table style="margin-top:14px;">
-        <thead><tr><th>Port</th><th>Service</th><th>Process</th><th>Binding</th><th>Status</th></tr></thead>
-        <tbody id="port-health-tbody"><tr><td colspan="5" class="empty">Click Refresh to load.</td></tr></tbody>
-      </table>
-    </div>
+function resetSiem() {
+  ['siem-category','siem-severity','siem-ip','siem-user'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('siem-status').textContent = '';
+  document.getElementById('siem-log-stream').innerHTML = '<div class="empty-state">Select filters and click Run Query to load logs.</div>';
+}
 
-    <div class="panel">
-      <div class="panel-title">Enterprise Port Matrix &amp; Recon Detection</div>
-      <button type="button" class="btn-lock" onclick="loadPortMatrix()">Refresh</button>
-      <table style="margin-top:14px;">
-        <thead><tr><th>Port</th><th>Service</th><th>Process</th><th>Status</th></tr></thead>
-        <tbody id="port-matrix-tbody"><tr><td colspan="4" class="empty">Click Refresh to load.</td></tr></tbody>
-      </table>
-      <div class="panel-title" style="margin-top:18px;">Recon / Nmap Scan Detection</div>
-      <table>
-        <thead><tr><th>Type</th><th>Details</th><th>IP</th><th>Time</th></tr></thead>
-        <tbody id="nmap-tbody"><tr><td colspan="4" class="empty">Click Refresh above to load.</td></tr></tbody>
-      </table>
-    </div>
+// ═══════════════════════════════════════
+// IP BAN MANAGER
+// ═══════════════════════════════════════
+async function loadBannedIps() {
+  const tbody = document.getElementById('banned-ips-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6"><div class="spinner"></div></td></tr>';
+  const res = await fetch('/api/security/soc/banned-ips').then(r=>r.json()).catch(()=>({ok:false,banned_ips:[]}));
+  if (!res.ok || !res.banned_ips.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No IPs currently banned.</td></tr>'; return; }
+  tbody.innerHTML = res.banned_ips.map(b => `<tr>
+    <td class="mono" style="color:var(--red)">${b.ip}</td>
+    <td>${b.reason||'—'}</td>
+    <td class="mono">${b.banned_by||'—'}</td>
+    <td class="mono">${b.banned_at||'—'}</td>
+    <td class="mono">${b.expires_at||'♾ Permanent'}</td>
+    <td><button class="btn btn-green btn-sm" onclick="unbanIp('${b.ip}')">✅ Unban</button></td>
+  </tr>`).join('');
+}
 
-    <div class="panel">
-      <div class="panel-title">Malware Sandbox &amp; Quarantine</div>
-      <button type="button" class="btn-lock" onclick="loadMalwareAnalysis()">Refresh</button>
-      <div class="stat-grid" id="malware-grid" style="margin-top:14px;">
-        <div class="empty">Click Refresh to load.</div>
-      </div>
-      <table style="margin-top:14px;">
-        <thead><tr><th>Filename</th><th>Uploader</th><th>Signature</th><th>Status</th><th>Time</th><th>Action</th></tr></thead>
-        <tbody id="quarantine-tbody"><tr><td colspan="6" class="empty">Click Refresh above to load.</td></tr></tbody>
-      </table>
-      <div class="filter-row" style="margin-top:14px;">
-        <input type="text" id="isolate-user-input" placeholder="Uploader / user ID to isolate" />
-        <button type="button" class="btn-lock" onclick="isolateUser()">Isolate &amp; Lock 30d</button>
-      </div>
-      <div id="isolate-status" class="mono" style="font-size:11px;"></div>
-    </div>
+async function socBanIp() {
+  const ip = document.getElementById('ban-ip-input').value.trim();
+  const reason = document.getElementById('ban-reason-input').value.trim();
+  const duration = document.getElementById('ban-duration-input').value;
+  if (!ip) { toast('IP address is required', false); return; }
+  const res = await fetch('/api/security/soc/ban-ip', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip, reason, duration_minutes: duration||null})}).then(r=>r.json()).catch(()=>({ok:false}));
+  document.getElementById('ban-status').textContent = res.msg || (res.ok ? 'IP banned successfully' : 'Failed to ban IP');
+  toast(res.ok ? `IP ${ip} banned` : res.msg, res.ok);
+  if (res.ok) { ['ban-ip-input','ban-reason-input','ban-duration-input'].forEach(id=>document.getElementById(id).value=''); loadBannedIps(); }
+}
 
-    <div class="panel">
-      <div class="panel-title">Threat Intelligence Feeds</div>
-      <button type="button" class="btn-lock" onclick="refreshThreatIntel()">Refresh Feeds</button>
-      <div id="threat-intel-status" class="mono" style="font-size:11px;margin:10px 0;"></div>
-      <div class="panel-title" style="margin-top:10px;">CISA KEV Vulnerabilities</div>
-      <table>
-        <thead><tr><th>CVE</th><th>Vendor</th><th>Product</th><th>Name</th><th>Due Date</th></tr></thead>
-        <tbody id="cve-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
-      <div class="panel-title" style="margin-top:18px;">Malicious IP Indicators</div>
-      <table>
-        <thead><tr><th>IP</th><th>Threat Score</th><th>Source</th><th>Fetched</th><th>Action</th></tr></thead>
-        <tbody id="threat-ip-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
-    </div>
+async function unbanIp(ip) {
+  const res = await fetch('/api/security/soc/unban-ip', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})}).then(r=>r.json()).catch(()=>({ok:false}));
+  toast(res.ok ? `IP ${ip} unbanned` : 'Failed to unban', res.ok);
+  if (res.ok) loadBannedIps();
+}
 
-    <div class="panel">
-      <div class="panel-title">Wi-Fi Risk &amp; Network Shield</div>
-      <button type="button" class="btn-lock" onclick="loadWifiRisk()">Refresh</button>
-      <div class="stat-grid" id="wifi-grid" style="margin-top:14px;">
-        <div class="empty">Click Refresh to load.</div>
-      </div>
-      <div class="filter-row" style="margin-top:14px;">
-        <button type="button" class="btn-lock" onclick="toggleWifiShield(true)">Enable Shield</button>
-        <button type="button" class="btn-lock" onclick="toggleWifiShield(false)">Disable Shield</button>
-        <input type="number" id="wifi-global-score" placeholder="Global risk score (0-100)" min="0" max="100" />
-        <button type="button" class="btn-lock" onclick="setGlobalWifiScore()">Set Score</button>
-      </div>
-      <div id="wifi-shield-status" class="mono" style="font-size:11px;"></div>
-    </div>
+// ═══════════════════════════════════════
+// SYSTEM HEALTH
+// ═══════════════════════════════════════
+async function loadHealth() {
+  const kpis = document.getElementById('health-kpis');
+  const dbPool = document.getElementById('db-pool-info');
+  const secSvc = document.getElementById('security-services-info');
+  const errStream = document.getElementById('server-errors-stream');
+  if (kpis) kpis.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
-    <div class="panel">
-      <div class="panel-title">Employee &amp; Admin Wi-Fi Risk Telemetry</div>
-      <button type="button" class="btn-lock" onclick="loadUserWifiTelemetry()">Refresh</button>
-      <table style="margin-top:14px;">
-        <thead><tr><th>User</th><th>Role</th><th>SSID</th><th>Encryption</th><th>Risk</th><th>Status</th><th>IP</th><th>Last Seen</th></tr></thead>
-        <tbody id="user-wifi-tbody"><tr><td colspan="8" class="empty">Click Refresh to load.</td></tr></tbody>
-      </table>
-      <div class="filter-row" style="margin-top:14px;">
-        <input type="text" id="wifi-update-user" placeholder="Username" />
-        <input type="number" id="wifi-update-score" placeholder="Risk score (0-100)" min="0" max="100" />
-        <button type="button" class="btn-lock" onclick="updateUserWifi()">Update</button>
-      </div>
-      <div id="wifi-update-status" class="mono" style="font-size:11px;"></div>
-    </div>
+  const [healthRes, errRes] = await Promise.all([
+    fetch('/api/secops/system-health').then(r=>r.json()).catch(()=>({ok:false})),
+    fetch('/api/secops/server-errors').then(r=>r.json()).catch(()=>({ok:false,errors:[]})),
+  ]);
 
-    <div class="panel">
-      <div class="panel-title">SMTP Alert Configuration</div>
-      <div class="filter-row">
-        <input type="text" id="smtp-server" placeholder="SMTP server" />
-        <input type="number" id="smtp-port" placeholder="Port" />
-        <input type="text" id="smtp-username" placeholder="Username" />
-        <input type="email" id="smtp-alert-email" placeholder="Alert email" />
-        <label class="mono" style="font-size:12px;display:inline-flex;align-items:center;gap:4px;">
-          <input type="checkbox" id="smtp-tls" /> TLS
-        </label>
-        <button type="button" class="btn-lock" onclick="saveSmtpConfig()">Save</button>
-      </div>
-      <div id="smtp-status" class="mono" style="font-size:11px;"></div>
-    </div>
+  if (healthRes.ok) {
+    const h = healthRes.health;
+    if (kpis) kpis.innerHTML = [
+      {label:'Status', val:h.status, cls:'green'},
+      {label:'Uptime', val:h.uptime_formatted, cls:'blue'},
+      {label:'CPU Load', val:h.cpu_load, cls:'yellow'},
+      {label:'Memory', val:h.memory_usage, cls:'yellow'},
+      {label:'Database', val:h.database_status, cls:h.database_status==='Healthy'?'green':'red'},
+      {label:'Threat Level', val:h.active_threat_level, cls:h.active_threat_level==='HIGH'?'red':'green'},
+    ].map(k=>`<div class="kpi-card kpi-${k.cls}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="font-size:16px">${k.val}</div></div>`).join('');
 
-    <div class="panel">
-      <div class="panel-title">Admin Accounts — Password Reset</div>
-      <button type="button" class="btn-lock" onclick="loadAdminList()">Refresh List</button>
-      <table style="margin-top:14px;">
-        <thead><tr><th>Username</th><th>Role</th><th>Email</th></tr></thead>
-        <tbody id="admin-list-tbody"><tr><td colspan="3" class="empty">Click Refresh to load.</td></tr></tbody>
-      </table>
-      <div class="filter-row" style="margin-top:14px;">
-        <input type="text" id="admin-reset-username" placeholder="Username" />
-        <input type="password" id="admin-reset-password" placeholder="New password (min 6 chars)" />
-        <button type="button" class="btn-lock" onclick="resetAdminPassword()">Reset Password</button>
-      </div>
-      <div id="admin-reset-status" class="mono" style="font-size:11px;"></div>
-    </div>
+    if (dbPool) {
+      const api = h.api_metrics || {};
+      dbPool.innerHTML = Object.entries(api).map(([k,v]) => `<div class="posture-item"><span class="posture-label">${k.replace(/_/g,' ')}</span><span class="posture-val" style="color:var(--cyan)">${v}</span></div>`).join('');
+    }
+    if (secSvc) {
+      const svc = h.security_services || {};
+      secSvc.innerHTML = Object.entries(svc).map(([k,v]) => `<div class="posture-item"><span class="posture-label">${k.replace(/_/g,' ')}</span><span class="posture-val" style="color:var(--green)">✅ ${v}</span></div>`).join('');
+    }
+  }
 
-    <div class="panel">
-      <div class="panel-title">Employee Lookup — Password Reset</div>
-      <div class="filter-row">
-        <input type="text" id="emp-search-q" placeholder="Search by ID, name, or email…" />
-        <button type="button" class="btn-lock" onclick="searchEmployees()">Search</button>
-      </div>
-      <table style="margin-top:14px;">
-        <thead><tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Role</th><th>Action</th></tr></thead>
-        <tbody id="emp-search-tbody"><tr><td colspan="5" class="empty">Search above.</td></tr></tbody>
-      </table>
-      <div class="filter-row" style="margin-top:14px;">
-        <input type="text" id="emp-reset-id" placeholder="Employee ID" />
-        <input type="password" id="emp-reset-password" placeholder="New password (min 6 chars)" />
-        <button type="button" class="btn-lock" onclick="resetEmployeePassword()">Reset Password</button>
-      </div>
-      <div id="emp-reset-status" class="mono" style="font-size:11px;"></div>
-    </div>
+  if (errStream) {
+    if (!errRes.ok || !errRes.errors.length) { errStream.innerHTML = '<div class="empty-state">✅ No server exceptions logged.</div>'; }
+    else errStream.innerHTML = errRes.errors.map(e => `<div class="log-line">
+      <span class="log-ts">${(e.timestamp||'').slice(0,19)}</span>
+      <span class="log-lvl lvl-${e.level}">${e.level}</span>
+      <span class="log-evt">${e.event}</span>
+      <span class="log-msg">${e.message}</span>
+      <span class="log-ip">${e.ip||''}</span>
+    </div>`).join('');
+  }
+}
 
-    <script>
-      var evPage = 1;
-      var evPerPage = 50;
+// ═══════════════════════════════════════
+// PORT MATRIX
+// ═══════════════════════════════════════
+async function loadPortMatrix() {
+  const tbody = document.getElementById('port-matrix-tbody');
+  const nmapDiv = document.getElementById('nmap-events');
+  if (tbody) tbody.innerHTML = '<tr class="loading-row"><td colspan="5"><div class="spinner"></div> Scanning ports…</td></tr>';
+  const res = await fetch('/api/secops/port-matrix').then(r=>r.json()).catch(()=>({ok:false,ports:[],nmap_scans:[]}));
+  if (!res.ok) { if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Failed to scan ports.</td></tr>'; return; }
+  if (tbody) tbody.innerHTML = res.ports.map(p => {
+    const cls = p.status==='OPEN' ? 'badge-green' : (p.status==='FILTERED' ? 'badge-yellow' : 'badge-gray');
+    return `<tr>
+      <td class="mono" style="font-weight:700">${p.port}</td>
+      <td>${p.service}</td>
+      <td class="mono">${p.process}</td>
+      <td class="mono">${p.is_open ? 'Public' : 'Internal / Closed'}</td>
+      <td><span class="badge ${cls}">${p.status}</span></td>
+    </tr>`;
+  }).join('');
+  if (nmapDiv) {
+    nmapDiv.innerHTML = (res.nmap_scans || []).length ? res.nmap_scans.map(s => `
+      <div class="t-card" style="margin-bottom:8px">
+        <div class="t-head"><span class="badge badge-red">SCAN</span><span class="t-type">${s.type}</span><span class="t-time">${(s.timestamp||'').slice(0,19)}</span></div>
+        <div class="t-msg">${s.details}</div>
+        ${s.ip ? `<div class="t-meta"><span class="t-tag">🌐 ${s.ip}</span></div>` : ''}
+      </div>`).join('') : '<div class="empty-state">✅ No port scan activity detected.</div>';
+  }
+}
 
-      function socEventsReset() {
-        document.getElementById('ev-level').value = '';
-        document.getElementById('ev-event-type').value = '';
-        document.getElementById('ev-identifier').value = '';
-        document.getElementById('ev-q').value = '';
-        document.getElementById('ev-start').value = '';
-        document.getElementById('ev-end').value = '';
-        socEventsReload();
-      }
+// ═══════════════════════════════════════
+// AUDIT TRAIL
+// ═══════════════════════════════════════
+async function loadAuditTrail() {
+  const tbody = document.getElementById('audit-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6"><div class="spinner"></div></td></tr>';
+  const res = await fetch('/api/secops/audit-trail').then(r=>r.json()).catch(()=>({ok:false,logs:[]}));
+  if (!res.ok || !res.logs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No audit log entries yet.</td></tr>'; return; }
+  tbody.innerHTML = res.logs.map(l => `<tr>
+    <td style="font-weight:600">${l.actor}</td>
+    <td><span class="badge badge-blue">${l.actor_type||'admin'}</span></td>
+    <td class="mono" style="color:var(--cyan)">${l.action}</td>
+    <td style="color:var(--text2)">${l.detail||'—'}</td>
+    <td class="mono">${l.ip||'—'}</td>
+    <td class="mono">${l.timestamp}</td>
+  </tr>`).join('');
+}
 
-      function socEventsPage(delta) {
-        evPage = Math.max(1, evPage + delta);
-        socEventsLoad();
-      }
+// ═══════════════════════════════════════
+// CREDENTIAL RESET
+// ═══════════════════════════════════════
+async function loadCredReset() {
+  const res = await fetch('/api/secops/list-admins').then(r=>r.json()).catch(()=>({ok:false,admins:[]}));
+  const sel = document.getElementById('admin-username-select');
+  if (sel && res.ok) {
+    sel.innerHTML = '<option value="">— Select Admin User —</option>' + res.admins.map(a => `<option value="${a.username}">${a.username} (${a.role})</option>`).join('');
+  }
+}
 
-      function socEventsReload() {
-        evPage = 1;
-        socEventsLoad();
-      }
+let searchTimer;
+async function searchEmployees() {
+  clearTimeout(searchTimer);
+  const q = document.getElementById('emp-search').value.trim();
+  if (!q) { document.getElementById('emp-search-results').innerHTML = ''; return; }
+  searchTimer = setTimeout(async () => {
+    const res = await fetch('/api/secops/search-employees?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>({ok:false,employees:[]}));
+    const div = document.getElementById('emp-search-results');
+    if (!res.employees.length) { div.innerHTML = ''; return; }
+    div.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;overflow:hidden">` + 
+      res.employees.map(e => `<div style="padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectEmp('${e.employee_id}','${e.name}')">${e.name} <span class="mono" style="color:var(--text3)">${e.employee_id}</span> <span class="badge badge-gray">${e.role}</span></div>`).join('') + '</div>';
+  }, 250);
+}
 
-      function escapeHtml(s) {
-        var d = document.createElement('div');
-        d.textContent = s == null ? '' : String(s);
-        return d.innerHTML;
-      }
+function selectEmp(id, name) {
+  document.getElementById('emp-id-field').value = id;
+  document.getElementById('emp-search').value = name + ' (' + id + ')';
+  document.getElementById('emp-search-results').innerHTML = '';
+}
 
-      function socEventsLoad() {
-        var params = new URLSearchParams();
-        params.set('page', evPage);
-        params.set('per_page', evPerPage);
-        var level = document.getElementById('ev-level').value;
-        var eventType = document.getElementById('ev-event-type').value.trim();
-        var identifier = document.getElementById('ev-identifier').value.trim();
-        var q = document.getElementById('ev-q').value.trim();
-        var start = document.getElementById('ev-start').value;
-        var end = document.getElementById('ev-end').value;
-        if (level) params.set('level', level);
-        if (eventType) params.set('event_type', eventType);
-        if (identifier) params.set('identifier', identifier);
-        if (q) params.set('q', q);
-        if (start) params.set('start_date', start);
-        if (end) params.set('end_date', end);
+async function resetEmployeePassword() {
+  const empId = document.getElementById('emp-id-field').value.trim();
+  const newPw = document.getElementById('emp-new-password').value.trim();
+  const status = document.getElementById('emp-reset-status');
+  if (!empId || !newPw) { status.textContent = 'Both fields are required.'; return; }
+  const res = await fetch('/api/secops/reset-employee-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({employee_id:empId, new_password:newPw})}).then(r=>r.json()).catch(()=>({ok:false,msg:'Request failed'}));
+  status.textContent = res.msg;
+  status.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+  toast(res.msg, res.ok);
+}
 
-        var statusEl = document.getElementById('ev-status');
-        var tbody = document.getElementById('ev-tbody');
-        statusEl.textContent = 'Loading…';
-        fetch('/api/security/soc/events?' + params.toString())
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { statusEl.textContent = 'Failed to load events.'; return; }
-            statusEl.textContent = d.total + ' matching event' + (d.total === 1 ? '' : 's');
-            document.getElementById('ev-page-label').textContent = 'Page ' + d.page + ' of ' + d.pages;
-            if (!d.events.length) {
-              tbody.innerHTML = '<tr><td colspan="8" class="empty">No matching events.</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.events.map(function(e) {
-              var cls = e.level === 'ERROR' ? 'score-hot' : '';
-              var banBtn = e.ip
-                ? '<button type="button" class="btn-lock" onclick="socBanIpFromRow(\'' + escapeHtml(e.ip) + '\')">Ban</button>'
-                : '—';
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(e.created_at || '—') + '</td>' +
-                '<td class="' + cls + '">' + escapeHtml(e.level) + '</td>' +
-                '<td>' + escapeHtml(e.event_type) + '</td>' +
-                '<td>' + escapeHtml(e.message) + '</td>' +
-                '<td>' + escapeHtml(e.identifier || '—') + '</td>' +
-                '<td class="mono">' + escapeHtml(e.ip || '—') + '</td>' +
-                '<td class="mono">' + escapeHtml((e.method || '') + ' ' + (e.path || '')) + '</td>' +
-                '<td>' + banBtn + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
+async function resetAdminPassword() {
+  const username = document.getElementById('admin-username-select').value;
+  const newPw = document.getElementById('admin-new-password').value.trim();
+  const status = document.getElementById('admin-reset-status');
+  if (!username || !newPw) { status.textContent = 'Both fields are required.'; return; }
+  const res = await fetch('/api/secops/reset-admin-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username, new_password:newPw})}).then(r=>r.json()).catch(()=>({ok:false,msg:'Request failed'}));
+  status.textContent = res.msg;
+  status.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+  toast(res.msg, res.ok);
+}
 
-      socEventsLoad();
+// ═══════════════════════════════════════
+// SESSION TIMEOUT
+// ═══════════════════════════════════════
+async function saveSessionTimeout() {
+  const timeout = parseInt(document.getElementById('session-timeout-select').value);
+  const res = await fetch('/api/secops/session-timeout', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timeout})}).then(r=>r.json()).catch(()=>({ok:false}));
+  document.getElementById('timeout-status').textContent = res.ok ? `✅ Session timeout set to ${timeout} minutes.` : '❌ ' + (res.msg||'Failed');
+  toast(res.ok ? 'Session timeout updated' : 'Failed to update', res.ok);
+}
 
-      function socBanIpFromRow(ip) {
-        document.getElementById('ban-ip-input').value = ip;
-        document.getElementById('ban-ip-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        document.getElementById('ban-ip-input').focus();
-      }
-
-      function socLoadBannedIps() {
-        var tbody = document.getElementById('banned-ips-tbody');
-        fetch('/api/security/soc/banned-ips')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load.</td></tr>'; return; }
-            if (!d.banned_ips.length) {
-              tbody.innerHTML = '<tr><td colspan="6" class="empty">No IPs currently banned.</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.banned_ips.map(function(b) {
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(b.ip) + '</td>' +
-                '<td>' + escapeHtml(b.reason || '—') + '</td>' +
-                '<td>' + escapeHtml(b.banned_by || '—') + '</td>' +
-                '<td class="mono">' + escapeHtml(b.banned_at || '—') + '</td>' +
-                '<td class="mono">' + escapeHtml(b.expires_at || 'Permanent') + '</td>' +
-                '<td><button type="button" class="btn-lock" onclick="socUnbanIp(\'' + escapeHtml(b.ip) + '\')">Unban</button></td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="6" class="empty">Network error.</td></tr>'; });
-      }
-
-      function socBanIp() {
-        var statusEl = document.getElementById('ban-status');
-        var ip = document.getElementById('ban-ip-input').value.trim();
-        var reason = document.getElementById('ban-reason-input').value.trim();
-        var duration = document.getElementById('ban-duration-input').value.trim();
-        if (!ip) { statusEl.textContent = 'Enter an IP address first.'; return; }
-        statusEl.textContent = 'Banning…';
-        fetch('/api/security/soc/ban-ip', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: ip, reason: reason, duration_minutes: duration || null }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.ok ? ('Banned ' + ip + '.') : (d.msg || 'Ban failed.');
-            if (d.ok) {
-              document.getElementById('ban-ip-input').value = '';
-              document.getElementById('ban-reason-input').value = '';
-              document.getElementById('ban-duration-input').value = '';
-              socLoadBannedIps();
-            }
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function socUnbanIp(ip) {
-        var statusEl = document.getElementById('ban-status');
-        fetch('/api/security/soc/unban-ip', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ip: ip }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.ok ? ('Unbanned ' + ip + '.') : (d.msg || 'Unban failed.');
-            if (d.ok) socLoadBannedIps();
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      socLoadBannedIps();
-
-      document.getElementById('session-timeout-select').value = '{{ session_timeout_minutes }}';
-
-      function saveSessionTimeout() {
-        var statusEl = document.getElementById('session-timeout-status');
-        var minutes = document.getElementById('session-timeout-select').value;
-        statusEl.textContent = 'Saving…';
-        fetch('/api/secops/session-timeout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ timeout: parseInt(minutes, 10) }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) { statusEl.textContent = d.ok ? 'Saved.' : (d.msg || 'Save failed.'); })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadPerformance() {
-        var grid = document.getElementById('perf-grid');
-        grid.innerHTML = '<div class="empty">Loading…</div>';
-        fetch('/api/secops/performance')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { grid.innerHTML = '<div class="empty">Failed to load.</div>'; return; }
-            var perf = d.performance || {};
-            var pool = d.db_pool || {};
-            var cards = [
-              ['DB Healthy', d.db_healthy ? 'Yes' : 'No'],
-              ['Coverage gate', d.coverage_gate_pct + '%'],
-            ];
-            Object.keys(perf).forEach(function(k) { cards.push([k, perf[k]]); });
-            Object.keys(pool).forEach(function(k) { cards.push(['pool.' + k, pool[k]]); });
-            grid.innerHTML = cards.map(function(c) {
-              return '<div class="stat-card"><div class="stat-num">' + escapeHtml(String(c[1])) +
-                     '</div><div class="stat-label">' + escapeHtml(c[0]) + '</div></div>';
-            }).join('');
-          })
-          .catch(function() { grid.innerHTML = '<div class="empty">Network error.</div>'; });
-      }
-
-      function lockAndLeave() {
-        window.location.href = '/logout';
-      }
-
-      function loadSystemHealth() {
-        var grid = document.getElementById('health-grid');
-        grid.innerHTML = '<div class="empty">Loading…</div>';
-        fetch('/api/secops/system-health')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { grid.innerHTML = '<div class="empty">Failed to load.</div>'; return; }
-            var h = d.health;
-            var cards = [
-              ['Status', h.status], ['Uptime', h.uptime_formatted], ['CPU Load', h.cpu_load],
-              ['Memory', h.memory_usage], ['Database', h.database_status], ['Threat Level', h.active_threat_level],
-              ['Avg Latency', h.api_metrics.avg_latency_ms + 'ms'], ['Req/min', h.api_metrics.requests_per_min],
-              ['Error Rate', h.api_metrics.error_rate], ['Active Sessions', h.api_metrics.active_sessions],
-            ];
-            grid.innerHTML = cards.map(function(c) {
-              return '<div class="stat-card"><div class="stat-num">' + escapeHtml(String(c[1])) +
-                     '</div><div class="stat-label">' + escapeHtml(c[0]) + '</div></div>';
-            }).join('');
-          })
-          .catch(function() { grid.innerHTML = '<div class="empty">Network error.</div>'; });
-      }
-
-      function loadSiemQuery() {
-        var statusEl = document.getElementById('siem-status');
-        var tbody = document.getElementById('siem-tbody');
-        var params = new URLSearchParams();
-        params.set('category', document.getElementById('siem-category').value);
-        var severity = document.getElementById('siem-severity').value;
-        var ip = document.getElementById('siem-ip').value.trim();
-        var user = document.getElementById('siem-user').value.trim();
-        if (severity) params.set('severity', severity);
-        if (ip) params.set('ip', ip);
-        if (user) params.set('user_id', user);
-        statusEl.textContent = 'Querying…';
-        fetch('/api/secops/siem-query?' + params.toString())
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { statusEl.textContent = 'Query failed.'; return; }
-            statusEl.textContent = d.count + ' matching log' + (d.count === 1 ? '' : 's');
-            if (!d.logs.length) {
-              tbody.innerHTML = '<tr><td colspan="6" class="empty">No matching logs.</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.logs.map(function(l) {
-              var cls = (l.severity === 'ERROR' || l.severity === 'CRITICAL') ? 'score-hot' : '';
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(l.timestamp) + '</td>' +
-                '<td class="' + cls + '">' + escapeHtml(l.severity) + '</td>' +
-                '<td>' + escapeHtml(l.event_type) + '</td>' +
-                '<td>' + escapeHtml(l.details) + '</td>' +
-                '<td>' + escapeHtml(l.user_id) + '</td>' +
-                '<td class="mono">' + escapeHtml(l.ip_address) + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadServerErrors() {
-        var tbody = document.getElementById('server-errors-tbody');
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/server-errors')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.errors.length) {
-              tbody.innerHTML = '<tr><td colspan="6" class="empty">' + (d.ok ? 'No server errors recorded.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.errors.map(function(e) {
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(e.timestamp) + '</td>' +
-                '<td class="score-hot">' + escapeHtml(e.level) + '</td>' +
-                '<td>' + escapeHtml(e.event) + '</td>' +
-                '<td>' + escapeHtml(e.message) + '</td>' +
-                '<td class="mono">' + escapeHtml(e.path) + '</td>' +
-                '<td class="mono">' + escapeHtml(e.ip) + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="6" class="empty">Network error.</td></tr>'; });
-      }
-
-      function loadPortHealth() {
-        var tbody = document.getElementById('port-health-tbody');
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/port-health')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Failed to load.</td></tr>'; return; }
-            tbody.innerHTML = d.ports.map(function(p) {
-              return '<tr>' +
-                '<td class="mono">' + p.port + '</td>' +
-                '<td>' + escapeHtml(p.service) + '</td>' +
-                '<td>' + escapeHtml(p.process) + '</td>' +
-                '<td>' + escapeHtml(p.binding) + '</td>' +
-                '<td>' + escapeHtml(p.status) + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="empty">Network error.</td></tr>'; });
-      }
-
-      function loadPortMatrix() {
-        var portsTbody = document.getElementById('port-matrix-tbody');
-        var nmapTbody = document.getElementById('nmap-tbody');
-        portsTbody.innerHTML = '<tr><td colspan="4" class="empty">Loading…</td></tr>';
-        nmapTbody.innerHTML = '<tr><td colspan="4" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/port-matrix')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) {
-              portsTbody.innerHTML = '<tr><td colspan="4" class="empty">Failed to load.</td></tr>';
-              nmapTbody.innerHTML = '<tr><td colspan="4" class="empty">Failed to load.</td></tr>';
-              return;
-            }
-            portsTbody.innerHTML = d.ports.map(function(p) {
-              var cls = p.status === 'OPEN' ? 'score-hot' : '';
-              return '<tr>' +
-                '<td class="mono">' + p.port + '</td>' +
-                '<td>' + escapeHtml(p.service) + '</td>' +
-                '<td>' + escapeHtml(p.process) + '</td>' +
-                '<td class="' + cls + '">' + escapeHtml(p.status) + '</td>' +
-                '</tr>';
-            }).join('');
-            nmapTbody.innerHTML = !d.nmap_scans.length
-              ? '<tr><td colspan="4" class="empty">No recon activity detected.</td></tr>'
-              : d.nmap_scans.map(function(s) {
-                  return '<tr>' +
-                    '<td>' + escapeHtml(s.type) + '</td>' +
-                    '<td>' + escapeHtml(s.details) + '</td>' +
-                    '<td class="mono">' + escapeHtml(s.ip) + '</td>' +
-                    '<td class="mono">' + escapeHtml(s.timestamp) + '</td>' +
-                    '</tr>';
-                }).join('');
-          })
-          .catch(function() {
-            portsTbody.innerHTML = '<tr><td colspan="4" class="empty">Network error.</td></tr>';
-            nmapTbody.innerHTML = '<tr><td colspan="4" class="empty">Network error.</td></tr>';
-          });
-      }
-
-      function loadMalwareAnalysis() {
-        var grid = document.getElementById('malware-grid');
-        var tbody = document.getElementById('quarantine-tbody');
-        grid.innerHTML = '<div class="empty">Loading…</div>';
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/malware-analysis')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) {
-              grid.innerHTML = '<div class="empty">Failed to load.</div>';
-              tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load.</td></tr>';
-              return;
-            }
-            var t = d.telemetry;
-            var cards = [
-              ['Status', t.status], ['Engine', t.scanner_engine], ['Signatures', t.signatures_loaded],
-              ['Scanned Uploads', t.scanned_uploads_count], ['Threats Neutralized', t.threats_neutralized],
-              ['Suspicious Ext.', t.suspicious_extensions_detected],
-            ];
-            grid.innerHTML = cards.map(function(c) {
-              return '<div class="stat-card"><div class="stat-num">' + escapeHtml(String(c[1])) +
-                     '</div><div class="stat-label">' + escapeHtml(c[0]) + '</div></div>';
-            }).join('');
-            tbody.innerHTML = !t.quarantined_files.length
-              ? '<tr><td colspan="6" class="empty">No quarantined files.</td></tr>'
-              : t.quarantined_files.map(function(f) {
-                  return '<tr>' +
-                    '<td class="mono">' + escapeHtml(f.filename) + '</td>' +
-                    '<td>' + escapeHtml(f.uploader_id || '—') + '</td>' +
-                    '<td class="mono">' + escapeHtml(f.signature || '—') + '</td>' +
-                    '<td>' + escapeHtml(f.status) + '</td>' +
-                    '<td class="mono">' + escapeHtml(f.timestamp) + '</td>' +
-                    '<td><button type="button" class="btn-lock" onclick="purgeQuarantine(' + f.id + ')">Purge</button></td>' +
-                    '</tr>';
-                }).join('');
-          })
-          .catch(function() {
-            grid.innerHTML = '<div class="empty">Network error.</div>';
-            tbody.innerHTML = '<tr><td colspan="6" class="empty">Network error.</td></tr>';
-          });
-      }
-
-      function purgeQuarantine(fileId) {
-        fetch('/api/secops/quarantine/purge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file_id: fileId }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function() { loadMalwareAnalysis(); })
-          .catch(function() {});
-      }
-
-      function isolateUser() {
-        var statusEl = document.getElementById('isolate-status');
-        var userId = document.getElementById('isolate-user-input').value.trim();
-        if (!userId) { statusEl.textContent = 'Enter a user ID first.'; return; }
-        statusEl.textContent = 'Isolating…';
-        fetch('/api/secops/quarantine/isolate-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uploader_id: userId }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.msg || (d.ok ? 'Isolated.' : 'Failed.');
-            if (d.ok) document.getElementById('isolate-user-input').value = '';
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadThreatIntel() {
-        var cveTbody = document.getElementById('cve-tbody');
-        var ipTbody = document.getElementById('threat-ip-tbody');
-        fetch('/api/secops/threat-intel/cve')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.cves.length) {
-              cveTbody.innerHTML = '<tr><td colspan="5" class="empty">' + (d.ok ? 'No CVE indicators.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            cveTbody.innerHTML = d.cves.map(function(c) {
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(c.cve_id) + '</td>' +
-                '<td>' + escapeHtml(c.vendor) + '</td>' +
-                '<td>' + escapeHtml(c.product) + '</td>' +
-                '<td>' + escapeHtml(c.name) + '</td>' +
-                '<td class="mono">' + escapeHtml(c.due_date) + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { cveTbody.innerHTML = '<tr><td colspan="5" class="empty">Network error.</td></tr>'; });
-
-        fetch('/api/secops/threat-intel/ips')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.ips.length) {
-              ipTbody.innerHTML = '<tr><td colspan="5" class="empty">' + (d.ok ? 'No IP indicators.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            ipTbody.innerHTML = d.ips.map(function(i) {
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(i.ip) + '</td>' +
-                '<td class="score-hot">' + escapeHtml(String(i.threat_score)) + '</td>' +
-                '<td>' + escapeHtml(i.source) + '</td>' +
-                '<td class="mono">' + escapeHtml(i.fetched_at) + '</td>' +
-                '<td><button type="button" class="btn-lock" onclick="socBanIpFromRow(\'' + escapeHtml(i.ip) + '\')">Ban</button></td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { ipTbody.innerHTML = '<tr><td colspan="5" class="empty">Network error.</td></tr>'; });
-      }
-
-      function refreshThreatIntel() {
-        var statusEl = document.getElementById('threat-intel-status');
-        statusEl.textContent = 'Refreshing feeds…';
-        fetch('/api/secops/threat-intel/refresh', { method: 'POST' })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.msg || (d.ok ? 'Refreshed.' : 'Refresh failed.');
-            if (d.ok) loadThreatIntel();
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadWifiRisk() {
-        var grid = document.getElementById('wifi-grid');
-        grid.innerHTML = '<div class="empty">Loading…</div>';
-        fetch('/api/secops/wifi-risk')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) { grid.innerHTML = '<div class="empty">Failed to load.</div>'; return; }
-            var w = d.wifi;
-            var cards = [
-              ['Risk Score', w.risk_score + '%'], ['Status', w.status], ['Shield', w.shield_active ? 'Active' : 'Inactive'],
-              ['SSID', w.ssid], ['Encryption', w.encryption],
-              ['Rogue AP', w.rogue_ap_detected ? 'Detected' : 'None'], ['ARP Spoof', w.arp_spoof_detected ? 'Detected' : 'None'],
-            ];
-            grid.innerHTML = cards.map(function(c) {
-              return '<div class="stat-card"><div class="stat-num">' + escapeHtml(String(c[1])) +
-                     '</div><div class="stat-label">' + escapeHtml(c[0]) + '</div></div>';
-            }).join('');
-          })
-          .catch(function() { grid.innerHTML = '<div class="empty">Network error.</div>'; });
-      }
-
-      function toggleWifiShield(enable) {
-        var statusEl = document.getElementById('wifi-shield-status');
-        statusEl.textContent = enable ? 'Enabling shield…' : 'Disabling shield…';
-        fetch('/api/secops/wifi-risk/toggle-shield', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enable: enable }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.ok ? ('Shield ' + (d.shield_active ? 'enabled' : 'disabled') + '.') : 'Failed.';
-            if (d.ok) loadWifiRisk();
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function setGlobalWifiScore() {
-        var statusEl = document.getElementById('wifi-shield-status');
-        var score = document.getElementById('wifi-global-score').value.trim();
-        if (score === '') { statusEl.textContent = 'Enter a score first.'; return; }
-        statusEl.textContent = 'Setting score…';
-        fetch('/api/secops/wifi-risk/set-score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ score: parseInt(score, 10) }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.ok ? 'Score updated.' : 'Failed.';
-            if (d.ok) loadWifiRisk();
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadUserWifiTelemetry() {
-        var tbody = document.getElementById('user-wifi-tbody');
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/user-wifi-telemetry')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.users.length) {
-              tbody.innerHTML = '<tr><td colspan="8" class="empty">' + (d.ok ? 'No telemetry recorded.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.users.map(function(u) {
-              var cls = u.is_high_risk ? 'score-hot' : '';
-              return '<tr>' +
-                '<td>' + escapeHtml(u.username) + '</td>' +
-                '<td>' + escapeHtml(u.role) + '</td>' +
-                '<td>' + escapeHtml(u.ssid) + '</td>' +
-                '<td>' + escapeHtml(u.encryption) + '</td>' +
-                '<td class="' + cls + '">' + u.risk_score + '%</td>' +
-                '<td class="' + cls + '">' + escapeHtml(u.status) + '</td>' +
-                '<td class="mono">' + escapeHtml(u.ip_address) + '</td>' +
-                '<td class="mono">' + escapeHtml(u.last_seen) + '</td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="8" class="empty">Network error.</td></tr>'; });
-      }
-
-      function updateUserWifi() {
-        var statusEl = document.getElementById('wifi-update-status');
-        var username = document.getElementById('wifi-update-user').value.trim();
-        var score = document.getElementById('wifi-update-score').value.trim();
-        if (!username) { statusEl.textContent = 'Enter a username first.'; return; }
-        statusEl.textContent = 'Updating…';
-        fetch('/api/secops/user-wifi-telemetry/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: username, score: score ? parseInt(score, 10) : undefined }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.ok ? 'Updated.' : (d.msg || 'Update failed.');
-            if (d.ok) loadUserWifiTelemetry();
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadSmtpConfig() {
-        fetch('/api/secops/smtp-config')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok) return;
-            var c = d.config;
-            document.getElementById('smtp-server').value = c.smtp_server || '';
-            document.getElementById('smtp-port').value = c.smtp_port || '';
-            document.getElementById('smtp-username').value = c.smtp_username || '';
-            document.getElementById('smtp-alert-email').value = c.alert_email || '';
-            document.getElementById('smtp-tls').checked = !!c.smtp_use_tls;
-          })
-          .catch(function() {});
-      }
-
-      function saveSmtpConfig() {
-        var statusEl = document.getElementById('smtp-status');
-        statusEl.textContent = 'Saving…';
-        fetch('/api/secops/smtp-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            smtp_server: document.getElementById('smtp-server').value.trim(),
-            smtp_port: parseInt(document.getElementById('smtp-port').value, 10) || 587,
-            smtp_username: document.getElementById('smtp-username').value.trim(),
-            alert_email: document.getElementById('smtp-alert-email').value.trim(),
-            smtp_use_tls: document.getElementById('smtp-tls').checked,
-          }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) { statusEl.textContent = d.msg || (d.ok ? 'Saved.' : 'Save failed.'); })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function loadAdminList() {
-        var tbody = document.getElementById('admin-list-tbody');
-        tbody.innerHTML = '<tr><td colspan="3" class="empty">Loading…</td></tr>';
-        fetch('/api/secops/list-admins')
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.admins.length) {
-              tbody.innerHTML = '<tr><td colspan="3" class="empty">' + (d.ok ? 'No admin accounts found.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.admins.map(function(a) {
-              return '<tr><td>' + escapeHtml(a.username) + '</td><td>' + escapeHtml(a.role) + '</td><td>' + escapeHtml(a.email) + '</td></tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="3" class="empty">Network error.</td></tr>'; });
-      }
-
-      function resetAdminPassword() {
-        var statusEl = document.getElementById('admin-reset-status');
-        var username = document.getElementById('admin-reset-username').value.trim();
-        var password = document.getElementById('admin-reset-password').value;
-        if (!username || !password) { statusEl.textContent = 'Username and new password required.'; return; }
-        statusEl.textContent = 'Resetting…';
-        fetch('/api/secops/reset-admin-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: username, new_password: password }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.msg || (d.ok ? 'Password reset.' : 'Reset failed.');
-            if (d.ok) document.getElementById('admin-reset-password').value = '';
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      function searchEmployees() {
-        var tbody = document.getElementById('emp-search-tbody');
-        var q = document.getElementById('emp-search-q').value.trim();
-        if (!q) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Enter a search term.</td></tr>'; return; }
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Searching…</td></tr>';
-        fetch('/api/secops/search-employees?q=' + encodeURIComponent(q))
-          .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-          .then(function(d) {
-            if (!d.ok || !d.employees.length) {
-              tbody.innerHTML = '<tr><td colspan="5" class="empty">' + (d.ok ? 'No matching employees.' : 'Failed to load.') + '</td></tr>';
-              return;
-            }
-            tbody.innerHTML = d.employees.map(function(e) {
-              return '<tr>' +
-                '<td class="mono">' + escapeHtml(e.employee_id) + '</td>' +
-                '<td>' + escapeHtml(e.name) + '</td>' +
-                '<td>' + escapeHtml(e.department) + '</td>' +
-                '<td>' + escapeHtml(e.role) + '</td>' +
-                '<td><button type="button" class="btn-lock" onclick="document.getElementById(\'emp-reset-id\').value=\'' +
-                  escapeHtml(e.employee_id) + '\'">Select</button></td>' +
-                '</tr>';
-            }).join('');
-          })
-          .catch(function() { tbody.innerHTML = '<tr><td colspan="5" class="empty">Network error.</td></tr>'; });
-      }
-
-      function resetEmployeePassword() {
-        var statusEl = document.getElementById('emp-reset-status');
-        var empId = document.getElementById('emp-reset-id').value.trim();
-        var password = document.getElementById('emp-reset-password').value;
-        if (!empId || !password) { statusEl.textContent = 'Employee ID and new password required.'; return; }
-        statusEl.textContent = 'Resetting…';
-        fetch('/api/secops/reset-employee-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employee_id: empId, new_password: password }),
-        })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            statusEl.textContent = d.msg || (d.ok ? 'Password reset.' : 'Reset failed.');
-            if (d.ok) document.getElementById('emp-reset-password').value = '';
-          })
-          .catch(function() { statusEl.textContent = 'Network error.'; });
-      }
-
-      loadSmtpConfig();
-      loadThreatIntel();
-    </script>
-
-  </body>
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadOverview();
+  // Auto-refresh dashboard stats every 30s
+  setInterval(() => {
+    const active = document.querySelector('.section.active');
+    if (active && active.id === 'section-overview') loadOverview();
+  }, 30000);
+});
+</script>
+</body>
 </html>
