@@ -43,16 +43,6 @@
     <button type="submit" class="btn-verify"><i class="ti ti-check"></i> Verify &amp; Complete Login</button>
   </form>
 
-  {% if qr_uri %}
-  <a class="qr-toggle" onclick="document.getElementById('qr-box').style.display = document.getElementById('qr-box').style.display === 'block' ? 'none' : 'block';">
-    Show Authenticator App QR Code
-  </a>
-  <div id="qr-box" class="qr-container">
-    <img src="{{ qr_uri }}" alt="TOTP QR Code" style="width: 160px; height: 160px; border-radius: 8px;" />
-    <div style="font-size: 10px; color: #9CA3AF; margin-top: 8px;">Scan with Google Authenticator / Authy</div>
-  </div>
-  {% endif %}
-
   <div style="margin-top: 24px;">
     <a href="/logout" style="font-size: 12px; color: #6B7280; text-decoration: none;">← Return to Login</a>
   </div>
