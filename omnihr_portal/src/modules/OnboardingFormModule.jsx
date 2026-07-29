@@ -81,7 +81,7 @@ export const OnboardingFormModule = () => {
     { num: 9, label: 'Skills & Perf', icon: Award }
   ];
 
-  const updateField = (field: string, val: any) => {
+  const updateField = (field, val) => {
     setFormData((prev) => ({ ...prev, [field]: val }));
   };
 

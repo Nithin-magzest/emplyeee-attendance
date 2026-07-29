@@ -7,7 +7,7 @@ export const AutomationModule = () => {
   const [promptInput, setPromptInput] = useState('');
   const [automations, setAutomations] = useState(MOCK_AUTOMATIONS);
 
-  const handleCreatePromptAutomation = (e: React.FormEvent) => {
+  const handleCreatePromptAutomation = (e) => {
     e.preventDefault();
     if (!promptInput.trim()) return;
 

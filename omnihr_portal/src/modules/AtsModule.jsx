@@ -8,9 +8,9 @@ export const AtsModule = () => {
 
   const stages = ['APPLIED', 'SCREENED', 'INTERVIEW', 'OFFER', 'HIRED'];
 
-  const moveStage = (candId: string, nextStage: string) => {
+  const moveStage = (candId, nextStage) => {
     setCandidates((prev) =>
-      prev.map((c) => (c.id === candId ? { ...c, stage: nextStage as any } : c))
+      prev.map((c) => (c.id === candId ? { ...c, stage: nextStage } : c))
     );
   };
 

@@ -4,9 +4,9 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { Users, Laptop, GitFork, Search, Filter, ShieldCheck, Mail, MapPin, Building, ChevronDown, ChevronRight, X } from 'lucide-react';
 
 export const CoreHrModule = () => {
-  const [activeTab, setActiveTab] = useState<'DIRECTORY' | 'ORG_CHART' | 'DEVICES'>('DIRECTORY');
+  const [activeTab, setActiveTab] = useState('DIRECTORY');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmp, setSelectedEmp] = useState<typeof MOCK_EMPLOYEES[0] | null>(null);
+  const [selectedEmp, setSelectedEmp] = useState(null);
 
   const filteredEmployees = MOCK_EMPLOYEES.filter(
     (e) =>

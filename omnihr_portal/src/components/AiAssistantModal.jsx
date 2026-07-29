@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Send, Bot, User, CornerDownLeft } from 'lucide-react';
 
-interface ChatMessage {
-  sender: 'ai' | 'user';
-  text: string;
-  time: string;
-}
-
 export const AiAssistantModal = ({ isOpen, onClose }) => {
   const [inputMsg, setInputMsg] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState([
     {
       sender: 'ai',
       text: 'Hello Dr. Evelyn Vance! I am MagAI, your 24/7 HR & SecOps assistant. How can I help you with workforce queries, PTO balances, or IT device provisioning today?',
@@ -19,7 +13,7 @@ export const AiAssistantModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = (e) => {
     e.preventDefault();
     if (!inputMsg.trim()) return;
 

@@ -3,7 +3,7 @@ import { X, Smartphone, Clock, DollarSign, Calendar, ShieldCheck, CheckCircle2, 
 
 export const MobileAppSimulator = ({ isOpen, onClose }) => {
   const [punchedIn, setPunchedIn] = useState(false);
-  const [deviceFrame, setDeviceFrame] = useState<'ios' | 'android'>('ios');
+  const [deviceFrame, setDeviceFrame] = useState('ios');
 
   if (!isOpen) return null;
 

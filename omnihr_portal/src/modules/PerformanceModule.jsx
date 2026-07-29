@@ -4,7 +4,7 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { Award, Grid, Target, CheckCircle2 } from 'lucide-react';
 
 export const PerformanceModule = () => {
-  const [selectedQuad, setSelectedQuad] = useState<string | null>(null);
+  const [selectedQuad, setSelectedQuad] = useState(null);
 
   const gridMatrix = [
     [
