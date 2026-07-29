@@ -100,7 +100,9 @@ from blueprints.core import core_bp
 from blueprints.ai_hrms import ai_hrms_bp
 from blueprints.secops import secops_bp
 from blueprints.email_blast import email_blast_bp
+from blueprints.automation_hub import automation_hub_bp
 from utils.threat_intel import start_threat_intel_service
+from utils.automation_engine import start_automation_engine
 
 app.register_blueprint(health_bp)
 app.register_blueprint(notifications_bp)
@@ -120,9 +122,11 @@ app.register_blueprint(core_bp)
 app.register_blueprint(ai_hrms_bp)
 app.register_blueprint(secops_bp)
 app.register_blueprint(email_blast_bp)
+app.register_blueprint(automation_hub_bp)
 
-# Start threat intel background service daemon
+# Start threat intel & background automation daemons
 start_threat_intel_service()
+start_automation_engine()
 
 
 # ── app.py: shared setup only (init_db, error handlers, before/after_request
