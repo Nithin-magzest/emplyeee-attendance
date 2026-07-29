@@ -154,6 +154,11 @@ app.jinja_env.globals["csrf_token"] = _csrf_token
 app.jinja_env.globals["timedelta"] = datetime.timedelta
 
 
+@app.before_request
+def _cloud_tenant_routing():
+    from utils.tenant_middleware import set_request_tenant_schema
+    set_request_tenant_schema()
+
 @app.context_processor
 def inject_companies_context():
     """Inject active company and companies list into every admin template.
