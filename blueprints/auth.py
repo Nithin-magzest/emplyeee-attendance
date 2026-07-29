@@ -177,16 +177,24 @@ def admin_login():
                     _uc.execute("UPDATE admin_users SET password=%s WHERE username=%s",
                                 (generate_password_hash(password), identifier))
                     _ud.commit()
+            
+            # Initiate MFA via email + TOTP Authenticator
+            from utils.totp import get_or_create_admin_totp_secret, send_mfa_login_email
+            secret, enabled = get_or_create_admin_totp_secret(identifier)
+            admin_email = admin_row[2] or f"{identifier}@maghr.com"
+            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            send_mfa_login_email(admin_email, identifier, "Executive Administrator", secret, otp_code)
+
             session.clear()
-            session["admin_logged_in"] = True
-            session["admin_username"] = identifier
-            session["admin_role"] = admin_row[1]
-            session["_session_created"] = time.time()
-            session.permanent = True
-            ensure_session_id(session)
-            if admin_row[2]:
-                notify_if_new_login_ip(identifier, "admin", request.remote_addr, identifier, admin_row[2])
-            return redirect("/admin")
+            session["mfa_pending"] = True
+            session["mfa_user"] = identifier
+            session["mfa_role_type"] = "admin"
+            session["mfa_admin_role"] = admin_row[1]
+            session["mfa_email"] = admin_email
+            session["mfa_otp_code"] = otp_code
+            session["mfa_secret"] = secret
+            return redirect("/mfa_login_verify")
+
         # Try employee credentials
         with _db() as (cursor, db):
             cursor.execute(
@@ -207,23 +215,113 @@ def admin_login():
                     _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
                                 (generate_password_hash(password), emp_row[0]))
                     _ud.commit()
+            
+            # Initiate MFA via email + TOTP Authenticator
+            from utils.totp import get_or_create_employee_totp_secret, send_mfa_login_email
+            secret, enabled = get_or_create_employee_totp_secret(emp_row[0])
+            emp_email = emp_row[5] or f"{emp_row[0].lower()}@maghr.com"
+            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            send_mfa_login_email(emp_email, emp_row[0], "Employee Self-Service", secret, otp_code)
+
             session.clear()
-            session["employee_id"] = emp_row[0]
-            session["employee_name"] = emp_row[1]
-            session["employee_role"] = emp_row[2] or ""
-            session["_session_created"] = time.time()
-            session["_fpc"] = bool(emp_row[4])  # force_pin_change flag in session
-            session.permanent = True
-            ensure_session_id(session)
-            if emp_row[5]:
-                notify_if_new_login_ip(emp_row[0], "employee", request.remote_addr, emp_row[1], emp_row[5])
-            if emp_row[4]:
-                return redirect("/force_change_pin")
-            return redirect("/employee_portal")
+            session["mfa_pending"] = True
+            session["mfa_user"] = emp_row[0]
+            session["mfa_role_type"] = "employee"
+            session["mfa_emp_name"] = emp_row[1]
+            session["mfa_emp_role"] = emp_row[2] or ""
+            session["mfa_emp_fpc"] = bool(emp_row[4])
+            session["mfa_email"] = emp_email
+            session["mfa_otp_code"] = otp_code
+            session["mfa_secret"] = secret
+            return redirect("/mfa_login_verify")
+
         _record_login_failure(identifier)
         return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
                                show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
     return render_template("admin_login.html", co=co)
+
+
+@auth_bp.route("/mfa_login_verify", methods=["GET", "POST"])
+def mfa_login_verify():
+    """Unified MFA Verification page for admin, secops, and employee logins."""
+    if not session.get("mfa_pending"):
+        return redirect("/admin_login")
+
+    username_or_id = session.get("mfa_user")
+    role_type = session.get("mfa_role_type")
+    email = session.get("mfa_email")
+    secret = session.get("mfa_secret")
+    otp_code = session.get("mfa_otp_code")
+
+    from utils.totp import (
+        verify_totp_code, verify_employee_totp_code,
+        mark_totp_enabled, mark_employee_totp_enabled, totp_qr_data_uri
+    )
+    qr_uri = totp_qr_data_uri(username_or_id, secret) if secret else None
+
+    if request.method == "POST":
+        submitted_code = request.form.get("mfa_code", "").strip()
+
+        # Validate code against emailed OTP or TOTP Authenticator app
+        is_valid_otp = (submitted_code == otp_code)
+        is_valid_totp = False
+        if role_type in ("admin", "secops"):
+            is_valid_totp = verify_totp_code(username_or_id, submitted_code, require_enabled=False)
+        else:
+            is_valid_totp = verify_employee_totp_code(username_or_id, submitted_code, require_enabled=False)
+
+        if is_valid_otp or is_valid_totp:
+            if role_type in ("admin", "secops"):
+                mark_totp_enabled(username_or_id)
+            else:
+                mark_employee_totp_enabled(username_or_id)
+
+            # Complete session creation
+            if role_type == "admin":
+                admin_role = session.get("mfa_admin_role", "admin")
+                session.clear()
+                session["admin_logged_in"] = True
+                session["admin_username"] = username_or_id
+                session["admin_role"] = admin_role
+                session["_session_created"] = time.time()
+                session.permanent = True
+                ensure_session_id(session)
+                notify_if_new_login_ip(username_or_id, "admin", request.remote_addr, username_or_id, email)
+                return redirect("/admin")
+
+            elif role_type == "secops":
+                from blueprints.secops import soc_step_up_refresh
+                session.clear()
+                session["admin_logged_in"] = True
+                session["admin_username"] = username_or_id
+                session["admin_role"] = SOC_ANALYST_ROLE
+                soc_step_up_refresh()
+                session["_session_created"] = time.time()
+                session.permanent = True
+                ensure_session_id(session)
+                notify_if_new_login_ip(username_or_id, "secops", request.remote_addr, username_or_id, email)
+                return redirect("/secops")
+
+            elif role_type == "employee":
+                emp_name = session.get("mfa_emp_name", "")
+                emp_role = session.get("mfa_emp_role", "")
+                emp_fpc = session.get("mfa_emp_fpc", False)
+                session.clear()
+                session["employee_id"] = username_or_id
+                session["employee_name"] = emp_name
+                session["employee_role"] = emp_role
+                session["_session_created"] = time.time()
+                session["_fpc"] = emp_fpc
+                session.permanent = True
+                ensure_session_id(session)
+                notify_if_new_login_ip(username_or_id, "employee", request.remote_addr, emp_name, email)
+                if emp_fpc:
+                    return redirect("/force_change_pin")
+                return redirect("/employee_portal")
+
+        return render_template("mfa_login_verify.html", error="Invalid 6-digit MFA verification code. Please check your email or authenticator app.", username=username_or_id, email=email, qr_uri=qr_uri)
+
+    return render_template("mfa_login_verify.html", username=username_or_id, email=email, qr_uri=qr_uri)
 
 
 @auth_bp.route("/logout", methods=["GET", "POST"])

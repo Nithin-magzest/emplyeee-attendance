@@ -82,11 +82,90 @@ def verify_totp_code(admin_username: str, code: str, require_enabled: bool = Tru
     return pyotp.TOTP(secret).verify(code, valid_window=1)
 
 
+def get_or_create_employee_totp_secret(employee_id: str):
+    """Return (secret, already_enabled) for employee TOTP."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT totp_secret, COALESCE(totp_enabled, 0) FROM employees WHERE employee_id=%s", (employee_id,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        cursor.close()
+        db.close()
+        return decrypt_pii(row[0]), bool(row[1])
+    secret = pyotp.random_base32()
+    cursor.execute(
+        "UPDATE employees SET totp_secret=%s WHERE employee_id=%s",
+        (encrypt_pii(secret), employee_id),
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    return secret, False
+
+
+def mark_employee_totp_enabled(employee_id: str):
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("UPDATE employees SET totp_enabled=1 WHERE employee_id=%s", (employee_id,))
+    db.commit()
+    cursor.close()
+    db.close()
+
+
+def verify_employee_totp_code(employee_id: str, code: str, require_enabled: bool = False) -> bool:
+    code = (code or "").strip()
+    if not code or len(code) != 6 or not code.isdigit():
+        return False
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT totp_secret, COALESCE(totp_enabled, 0) FROM employees WHERE employee_id=%s", (employee_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    db.close()
+    if not row or not row[0]:
+        return False
+    if require_enabled and not row[1]:
+        return False
+    secret = decrypt_pii(row[0])
+    return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
 def totp_qr_data_uri(admin_username: str, secret: str) -> str:
-    """Base64 PNG data: URI of the provisioning QR code, for the admin to
+    """Base64 PNG data: URI of the provisioning QR code, for the admin/employee to
     scan with Google Authenticator/Authy/etc during enrollment."""
     uri = pyotp.TOTP(secret).provisioning_uri(name=admin_username, issuer_name=_ISSUER)
     img = qrcode.make(uri)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def send_mfa_login_email(to_email: str, username_or_id: str, role_title: str, secret: str, otp_code: str):
+    """Mails the TOTP Authenticator QR code and 6-digit login verification code to user's company email."""
+    if not to_email:
+        return
+    try:
+        from utils.email_utils import get_email_config, send_email_async
+        cfg = get_email_config()
+        qr_uri = totp_qr_data_uri(username_or_id, secret)
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #ffffff;">
+          <h2 style="color: #4F46E5; margin-top: 0;">MagHR Premier — Login MFA Verification</h2>
+          <p>Hello <strong>{username_or_id}</strong>,</p>
+          <p>A login attempt was initiated for your <strong>{role_title}</strong> account.</p>
+          <div style="background: #f8fafc; border: 1.5px dashed #4F46E5; border-radius: 10px; padding: 16px; text-align: center; margin: 20px 0;">
+            <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: bold; text-transform: uppercase;">Your 6-Digit One-Time Login Code</p>
+            <p style="font-size: 32px; font-weight: 800; color: #4F46E5; letter-spacing: 6px; margin: 8px 0;">{otp_code}</p>
+          </div>
+          <p style="font-size: 13px; color: #475569;">Or scan the Authenticator QR code below to register TOTP with Google Authenticator or Authy:</p>
+          <div style="text-align: center; margin: 16px 0;">
+            <img src="{qr_uri}" alt="Authenticator QR Code" style="width: 180px; height: 180px; border: 1px solid #cbd5e1; border-radius: 8px;" />
+          </div>
+          <p style="font-size: 11px; color: #94a3b8; margin-top: 20px;">If you did not request this login, please contact your Security Administrator immediately.</p>
+        </div>
+        """
+        send_email_async(to_email, f"MagHR Login MFA Verification Code: {otp_code}", html_body, cfg)
+    except Exception as e:
+        from extensions import app_log
+        app_log.warning("Could not dispatch MFA login email: %s", e)
+

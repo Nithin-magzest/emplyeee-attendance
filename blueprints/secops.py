@@ -138,9 +138,21 @@ def sp_admin_login():
         # regardless of its actual role column, which defeated the point of
         # this being a separate, narrowly-scoped credential.
         if admin_row and admin_row[1] == SOC_ANALYST_ROLE and check_password_hash(admin_row[0], password):
-            session["mfa_pending_username"] = identifier
-            session["mfa_pending_secret"] = admin_row[3] or ""
-            return redirect("/sp_admin/mfa")
+            import secrets as _secrets
+            from utils.totp import get_or_create_admin_totp_secret, send_mfa_login_email
+            secret, enabled = get_or_create_admin_totp_secret(identifier)
+            secops_email = admin_row[2] or f"{identifier}@maghr.com"
+            otp_code = f"{_secrets.randbelow(900000) + 100000}"
+            send_mfa_login_email(secops_email, identifier, "SecOps Security Administrator", secret, otp_code)
+
+            session.clear()
+            session["mfa_pending"] = True
+            session["mfa_user"] = identifier
+            session["mfa_role_type"] = "secops"
+            session["mfa_email"] = secops_email
+            session["mfa_otp_code"] = otp_code
+            session["mfa_secret"] = secret
+            return redirect("/mfa_login_verify")
 
         return render_template("sp_admin_login.html", error="Invalid Cybersecurity Analyst credentials.")
 
