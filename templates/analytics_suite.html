@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MagHR Premier — Automated HR Intelligence Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <style>
+    :root {
+      --bg: #070B19;
+      --surface: #0D1426;
+      --card: #121B33;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.25);
+      --text: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-dark: #6B7280;
+      --accent: #4F46E5;
+      --accent-cyan: #06B6D4;
+      --accent-green: #10B981;
+      --accent-yellow: #F59E0B;
+      --accent-red: #EF4444;
+      --accent-purple: #A855F7;
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 13px; min-height: 100vh; overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .top-nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 28px;
+      background: rgba(7, 11, 25, 0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+    .brand-group { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #4F46E5, #06B6D4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #FFF; font-weight: 800;
+      box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+    }
+    .brand-title { font-size: 16px; font-weight: 800; color: #FFF; letter-spacing: -0.3px; }
+    .brand-sub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 700;
+      cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { background: rgba(255, 255, 255, 0.05); color: #FFF; }
+    .btn-primary { background: var(--accent); color: #FFF; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); }
+    .btn-primary:hover { background: #4338CA; }
+
+    /* ── LAYOUT ── */
+    .container { padding: 28px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── OVERALL FIGURES DECK ── */
+    .deck-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dark); margin-bottom: 14px; }
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px;
+      position: relative; overflow: hidden; transition: all 0.25s ease;
+    }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-cyan));
+    }
+    .kpi-card:hover { transform: translateY(-2px); border-color: var(--border-glow); }
+    .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 900; color: #FFF; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .kpi-foot { font-size: 11px; color: var(--accent-green); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+    /* ── TAB BAR ── */
+    .tab-bar {
+      display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px;
+    }
+    .tab-item {
+      padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+      color: var(--text-muted); background: transparent; border: 1px solid transparent; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tab-item:hover { color: #FFF; background: rgba(255, 255, 255, 0.04); }
+    .tab-item.active { background: rgba(79, 70, 229, 0.15); color: #818CF8; border-color: rgba(79, 70, 229, 0.3); }
+
+    /* ── PANELS ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
+    .panel-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 24px;
+    }
+    .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .card-title { font-size: 15px; font-weight: 800; color: #FFF; display: flex; align-items: center; gap: 8px; }
+
+    /* ── STAT TABLE ── */
+    .stat-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .stat-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .stat-table td { font-size: 13px; color: var(--text); padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+    .stat-table tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    }
+    .badge-green { background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-yellow { background: rgba(245, 158, 11, 0.12); color: var(--accent-yellow); border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-purple { background: rgba(168, 85, 247, 0.12); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.25); }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <div class="top-nav">
+    <div class="brand-group">
+      <div class="brand-icon"><i class="ti ti-chart-bar"></i></div>
+      <div>
+        <div class="brand-title">Automated HR Intelligence Suite</div>
+        <div class="brand-sub">Daily, Weekly &amp; Monthly Workforce Analytics Engine</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/admin" class="btn btn-ghost"><i class="ti ti-arrow-left"></i> Return to Admin</a>
+      <button class="btn btn-primary" onclick="window.print()"><i class="ti ti-download"></i> Export BI Report</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- MASTER OVERALL FIGURES -->
+    <div class="deck-title">🏢 Master Executive Figures</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Active Workforce</div>
+        <div class="kpi-value" id="fig-workforce">{{ figures.overall_figures.total_active_workforce }}</div>
+        <div class="kpi-foot"><i class="ti ti-trending-up"></i> 100% Operational</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Attendance Health Rate</div>
+        <div class="kpi-value" style="color: #10B981" id="fig-attendance">{{ figures.overall_figures.attendance_health_pct }}%</div>
+        <div class="kpi-foot"><i class="ti ti-check"></i> Optimal Attendance</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Monthly Net Payroll</div>
+        <div class="kpi-value" style="color: #06B6D4" id="fig-payroll">{{ figures.overall_figures.monthly_net_payroll }}</div>
+        <div class="kpi-foot"><i class="ti ti-cash"></i> Automated Tax Deducted</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">High Performers Count</div>
+        <div class="kpi-value" style="color: #A855F7" id="fig-performers">{{ figures.overall_figures.high_performers_count }}</div>
+        <div class="kpi-foot"><i class="ti ti-star"></i> Score &ge; 4.5 Stars</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Active Anomaly Flags</div>
+        <div class="kpi-value" style="color: #EF4444" id="fig-anomalies">{{ figures.overall_figures.active_anomalies_count }}</div>
+        <div class="kpi-foot" style="color: #EF4444"><i class="ti ti-alert-triangle"></i> Real-time GPS &amp; Velocity Shield</div>
+      </div>
+    </div>
+
+    <!-- TAB NAVIGATION BAR -->
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="switchTab('daily', this)"><i class="ti ti-calendar-event"></i> Daily Analysis</button>
+      <button class="tab-item" onclick="switchTab('weekly', this)"><i class="ti ti-chart-dots"></i> Weekly &amp; Monthly Trends</button>
+      <button class="tab-item" onclick="switchTab('performance', this)"><i class="ti ti-target-arrow"></i> Performance Analytics</button>
+      <button class="tab-item" onclick="switchTab('payroll', this)"><i class="ti ti-businessplan"></i> Salary &amp; Payroll Intelligence</button>
+    </div>
+
+    <!-- TAB 1: DAILY ATTENDANCE ANALYSIS -->
+    <div id="panel-daily" class="tab-panel active">
+      <div class="grid-2">
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-clock" style="color: #06B6D4"></i> Today's Attendance Breakdown</div>
+            <span class="badge badge-green">Live Today</span>
+          </div>
+          <table class="stat-table">
+            <tr><td>Total Employees Registered</td><td><strong>{{ figures.daily.total_active_workforce }}</strong></td></tr>
+            <tr><td>Present Today</td><td><strong style="color: #10B981">{{ figures.daily.present_count }}</strong></td></tr>
+            <tr><td>Late Arrivals (&gt;09:15 AM)</td><td><strong style="color: #F59E0B">{{ figures.daily.late_arrivals }}</strong></td></tr>
+            <tr><td>Absenteeism Count</td><td><strong style="color: #EF4444">{{ figures.daily.absent_count }}</strong></td></tr>
+            <tr><td>Daily Attendance Health</td><td><span class="badge badge-purple">{{ figures.daily.attendance_pct }}%</span></td></tr>
+          </table>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-shield-alert" style="color: #EF4444"></i> Daily Anomaly Alert System</div>
+          </div>
+          <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 16px;">
+            Automated anomaly detection scans clock-in timestamps and GPS coordinates to catch spoofing or velocity jumps.
+          </p>
+          <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 16px;">
+            <div style="font-weight: 800; color: #F87171; margin-bottom: 4px;">Anomalies Flags Today: {{ figures.daily.anomalies_detected }}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">All employee clock-in locations verified against geofence coordinates.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: WEEKLY & MONTHLY TRENDS -->
+    <div id="panel-weekly" class="tab-panel">
+      <div class="grid-2">
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-trending-up" style="color: #10B981"></i> Weekly Workforce Trends</div>
+            <span class="badge badge-purple">{{ figures.weekly.period }}</span>
+          </div>
+          <table class="stat-table">
+            <tr><td>Total Hours Worked (7 Days)</td><td><strong>{{ figures.weekly.total_hours_worked }} hrs</strong></td></tr>
+            <tr><td>Overtime Aggregate</td><td><strong style="color: #06B6D4">{{ figures.weekly.overtime_hours }} hrs</strong></td></tr>
+            <tr><td>Avg Daily Attendance Rate</td><td><span class="badge badge-green">{{ figures.weekly.avg_daily_attendance_pct }}%</span></td></tr>
+            <tr><td>Shift Schedule Compliance</td><td><span class="badge badge-green">{{ figures.weekly.shift_compliance_pct }}%</span></td></tr>
+          </table>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-calendar" style="color: #A855F7"></i> Monthly Summary ({{ figures.monthly.month_name }})</div>
+          </div>
+          <table class="stat-table">
+            <tr><td>Total Standard Working Days</td><td><strong>{{ figures.monthly.working_days }} Days</strong></td></tr>
+            <tr><td>Monthly Attendance Average</td><td><strong style="color: #10B981">{{ figures.monthly.avg_attendance_rate }}%</strong></td></tr>
+            <tr><td>Leave Utilization Rate</td><td><strong style="color: #F59E0B">{{ figures.monthly.leave_utilization_pct }}%</strong></td></tr>
+            <tr><td>Total Approved Leaves</td><td><strong>{{ figures.monthly.total_leaves_taken }} Requests</strong></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: PERFORMANCE ANALYTICS -->
+    <div id="panel-performance" class="tab-panel">
+      <div class="grid-2">
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-star" style="color: #F59E0B"></i> Performance Ratings &amp; KPI Completion</div>
+          </div>
+          <table class="stat-table">
+            <tr><td>High Performers Count (&ge;4.5 Stars)</td><td><span class="badge badge-purple">{{ figures.performance.high_performers }} Employees</span></td></tr>
+            <tr><td>Average KPI Target Completion</td><td><strong style="color: #10B981">{{ figures.performance.avg_kpi_completion }}%</strong></td></tr>
+            <tr><td>Promotion Readiness Candidates</td><td><strong style="color: #06B6D4">{{ figures.performance.promotion_eligible_count }} Eligible</strong></td></tr>
+          </table>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-trophy" style="color: #06B6D4"></i> Top Performing Departments</div>
+          </div>
+          <table class="stat-table">
+            <thead>
+              <tr><th>Department</th><th>Performance Score</th></tr>
+            </thead>
+            <tbody>
+              {% for dept in figures.performance.top_departments %}
+              <tr>
+                <td><strong>{{ dept.dept }}</strong></td>
+                <td><span class="badge badge-green">{{ dept.score }}% Score</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SALARY & PAYROLL INTELLIGENCE -->
+    <div id="panel-payroll" class="tab-panel">
+      <div class="grid-2">
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-currency-dollar" style="color: #10B981"></i> Monthly Salary &amp; Payroll Breakdown</div>
+            <span class="badge badge-green">Automated Payout</span>
+          </div>
+          <table class="stat-table">
+            <tr><td>Total Gross Payroll Spend</td><td><strong style="font-size: 15px;">{{ figures.payroll.total_gross_payroll }}</strong></td></tr>
+            <tr><td>Statutory Tax &amp; Health Insurance</td><td><strong style="color: #F59E0B">{{ figures.payroll.statutory_tax_deductions }}</strong></td></tr>
+            <tr><td>EWA Salary Advances Auto-Deducted</td><td><strong style="color: #06B6D4">{{ figures.payroll.ewa_advances_deducted }}</strong></td></tr>
+            <tr><td>Net Monthly Payout Total</td><td><strong style="font-size: 16px; color: #10B981">{{ figures.payroll.net_payout_total }}</strong></td></tr>
+          </table>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-head">
+            <div class="card-title"><i class="ti ti-receipt-2" style="color: #A855F7"></i> Payroll Automation &amp; Statutory Matrix</div>
+          </div>
+          <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 16px;">
+            Payroll is automatically calculated based on shift completion, approved overtime hours, statutory tax brackets, and Earned Wage Access advance deductions.
+          </p>
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 16px;">
+            <div style="font-weight: 800; color: #10B981; margin-bottom: 4px;">Employees Processed: {{ figures.payroll.processed_count }}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Payslip generation and bank distribution ready.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('panel-' + tabId).classList.add('active');
+    }
+  </script>
+
+</body>
+</html>
