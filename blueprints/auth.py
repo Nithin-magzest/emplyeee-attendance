@@ -151,92 +151,85 @@ def admin_login():
         # may not have landed by the time this response is built.
         will_need_captcha = turnstile_enabled() and (current_failed_count + 1) >= CAPTCHA_AFTER_ATTEMPTS
 
-        # Try admin credentials first
+        # Try admin_users credentials first (both Admin and SecOps Analyst roles)
         with _db() as (cursor, db):
-            cursor.execute("SELECT password, COALESCE(role,'admin'), email FROM admin_users WHERE username=%s", (identifier,))
+            cursor.execute("SELECT password, COALESCE(role,'admin'), email, username FROM admin_users WHERE username=%s OR email=%s", (identifier, identifier))
             admin_row = cursor.fetchone()
-        if admin_row and admin_row[1] == SOC_ANALYST_ROLE and check_password_hash(admin_row[0], password):
-            # SOC analyst accounts are a deliberately separate credential
-            # (blueprints/secops.py's /sp_admin/login) -- letting one also
-            # complete the regular admin login here would grant it a full
-            # admin_required session (employees, payroll, everything),
-            # which the dedicated, narrowly-scoped SOC login exists
-            # specifically to avoid. Same generic error either way, no
-            # distinction leaked between "wrong role" and "wrong password".
-            _record_login_failure(identifier)
-            return render_template(
-                "admin_login.html", co=co,
-                error="Invalid credentials. Check your ID and password.",
-                show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
-            )
+
         if admin_row and check_password_hash(admin_row[0], password):
             _clear_login_failures(identifier)
+            admin_username = admin_row[3]
+            admin_role = admin_row[1]
+            admin_email = admin_row[2] or f"{admin_username}@maghr.com"
+
             # Upgrade legacy hash to bcrypt on first successful login
             if admin_row[0] and not admin_row[0].startswith("$2"):
                 with _db() as (_uc, _ud):
                     _uc.execute("UPDATE admin_users SET password=%s WHERE username=%s",
-                                (generate_password_hash(password), identifier))
+                                (generate_password_hash(password), admin_username))
                     _ud.commit()
-            
-            # Initiate MFA via email + TOTP Authenticator
+
             from utils.totp import get_or_create_admin_totp_secret, send_mfa_login_email
-            secret, enabled = get_or_create_admin_totp_secret(identifier)
-            admin_email = admin_row[2] or f"{identifier}@maghr.com"
+            secret, enabled = get_or_create_admin_totp_secret(admin_username)
             otp_code = f"{secrets.randbelow(900000) + 100000}"
-            send_mfa_login_email(admin_email, identifier, "Executive Administrator", secret, otp_code)
 
             session.clear()
             session["mfa_pending"] = True
-            session["mfa_user"] = identifier
-            session["mfa_role_type"] = "admin"
-            session["mfa_admin_role"] = admin_row[1]
+            session["mfa_user"] = admin_username
             session["mfa_email"] = admin_email
             session["mfa_otp_code"] = otp_code
             session["mfa_secret"] = secret
+
+            if admin_role == SOC_ANALYST_ROLE:
+                send_mfa_login_email(admin_email, admin_username, "SecOps Security Administrator", secret, otp_code)
+                session["mfa_role_type"] = "secops"
+            else:
+                send_mfa_login_email(admin_email, admin_username, "Executive Administrator", secret, otp_code)
+                session["mfa_role_type"] = "admin"
+                session["mfa_admin_role"] = admin_role
+
             return redirect("/mfa_login_verify")
 
-        # Try employee credentials
+        # Try employee credentials (by employee_id or email)
         with _db() as (cursor, db):
             cursor.execute(
-                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email FROM employees WHERE employee_id=%s",
-                (identifier,)
+                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email FROM employees WHERE employee_id=%s OR email=%s",
+                (identifier, identifier)
             )
             emp_row = cursor.fetchone()
+
         if emp_row:
             stored_pwd = emp_row[3]
-            if not stored_pwd or not check_password_hash(stored_pwd, password):
-                _record_login_failure(identifier)
-                return render_template("admin_login.html", co=co, error="Invalid credentials. Check your ID and password.",
-                                       show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
-            _clear_login_failures(identifier)
-            # Upgrade legacy hash to bcrypt on first successful login
-            if stored_pwd and not stored_pwd.startswith("$2"):
-                with _db() as (_uc, _ud):
-                    _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
-                                (generate_password_hash(password), emp_row[0]))
-                    _ud.commit()
-            
-            # Initiate MFA via email + TOTP Authenticator
-            from utils.totp import get_or_create_employee_totp_secret, send_mfa_login_email
-            secret, enabled = get_or_create_employee_totp_secret(emp_row[0])
-            emp_email = emp_row[5] or f"{emp_row[0].lower()}@maghr.com"
-            otp_code = f"{secrets.randbelow(900000) + 100000}"
-            send_mfa_login_email(emp_email, emp_row[0], "Employee Self-Service", secret, otp_code)
+            if stored_pwd and check_password_hash(stored_pwd, password):
+                _clear_login_failures(identifier)
+                # Upgrade legacy hash to bcrypt on first successful login
+                if stored_pwd and not stored_pwd.startswith("$2"):
+                    with _db() as (_uc, _ud):
+                        _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
+                                    (generate_password_hash(password), emp_row[0]))
+                        _ud.commit()
 
-            session.clear()
-            session["mfa_pending"] = True
-            session["mfa_user"] = emp_row[0]
-            session["mfa_role_type"] = "employee"
-            session["mfa_emp_name"] = emp_row[1]
-            session["mfa_emp_role"] = emp_row[2] or ""
-            session["mfa_emp_fpc"] = bool(emp_row[4])
-            session["mfa_email"] = emp_email
-            session["mfa_otp_code"] = otp_code
-            session["mfa_secret"] = secret
-            return redirect("/mfa_login_verify")
+                # Initiate MFA via email + TOTP Authenticator
+                from utils.totp import get_or_create_employee_totp_secret, send_mfa_login_email
+                secret, enabled = get_or_create_employee_totp_secret(emp_row[0])
+                emp_email = emp_row[5] or f"{emp_row[0].lower()}@maghr.com"
+                otp_code = f"{secrets.randbelow(900000) + 100000}"
+                send_mfa_login_email(emp_email, emp_row[0], "Employee Self-Service", secret, otp_code)
+
+                session.clear()
+                session["mfa_pending"] = True
+                session["mfa_user"] = emp_row[0]
+                session["mfa_role_type"] = "employee"
+                session["mfa_emp_name"] = emp_row[1]
+                session["mfa_emp_role"] = emp_row[2] or ""
+                session["mfa_emp_fpc"] = bool(emp_row[4])
+                session["mfa_email"] = emp_email
+                session["mfa_otp_code"] = otp_code
+                session["mfa_secret"] = secret
+                return redirect("/mfa_login_verify")
 
         _record_login_failure(identifier)
-        return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
+        return render_template("admin_login.html", co=co, error="Invalid credentials. Check your ID and password.",
                                show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
     return render_template("admin_login.html", co=co)
 
