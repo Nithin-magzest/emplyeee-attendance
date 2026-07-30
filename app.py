@@ -155,6 +155,13 @@ app.jinja_env.globals["timedelta"] = datetime.timedelta
 
 
 @app.before_request
+def _waf_firewall_inspection():
+    from utils.firewall_engine import inspect_request
+    blocked_response = inspect_request()
+    if blocked_response:
+        return blocked_response
+
+@app.before_request
 def _cloud_tenant_routing():
     from utils.tenant_middleware import set_request_tenant_schema
     set_request_tenant_schema()

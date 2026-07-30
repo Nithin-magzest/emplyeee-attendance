@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>403 Access Denied — Web Application Firewall Interception</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #040812; color: #F3F4F6; font-family: 'Inter', sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 20px; overflow: hidden; position: relative;
+    }
+
+    .bg-mesh {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 30%, rgba(239, 68, 68, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 55%);
+    }
+
+    .waf-box {
+      position: relative; z-index: 10;
+      background: rgba(15, 22, 41, 0.9);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 24px;
+      padding: 44px 40px;
+      max-width: 520px; width: 100%;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 24px 64px -12px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+
+    .shield-icon {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: linear-gradient(135deg, #EF4444, #B91C1C);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 36px; color: #FFF; margin-bottom: 20px;
+      box-shadow: 0 8px 28px rgba(239, 68, 68, 0.45);
+    }
+
+    .waf-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 9999px;
+      background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 16px;
+    }
+
+    .title { font-size: 24px; font-weight: 900; color: #FFF; margin-bottom: 8px; }
+    .subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 24px; line-height: 1.5; }
+
+    .telemetry-grid {
+      background: rgba(4, 8, 18, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px; padding: 16px 20px;
+      text-align: left; margin-bottom: 24px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    }
+
+    .telemetry-row {
+      display: flex; justify-content: space-between; margin-bottom: 8px;
+    }
+    .telemetry-row:last-child { margin-bottom: 0; }
+    .telemetry-label { color: #64748B; font-weight: 500; }
+    .telemetry-val { color: #F3F4F6; font-weight: 700; }
+
+    .btn-return {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #F3F4F6; font-size: 13px; font-weight: 700; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-return:hover { background: rgba(255, 255, 255, 0.12); color: #FFF; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-mesh"></div>
+
+  <div class="waf-box">
+    <div class="shield-icon">
+      <i class="ti ti-shield-x"></i>
+    </div>
+
+    <div class="waf-badge">
+      <i class="ti ti-alert-triangle"></i> WAF Threat Interception
+    </div>
+
+    <div class="title">Access Denied (403)</div>
+    <div class="subtitle">
+      Our Web Application Firewall (WAF) engine detected a security signature violation in your request payload and automatically blocked execution.
+    </div>
+
+    <div class="telemetry-grid">
+      <div class="telemetry-row">
+        <span class="telemetry-label">Threat Category:</span>
+        <span class="telemetry-val" style="color: #F87171">{{ threat_category }}</span>
+      </div>
+      <div class="telemetry-row">
+        <span class="telemetry-label">Client IP Address:</span>
+        <span class="telemetry-val">{{ client_ip }}</span>
+      </div>
+      <div class="telemetry-row">
+        <span class="telemetry-label">Target Endpoint:</span>
+        <span class="telemetry-val">{{ path }}</span>
+      </div>
+      <div class="telemetry-row">
+        <span class="telemetry-label">Interception Time:</span>
+        <span class="telemetry-val">{{ timestamp }}</span>
+      </div>
+    </div>
+
+    <a href="/" class="btn-return">
+      <i class="ti ti-arrow-left"></i> Return to Safe Portal Home
+    </a>
+  </div>
+
+</body>
+</html>
