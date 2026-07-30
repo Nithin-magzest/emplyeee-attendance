@@ -3,35 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MagHR Premier — Admin Login</title>
+  <title>MagHR Premier — Enterprise Portal Sign In</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #03060f;
-      --card: rgba(10, 16, 35, 0.88);
-      --border: rgba(99, 130, 246, 0.18);
-      --accent: #4f6ef5;
-      --accent2: #818cf8;
-      --text: #e2e8f0;
-      --text2: #94a3b8;
-      --text3: #64748b;
-      --success: #10b981;
-      --error: #ef4444;
+      --bg: #070B19;
+      --card: rgba(13, 20, 38, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #4F46E5;
+      --accent-hover: #4338CA;
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-dark: #6B7280;
+      --input-bg: rgba(255, 255, 255, 0.03);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --input-focus: #6366F1;
+      --error-bg: rgba(239, 68, 68, 0.12);
+      --error-border: rgba(239, 68, 68, 0.3);
+      --error-text: #FCA5A5;
     }
 
     body {
       min-height: 100vh;
-      background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
+      background-color: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: 'Inter', sans-serif;
       overflow: hidden;
       position: relative;
+      color: var(--text-main);
     }
 
-    /* ── ANIMATED BACKGROUND ── */
+    /* ── ANIMATED CANVAS & AMBIENT MESH ── */
     #bg-canvas {
       position: fixed; inset: 0; z-index: 0;
       pointer-events: none;
@@ -40,248 +49,280 @@
     .bg-mesh {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background:
-        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(79, 110, 245, 0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(129, 140, 248, 0.1) 0%, transparent 55%),
-        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+        radial-gradient(ellipse 70% 50% at 15% 15%, rgba(79, 70, 229, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 85% 85%, rgba(99, 102, 241, 0.12) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
     }
 
-    /* ── CARD ── */
+    /* ── CARD CONTAINER ── */
     .login-wrap {
       position: relative; z-index: 10;
-      width: 100%; max-width: 420px;
-      padding: 20px;
+      width: 100%; max-width: 440px;
+      padding: 24px;
     }
 
     .card {
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 42px 40px 36px;
-      backdrop-filter: blur(32px);
-      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 44px 38px 36px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       box-shadow:
-        0 0 0 1px rgba(79, 110, 245, 0.08),
-        0 32px 80px rgba(0, 0, 0, 0.6),
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        0 24px 64px -12px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     @keyframes cardIn {
-      from { opacity: 0; transform: translateY(24px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0)     scale(1); }
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ── LOGO / BRAND ── */
+    /* ── BRANDING ── */
     .brand {
-      text-align: center; margin-bottom: 36px;
+      text-align: center;
+      margin-bottom: 34px;
     }
-    .brand-icon-wrap {
-      position: relative; display: inline-block; margin-bottom: 18px;
-    }
-    .brand-icon {
-      width: 72px; height: 72px; border-radius: 20px;
-      background: linear-gradient(135deg, #4f6ef5 0%, #818cf8 50%, #6366f1 100%);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 32px; margin: 0 auto;
-      box-shadow: 0 8px 32px rgba(79, 110, 245, 0.45), 0 0 0 1px rgba(255,255,255,0.1);
-      animation: iconFloat 3s ease-in-out infinite;
-    }
-    @keyframes iconFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-4px); }
-    }
-    .brand-ring {
-      position: absolute; inset: -6px;
-      border-radius: 26px;
-      border: 1px solid rgba(79, 110, 245, 0.3);
-      animation: ringPulse 3s ease-in-out infinite;
-    }
-    @keyframes ringPulse {
-      0%, 100% { opacity: 0.3; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.04); }
+    .brand-logo {
+      width: 58px; height: 58px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35);
+      color: #FFFFFF;
+      font-size: 26px;
     }
     .brand-name {
-      font-size: 22px; font-weight: 800; color: #f1f5f9;
-      letter-spacing: -0.4px; line-height: 1.2;
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
     }
-    .brand-tagline {
-      font-size: 12px; color: var(--text3); margin-top: 5px;
-      font-weight: 500; letter-spacing: 0.3px;
-    }
-    .brand-co {
-      display: inline-block; margin-top: 8px;
-      font-size: 12px; font-weight: 700; color: var(--accent2);
+    .brand-badge {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #818CF8;
       background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      padding: 3px 12px; border-radius: 20px;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      padding: 3px 10px;
+      border-radius: 9999px;
     }
 
-    /* ── ROLE SELECTOR ── */
-    .role-tabs {
-      display: flex; gap: 6px; margin-bottom: 24px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px; padding: 4px;
+    /* ── FORM FIELDS ── */
+    .field-group {
+      margin-bottom: 20px;
     }
-    .role-tab {
-      flex: 1; padding: 8px 6px;
-      border: none; background: none; color: var(--text3);
-      font-size: 11px; font-weight: 700; font-family: inherit;
-      cursor: pointer; border-radius: 9px; transition: all .2s;
-      text-align: center; letter-spacing: .2px;
-    }
-    .role-tab.active {
-      background: rgba(79, 110, 245, 0.2);
-      color: var(--accent2);
-      border: 1px solid rgba(79, 110, 245, 0.3);
-    }
-    .role-tab:hover:not(.active) { color: var(--text2); background: rgba(255,255,255,0.05); }
-
-    /* ── FORM ── */
-    .field-wrap { margin-bottom: 16px; }
     .field-label {
-      display: block; font-size: 11px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.7px;
-      color: var(--text3); margin-bottom: 8px;
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
     }
-    .field-input-wrap { position: relative; }
+    .field-relative {
+      position: relative;
+    }
     .field-icon {
-      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-      color: var(--text3); font-size: 15px; pointer-events: none;
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dark);
+      font-size: 18px;
+      pointer-events: none;
+      transition: color 0.2s;
     }
     .field-input {
-      width: 100%; padding: 13px 14px 13px 42px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; color: var(--text);
-      font-size: 14px; font-family: 'Inter', sans-serif;
-      outline: none; transition: all .2s;
+      width: 100%;
+      padding: 13px 14px 13px 44px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      color: var(--text-main);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
     }
-    .field-input::placeholder { color: var(--text3); }
+    .field-input::placeholder {
+      color: var(--text-dark);
+    }
     .field-input:focus {
-      background: rgba(79, 110, 245, 0.08);
-      border-color: rgba(79, 110, 245, 0.5);
-      box-shadow: 0 0 0 3px rgba(79, 110, 245, 0.12);
-      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+    }
+    .field-input:focus ~ .field-icon {
+      color: #818CF8;
     }
 
-    /* ── PASSWORD EYE ── */
-    .eye-btn {
-      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: var(--text3); cursor: pointer;
-      font-size: 15px; padding: 4px; transition: color .2s;
+    /* ── PASSWORD TOGGLE ── */
+    .toggle-password {
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-dark);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .eye-btn:hover { color: var(--text2); }
+    .toggle-password:hover {
+      color: var(--text-muted);
+    }
 
-    /* ── ERROR BOX ── */
-    .error-box {
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 12px; padding: 12px 14px;
-      font-size: 12px; font-weight: 600; color: #fca5a5;
-      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    /* ── ERROR ALERT ── */
+    .alert-error {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--error-text);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    /* ── SUBMIT BTN ── */
-    .btn-login {
-      width: 100%; padding: 14px;
-      background: linear-gradient(135deg, #4f6ef5, #6366f1);
-      border: none; border-radius: 12px;
-      color: #fff; font-size: 14px; font-weight: 700;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer; transition: all .2s;
-      box-shadow: 0 6px 20px rgba(79, 110, 245, 0.4);
-      position: relative; overflow: hidden;
-      letter-spacing: 0.2px; margin-top: 4px;
+    /* ── ACTION BUTTON ── */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+      border: none;
+      border-radius: 12px;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
     }
-    .btn-login::after {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-      opacity: 0; transition: opacity .2s;
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #4338CA 0%, #3730A3 100%);
+      box-shadow: 0 6px 22px rgba(79, 70, 229, 0.45);
+      transform: translateY(-1px);
     }
-    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(79, 110, 245, 0.55); }
-    .btn-login:hover::after { opacity: 1; }
-    .btn-login:active { transform: translateY(0); }
-    .btn-login:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .btn-submit:active {
+      transform: translateY(0);
+    }
 
-    /* ── SPINNER (loading state) ── */
     .btn-spinner {
-      display: none; width: 16px; height: 16px;
+      display: none;
+      width: 18px; height: 18px;
       border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff; border-radius: 50%;
-      animation: spin .7s linear infinite;
-      margin: 0 auto;
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── LINKS ── */
-    .form-links {
-      margin-top: 18px; display: flex; justify-content: space-between; align-items: center;
+    /* ── FOOTER LINKS ── */
+    .form-meta {
+      margin-top: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       font-size: 12px;
     }
-    .form-links a { color: var(--text3); text-decoration: none; transition: color .2s; }
-    .form-links a:hover { color: var(--text2); }
-    .form-links .forgot { color: var(--accent2); font-weight: 600; }
-    .form-links .forgot:hover { color: #a5b4fc; }
-
-    .emp-link {
-      margin-top: 14px; text-align: center;
-      font-size: 12px; color: var(--text3);
+    .form-meta a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+      font-weight: 500;
     }
-    .emp-link a { color: var(--accent2); text-decoration: none; font-weight: 600; }
-    .emp-link a:hover { color: #a5b4fc; }
-
-    /* ── CAPTCHA ── */
-    .captcha-wrap { margin-bottom: 18px; display: flex; justify-content: center; }
-
-    /* ── SECURITY BADGES ── */
-    .security-strip {
-      margin-top: 24px; display: flex; justify-content: center; gap: 16px;
-      border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px;
+    .form-meta a:hover {
+      color: #FFFFFF;
     }
-    .sec-badge {
-      display: flex; align-items: center; gap: 5px;
-      font-size: 10px; color: var(--text3); font-weight: 600;
+    .form-meta .forgot-link {
+      color: #818CF8;
+      font-weight: 600;
     }
-    .sec-badge span { font-size: 13px; }
+    .form-meta .forgot-link:hover {
+      color: #A5B4FC;
+    }
 
-    @media (max-width: 480px) {
-      .login-wrap { padding: 16px; }
-      .card { padding: 32px 24px 28px; }
+    /* ── SECURITY FOOTER STRIP ── */
+    .security-footer {
+      margin-top: 26px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+    .sec-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .sec-item i {
+      font-size: 13px;
+      color: #818CF8;
     }
   </style>
 </head>
 <body>
+
   <canvas id="bg-canvas"></canvas>
   <div class="bg-mesh"></div>
 
   <div class="login-wrap">
     <div class="card">
 
-      <!-- BRAND -->
+      <!-- BRANDING HEADER -->
       <div class="brand">
-        <div class="brand-icon-wrap">
-          <div class="brand-icon">🏢</div>
-          <div class="brand-ring"></div>
+        <div class="brand-logo">
+          <i class="ti ti-shield-lock"></i>
         </div>
         <div class="brand-name">MagHR Premier</div>
-        <div class="brand-tagline">Enterprise Human Resource Management</div>
-        {% if co and co.company_name %}
-        <div class="brand-co">{{ co.company_name }}</div>
-        {% endif %}
+        <div>
+          <span class="brand-badge">
+            {% if co and co.company_name %}{{ co.company_name }}{% else %}Enterprise SaaS Portal{% endif %}
+          </span>
+        </div>
       </div>
 
-      <!-- ERROR -->
+      <!-- ERROR NOTIFICATION -->
       {% if error %}
-      <div class="error-box">❌ {{ error }}</div>
+      <div class="alert-error">
+        <i class="ti ti-alert-circle"></i>
+        <span>{{ error }}</span>
+      </div>
       {% endif %}
 
-      <!-- FORM -->
+      <!-- SIGN IN FORM -->
       <form id="login-form" action="/admin_login" method="POST" autocomplete="on" onsubmit="onSubmit()">
-        <div class="field-wrap">
+        
+        <div class="field-group">
           <label class="field-label">Username / Email / Employee ID</label>
-          <div class="field-input-wrap">
-            <span class="field-icon">👤</span>
+          <div class="field-relative">
+            <i class="ti ti-user field-icon"></i>
             <input class="field-input" type="text" name="identifier"
                    id="identifier-input"
                    placeholder="Enter your Username, Email, or Employee ID"
@@ -289,134 +330,134 @@
           </div>
         </div>
 
-        <div class="field-wrap">
+        <div class="field-group">
           <label class="field-label">Password</label>
-          <div class="field-input-wrap">
-            <span class="field-icon">🔒</span>
+          <div class="field-relative">
+            <i class="ti ti-lock field-icon"></i>
             <input class="field-input" type="password" name="password"
                    id="password-input"
                    placeholder="Enter your password"
                    required autocomplete="current-password"
-                   style="padding-right: 44px" />
-            <button type="button" class="eye-btn" onclick="togglePwd()" title="Toggle password visibility">👁</button>
+                   style="padding-right: 44px;" />
+            <button type="button" class="toggle-password" onclick="togglePwd()" title="Toggle password visibility">
+              <i class="ti ti-eye" id="eye-icon"></i>
+            </button>
           </div>
         </div>
 
         {% if show_captcha %}
-        <div class="captcha-wrap">
+        <div style="margin-bottom: 20px; display: flex; justify-content: center;">
           <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="dark"></div>
           <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         </div>
         {% endif %}
 
-        <button type="submit" class="btn-login" id="submit-btn">
-          <span id="btn-text">Sign In →</span>
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span id="btn-text">Sign In to Portal</span>
+          <i class="ti ti-arrow-right" id="btn-icon"></i>
           <div class="btn-spinner" id="btn-spinner"></div>
         </button>
       </form>
 
-      <div class="form-links">
-        <a href="/">← Back to Scanner</a>
-        <a href="/admin_forgot_password" class="forgot">Forgot password?</a>
+      <!-- NAVIGATION META LINKS -->
+      <div class="form-meta">
+        <a href="/"><i class="ti ti-scan"></i> Attendance Scanner</a>
+        <a href="/admin_forgot_password" class="forgot-link">Forgot password?</a>
       </div>
 
-      <div class="emp-link">
-        Employee?
-        <a href="/employee_forgot_password">Reset your password</a>
-      </div>
-
-      <!-- SECURITY STRIP -->
-      <div class="security-strip">
-        <div class="sec-badge"><span>🔐</span> MFA Protected</div>
-        <div class="sec-badge"><span>🔒</span> TLS 1.3</div>
-        <div class="sec-badge"><span>🛡</span> SOC Monitored</div>
+      <!-- SECURITY CERTIFICATIONS STRIP -->
+      <div class="security-footer">
+        <div class="sec-item"><i class="ti ti-shield-check"></i> TLS 1.3</div>
+        <div class="sec-item"><i class="ti ti-key"></i> Zero-Trust MFA</div>
+        <div class="sec-item"><i class="ti ti-certificate"></i> SOC 2 Type II</div>
       </div>
 
     </div>
   </div>
 
   <script>
-    // ── PASSWORD TOGGLE ──
+    // ── PASSWORD VISIBILITY TOGGLE ──
     function togglePwd() {
-      const inp = document.getElementById('password-input');
-      inp.type = inp.type === 'password' ? 'text' : 'password';
+      const input = document.getElementById('password-input');
+      const icon = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'ti ti-eye-off';
+      } else {
+        input.type = 'password';
+        icon.className = 'ti ti-eye';
+      }
     }
 
-    // ── LOADING STATE ──
+    // ── SUBMIT LOADING ANIMATION ──
     function onSubmit() {
       const btn = document.getElementById('submit-btn');
       const txt = document.getElementById('btn-text');
-      const spn = document.getElementById('btn-spinner');
+      const icon = document.getElementById('btn-icon');
+      const spinner = document.getElementById('btn-spinner');
       btn.disabled = true;
       txt.style.display = 'none';
-      spn.style.display = 'block';
+      icon.style.display = 'none';
+      spinner.style.display = 'block';
     }
 
-    // ── ANIMATED BACKGROUND PARTICLES ──
+    // ── SUBTLE CONSTELLATION CANVAS PARTICLES ──
     (function() {
       const canvas = document.getElementById('bg-canvas');
       const ctx = canvas.getContext('2d');
-      let W, H, particles = [];
+      let w, h, particles = [];
 
       function resize() {
-        W = canvas.width  = window.innerWidth;
-        H = canvas.height = window.innerHeight;
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
       }
+      window.addEventListener('resize', resize);
+      resize();
 
-      function Particle() {
-        this.x = Math.random() * W;
-        this.y = Math.random() * H;
-        this.r = Math.random() * 1.5 + 0.5;
-        this.vx = (Math.random() - 0.5) * 0.3;
-        this.vy = (Math.random() - 0.5) * 0.3;
-        this.alpha = Math.random() * 0.4 + 0.1;
-        this.hue = 220 + Math.random() * 40;
-      }
-      Particle.prototype.update = function() {
-        this.x += this.vx; this.y += this.vy;
-        if (this.x < 0) this.x = W;
-        if (this.x > W) this.x = 0;
-        if (this.y < 0) this.y = H;
-        if (this.y > H) this.y = 0;
-      };
-
-      function init() {
-        resize();
-        particles = Array.from({length: 80}, () => new Particle());
+      for (let i = 0; i < 35; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          r: Math.random() * 1.5 + 0.8
+        });
       }
 
       function draw() {
-        ctx.clearRect(0, 0, W, H);
-        // Draw connections
+        ctx.clearRect(0, 0, w, h);
         for (let i = 0; i < particles.length; i++) {
+          let p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = w;
+          if (p.x > w) p.x = 0;
+          if (p.y < 0) p.y = h;
+          if (p.y > h) p.y = 0;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(129, 140, 248, 0.3)';
+          ctx.fill();
+
           for (let j = i + 1; j < particles.length; j++) {
-            const dx = particles[i].x - particles[j].x;
-            const dy = particles[i].y - particles[j].y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 100) {
+            let p2 = particles[j];
+            let dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if (dist < 110) {
               ctx.beginPath();
-              ctx.moveTo(particles[i].x, particles[i].y);
-              ctx.lineTo(particles[j].x, particles[j].y);
-              ctx.strokeStyle = `rgba(79, 110, 245, ${(1 - dist/100) * 0.08})`;
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(99, 102, 241, ${0.15 * (1 - dist / 110)})`;
+              ctx.lineWidth = 0.6;
               ctx.stroke();
             }
           }
         }
-        // Draw particles
-        particles.forEach(p => {
-          p.update();
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${p.hue}, 80%, 70%, ${p.alpha})`;
-          ctx.fill();
-        });
         requestAnimationFrame(draw);
       }
-
-      window.addEventListener('resize', resize);
-      init();
       draw();
     })();
   </script>
+
 </body>
 </html>
