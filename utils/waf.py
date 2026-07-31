@@ -162,21 +162,9 @@ _breach_log = defaultdict(deque)  # ip -> deque[timestamp]
 
 
 def record_breach_and_maybe_ban(ip, reason):
-    """Call on every WAF block or rate-limit breach. Once an IP crosses
-    _BREACH_THRESHOLD breaches inside _BREACH_WINDOW_SECONDS, inserts a
-    temporary ban into banned_ips — the same table and INSERT shape the SOC
-    dashboard's manual ban-ip endpoint uses (blueprints/admin_views.py), so
-    the existing _enforce_ip_ban before_request hook (app.py) blocks the IP
-    on its very next request with no new blocking mechanism needed.
-
-    Uses Redis (shared across gunicorn workers) when extensions.redis_client
-    is configured, falling back to the in-memory per-worker counter
-    otherwise — including if a configured Redis becomes unreachable
-    mid-request, so a transient Redis blip degrades the counter rather than
-    breaking request handling.
-    """
-    if not ip:
+    if not ip or ip in ("127.0.0.1", "::1", "localhost") or os.environ.get("APP_ENV") == "development":
         return
+
     if redis_client is not None:
         try:
             _record_breach_redis(ip, reason)

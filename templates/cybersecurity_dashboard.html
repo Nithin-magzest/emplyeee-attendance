@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cybersecurity & Project Intelligence Dashboard — {{ co.company_name }}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="stylesheet" href="/static/tabler-icons.min.css" />
+  <link rel="stylesheet" href="/static/shared.css" />
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.85);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding-bottom: 40px; }
+    
+    .navbar {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 18px; color: #fff; text-decoration: none; }
+    .nav-brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 16px; }
+    .nav-link { color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; transition: 0.2s; }
+    .nav-link:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+    .nav-link.active { color: #fff; background: rgba(59, 130, 246, 0.25); border: 1px solid rgba(59, 130, 246, 0.5); }
+
+    .container { max-width: 1360px; margin: 28px auto; padding: 0 24px; }
+    .header-banner {
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.6), rgba(88, 28, 135, 0.5));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 20px; padding: 28px 36px; margin-bottom: 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .header-info h1 { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .header-info p { color: var(--text-muted); font-size: 14px; }
+    .status-badge-live { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; }
+    .status-dot { width: 8px; height: 8px; background: #34d399; border-radius: 50%; box-shadow: 0 0 10px #34d399; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+
+    /* Grid Layout */
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(620px, 1fr)); gap: 24px; margin-bottom: 28px; }
+
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(16px); border-radius: 16px; padding: 24px; }
+    .card-title { font-size: 15px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .card-value { font-size: 28px; font-weight: 800; color: #fff; }
+    .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Tech Stack Details */
+    .tech-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .tech-item { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .tech-item-name { font-size: 13px; font-weight: 700; color: #e5e7eb; display: flex; align-items: center; gap: 8px; }
+    .tech-item-val { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.08); color: #9ca3af; }
+    .val-green { background: rgba(16, 185, 129, 0.2) !important; color: #34d399 !important; }
+    .val-blue { background: rgba(59, 130, 246, 0.2) !important; color: #60a5fa !important; }
+
+    /* Tables */
+    .table-wrapper { overflow-x: auto; margin-top: 14px; max-height: 380px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); font-weight: 700; padding: 12px 16px; border-bottom: 1px solid var(--card-border); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); color: #e5e7eb; }
+    tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+    .tag { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+    .tag-info { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+    .tag-warning { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+    .tag-error { background: rgba(244, 63, 94, 0.25); color: #f87171; }
+
+    .btn { padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--accent-blue); color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-danger { background: var(--accent-rose); color: #fff; }
+    .btn-danger:hover { background: #e11d48; }
+
+    .action-bar { display: flex; gap: 12px; margin-bottom: 14px; align-items: center; justify-content: space-between; }
+    .search-input { background: rgba(255, 255, 255, 0.08); border: 1px solid var(--card-border); border-radius: 8px; padding: 8px 14px; color: #fff; font-size: 13px; outline: none; }
+    .search-input:focus { border-color: var(--accent-blue); }
+  </style>
+</head>
+<body>
+
+  <!-- Unified Navigation Bar -->
+  <nav class="navbar">
+    <a href="/admin" class="nav-brand">
+      <div class="nav-brand-icon"><i class="ti ti-shield-lock"></i></div>
+      <span>SecOps & Compliance Intelligence Hub</span>
+    </a>
+    <div class="nav-links">
+      <a href="/admin" class="nav-link"><i class="ti ti-layout-dashboard"></i> Admin Dashboard</a>
+      <a href="/attendance" class="nav-link"><i class="ti ti-camera"></i> Kiosk Check-in</a>
+      <a href="/security_dashboard" class="nav-link active"><i class="ti ti-shield"></i> Cyber Security Hub</a>
+      <a href="/logout" class="nav-link"><i class="ti ti-logout"></i> Logout</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Top Banner -->
+    <div class="header-banner">
+      <div class="header-info">
+        <h1><i class="ti ti-server-cog"></i> Cybersecurity, Malware & Compliance Intelligence Hub</h1>
+        <p>Unified real-time SIEM telemetry, AI anomaly detection, malware analysis & quarantine, port monitoring, and threat intelligence</p>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+        <div class="status-badge-live">
+          <span class="status-dot"></span> Live Automated Polling (Every 3s)
+        </div>
+        <button class="btn btn-primary" style="font-size:12px;" onclick="refreshProjectStats()"><i class="ti ti-refresh"></i> Refresh Telemetry</button>
+      </div>
+    </div>
+
+    <!-- Overview Stats Grid -->
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-title"><span>Total Security Events</span> <i class="ti ti-bell-ringing"></i></div>
+        <div class="card-value" id="stat-total-events">0</div>
+        <div class="card-sub">SIEM log engine</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>AI Threat Risk</span> <i class="ti ti-brain"></i></div>
+        <div class="card-value"><span class="tag val-green" id="stat-ai-risk">LOW</span></div>
+        <div class="card-sub" id="stat-ai-sub">0 anomalies detected</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Quarantined Payloads</span> <i class="ti ti-bug"></i></div>
+        <div class="card-value" id="stat-quarantined-count">0</div>
+        <div class="card-sub">Malware & virus threats</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Banned Employees / IPs</span> <i class="ti ti-ban"></i></div>
+        <div class="card-value" id="stat-banned-count">0</div>
+        <div class="card-sub">Active blacklists</div>
+      </div>
+    </div>
+
+    <!-- Malware Analysis & Quarantine Control Center -->
+    <div class="card" style="margin-bottom: 28px;">
+      <div class="card-title">
+        <span><i class="ti ti-shield-search"></i> Real-Time Malware Analysis & File Quarantine Scanner</span>
+        <div style="display:flex; gap:10px;">
+          <input type="file" id="malware-file-input" style="display:none;" onchange="uploadAndScanMalware(this)" />
+          <button class="btn btn-primary" onclick="document.getElementById('malware-file-input').click()"><i class="ti ti-upload"></i> Scan File Payload</button>
+        </div>
+      </div>
+
+      <!-- Quarantined Payloads Table -->
+      <div style="font-weight: 700; font-size: 13px; color: var(--text-muted); margin-top: 14px; margin-bottom: 6px;"><i class="ti ti-biohazard"></i> Quarantined Payloads & Virus Detections</div>
+      <div class="table-wrapper" style="max-height: 220px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Payload Filename</th>
+              <th>SHA-256 Hash</th>
+              <th>Uploader</th>
+              <th>Detection Signature</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="quarantine-tbody">
+            <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Loading quarantined payloads…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI Anomaly & Fraud Detection Engine Panel -->
+    <div class="card" style="margin-bottom: 28px;">
+      <div class="card-title">
+        <span><i class="ti ti-cpu"></i> AI Attendance & Authentication Fraud Detector</span>
+        <button class="btn btn-primary" onclick="loadAIAnomalyDetection()"><i class="ti ti-scan"></i> Run AI Threat Scan</button>
+      </div>
+      <div class="table-wrapper" style="max-height: 200px; margin-top: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Anomaly Category</th>
+              <th>Target Entity</th>
+              <th>Detection Details</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="ai-anomalies-tbody">
+            <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Running AI Threat Analysis…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Network Port & Service Health Infrastructure Monitor -->
+    <div class="card" style="margin-bottom: 28px;">
+      <div class="card-title">
+        <span><i class="ti ti-network"></i> Network Infrastructure & Service Port Monitor</span>
+      </div>
+      <div class="table-wrapper" style="max-height: 200px; margin-top: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>Service Name</th>
+              <th>Target Process</th>
+              <th>Binding Exposure</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="port-health-tbody">
+            <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Checking network ports…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tech Stack & Project Details Section -->
+    <div class="card" style="margin-bottom: 28px;">
+      <div class="card-title">
+        <span><i class="ti ti-code-asterisk"></i> Project Architecture & File Locations</span>
+      </div>
+      <div class="tech-list" style="margin-top: 16px;">
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-brand-python"></i> Python Engine</span>
+          <span class="tech-item-val val-blue">Flask 3.1.3 + Python 3.13</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-css"></i> Stylesheet Location</span>
+          <span class="tech-item-val val-blue">/static/shared.css</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-database"></i> Primary Database</span>
+          <span class="tech-item-val val-green">PostgreSQL 18</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-face-id"></i> Face Recognition</span>
+          <span class="tech-item-val val-green">OpenCV 5.0 + Dlib 20.0</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-fingerprint"></i> Biometrics & WebAuthn</span>
+          <span class="tech-item-val val-green">Passkeys & WebAuthn 3.0</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-map-pin"></i> GPS Geofencing</span>
+          <span class="tech-item-val val-blue">Configured (Office Coordinates)</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-device-mobile"></i> Mobile Application</span>
+          <span class="tech-item-val val-blue">React Native Bundle</span>
+        </div>
+        <div class="tech-item">
+          <span class="tech-item-name"><i class="ti ti-key"></i> Data Encryption</span>
+          <span class="tech-item-val val-green">Fernet PII + Bcrypt</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid: Automated SIEM Logs & IP/Employee Ban Manual Control -->
+    <div class="grid-2">
+      
+      <!-- Real-Time Automated SIEM Security Events -->
+      <div class="card">
+        <div class="action-bar">
+          <div style="font-weight: 700; font-size: 16px;"><i class="ti ti-activity"></i> Live Automated Security Log Stream (SIEM)</div>
+          <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="clearSecurityLogs()"><i class="ti ti-trash"></i> Purge Logs</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Event Type</th>
+                <th>Message / Identifier</th>
+                <th>IP Address</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody">
+              <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading security events…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Manual Ban Controls (IPs & Employees) -->
+      <div class="card">
+        <div class="action-bar">
+          <div style="font-weight: 700; font-size: 16px;"><i class="ti ti-shield-x"></i> Manual Ban Management (IP & Employee)</div>
+        </div>
+        
+        <!-- Manual IP Ban Form -->
+        <div style="font-weight: 700; font-size: 13px; color: var(--text-muted); margin-bottom: 8px;"><i class="ti ti-ban"></i> Ban IP Address</div>
+        <div style="display: flex; gap: 10px; margin-bottom: 18px;">
+          <input type="text" id="input-ban-ip" class="search-input" placeholder="IP Address (e.g. 192.168.1.50)" style="flex:1;" />
+          <input type="text" id="input-ban-reason" class="search-input" placeholder="Reason" style="flex:1;" />
+          <button class="btn btn-danger" id="btn-ban-ip" onclick="addBanIP()"><i class="ti ti-ban"></i> Ban IP</button>
+        </div>
+
+        <!-- Manual Employee Ban Form -->
+        <div style="font-weight: 700; font-size: 13px; color: var(--text-muted); margin-bottom: 8px;"><i class="ti ti-user-x"></i> Ban Employee (Deactivate Account)</div>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <input type="text" id="input-ban-emp-id" class="search-input" placeholder="Employee ID (e.g. EMP001)" style="flex:1;" />
+          <button class="btn btn-danger" id="btn-ban-emp" onclick="addBanEmployee()"><i class="ti ti-user-x"></i> Ban Employee</button>
+        </div>
+
+        <!-- Banned IPs Table -->
+        <div style="font-weight: 700; font-size: 13px; color: var(--text-muted); margin-bottom: 6px;"><i class="ti ti-list"></i> Banned IP Addresses</div>
+        <div class="table-wrapper" style="max-height: 180px; margin-bottom: 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Reason</th>
+                <th>Banned By</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="banned-tbody">
+              <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Loading banned IPs…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Banned Employees Table -->
+        <div style="font-weight: 700; font-size: 13px; color: var(--text-muted); margin-bottom: 6px;"><i class="ti ti-users"></i> Banned / Suspended Employees</div>
+        <div class="table-wrapper" style="max-height: 180px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="banned-emp-tbody">
+              <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading banned employees…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    async function loadDashboardStats() {
+      try {
+        const res = await fetch('/api/secops/dashboard-stats');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('stat-total-events').textContent = data.events_summary?.total || 0;
+        }
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+
+    async function loadQuarantinedFiles() {
+      const tbody = document.getElementById('quarantine-tbody');
+      try {
+        const res = await fetch('/api/security/soc/quarantined-files');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const files = data.quarantined_files || [];
+
+        document.getElementById('stat-quarantined-count').textContent = files.length;
+
+        if (!files || files.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #34d399; font-weight:600;"><i class="ti ti-shield-check"></i> Zero quarantined malware payloads. Environment clean.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = files.map(f => `
+          <tr>
+            <td style="font-weight:700; color:#f87171;"><i class="ti ti-file-alert"></i> ${f.filename}</td>
+            <td style="font-family:monospace; font-size:11px;">${f.file_hash ? f.file_hash.substring(0, 16) + '...' : '-'}</td>
+            <td>${f.uploader_id || 'System'}</td>
+            <td style="color:#fbbf24; font-family:monospace;">${f.detection_signature || 'Suspicious'}</td>
+            <td><span class="tag tag-error">${f.status}</span></td>
+            <td><button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteQuarantinedFile(${f.id})"><i class="ti ti-trash"></i> Purge</button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#f87171;">Failed to load quarantine queue.</td></tr>';
+      }
+    }
+
+    async function uploadAndScanMalware(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+
+      try {
+        const res = await fetch('/api/security/soc/scan-payload', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken },
+          body: formData
+        });
+        const result = await res.json();
+        alert(result.msg || 'File scanned successfully.');
+        input.value = '';
+        refreshProjectStats();
+      } catch (err) {
+        alert('Error scanning payload.');
+      }
+    }
+
+    async function deleteQuarantinedFile(fileId) {
+      if (!confirm(`Purge quarantined payload ID ${fileId}?`)) return;
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/delete-quarantined-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ id: fileId })
+        });
+        if (res.ok) {
+          refreshProjectStats();
+        } else {
+          alert('Failed to purge file.');
+        }
+      } catch (err) {
+        alert('Error purging file.');
+      }
+    }
+
+    async function loadPortHealth() {
+      const tbody = document.getElementById('port-health-tbody');
+      try {
+        const res = await fetch('/api/security/soc/port-health');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const ports = data.ports || [];
+
+        if (!ports || ports.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No tracked network ports.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = ports.map(p => {
+          const isUp = p.is_open;
+          const tagClass = isUp ? 'val-green' : 'tag-error';
+          return `
+            <tr>
+              <td style="font-family:monospace; font-weight:800; color:#60a5fa;">Port ${p.port}</td>
+              <td style="font-weight:700;">${p.service}</td>
+              <td>${p.process}</td>
+              <td style="color:var(--text-muted); font-size:12px;">${p.binding}</td>
+              <td><span class="tag ${tagClass}">${p.status}</span></td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#f87171;">Failed to load port status.</td></tr>';
+      }
+    }
+
+    async function loadAIAnomalyDetection() {
+      const tbody = document.getElementById('ai-anomalies-tbody');
+      try {
+        const res = await fetch('/api/security/soc/ai-anomaly-detection');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const anomalies = data.anomalies || [];
+
+        const riskEl = document.getElementById('stat-ai-risk');
+        riskEl.textContent = data.risk_score || 'LOW';
+        riskEl.className = 'tag ' + (data.risk_score === 'HIGH' ? 'tag-error' : (data.risk_score === 'MEDIUM' ? 'tag-warning' : 'val-green'));
+        document.getElementById('stat-ai-sub').textContent = `${data.total_anomalies || 0} anomalies flagged`;
+
+        if (!anomalies || anomalies.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #34d399; font-weight:600;"><i class="ti ti-circle-check"></i> No suspicious activity or attendance anomalies detected.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = anomalies.map(a => {
+          const tagClass = a.severity === 'HIGH' ? 'tag-error' : (a.severity === 'MEDIUM' ? 'tag-warning' : 'tag-info');
+          return `
+            <tr>
+              <td><span class="tag ${tagClass}">${a.severity}</span></td>
+              <td style="font-weight: 700; color: #f3f4f6;">${a.type}</td>
+              <td style="color: #93c5fd; font-weight: 600;">${a.entity}</td>
+              <td>${a.detail}</td>
+              <td style="color: var(--text-muted); font-size: 11px;">${a.timestamp}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #f87171;">Failed to run AI anomaly scan.</td></tr>';
+      }
+    }
+
+    async function loadSecurityEvents() {
+      const tbody = document.getElementById('events-tbody');
+      try {
+        const res = await fetch('/api/security/soc/events?limit=20');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const events = data.events || data || [];
+
+        if (!events || events.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No security events recorded.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = events.map(e => {
+          const lvl = (e.level || 'INFO').toUpperCase();
+          const tagClass = lvl === 'ERROR' ? 'tag-error' : (lvl === 'WARNING' || lvl === 'WARN' ? 'tag-warning' : 'tag-info');
+          return `
+            <tr>
+              <td><span class="tag ${tagClass}">${lvl}</span></td>
+              <td style="font-family: monospace; font-weight: 600; color: #93c5fd;">${e.event_type || 'generic'}</td>
+              <td>${e.message || e.identifier || '-'}</td>
+              <td style="font-family: monospace;">${e.ip || '127.0.0.1'}</td>
+              <td style="color: var(--text-muted); font-size: 11px;">${e.created_at || 'Recently'}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #f87171;">Failed to fetch security events.</td></tr>';
+      }
+    }
+
+    async function loadBannedIPs() {
+      const tbody = document.getElementById('banned-tbody');
+      try {
+        const res = await fetch('/api/security/soc/banned-ips');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const bans = data.banned_ips || data || [];
+
+        if (!bans || bans.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No active IP bans.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = bans.map(b => `
+          <tr>
+            <td style="font-family: monospace; font-weight: 700; color: #f87171;">${b.ip}</td>
+            <td>${b.reason || 'Manual block'}</td>
+            <td><span class="tag tag-info">${b.banned_by || 'admin'}</span></td>
+            <td><button class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;" onclick="unbanIP('${b.ip}')">Unban</button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #f87171;">Failed to fetch banned IPs.</td></tr>';
+      }
+    }
+
+    async function loadBannedEmployees() {
+      const tbody = document.getElementById('banned-emp-tbody');
+      try {
+        const res = await fetch('/api/security/soc/banned-employees');
+        if (!res.ok) throw new Error('HTTP Error');
+        const data = await res.json();
+        const emps = data.banned_employees || [];
+
+        const ipCount = parseInt(document.getElementById('banned-tbody').children.length) || 0;
+        document.getElementById('stat-banned-count').textContent = emps.length;
+
+        if (!emps || emps.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No banned/deactivated employees.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = emps.map(e => `
+          <tr>
+            <td style="font-family: monospace; font-weight: 700; color: #fbbf24;">${e.employee_id}</td>
+            <td>${e.name}</td>
+            <td>${e.department}</td>
+            <td>${e.role}</td>
+            <td><button class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;" onclick="unbanEmployee('${e.employee_id}')">Reactivate</button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #f87171;">Failed to fetch banned employees.</td></tr>';
+      }
+    }
+
+    async function clearSecurityLogs() {
+      if (!confirm('Are you sure you want to purge all security log entries?')) return;
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/clear-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }
+        });
+        if (res.ok) {
+          refreshProjectStats();
+        } else {
+          alert('Failed to clear logs.');
+        }
+      } catch (err) {
+        alert('Error clearing logs.');
+      }
+    }
+
+    async function unbanIP(ip) {
+      if (!confirm(`Are you sure you want to unban IP ${ip}?`)) return;
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/unban-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ ip: ip })
+        });
+        if (res.ok) {
+          refreshProjectStats();
+        } else {
+          alert('Failed to unban IP.');
+        }
+      } catch (err) {
+        alert('Error unbanning IP.');
+      }
+    }
+
+    async function addBanIP() {
+      const ip = document.getElementById('input-ban-ip').value.trim();
+      const reason = document.getElementById('input-ban-reason').value.trim() || 'Manual admin ban';
+      if (!ip) { alert('Please enter an IP address.'); return; }
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/ban-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ ip: ip, reason: reason })
+        });
+        if (res.ok) {
+          document.getElementById('input-ban-ip').value = '';
+          document.getElementById('input-ban-reason').value = '';
+          refreshProjectStats();
+        } else {
+          alert('Failed to add IP ban.');
+        }
+      } catch (err) {
+        alert('Error adding IP ban.');
+      }
+    }
+
+    async function addBanEmployee() {
+      const empId = document.getElementById('input-ban-emp-id').value.trim();
+      if (!empId) { alert('Please enter an Employee ID.'); return; }
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/ban-employee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ employee_id: empId })
+        });
+        const result = await res.json();
+        if (res.ok && result.ok) {
+          document.getElementById('input-ban-emp-id').value = '';
+          alert(result.msg || `Employee ${empId} has been banned.`);
+          refreshProjectStats();
+        } else {
+          alert(result.msg || 'Failed to ban employee. Check if Employee ID exists.');
+        }
+      } catch (err) {
+        alert('Error banning employee.');
+      }
+    }
+
+    async function unbanEmployee(empId) {
+      if (!confirm(`Reactivate employee ${empId}?`)) return;
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      try {
+        const res = await fetch('/api/security/soc/unban-employee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ employee_id: empId })
+        });
+        if (res.ok) {
+          refreshProjectStats();
+        } else {
+          alert('Failed to reactivate employee.');
+        }
+      } catch (err) {
+        alert('Error reactivating employee.');
+      }
+    }
+
+    function refreshProjectStats() {
+      loadDashboardStats();
+      loadQuarantinedFiles();
+      loadPortHealth();
+      loadAIAnomalyDetection();
+      loadSecurityEvents();
+      loadBannedIPs();
+      loadBannedEmployees();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshProjectStats();
+      // Automated live refresh polling every 3 seconds
+      setInterval(refreshProjectStats, 3000);
+    });
+  </script>
+</body>
+</html>

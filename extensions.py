@@ -174,6 +174,9 @@ app.config["SESSION_COOKIE_PATH"] = "/"    # explicit for clarity; Flask's own d
 # security "limit" despite Domain sounding like a restriction.
 app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 hours absolute ceiling — utils/session_risk.py's kill switch and
 # app.py's _enforce_idle_timeout handle inactivity separately
+app.config["MANDATORY_LOGIN_MFA"] = os.environ.get("APP_ENV", "production") != "development"
+app.config["MANDATORY_ADMIN_MFA"] = os.environ.get("APP_ENV", "production") != "development"
+
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -261,4 +264,6 @@ limiter = Limiter(
     app=app,
     storage_uri=_limiter_storage_uri,
     default_limits=["300 per minute"],
+    enabled=_app_env != "development" or os.environ.get("ENABLE_RATE_LIMIT", "0") == "1",
 )
+

@@ -1264,6 +1264,79 @@ body.dark-mode *[style*="border: 1px solid #c7d2fe"] { border-color: #30363d !im
 .u-d-inline-block { display: inline-block; }
 .u-d-inline-flex { display: inline-flex; }
 .u-d-none { display: none; }
+:root {
+  /* Enterprise White-Label Brand Tokens */
+  --primary-color: #1e3a8a;
+  --primary-hover: #1d4ed8;
+  --secondary-color: #0f172a;
+  --accent-color: #3b82f6;
+  --logo-url: url('/static/favicon.svg');
+
+  /* Neutral Surface & Background Tokens */
+  --bg-app: #0b0f19;
+  --bg-card: rgba(17, 24, 39, 0.85);
+  --bg-card-hover: rgba(30, 41, 59, 0.9);
+  --border-card: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Typography Colors */
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-inverse: #0f172a;
+
+  /* Status Colors */
+  --status-active-bg: rgba(16, 185, 129, 0.15);
+  --status-active-text: #34d399;
+  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-warning-text: #fbbf24;
+  --status-danger-bg: rgba(244, 63, 94, 0.15);
+  --status-danger-text: #f87171;
+
+  /* Spatial Grid System (4px / 8px rules) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Elevated Shadows & Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+  --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Toast Container & Notification Toast Styles */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-main);
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  backdrop-filter: blur(12px);
+  animation: toastSlideIn 0.3s ease-out forwards;
+}
+.toast-error { border-color: rgba(244, 63, 94, 0.5); color: #f87171; }
+.toast-success { border-color: rgba(16, 185, 129, 0.5); color: #34d399; }
+@keyframes toastSlideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .u-ff-inherit { font-family: inherit; }
 .u-ff-monospace { font-family: monospace; }
 .u-fs-10 { font-size: 10px; }
