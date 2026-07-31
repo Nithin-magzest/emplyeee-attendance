@@ -508,12 +508,12 @@ def api_soc_ai_anomaly_detection():
     try:
         # 1. Check for rapid duplicate attendance logs
         cursor.execute("""
-            SELECT a1.employee_id, e.name, a1.timestamp
+            SELECT a1.employee_id, e.name, (a1.date + a1.login_time) AS ts
             FROM attendance a1
             JOIN employees e ON a1.employee_id = e.employee_id
-            JOIN attendance a2 ON a1.employee_id = a2.employee_id AND a1.id != a2.id
-            WHERE ABS(EXTRACT(EPOCH FROM (a1.timestamp - a2.timestamp))) < 180
-            ORDER BY a1.timestamp DESC LIMIT 10
+            JOIN attendance a2 ON a1.employee_id = a2.employee_id AND a1.id != a2.id AND a1.date = a2.date
+            WHERE ABS(EXTRACT(EPOCH FROM (a1.login_time - a2.login_time))) < 180
+            ORDER BY a1.date DESC, a1.login_time DESC LIMIT 10
         """)
         dup_rows = cursor.fetchall()
         for r in dup_rows:
@@ -550,11 +550,11 @@ def api_soc_ai_anomaly_detection():
     try:
         # 3. Check for out-of-hours clock-ins (11 PM - 5 AM)
         cursor.execute("""
-            SELECT a.employee_id, e.name, a.timestamp 
+            SELECT a.employee_id, e.name, (a.date + a.login_time) AS ts
             FROM attendance a
             JOIN employees e ON a.employee_id = e.employee_id
-            WHERE EXTRACT(HOUR FROM a.timestamp) >= 23 OR EXTRACT(HOUR FROM a.timestamp) <= 5
-            ORDER BY a.timestamp DESC LIMIT 10
+            WHERE EXTRACT(HOUR FROM a.login_time) >= 23 OR EXTRACT(HOUR FROM a.login_time) <= 5
+            ORDER BY a.date DESC, a.login_time DESC LIMIT 10
         """)
         night_rows = cursor.fetchall()
         for r in night_rows:
