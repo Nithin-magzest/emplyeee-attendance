@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -7,120 +7,103 @@ import {
   Text,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { DrawerActions } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import THEME from "../../constants/theme";
 import AdminHeader from "../../components/admin/AdminHeader";
+import { fetchDepartments } from "../../api/client";
 
 export default function OrgChartScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [departments, setDepartments] = useState([]);
 
-  const departments = [
-    {
-      name: "Engineering & Product",
-      head: "Sarah Jenkins (VP Eng)",
-      members: 42,
-      teams: ["Frontend", "Backend", "DevOps", "QA"],
-    },
-    {
-      name: "Human Resources",
-      head: "Emily Watson (HR Director)",
-      members: 12,
-      teams: ["Recruitment", "Payroll & Ops", "Employee Relations"],
-    },
-    {
-      name: "Finance & Accounts",
-      head: "Robert Garcia (CFO)",
-      members: 8,
-      teams: ["Payroll", "Audit", "Billing"],
-    },
-    {
-      name: "Sales & Marketing",
-      head: "Jessica Alba (CMO)",
-      members: 24,
-      teams: ["Digital Marketing", "Enterprise Sales"],
-    },
-  ];
+  const loadData = async () => {
+    try {
+      const res = await fetchDepartments();
+      if (res?.data?.departments && Array.isArray(res.data.departments)) {
+        setDepartments(
+          res.data.departments.map((d) => ({
+            name: d.name || d.department || "Department",
+            head: d.head || d.manager || "Department Head",
+            members: d.employees_count || d.count || 0,
+            teams: d.teams || ["Core Team"],
+          }))
+        );
+      } else {
+        setDepartments([]);
+      }
+    } catch {
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    loadData();
   };
 
   return (
-    <LinearGradient
-      colors={["#F8FAFC", "#F1F5F9", "#E2E8F0"]}
-      style={styles.container}
-    >
-      <SafeAreaView style={{ flex: 1 }}>
-        <AdminHeader
-          title="Organization Chart"
-          onMenu={() => navigation.dispatch(DrawerActions.openDrawer())}
-        />
+    <LinearGradient colors={["#F8FAFC", "#EEF2F6"]} style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <AdminHeader title="Organisation Tree" subtitle="HIERARCHY" navigation={navigation} />
 
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
           contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[THEME.colors.primary]}
-            />
-          }
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#173B8C" />}
         >
-          {/* Executive Leadership Box */}
-          <View style={styles.execCard}>
-            <View style={styles.execBadge}>
-              <Text style={styles.execBadgeText}>CHIEF EXECUTIVE OFFICER</Text>
-            </View>
-            <Text style={styles.execName}>Super Administrator</Text>
-            <Text style={styles.execCompany}>HR Management System</Text>
-            <View style={styles.execStats}>
-              <Text style={styles.execStatsText}>86 Total Staff • 4 Departments</Text>
-            </View>
+          <View style={styles.heroCard}>
+            <Ionicons name="git-network-outline" size={28} color="#173B8C" />
+            <Text style={styles.heroTitle}>Corporate Structure</Text>
+            <Text style={styles.heroSub}>Visual Departmental & Team Reporting Matrix</Text>
           </View>
 
-          <View style={styles.treeConnector} />
-
-          {/* Department List */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Departments Hierarchy</Text>
-          </View>
-
-          {departments.map((dept, index) => (
-            <View key={index} style={styles.deptCard}>
-              <View style={styles.deptHeader}>
-                <View style={styles.deptIconBadge}>
-                  <Ionicons name="briefcase-outline" size={20} color="#173B8C" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.deptName}>{dept.name}</Text>
-                  <Text style={styles.deptHead}>Lead: {dept.head}</Text>
-                </View>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{dept.members} Staff</Text>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <Text style={styles.teamsLabel}>Teams & Sub-groups</Text>
-              <View style={styles.teamsWrap}>
-                {dept.teams.map((t, idx) => (
-                  <View key={idx} style={styles.teamTag}>
-                    <Text style={styles.teamTagText}>{t}</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 24 }} />
+          ) : departments.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="people-outline" size={32} color="#64748B" />
+              <Text style={styles.emptyTitle}>No Departments Found</Text>
+              <Text style={styles.emptyText}>Add departments and staff members to populate the corporate hierarchy tree.</Text>
+            </View>
+          ) : (
+            departments.map((dept, index) => (
+              <View key={index} style={styles.deptCard}>
+                <View style={styles.deptHeader}>
+                  <View style={styles.deptIconBg}>
+                    <Ionicons name="business" size={18} color="#173B8C" />
                   </View>
-                ))}
-              </View>
-            </View>
-          ))}
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.deptName}>{dept.name}</Text>
+                    <Text style={styles.deptHead}>Head: {dept.head}</Text>
+                  </View>
+                  <View style={styles.memberBadge}>
+                    <Text style={styles.memberText}>{dept.members} Staff</Text>
+                  </View>
+                </View>
 
-          <View style={{ height: 100 }} />
+                <View style={styles.teamsRow}>
+                  {dept.teams.map((t, idx) => (
+                    <View key={idx} style={styles.teamChip}>
+                      <Text style={styles.teamChipText}>{t}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))
+          )}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -129,72 +112,22 @@ export default function OrgChartScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 10 },
-  execCard: {
-    backgroundColor: "#173B8C",
-    borderRadius: 24,
-    padding: 20,
-    alignItems: "center",
-    elevation: 4,
-  },
-  execBadge: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  execBadgeText: { color: "#93C5FD", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
-  execName: { color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  execCompany: { color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 2 },
-  execStats: { marginTop: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.15)" },
-  execStatsText: { color: "#FFFFFF", fontSize: 12, fontWeight: "600" },
-  treeConnector: {
-    width: 2,
-    height: 24,
-    backgroundColor: "#CBD5E1",
-    alignSelf: "center",
-    marginVertical: 4,
-  },
-  sectionHeader: { marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-  deptCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
+  scroll: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
+  heroCard: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 18, alignItems: "center", marginBottom: 16, borderWidth: 1, borderColor: "#E2E8F0" },
+  heroTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A", marginTop: 6 },
+  heroSub: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  emptyCard: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", borderWidth: 1, borderColor: "#E2E8F0" },
+  emptyTitle: { fontSize: 15, fontWeight: "800", color: "#0F172A", marginTop: 8 },
+  emptyText: { fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 },
+  deptCard: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#E2E8F0" },
   deptHeader: { flexDirection: "row", alignItems: "center" },
-  deptIconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#EEF4FF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deptName: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
-  deptHead: { fontSize: 13, color: "#64748B", marginTop: 2 },
-  countBadge: {
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  countText: { fontSize: 12, fontWeight: "700", color: "#334155" },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 12 },
-  teamsLabel: { fontSize: 11, fontWeight: "700", color: "#94A3B8", letterSpacing: 0.5 },
-  teamsWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
-  teamTag: {
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  teamTagText: { fontSize: 12, fontWeight: "600", color: "#1D4ED8" },
+  deptIconBg: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center" },
+  deptName: { fontSize: 15, fontWeight: "800", color: "#0F172A" },
+  deptHead: { fontSize: 12, color: "#64748B", marginTop: 1 },
+  memberBadge: { backgroundColor: "#E0F2FE", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  memberText: { fontSize: 11, fontWeight: "700", color: "#0369A1" },
+  teamsRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
+  teamChip: { backgroundColor: "#F8FAFC", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginRight: 6, marginBottom: 4, borderWidth: 1, borderColor: "#E2E8F0" },
+  teamChipText: { fontSize: 11, fontWeight: "600", color: "#475569" },
 });

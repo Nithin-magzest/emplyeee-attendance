@@ -42,7 +42,7 @@ export default function AdminDashboard({ navigation }) {
       const res = await fetchDashboard();
       if (res?.data) {
         setDashboardData(res.data);
-        if (res.data.company_name && updateUser) {
+        if (res.data.company_name && updateUser && !user?.company) {
           updateUser({ company: res.data.company_name });
         }
       }
@@ -73,6 +73,8 @@ export default function AdminDashboard({ navigation }) {
           <DashboardHeroCard
             adminName={user?.name || dashboardData?.admin_name || "Administrator"}
             company={user?.company || dashboardData?.company_name || "Workforce Portal"}
+            subdomain={user?.subdomain || dashboardData?.subdomain}
+            email={user?.email || dashboardData?.admin_email}
             present={presentEmps}
             totalEmployees={totalEmps}
             attendance={attendancePct}

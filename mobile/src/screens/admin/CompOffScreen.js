@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
 import AdminHeader from "../../components/admin/AdminHeader";
 
 import CompOffHeaderCard from "../../components/admin/CompOffHeaderCard";
@@ -125,15 +126,12 @@ export default function CompOffScreen({
   };
 
   return (
-
-    <SafeAreaView style={styles.container}>
-
-      <AdminHeader
-        title="OT & Comp-off"
-        onMenu={() =>
-          navigation.openDrawer()
-        }
-      />
+    <LinearGradient colors={["#F8FAFC", "#EEF2F6"]} style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <AdminHeader
+          title="OT & Comp-off"
+          navigation={navigation}
+        />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -374,10 +372,9 @@ export default function CompOffScreen({
         }}
       />
 
-    </SafeAreaView>
-
+      </SafeAreaView>
+    </LinearGradient>
   );
-
 }
 
 const styles = StyleSheet.create({

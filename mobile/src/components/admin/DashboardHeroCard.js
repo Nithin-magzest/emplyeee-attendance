@@ -12,26 +12,23 @@ import { LinearGradient } from "expo-linear-gradient";
 export default function DashboardHeroCard({
   adminName = "Administrator",
   company = "Workforce Portal",
+  subdomain,
+  email,
   totalEmployees = 0,
   present = 0,
   attendance = "0%",
   payroll = "₹0",
   profileImage,
 }) {
-
   return (
-
     <LinearGradient
       colors={["#0F2460", "#1A3A8F"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-
       <View style={styles.topRow}>
-
         <View style={{ flex: 1 }}>
-
           <Text style={styles.small}>
             Welcome Back 👋
           </Text>
@@ -40,18 +37,23 @@ export default function DashboardHeroCard({
             numberOfLines={1}
             style={styles.name}
           >
-            {adminName}
+            {adminName} {email ? `(${email})` : ""}
           </Text>
 
           <Text
             numberOfLines={1}
             style={styles.company}
           >
-            {company}
+            🏢 {company}
           </Text>
 
-          <View style={styles.dateRow}>
+          {!!subdomain && (
+            <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "600", color: "#38BDF8", marginTop: 2 }}>
+              🌐 https://{subdomain.replace(/^https?:\/\//, "")}
+            </Text>
+          )}
 
+          <View style={styles.dateRow}>
             <Ionicons
               name="calendar-outline"
               size={14}
@@ -68,9 +70,7 @@ export default function DashboardHeroCard({
                 }
               )}
             </Text>
-
           </View>
-
         </View>
 
         {profileImage ? (

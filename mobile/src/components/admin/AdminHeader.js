@@ -9,6 +9,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { useAuth } from "../../store/AuthContext";
 
@@ -40,12 +41,25 @@ export default function AdminHeader({
   const handleProfilePress = () => {
     if (typeof onProfile === "function") {
       onProfile();
-    } else {
-      try {
+      return;
+    }
+    if (!navigation) return;
+
+    try {
+      const state = navigation.getState ? navigation.getState() : null;
+      const routeNames = state?.routeNames || [];
+
+      if (routeNames.includes("Settings")) {
         navigation.navigate("Settings", { tab: "profile" });
-      } catch (e) {
-        // Fallback if settings route not found
+      } else if (routeNames.includes("Profile")) {
+        navigation.navigate("Profile");
+      } else {
+        navigation.dispatch(DrawerActions.openDrawer());
       }
+    } catch (_) {
+      try {
+        navigation.dispatch(DrawerActions.openDrawer());
+      } catch (__) {}
     }
   };
 
@@ -63,23 +77,40 @@ export default function AdminHeader({
           style={styles.iconButton}
           onPress={handleMenuPress}
         >
-          <Ionicons
-            name="menu-sharp"
-            size={22}
-            color="#0F172A"
-          />
+          <Ionicons name="menu-sharp" size={22} color="#0F172A" />
         </TouchableOpacity>
 
-        {/* Header Title Section (Aligned next to Hamburger) */}
+        {/* Header Title Section with Prominent Company Logo & Name */}
         <View style={styles.titleSection}>
-          {!!subtitle && (
-            <View style={styles.tagBadge}>
-              <Text style={styles.tagText}>{(user?.company || subtitle).toUpperCase()}</Text>
+          <View style={styles.headerCompanyRow}>
+            <View style={styles.headerLogoBox}>
+              {logoUri ? (
+                <Image
+                  source={{ uri: logoUri }}
+                  style={styles.headerLogoImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={["#0B2253", "#173B8C"]}
+                  style={styles.headerLogoGrad}
+                >
+                  <Text style={styles.headerLogoLetter}>
+                    {(user?.company || "A").charAt(0).toUpperCase()}
+                  </Text>
+                </LinearGradient>
+              )}
             </View>
-          )}
-          <Text numberOfLines={1} style={styles.title}>
-            {title}
-          </Text>
+
+            <View style={styles.headerTextGroup}>
+              <Text numberOfLines={1} style={styles.headerCompanyText}>
+                {(user?.company || subtitle).toUpperCase()}
+              </Text>
+              <Text numberOfLines={1} style={styles.title}>
+                {title}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Right Action Icons */}
@@ -113,12 +144,12 @@ export default function AdminHeader({
             {logoUri ? (
               <Image
                 source={{ uri: logoUri }}
-                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFFFFF" }}
+                style={styles.avatarImg}
                 resizeMode="cover"
               />
             ) : (
-              <View style={[styles.avatarFallback, { backgroundColor: "#173B8C" }]}>
-                <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 14 }}>
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarFallbackText}>
                   {(user?.company || user?.name || "A").charAt(0).toUpperCase()}
                 </Text>
               </View>
@@ -145,40 +176,65 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    elevation: 3,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: "#F8FAFC",
-    justifyContent: "center",
+    justify: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   titleSection: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+    marginLeft: 10,
+    marginRight: 10,
+  },
+  headerCompanyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerLogoBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    overflow: "hidden",
     justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  tagBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginBottom: 2,
+  headerLogoImg: {
+    width: "100%",
+    height: "100%",
   },
-  tagText: {
+  headerLogoGrad: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerLogoLetter: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  headerTextGroup: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerCompanyText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#2563EB",
-    letterSpacing: 0.8,
+    color: "#173B8C",
+    letterSpacing: 0.6,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     color: "#0F172A",
     letterSpacing: -0.3,
@@ -186,21 +242,18 @@ const styles = StyleSheet.create({
   rightGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
   badge: {
     position: "absolute",
-    top: 5,
-    right: 5,
+    top: 4,
+    right: 4,
+    backgroundColor: "#EF4444",
+    borderRadius: 8,
     minWidth: 16,
     height: 16,
-    borderRadius: 8,
-    backgroundColor: "#EF4444",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: "#FFFFFF",
+    paddingHorizontal: 3,
   },
   badgeText: {
     color: "#FFFFFF",
@@ -208,24 +261,25 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   avatarButton: {
-    borderRadius: 12,
-    overflow: "hidden",
+    marginLeft: 8,
   },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+  avatarImg: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
   },
   avatarFallback: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#EFF6FF",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#173B8C",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#DBEAFE",
+  },
+  avatarFallbackText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 14,
   },
 });

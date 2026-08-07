@@ -42,6 +42,7 @@ export default function EmployeesScreen({ navigation }) {
   const [newEmpDept, setNewEmpDept] = useState("Engineering");
   const [newEmpEmail, setNewEmpEmail] = useState("");
   const [newEmpPassword, setNewEmpPassword] = useState("welcome123");
+  const [systemAccessRole, setSystemAccessRole] = useState("employee");
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -421,6 +422,36 @@ export default function EmployeesScreen({ navigation }) {
                 onChangeText={setNewEmpRole}
               />
 
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>SYSTEM ACCESS ROLE</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 4 }}>
+                {[
+                  { id: "employee", label: "Employee" },
+                  { id: "manager", label: "Line Manager" },
+                  { id: "hr", label: "HR Manager" },
+                  { id: "soc_analyst", label: "SecOps" },
+                  { id: "admin", label: "System Admin" },
+                ].map((rItem) => {
+                  const sel = systemAccessRole === rItem.id;
+                  return (
+                    <TouchableOpacity
+                      key={rItem.id}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 14,
+                        backgroundColor: sel ? "#173B8C" : "#F1F5F9",
+                        marginRight: 6,
+                      }}
+                      onPress={() => setSystemAccessRole(rItem.id)}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: sel ? "#FFFFFF" : "#64748B" }}>
+                        {rItem.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>INITIAL PASSWORD (OPTIONAL)</Text>
               <TextInput
                 style={{ backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 10, padding: 10, marginTop: 4 }}
@@ -439,7 +470,7 @@ export default function EmployeesScreen({ navigation }) {
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Create Staff Profile</Text>
+                  <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Create Staff & Provision Role</Text>
                 )}
               </TouchableOpacity>
             </View>

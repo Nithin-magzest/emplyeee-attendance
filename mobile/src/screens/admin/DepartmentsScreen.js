@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { DrawerActions } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminSearchBar from "../../components/admin/AdminSearchBar";
@@ -15,7 +17,7 @@ import DashboardStatCard from "../../components/admin/DashboardStatCard";
 import THEME from "../../constants/theme";
 import { fetchDepartments } from "../../api/client";
 
-export default function DepartmentsScreen() {
+export default function DepartmentsScreen({ navigation }) {
   const [search, setSearch] = useState("");
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,149 +55,67 @@ export default function DepartmentsScreen() {
   const totalEmployees = departments.reduce((acc, d) => acc + (d.count || 0), 0);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AdminHeader title="Departments" />
+    <LinearGradient colors={["#F8FAFC", "#EEF2F6"]} style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <AdminHeader title="Departments" subtitle="ORGANISATION UNITS" navigation={navigation} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <AdminSearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search departments..."
-        />
-
-        {/* Department Summary */}
-        <View style={styles.grid}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#173B8C"]} />
+          }
+        >
           <DashboardStatCard
-            title="Departments"
-            value={String(departments.length)}
-            subtitle="Total Departments"
-            icon="business-outline"
-            iconColor={THEME.colors.primary}
-            iconBackground={THEME.colors.blueBg}
+            label="TOTAL DEPARTMENTS"
+            value={departments.length.toString()}
+            sublabel={`Managing ${totalEmployees} total employee allocations across teams.`}
+            iconName="business"
           />
 
-          <DashboardStatCard
-            title="Employees"
-            value={String(totalEmployees)}
-            subtitle="Across Departments"
-            icon="people-outline"
-            iconColor={THEME.colors.success}
-            iconBackground={THEME.colors.greenBg}
+          <AdminSearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search departments..."
           />
-        </View>
 
-        {loading ? (
-          <ActivityIndicator size="large" color={THEME.colors.primary} style={{ marginTop: 40 }} />
-        ) : filteredDepts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No departments found.</Text>
-          </View>
-        ) : (
-          filteredDepts.map((d, i) => (
-            <View key={i} style={styles.departmentCard}>
-              <View style={styles.departmentInfo}>
-                <Text style={styles.departmentName}>{d.name}</Text>
-                <Text style={styles.departmentDetails}>Active Employees: {d.count}</Text>
-              </View>
+          <Text style={styles.sectionTitle}>ALL DEPARTMENTS ({filteredDepts.length})</Text>
 
-              <View style={styles.rightSection}>
-                <View style={[styles.statusBadge, { backgroundColor: THEME.colors.greenBg }]}>
-                  <Text style={[styles.statusText, { color: THEME.colors.success }]}>Active</Text>
-                </View>
-              </View>
+          {loading ? (
+            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 20 }} />
+          ) : filteredDepts.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No departments found matching your search.</Text>
             </View>
-          ))
-        )}
-        <View style={{ height: 110 }} />
-      </ScrollView>
-    </SafeAreaView>
+          ) : (
+            filteredDepts.map((dept, idx) => (
+              <View key={dept.id || idx} style={styles.deptCard}>
+                <View style={styles.deptHeader}>
+                  <Text style={styles.deptName}>{dept.name}</Text>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countText}>{dept.count || 0} Staff</Text>
+                  </View>
+                </View>
+                {dept.head && <Text style={styles.deptHead}>Lead: {dept.head}</Text>}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.colors.background,
-  },
-
-  content: {
-    paddingHorizontal: THEME.spacing.screenHorizontal,
-    paddingTop: THEME.spacing.screenVertical,
-    paddingBottom: 30,
-  },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: THEME.spacing.sectionGap,
-  },
-
-  departmentCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-
-    backgroundColor: THEME.colors.card,
-
-    borderRadius: THEME.radius.card,
-
-    padding: THEME.spacing.cardPadding,
-
-    marginBottom: THEME.spacing.cardGap,
-
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-
-    ...THEME.shadows.sm,
-  },
-
-  departmentInfo: {
-    flex: 1,
-  },
-
-  departmentName: {
-    ...THEME.typography.cardTitle,
-    color: THEME.colors.text,
-  },
-
-  departmentHead: {
-    marginTop: 6,
-    ...THEME.typography.body,
-    color: THEME.colors.textSecondary,
-  },
-
-  departmentDetails: {
-    marginTop: 4,
-    ...THEME.typography.caption,
-    color: THEME.colors.textSecondary,
-  },
-
-  departmentBudget: {
-    marginTop: 8,
-    ...THEME.typography.bodyMedium,
-    color: THEME.colors.primary,
-    fontWeight: "700",
-  },
-
-  rightSection: {
-    alignItems: "flex-end",
-    justifyContent: "center",
-    marginLeft: 16,
-  },
-
-  statusBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-
-  statusText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
+  sectionTitle: { fontSize: 14, fontWeight: "800", color: "#64748B", marginVertical: 12, letterSpacing: 0.8 },
+  emptyCard: { backgroundColor: "#FFFFFF", padding: 20, borderRadius: 16, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: "#E2E8F0" },
+  emptyText: { color: "#64748B", fontSize: 13, fontWeight: "600" },
+  deptCard: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: "#E2E8F0" },
+  deptHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  deptName: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
+  countBadge: { backgroundColor: "#E0F2FE", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  countText: { fontSize: 11, fontWeight: "800", color: "#0369A1" },
+  deptHead: { fontSize: 12, color: "#64748B", marginTop: 6, fontWeight: "500" },
 });

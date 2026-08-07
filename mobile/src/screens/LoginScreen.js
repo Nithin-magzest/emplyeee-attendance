@@ -70,41 +70,144 @@ export default function LoginScreen() {
   const [showPass, setShowPass] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  const handleAdminLogin = async () => {
+  const handleRoleShortcut = async (roleName) => {
+    setLoading(true);
+    let token = `${roleName}-session-token`;
+    let userData = { role: roleName };
+
+    if (roleName === "superadmin") {
+      userData = { role: "superadmin", name: "SaaS Super Admin", company: "Platform Operations" };
+    } else if (roleName === "admin") {
+      userData = { role: "admin", name: "System Administrator", company: "Enterprise HRMS" };
+    } else if (roleName === "hr") {
+      userData = { role: "hr", name: "Ananya Roy (HR Manager)", company: "People & Culture" };
+    } else if (roleName === "manager") {
+      userData = { role: "manager", name: "Vikram Malhotra (Lead)", company: "Engineering Dept" };
+    } else if (roleName === "soc_analyst") {
+      userData = { role: "soc_analyst", name: "SOC Lead Analyst", company: "SecOps Command" };
+    } else {
+      userData = { role: "employee", name: "Rohan Sharma", employeeId: "EMP-1001", company: "Enterprise HRMS" };
+    }
+
+    await signIn(token, userData);
+    setLoading(false);
+  };
+
+  const handleAutoFillDemo = (roleKey) => {
+    if (roleKey === "admin") {
+      setUsername("admin");
+      setPassword("admin123");
+    } else if (roleKey === "hr") {
+      setUsername("hr_admin");
+      setPassword("hrpass123");
+    } else if (roleKey === "manager") {
+      setUsername("lead_manager");
+      setPassword("mgrpass123");
+    } else if (roleKey === "soc_analyst") {
+      setUsername("secops_lead");
+      setPassword("secpass123");
+    } else if (roleKey === "superadmin") {
+      setUsername("platform_superadmin");
+      setPassword("saaspass123");
+    } else if (roleKey === "employee") {
+      setEmpId("EMP-1001");
+      setEmpPassword("emppass123");
+    }
+  };
+
+  const handleRoleLogin = async (roleKey, portalTitle = "Portal") => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Input Required", "Please enter both admin username and password.");
+      Alert.alert(
+        "Credentials Required 🔒",
+        `Please enter your username/email and password to sign in to ${portalTitle}. Or tap 'Auto-fill Demo Credentials' below.`
+      );
       return;
     }
     setLoading(true);
+    const typedUser = username.trim();
+    const typedLower = typedUser.toLowerCase();
+
+    // Look up provisioned tenant details from AsyncStorage
+    let matchedTenant = null;
     try {
-      const res = await adminLogin(username.trim(), password.trim());
+      const savedTenants = await AsyncStorage.getItem("saas_tenants_list");
+      if (savedTenants) {
+        const parsed = JSON.parse(savedTenants);
+        if (Array.isArray(parsed)) {
+          matchedTenant = parsed.find(
+            (t) =>
+              (t.adminUser || "").toLowerCase() === typedLower ||
+              (t.adminEmail || "").toLowerCase() === typedLower ||
+              (t.name || "").toLowerCase().includes(typedLower)
+          );
+        }
+      }
+    } catch (_) {}
+
+    const companyName =
+      matchedTenant?.name ||
+      (typedLower.includes("cyber")
+        ? "CyberDyne Tech Systems"
+        : typedLower.includes("apex")
+        ? "Apex Global Systems"
+        : typedLower.includes("acme")
+        ? "Acme Global Corp"
+        : typedLower.includes("technova")
+        ? "TechNova Solutions"
+        : "Enterprise HRMS");
+
+    const subdomainUrl =
+      matchedTenant?.subdomain ||
+      (typedLower.includes("cyber")
+        ? "cyberdyne-tech.hrms.gradzest.com"
+        : typedLower.includes("apex")
+        ? "apex-global.hrms.gradzest.com"
+        : typedLower.includes("acme")
+        ? "acme-global.hrms.gradzest.com"
+        : typedLower.includes("technova")
+        ? "technova.hrms.gradzest.com"
+        : null);
+
+    const adminEmail = matchedTenant?.adminEmail || `${typedLower}@company.com`;
+    const logoUrl = matchedTenant?.logo || null;
+
+    try {
+      const res = await adminLogin(typedUser, password.trim());
       if (res?.data?.ok) {
         await signIn(res.data.token, {
-          role: "admin",
-          name: res.data.username || username.trim(),
-        });
-        setLoading(false);
-        return;
-      } else {
-        await signIn("admin-session-token", {
-          role: "admin",
-          name: username.trim() || "Administrator",
+          role: roleKey,
+          name: res.data.username || typedUser,
+          company: res.data.company || companyName,
+          subdomain: res.data.subdomain || subdomainUrl,
+          email: res.data.email || adminEmail,
+          logo: res.data.company_logo || logoUrl,
         });
         setLoading(false);
         return;
       }
-    } catch (err) {
-      await signIn("admin-session-token", {
-        role: "admin",
-        name: username.trim() || "Administrator",
-      });
-    }
+    } catch (_) {}
+
+    await signIn(`${roleKey}-token`, {
+      role: roleKey,
+      name: typedUser,
+      company: companyName,
+      subdomain: subdomainUrl,
+      email: adminEmail,
+      logo: logoUrl,
+    });
     setLoading(false);
+  };
+
+  const handleAdminLogin = async () => {
+    handleRoleLogin("admin", "System Admin Portal");
   };
 
   const handleEmployeeLogin = async () => {
     if (!empId.trim() || !empPassword.trim()) {
-      Alert.alert("Input Required", "Please enter both Employee ID and password.");
+      Alert.alert(
+        "Credentials Required 🔒",
+        "Please enter your Employee ID and password to sign in. Or tap 'Auto-fill Demo Credentials' below."
+      );
       return;
     }
     setLoading(true);
@@ -125,7 +228,6 @@ export default function LoginScreen() {
       }
     } catch (_) {}
 
-    // Fallback with typed employee ID
     await signIn("employee-session-token", {
       role: "employee",
       name: typedId,
@@ -298,6 +400,14 @@ export default function LoginScreen() {
     setLoading(false);
   };
 
+  const handleSelectTab = (roleId) => {
+    setTab(roleId);
+    setUsername("");
+    setPassword("");
+    setEmpId("");
+    setEmpPassword("");
+  };
+
   return (
     <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
@@ -337,43 +447,52 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Segmented Tab Switcher - Clean 2 Tab Design */}
-          {tab === "admin" || tab === "employee" ? (
-            <View style={styles.tabsContainer}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[styles.tabBtn, tab === "admin" && styles.tabBtnActive]}
-                onPress={() => setTab("admin")}
+          {/* Enterprise SaaS Role Selector Bar */}
+          {tab !== "emp_signup" && tab !== "signup" ? (
+            <View style={{ height: 48, maxHeight: 48, marginBottom: 14 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ height: 48, maxHeight: 48 }}
+                contentContainerStyle={{ alignItems: "center", paddingHorizontal: 12 }}
               >
-                <Ionicons
-                  name="shield-outline"
-                  size={16}
-                  color={tab === "admin" ? "#173B8C" : "#94A3B8"}
-                />
-                <Text style={[styles.tabText, tab === "admin" && styles.tabTextActive]}>
-                  Admin
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[styles.tabBtn, tab === "employee" && styles.tabBtnActive]}
-                onPress={() => setTab("employee")}
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={16}
-                  color={tab === "employee" ? "#173B8C" : "#94A3B8"}
-                />
-                <Text style={[styles.tabText, tab === "employee" && styles.tabTextActive]}>
-                  Employee
-                </Text>
-              </TouchableOpacity>
+                {[
+                  { id: "admin", label: "Admin", icon: "shield-outline" },
+                  { id: "hr", label: "HR Portal", icon: "people-outline" },
+                  { id: "manager", label: "Manager", icon: "briefcase-outline" },
+                  { id: "employee", label: "Employee", icon: "person-outline" },
+                  { id: "soc_analyst", label: "SecOps", icon: "shield-checkmark-outline" },
+                  { id: "superadmin", label: "Super Admin", icon: "cloud-done-outline" },
+                ].map((roleTab) => {
+                  const active = tab === roleTab.id;
+                  return (
+                    <TouchableOpacity
+                      key={roleTab.id}
+                      activeOpacity={0.85}
+                      style={[
+                        styles.rolePill,
+                        active && styles.rolePillActive,
+                      ]}
+                      onPress={() => handleSelectTab(roleTab.id)}
+                    >
+                      <Ionicons
+                        name={roleTab.icon}
+                        size={14}
+                        color={active ? "#173B8C" : "#FFFFFF"}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[styles.rolePillText, active && styles.rolePillTextActive]}>
+                        {roleTab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           ) : (
             <TouchableOpacity
               style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", marginBottom: 14, backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 }}
-              onPress={() => setTab(tab === "emp_signup" ? "employee" : "admin")}
+              onPress={() => setTab("admin")}
             >
               <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
               <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 6, fontSize: 13 }}>
@@ -387,8 +506,8 @@ export default function LoginScreen() {
             {tab === "admin" ? (
               <>
                 <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Admin Portal</Text>
-                  <Text style={styles.formSubtitle}>Sign in to manage company attendance</Text>
+                  <Text style={styles.formTitle}>System Admin Portal</Text>
+                  <Text style={styles.formSubtitle}>Sign in to manage company attendance & operations</Text>
                 </View>
 
                 <Text style={styles.label}>USERNAME</Text>
@@ -417,50 +536,145 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                   />
                   <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                    <Ionicons
-                      name={showPass ? "eye-off-outline" : "eye-outline"}
-                      size={18}
-                      color="#64748B"
-                    />
+                    <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.submitBtn}
-                  onPress={handleAdminLogin}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Sign In as Admin</Text>
-                  )}
+                <TouchableOpacity activeOpacity={0.85} style={styles.submitBtn} onPress={() => handleRoleLogin("admin", "System Admin Portal")} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Sign In as Admin</Text>}
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={{ alignSelf: 'center', marginTop: 12 }}
-                  onPress={() => {
-                    setForgotRole('admin');
-                    setForgotModalVisible(true);
-                  }}
-                >
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 10 }]} onPress={() => handleAutoFillDemo("admin")}>
+                  <Ionicons name="key-outline" size={16} color="#173B8C" />
+                  <Text style={styles.scanBtnText}>Auto-fill Demo Credentials</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={{ alignSelf: 'center', marginTop: 12 }} onPress={() => { setForgotRole('admin'); setForgotModalVisible(true); }}>
                   <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
                 </TouchableOpacity>
-
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>NEW ORGANISATION?</Text>
-                  <View style={styles.dividerLine} />
+              </>
+            ) : tab === "hr" ? (
+              <>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>HR Manager Portal</Text>
+                  <Text style={styles.formSubtitle}>Sign in to manage onboarding, leaves & talent</Text>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={[styles.scanBtn, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}
-                  onPress={() => setTab("signup")}
-                >
-                  <Ionicons name="business-outline" size={18} color="#173B8C" />
-                  <Text style={[styles.scanBtnText, { color: "#173B8C" }]}>Register Organisation Account</Text>
+                <Text style={styles.label}>HR USERNAME / EMAIL</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="people-outline" size={18} color="#0284C7" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="hr@company.com" placeholderTextColor="#94A3B8" value={username} onChangeText={setUsername} autoCapitalize="none" />
+                </View>
+
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="Enter password" placeholderTextColor="#94A3B8" value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
+                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                    <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.submitBtn, { backgroundColor: "#0284C7" }]} onPress={() => handleRoleLogin("hr", "HR Manager Portal")} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Sign In to HR Portal</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 10, backgroundColor: "#E0F2FE", borderColor: "#BAE6FD" }]} onPress={() => handleAutoFillDemo("hr")}>
+                  <Ionicons name="key-outline" size={16} color="#0284C7" />
+                  <Text style={[styles.scanBtnText, { color: "#0284C7" }]}>Auto-fill Demo Credentials</Text>
+                </TouchableOpacity>
+              </>
+            ) : tab === "manager" ? (
+              <>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>Line Manager Portal</Text>
+                  <Text style={styles.formSubtitle}>Sign in to manage team approvals & direct reports</Text>
+                </View>
+
+                <Text style={styles.label}>MANAGER USERNAME / EMAIL</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="briefcase-outline" size={18} color="#16A34A" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="manager@company.com" placeholderTextColor="#94A3B8" value={username} onChangeText={setUsername} autoCapitalize="none" />
+                </View>
+
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="Enter password" placeholderTextColor="#94A3B8" value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
+                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                    <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.submitBtn, { backgroundColor: "#16A34A" }]} onPress={() => handleRoleLogin("manager", "Line Manager Portal")} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Sign In to Manager Portal</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 10, backgroundColor: "#DCFCE7", borderColor: "#BBF7D0" }]} onPress={() => handleAutoFillDemo("manager")}>
+                  <Ionicons name="key-outline" size={16} color="#16A34A" />
+                  <Text style={[styles.scanBtnText, { color: "#16A34A" }]}>Auto-fill Demo Credentials</Text>
+                </TouchableOpacity>
+              </>
+            ) : tab === "soc_analyst" ? (
+              <>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>SecOps Command Center</Text>
+                  <Text style={styles.formSubtitle}>Sign in to access SIEM logs & threat telemetry</Text>
+                </View>
+
+                <Text style={styles.label}>SECURITY USERNAME / ID</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#EF4444" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="secops_admin" placeholderTextColor="#94A3B8" value={username} onChangeText={setUsername} autoCapitalize="none" />
+                </View>
+
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="Enter password" placeholderTextColor="#94A3B8" value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
+                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                    <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.submitBtn, { backgroundColor: "#EF4444" }]} onPress={() => handleRoleLogin("soc_analyst", "SecOps Command Center")} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Sign In to SecOps Command</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 10, backgroundColor: "#FEE2E2", borderColor: "#FECACA" }]} onPress={() => handleAutoFillDemo("soc_analyst")}>
+                  <Ionicons name="key-outline" size={16} color="#EF4444" />
+                  <Text style={[styles.scanBtnText, { color: "#EF4444" }]}>Auto-fill Demo Credentials</Text>
+                </TouchableOpacity>
+              </>
+            ) : tab === "superadmin" ? (
+              <>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>SaaS Super Admin</Text>
+                  <Text style={styles.formSubtitle}>Sign in to manage multi-tenant SaaS schemas</Text>
+                </View>
+
+                <Text style={styles.label}>OPERATOR USERNAME</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="cloud-outline" size={18} color="#0EA5E9" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="superadmin" placeholderTextColor="#94A3B8" value={username} onChangeText={setUsername} autoCapitalize="none" />
+                </View>
+
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="Enter password" placeholderTextColor="#94A3B8" value={password} onChangeText={setPassword} secureTextEntry={!showPass} autoCapitalize="none" />
+                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                    <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.submitBtn, { backgroundColor: "#0EA5E9" }]} onPress={() => handleRoleLogin("superadmin", "SaaS Super Admin Portal")} disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Sign In as Super Admin</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 10, backgroundColor: "#E0F2FE", borderColor: "#BAE6FD" }]} onPress={() => handleAutoFillDemo("superadmin")}>
+                  <Ionicons name="key-outline" size={16} color="#0EA5E9" />
+                  <Text style={[styles.scanBtnText, { color: "#0EA5E9" }]}>Auto-fill Demo Credentials</Text>
                 </TouchableOpacity>
               </>
             ) : tab === "employee" ? (
@@ -527,6 +741,11 @@ export default function LoginScreen() {
                   }}
                 >
                   <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.85} style={[styles.scanBtn, { marginTop: 12 }]} onPress={() => handleAutoFillDemo("employee")}>
+                  <Ionicons name="key-outline" size={16} color="#173B8C" />
+                  <Text style={styles.scanBtnText}>Auto-fill Demo Credentials</Text>
                 </TouchableOpacity>
 
                 <View style={styles.dividerRow}>
@@ -951,7 +1170,38 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 
-  // Tabs
+  // Tabs & Role Pills
+  rolePill: {
+    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.22)",
+  },
+  rolePillActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  rolePillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  rolePillTextActive: {
+    color: "#173B8C",
+    fontWeight: "800",
+  },
+
   tabsContainer: {
     flexDirection: "row",
     backgroundColor: "rgba(255, 255, 255, 0.12)",

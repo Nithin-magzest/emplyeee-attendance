@@ -9,6 +9,10 @@ import LaunchCountdownScreen from "./src/screens/LaunchCountdownScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import AdminDrawerNavigator from "./src/navigation/AdminDrawerNavigator";
 import EmployeeDrawerNavigator from "./src/navigation/EmployeeDrawerNavigator";
+import SuperAdminDrawerNavigator from "./src/navigation/SuperAdminDrawerNavigator";
+import HrDrawerNavigator from "./src/navigation/HrDrawerNavigator";
+import ManagerDrawerNavigator from "./src/navigation/ManagerDrawerNavigator";
+import SecOpsDrawerNavigator from "./src/navigation/SecOpsDrawerNavigator";
 
 function RootNavigator() {
   const { user, loading } = useAuth();
@@ -40,15 +44,34 @@ function RootNavigator() {
     return <LoginScreen />;
   }
 
-  if (user.role === "admin") {
+  // Enterprise HRMS SaaS Role-Based Navigation
+  const role = (user.role || "employee").toLowerCase();
+
+  if (role === "superadmin" || role === "platform_admin") {
+    return <SuperAdminDrawerNavigator />;
+  }
+
+  if (role === "admin") {
     return <AdminDrawerNavigator />;
   }
 
-  if (user.role === "employee") {
+  if (role === "hr" || role === "hr_manager") {
+    return <HrDrawerNavigator />;
+  }
+
+  if (role === "manager" || role === "team_lead") {
+    return <ManagerDrawerNavigator />;
+  }
+
+  if (role === "soc_analyst" || role === "secops" || role === "cybersecurity") {
+    return <SecOpsDrawerNavigator />;
+  }
+
+  if (role === "employee") {
     return <EmployeeDrawerNavigator />;
   }
 
-  return <LoginScreen />;
+  return <EmployeeDrawerNavigator />;
 }
 
 export default function App() {
