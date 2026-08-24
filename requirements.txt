@@ -45,7 +45,7 @@ clamd>=1.0.2
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
-python-json-logger>=4.1.0
+python-json-logger>=4.2.0
 setuptools>=78.1.1,<80.0.0
 typing-extensions>=4.7.0
 # Used by blueprints/admin_views.py's save_company_info() to validate the
