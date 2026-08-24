@@ -29,7 +29,7 @@ openpyxl>=3.1.5
 # onboarding docs — see utils/salary_utils.py, blueprints/onboarding.py) needs
 # a real smoke test against 5.x before this is trusted, via CI or a
 # Python 3.11 environment matching the production container.
-reportlab>=5.0.0,<6.0.0
+reportlab>=5.0.1,<6.0.0
 
 # ── Cryptography & auth ───────────────────────────────────────────────────────
 cryptography>=46.0.7
